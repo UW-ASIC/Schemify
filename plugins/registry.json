@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "CircuitVision",
+      "name": "Circuit Visionary",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "AI-powered circuit schematic detection using the SINA pipeline. Extracts component topology and connectivity from circuit images via YOLOv11 + CCL, achieving 96.47% end-to-end accuracy.",
+      "tags": [
+        "AI",
+        "vision",
+        "detection",
+        "SINA"
+      ],
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/Circuit%20Visionary/README.md",
+      "download": {
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/libCircuitVision.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/libCircuitVision.dylib"
+      }
+    },
+    {
+      "id": "GmIDVisualizer",
+      "name": "GmID Visualizer",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "MOSFET Gm/Id design methodology overlay. Runs ngspice sweeps, validates SPICE model files, and produces SVG plots directly in the Schemify panel.",
+      "tags": [
+        "simulation",
+        "MOSFET",
+        "ngspice",
+        "analog"
+      ],
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GmID%20Visualizer/README.md",
+      "download": {
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/libGmIDVisualizer.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/libGmIDVisualizer.dylib"
+      }
+    },
+    {
+      "id": "EasyPDKLoader",
+      "name": "PDKLoader",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "Native plugin embedding Python to import PDK xschem libraries via the volare PDK manager and emit .chn / .chn_tb schematics.",
+      "tags": [
+        "PDK",
+        "xschem",
+        "volare",
+        "import"
+      ],
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/PDKLoader/README.md",
+      "download": {
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/libEasyPDKLoader.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/libEasyPDKLoader.dylib"
+      }
+    }
+  ]
+}
