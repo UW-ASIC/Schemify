@@ -1,0 +1,156 @@
+{
+    "version": "1.0",
+    "metadata": {
+        "source_image": "tests/fixtures/nmos_diff_pair.png",
+        "detected_style": "textbook",
+        "overall_confidence": 0.88,
+        "image_dimensions": {"width": 1024, "height": 768},
+        "crossing_convention": "dot_means_connected",
+        "pipeline_version": "0.1.0"
+    },
+    "components": [
+        {
+            "id": "comp_000",
+            "type": "nmos",
+            "symbol": "devices/nmos",
+            "ref": "M1",
+            "confidence": 0.88,
+            "pins": [
+                {"id": "comp_000.G", "name": "G"},
+                {"id": "comp_000.D", "name": "D"},
+                {"id": "comp_000.S", "name": "S"}
+            ],
+            "source_bbox": {"x": 250, "y": 250, "w": 70, "h": 100},
+            "properties": {}
+        },
+        {
+            "id": "comp_001",
+            "type": "nmos",
+            "symbol": "devices/nmos",
+            "ref": "M2",
+            "confidence": 0.90,
+            "pins": [
+                {"id": "comp_001.G", "name": "G"},
+                {"id": "comp_001.D", "name": "D"},
+                {"id": "comp_001.S", "name": "S"}
+            ],
+            "source_bbox": {"x": 650, "y": 250, "w": 70, "h": 100},
+            "properties": {}
+        },
+        {
+            "id": "comp_002",
+            "type": "current_source",
+            "symbol": "devices/isource",
+            "ref": "ISS",
+            "value": "100uA",
+            "confidence": 0.85,
+            "pins": [
+                {"id": "comp_002.+", "name": "+"},
+                {"id": "comp_002.-", "name": "-"}
+            ],
+            "source_bbox": {"x": 460, "y": 420, "w": 50, "h": 60},
+            "properties": {}
+        },
+        {
+            "id": "comp_003",
+            "type": "resistor",
+            "symbol": "devices/res",
+            "ref": "RD1",
+            "value": "10k",
+            "confidence": 0.92,
+            "pins": [
+                {"id": "comp_003.1", "name": "1"},
+                {"id": "comp_003.2", "name": "2"}
+            ],
+            "source_bbox": {"x": 270, "y": 120, "w": 20, "h": 80},
+            "properties": {}
+        },
+        {
+            "id": "comp_004",
+            "type": "resistor",
+            "symbol": "devices/res",
+            "ref": "RD2",
+            "value": "10k",
+            "confidence": 0.91,
+            "pins": [
+                {"id": "comp_004.1", "name": "1"},
+                {"id": "comp_004.2", "name": "2"}
+            ],
+            "source_bbox": {"x": 670, "y": 120, "w": 20, "h": 80},
+            "properties": {}
+        },
+        {
+            "id": "comp_005",
+            "type": "vdd",
+            "symbol": "devices/vdd",
+            "confidence": 0.99,
+            "pins": [
+                {"id": "comp_005.1", "name": "1"}
+            ],
+            "source_bbox": {"x": 480, "y": 50, "w": 20, "h": 20},
+            "properties": {}
+        },
+        {
+            "id": "comp_006",
+            "type": "ground",
+            "symbol": "devices/gnd",
+            "confidence": 0.99,
+            "pins": [
+                {"id": "comp_006.1", "name": "1"}
+            ],
+            "source_bbox": {"x": 480, "y": 520, "w": 20, "h": 20},
+            "properties": {}
+        }
+    ],
+    "nets": [
+        {
+            "id": "net_000",
+            "name": "VIN+",
+            "pins": ["comp_000.G"],
+            "confidence": 0.90
+        },
+        {
+            "id": "net_001",
+            "name": "VIN-",
+            "pins": ["comp_001.G"],
+            "confidence": 0.90
+        },
+        {
+            "id": "net_002",
+            "name": "VOUT+",
+            "pins": ["comp_000.D", "comp_003.2"],
+            "confidence": 0.88
+        },
+        {
+            "id": "net_003",
+            "name": "VOUT-",
+            "pins": ["comp_001.D", "comp_004.2"],
+            "confidence": 0.88
+        },
+        {
+            "id": "net_004",
+            "pins": ["comp_000.S", "comp_001.S", "comp_002.+"],
+            "confidence": 0.92
+        },
+        {
+            "id": "net_005",
+            "name": "VDD",
+            "pins": ["comp_003.1", "comp_004.1", "comp_005.1"],
+            "confidence": 0.97
+        },
+        {
+            "id": "net_006",
+            "name": "GND",
+            "pins": ["comp_002.-", "comp_006.1"],
+            "confidence": 0.97
+        }
+    ],
+    "warnings": [
+        {
+            "type": "low_confidence_detection",
+            "message": "ISS: current_source at 0.85 — verify component type",
+            "component_id": "comp_002",
+            "confidence": 0.85
+        }
+    ]
+}

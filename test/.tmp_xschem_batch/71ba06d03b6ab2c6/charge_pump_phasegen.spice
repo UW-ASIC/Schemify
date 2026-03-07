@@ -1,0 +1,48 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/charge_pump_phasegen.sch
+.subckt charge_pump_phasegen A B C CK D VCC
+
+*  x1 -  nand2_2  IS MISSING !!!!
+*  x2 -  inv_4  IS MISSING !!!!
+*  x5 -  nand2_1  IS MISSING !!!!
+*  x6 -  nand2_1  IS MISSING !!!!
+*  x7 -  lvtnot  IS MISSING !!!!
+*  x8 -  lvtnot  IS MISSING !!!!
+*  x9 -  inv_12  IS MISSING !!!!
+*  x10 -  inv_2  IS MISSING !!!!
+*  x11 -  nand2_2  IS MISSING !!!!
+*  x12 -  inv_4  IS MISSING !!!!
+*  x13 -  nand2_1  IS MISSING !!!!
+*  x14 -  nand2_1  IS MISSING !!!!
+*  x15 -  lvtnot  IS MISSING !!!!
+*  x16 -  lvtnot  IS MISSING !!!!
+*  x17 -  inv_12  IS MISSING !!!!
+*  x18 -  inv_2  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  p10 -  lab_pin  IS MISSING !!!!
+*  p11 -  lab_wire  IS MISSING !!!!
+*  p12 -  lab_wire  IS MISSING !!!!
+*  p13 -  lab_wire  IS MISSING !!!!
+*  x3 -  inv_12  IS MISSING !!!!
+*  p14 -  ipin  IS MISSING !!!!
+*  p15 -  lab_pin  IS MISSING !!!!
+*  p16 -  opin  IS MISSING !!!!
+*  p17 -  opin  IS MISSING !!!!
+*  p18 -  opin  IS MISSING !!!!
+*  p19 -  opin  IS MISSING !!!!
+*  p20 -  lab_wire  IS MISSING !!!!
+*  l1 -  title  IS MISSING !!!!
+*  p21 -  ipin  IS MISSING !!!!
+*  l2 -  noconn  IS MISSING !!!!
+*  x19 -  inv_2  IS MISSING !!!!
+*  p23 -  lab_pin  IS MISSING !!!!
+*  x20 -  inv_2  IS MISSING !!!!
+*  p24 -  lab_pin  IS MISSING !!!!
+.ends

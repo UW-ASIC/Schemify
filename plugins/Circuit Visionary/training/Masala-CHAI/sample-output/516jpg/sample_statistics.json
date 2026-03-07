@@ -1,0 +1,8 @@
+{
+    "Component Description": {
+        "MOSFET": 1,
+        "Resistor": 2
+    },
+    "No. of Nets": 15,
+    "No. of Nodes": 4
+}

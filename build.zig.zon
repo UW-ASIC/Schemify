@@ -1,0 +1,22 @@
+.{
+    .name = .Schemify,
+    .version = "0.0.1",
+    .fingerprint = 0x2594d2f60f269de2,
+    .minimum_zig_version = "0.15.0",
+    .dependencies = .{
+        // DVUI - General-purpose Zig GUI toolkit (fetched from GitHub)
+        .dvui = .{
+            .url = "https://github.com/david-vanderson/dvui/archive/refs/heads/main.tar.gz",
+            .hash = "dvui-0.4.0-dev-AQFJmaQl2wDj-nR5BEX6yrkNF_HPN4JMK2FfhASDB-fD",
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "tools/sdk",
+        "tools/build_dep.zig",
+        "test",
+    },
+}

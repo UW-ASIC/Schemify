@@ -1,0 +1,5 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/xcross.sch
+.subckt xcross A B
+*.PININFO A:B B:B
+R1 A B 1k m=1
+.ends

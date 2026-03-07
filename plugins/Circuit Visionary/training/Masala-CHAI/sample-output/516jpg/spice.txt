@@ -1,0 +1,17 @@
+plaintext
+* Common-Source Amplifier SPICE Netlist
+
+*MOSFET transistor (M1)
+M1 4 6 5 5 NMOS
+
+* Resistors
+RD 3 4 10k ;RD indicates resistance value 10kOhms (as an example)
+RG 6 2 1k  ;RG indicates resistance value 1kOhms (as an example)
+
+* Voltage Sources
+VDD 3 0 DC 5V ;Voltage source VDD
+Vin 5 0 DC 1V ;Voltage source for Vin
+Vb  2 0 DC 2.5V ;Voltage source for Vb as biasing
+
+* Model Definitions
+.model NMOS NMOS

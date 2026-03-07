@@ -1,0 +1,21 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/sky130_mismatch.sch
+.subckt sky130_mismatch
+
+*  p23 -  lab_pin  IS MISSING !!!!
+*  M18 -  nfet_01v8  IS MISSING !!!!
+*  l5 -  lab_pin  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+
+*  p10 -  lab_pin  IS MISSING !!!!
+*  STIMULI -  code  IS MISSING !!!!
+*  CORNER -  corner  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  M1[9],M1[8],M1[7],M1[6],M1[5],M1[4],M1[3],M1[2],M1[1],M1[0] -  nfet_01v8  IS MISSING !!!!
+*  l1 -  lab_pin  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  V1 -  ammeter  IS MISSING !!!!
+*  h5 -  launcher  IS MISSING !!!!
+*  l2 -  title  IS MISSING !!!!
+
+.ends

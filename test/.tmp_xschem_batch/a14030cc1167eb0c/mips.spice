@@ -1,0 +1,63 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/mips_cpu/mips.sch
+.subckt mips imem_addr[31] imem_addr[30] imem_addr[29] imem_addr[28] imem_addr[27] imem_addr[26] imem_addr[25] imem_addr[24]
++ imem_addr[23] imem_addr[22] imem_addr[21] imem_addr[20] imem_addr[19] imem_addr[18] imem_addr[17] imem_addr[16] imem_addr[15] imem_addr[14]
++ imem_addr[13] imem_addr[12] imem_addr[11] imem_addr[10] imem_addr[9] imem_addr[8] imem_addr[7] imem_addr[6] imem_addr[5] imem_addr[4]
++ imem_addr[3] imem_addr[2] imem_addr[1] imem_addr[0] clk dmem_we rst imem_data[31] imem_data[30] imem_data[29] imem_data[28] imem_data[27]
++ imem_data[26] imem_data[25] imem_data[24] imem_data[23] imem_data[22] imem_data[21] imem_data[20] imem_data[19] imem_data[18] imem_data[17]
++ imem_data[16] imem_data[15] imem_data[14] imem_data[13] imem_data[12] imem_data[11] imem_data[10] imem_data[9] imem_data[8] imem_data[7]
++ imem_data[6] imem_data[5] imem_data[4] imem_data[3] imem_data[2] imem_data[1] imem_data[0] dmem_addr[31] dmem_addr[30] dmem_addr[29]
++ dmem_addr[28] dmem_addr[27] dmem_addr[26] dmem_addr[25] dmem_addr[24] dmem_addr[23] dmem_addr[22] dmem_addr[21] dmem_addr[20] dmem_addr[19]
++ dmem_addr[18] dmem_addr[17] dmem_addr[16] dmem_addr[15] dmem_addr[14] dmem_addr[13] dmem_addr[12] dmem_addr[11] dmem_addr[10] dmem_addr[9]
++ dmem_addr[8] dmem_addr[7] dmem_addr[6] dmem_addr[5] dmem_addr[4] dmem_addr[3] dmem_addr[2] dmem_addr[1] dmem_addr[0] dmem_rdata[31]
++ dmem_rdata[30] dmem_rdata[29] dmem_rdata[28] dmem_rdata[27] dmem_rdata[26] dmem_rdata[25] dmem_rdata[24] dmem_rdata[23] dmem_rdata[22]
++ dmem_rdata[21] dmem_rdata[20] dmem_rdata[19] dmem_rdata[18] dmem_rdata[17] dmem_rdata[16] dmem_rdata[15] dmem_rdata[14] dmem_rdata[13]
++ dmem_rdata[12] dmem_rdata[11] dmem_rdata[10] dmem_rdata[9] dmem_rdata[8] dmem_rdata[7] dmem_rdata[6] dmem_rdata[5] dmem_rdata[4] dmem_rdata[3]
++ dmem_rdata[2] dmem_rdata[1] dmem_rdata[0] dmem_wdata[31] dmem_wdata[30] dmem_wdata[29] dmem_wdata[28] dmem_wdata[27] dmem_wdata[26]
++ dmem_wdata[25] dmem_wdata[24] dmem_wdata[23] dmem_wdata[22] dmem_wdata[21] dmem_wdata[20] dmem_wdata[19] dmem_wdata[18] dmem_wdata[17]
++ dmem_wdata[16] dmem_wdata[15] dmem_wdata[14] dmem_wdata[13] dmem_wdata[12] dmem_wdata[11] dmem_wdata[10] dmem_wdata[9] dmem_wdata[8]
++ dmem_wdata[7] dmem_wdata[6] dmem_wdata[5] dmem_wdata[4] dmem_wdata[3] dmem_wdata[2] dmem_wdata[1] dmem_wdata[0]
+
+*  l1 -  title  IS MISSING !!!!
+*  p11 -  ipin  IS MISSING !!!!
+*  p1 -  opin  IS MISSING !!!!
+*  p2 -  ipin  IS MISSING !!!!
+*  p3 -  ipin  IS MISSING !!!!
+*  p4 -  ipin  IS MISSING !!!!
+*  p5 -  opin  IS MISSING !!!!
+*  p6 -  opin  IS MISSING !!!!
+*  p7 -  opin  IS MISSING !!!!
+*  xcontroller_inst -  controller  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  p10 -  lab_pin  IS MISSING !!!!
+*  p12 -  lab_pin  IS MISSING !!!!
+*  p13 -  lab_pin  IS MISSING !!!!
+*  p14 -  lab_pin  IS MISSING !!!!
+*  p15 -  lab_pin  IS MISSING !!!!
+*  p16 -  lab_pin  IS MISSING !!!!
+*  p17 -  lab_pin  IS MISSING !!!!
+*  xdatapath_inst -  datapath  IS MISSING !!!!
+*  p18 -  lab_pin  IS MISSING !!!!
+*  p19 -  lab_pin  IS MISSING !!!!
+*  p20 -  lab_pin  IS MISSING !!!!
+*  p21 -  lab_pin  IS MISSING !!!!
+*  p22 -  lab_pin  IS MISSING !!!!
+*  p23 -  lab_pin  IS MISSING !!!!
+*  p24 -  lab_pin  IS MISSING !!!!
+*  p26 -  lab_pin  IS MISSING !!!!
+*  p27 -  lab_pin  IS MISSING !!!!
+*  p28 -  lab_pin  IS MISSING !!!!
+*  p29 -  lab_pin  IS MISSING !!!!
+*  p30 -  lab_pin  IS MISSING !!!!
+*  p31 -  lab_pin  IS MISSING !!!!
+*  p32 -  lab_pin  IS MISSING !!!!
+*  p25 -  lab_pin  IS MISSING !!!!
+*  l3 -  noconn  IS MISSING !!!!
+*  l4 -  noconn  IS MISSING !!!!
+*  l5 -  noconn  IS MISSING !!!!
+*  l6 -  noconn  IS MISSING !!!!
+*  l2 -  noconn  IS MISSING !!!!
+*  l7 -  noconn  IS MISSING !!!!
+*  l8 -  noconn  IS MISSING !!!!
+*  l9 -  noconn  IS MISSING !!!!
+.ends

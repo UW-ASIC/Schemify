@@ -1,0 +1,32 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/osc.sch
+.subckt osc
+
+Q1 OUT B E q2n2222a area=1 m=1
+V2 VCC VSS 5 pwl 0 5 1n 6 2n 6 3n 5
+L1 net1 VCC 100u m=1
+C1 OUT E 100p m=1
+V1 B VSS 1
+R1 E VSS 1k m=1
+R2 net1 OUT 2 m=1
+C2 E VSS 100p m=1
+**** begin user architecture code
+
+.option RUNLVL=6 post
+vvss vss 0 dc 0
+.save all
+.temp 30
+
+** models are generally not free: you must download
+** SPICE models for active devices
+** (https://www.centralsemi.com/docs/csm/2N2222A.LIB)
+** and put them  into the below
+** referenced file in simulation directory.
+.include "models_osc.txt"
+
+
+.tran 1n 100u
+.probe tran i1(Q1) i2(Q1) i3(Q1) i(L1) i(c1) i(c2) i(r1) i(r2) i(r3)
+
+
+**** end user architecture code
+.ends

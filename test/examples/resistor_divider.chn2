@@ -1,0 +1,19 @@
+CHN2 resistor_divider
+[s]
+W 0 0 200 0 VDD
+W 200 100 200 200
+W 200 300 0 300 GND
+I devices/vsource 0 0 0 0 vsource {name=V1 value=3.3}
+I devices/res 200 0 0 0 resistor {name=R1 value=10k}
+I devices/res 200 200 0 0 resistor {name=R2 value=10k}
+[n]
+N 0 VDD
+N 1 GND
+N 2 _n0
+~ 0 we 0 0
+~ 0 we 200 0
+~ 1 we 200 300
+~ 1 we 0 300
+~ 2 we 200 100
+~ 2 we 200 200
+[e]

@@ -1,0 +1,29 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/adder_4bit.sch
+.subckt adder_4bit A[3] A[2] A[1] A[0] S[3] S[2] S[1] S[0] B[3] B[2] B[1] B[0] COUT SG CIN SP
+
+*  p1 -  ipin  IS MISSING !!!!
+*  p2 -  ipin  IS MISSING !!!!
+*  p3 -  ipin  IS MISSING !!!!
+*  p4 -  opin  IS MISSING !!!!
+*  l2 -  title  IS MISSING !!!!
+*  xadd1[3],xadd1[2],xadd1[1],xadd1[0] -  adder_1bit  IS MISSING !!!!
+*  p14 -  lab_pin  IS MISSING !!!!
+*  p15 -  lab_pin  IS MISSING !!!!
+*  p16 -  lab_pin  IS MISSING !!!!
+*  p17 -  lab_pin  IS MISSING !!!!
+*  p18 -  lab_pin  IS MISSING !!!!
+*  p19 -  lab_pin  IS MISSING !!!!
+*  p20 -  lab_pin  IS MISSING !!!!
+*  p36 -  lab_pin  IS MISSING !!!!
+*  p37 -  lab_pin  IS MISSING !!!!
+*  p7 -  opin  IS MISSING !!!!
+*  p8 -  opin  IS MISSING !!!!
+*  xcla -  cla_4bits  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  l3 -  lab_pin  IS MISSING !!!!
+*  l6 -  lab_pin  IS MISSING !!!!
+*  l7 -  lab_pin  IS MISSING !!!!
+*  l8 -  lab_pin  IS MISSING !!!!
+*  l9 -  lab_pin  IS MISSING !!!!
+*  p5 -  opin  IS MISSING !!!!
+.ends

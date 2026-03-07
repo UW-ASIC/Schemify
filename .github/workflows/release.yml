@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  # Trigger manually from the Actions tab — enter the version (e.g. v0.1.0)
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v0.1.0)'
+        required: true
+        type: string
+      notes:
+        description: 'Release notes (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  # ── 1. Tag the commit and create the empty GitHub Release ─────────────────
+  tag-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "ERROR: version must be in the form vX.Y.Z (got '${{ inputs.version }}')"
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ inputs.version }}" \
+                  -m "Release ${{ inputs.version }}"
+          git push origin "${{ inputs.version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: ${{ inputs.version }}
+          body: ${{ inputs.notes }}
+          draft: false
+          prerelease: ${{ contains(inputs.version, '-') }}
+
+  # ── 2. Build the WASM viewer assets and attach them to the release ─────────
+  # These artifacts (schemify.wasm + web.js) are downloaded by the
+  # deploy-pages.yml reusable workflow when users host their schematics.
+  build-wasm:
+    needs: tag-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: '0.15.2'
+
+      - name: Build WASM
+        run: zig build -Dbackend=web -Doptimize=ReleaseSmall
+
+      # Rename to the canonical asset names expected by deploy-pages.yml
+      - name: Prepare release assets
+        run: |
+          cp zig-out/bin/schemify.wasm schemify.wasm
+          cp zig-out/bin/web.js        web.js
+
+      - name: Upload WASM assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          files: |
+            schemify.wasm
+            web.js

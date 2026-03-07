@@ -1,0 +1,282 @@
+# CircuitVision Component Class Taxonomy
+#
+# Defines every component class the YOLO detector is trained on.
+# This file is the source of truth for YOLO class indices, pin definitions,
+# and the component type → Schemify symbol mapping.
+#
+# YOLO class index must be contiguous starting from 0.
+# Pin lists match DEFAULT_PINS in circuit_graph.py.
+
+classes:
+
+  # ── Passive ──────────────────────────────────────────────────────────── #
+
+  - id: 0
+    name: resistor
+    pins: ["1", "2"]
+    symbol: devices/res
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Zigzag (ANSI) or rectangular (IEC) symbol. Both must be recognized.
+      Training data should include both variants.
+
+  - id: 1
+    name: capacitor
+    pins: ["1", "2"]
+    symbol: devices/capa
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Parallel-plate symbol. Polarized (electrolytic) has one curved plate.
+
+  - id: 2
+    name: inductor
+    pins: ["1", "2"]
+    symbol: devices/ind
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Coil/loop symbol. May have a core (vertical lines next to coil).
+
+  - id: 3
+    name: diode
+    pins: [A, K]
+    symbol: devices/diode
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Triangle + bar. Direction of triangle indicates anode to cathode.
+
+  - id: 4
+    name: led
+    pins: [A, K]
+    symbol: devices/led
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Diode symbol with arrows (photon emission). Often color-coded in datasheets.
+
+  - id: 5
+    name: zener
+    pins: [A, K]
+    symbol: devices/zener
+    styles: [textbook, datasheet]
+    notes: >
+      Diode with bent bar at cathode.
+
+  - id: 6
+    name: npn
+    pins: [B, C, E]
+    symbol: devices/npn
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Arrow on emitter pointing outward. Base is the input.
+
+  - id: 7
+    name: pnp
+    pins: [B, C, E]
+    symbol: devices/pnp
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Arrow on emitter pointing inward. Mirror of NPN.
+
+  # ── MOSFET ───────────────────────────────────────────────────────────── #
+
+  - id: 8
+    name: nmos
+    pins: [G, D, S]
+    symbol: devices/nmos
+    styles: [textbook, datasheet]
+    notes: >
+      3-terminal NMOS. Arrow on body points inward. Gate is insulated
+      (gap between gate line and channel). Razavi vs Sedra conventions differ
+      subtly — the MOSFET terminal resolver handles disambiguation.
+
+  - id: 9
+    name: nmos4
+    pins: [G, D, S, B]
+    symbol: devices/nmos4
+    styles: [textbook, datasheet]
+    notes: >
+      4-terminal NMOS with explicit body/bulk connection. Common in analog
+      IC design where body effect matters.
+
+  - id: 10
+    name: pmos
+    pins: [G, D, S]
+    symbol: devices/pmos
+    styles: [textbook, datasheet]
+    notes: >
+      3-terminal PMOS. Arrow on body points outward (or bubble on gate).
+
+  - id: 11
+    name: pmos4
+    pins: [G, D, S, B]
+    symbol: devices/pmos4
+    styles: [textbook, datasheet]
+    notes: >
+      4-terminal PMOS with explicit body/bulk connection.
+
+  # ── Active / IC-level ────────────────────────────────────────────────── #
+
+  - id: 12
+    name: opamp
+    pins: [IN+, IN-, OUT, V+, V-]
+    symbol: devices/opamp
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Triangle symbol. + and - inputs on left, output on right.
+      Power pins (V+, V-) are often omitted in textbook schematics.
+
+  - id: 13
+    name: voltage_source
+    pins: ["+", "-"]
+    symbol: devices/vsource
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Circle with + and - labels. May be DC (plain) or AC (sine wave inside).
+
+  - id: 14
+    name: current_source
+    pins: ["+", "-"]
+    symbol: devices/isource
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Circle with arrow. Direction of arrow indicates conventional current flow.
+      In Razavi-style circuits, often drawn as a simple arrow between rails.
+
+  # ── Power / Ground ──────────────────────────────────────────────────── #
+
+  - id: 15
+    name: ground
+    pins: ["1"]
+    symbol: devices/gnd
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Horizontal lines of decreasing width (earth ground) or triangle (chassis).
+
+  - id: 16
+    name: vdd
+    pins: ["1"]
+    symbol: devices/vdd
+    styles: [textbook, datasheet]
+    notes: >
+      Upward arrow or bar with "VDD" label. Positive supply rail.
+
+  - id: 17
+    name: vss
+    pins: ["1"]
+    symbol: devices/vss
+    styles: [textbook, datasheet]
+    notes: >
+      Downward arrow or bar with "VSS" label. Negative supply rail.
+
+  # ── Connections / Annotations ────────────────────────────────────────── #
+
+  - id: 18
+    name: junction_dot
+    pins: []
+    symbol: null
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Filled circle at wire crossing indicating electrical connection.
+      This is a detection annotation, not a circuit component.
+
+  - id: 19
+    name: crossing_bridge
+    pins: []
+    symbol: null
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Arc/hump over a wire indicating NO connection. Detection annotation only.
+
+  - id: 20
+    name: ic_block
+    pins: []
+    symbol: devices/generic_ic
+    styles: [datasheet]
+    notes: >
+      Rectangular IC block with pin labels. Pin count is variable.
+      Pin names are read by OCR.
+
+  - id: 21
+    name: potentiometer
+    pins: ["1", "2", W]
+    symbol: devices/pot
+    styles: [handdrawn, textbook, datasheet]
+    notes: >
+      Resistor with arrow (wiper) for adjustable resistance.
+
+
+# ── Training data sources per style ────────────────────────────────────── #
+
+training_sources:
+  handdrawn:
+    - name: JUHCCR-v1
+      url: https://github.com/AyushRoy2001/Circuit-Component-Analysis
+      images: 3191
+      notes: Augmented hand-drawn component images + DenseNet-121 baseline
+
+    - name: CircuitNet
+      url: https://github.com/aaanthonyyy/CircuitNet
+      images: ~500
+      notes: CNN classification model, 5 component types, 96.5% accuracy
+
+    - name: Image2Net (hand-drawn subset)
+      url: arXiv:2508.13157
+      images: ~1000
+      notes: Subset of 2,914 device identification images from hand-drawn sources
+
+  textbook:
+    - name: Masala-CHAI
+      url: https://github.com/jitendra-bhandari/Masala-CHAI
+      images: 7500
+      notes: >
+        10 analog textbooks. YOLOv8 checkpoints, Hough transform wire detection,
+        SPICE netlists, GPT-4o prompt templates.
+
+    - name: AMSNet
+      url: arXiv:2405.09045
+      images: ~1000
+      notes: Transistor-level analog/mixed-signal schematics with SPICE netlists
+
+    - name: Image2Net (textbook subset)
+      url: arXiv:2508.13157
+      images: ~1000
+      notes: Textbook-sourced images from the device identification dataset
+
+  datasheet:
+    - name: Image2Net (internet subset)
+      url: arXiv:2508.13157
+      images: ~900
+      notes: Schematics sourced from the internet (datasheets, app notes)
+
+    - name: Custom collection
+      url: TBD
+      images: TBD
+      notes: >
+        Application notes from TI, Analog Devices, Microchip, NXP.
+        Publicly available reference designs.
+
+  crossing:
+    - name: Image2Net crossing dataset
+      url: arXiv:2508.13157
+      notes: >
+        Dedicated labeled crossing examples: connected junction, bridge,
+        plain/ambiguous. Only public dataset isolating this subproblem.
+
+  orientation:
+    - name: Image2Net orientation dataset
+      url: arXiv:2508.13157
+      notes: >
+        Component rotation and mirroring labels. Feeds into MOSFETResolver
+        for correct drain/source/gate pin assignment.
+
+  evaluation:
+    - name: Image2Net netlist evaluation
+      url: arXiv:2508.13157
+      images: 104
+      notes: >
+        104 manually verified schematic-netlist pairs. Ground-truth test set.
+        Includes NED (Netlist Edit Distance) metric for topology comparison.
+
+    - name: SINA evaluation
+      url: arXiv:2601.22114
+      notes: >
+        SINA's test set. 96.47% end-to-end accuracy benchmark.

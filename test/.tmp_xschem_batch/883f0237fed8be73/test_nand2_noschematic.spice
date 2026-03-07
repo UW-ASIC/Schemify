@@ -1,0 +1,9 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_nand2_noschematic.sch
+.subckt test_nand2_noschematic
+
+*  x1[3],x1[2],x1[1],x1[0] -  nand2_noschematic  IS MISSING !!!!
+*  p1 -  opin  IS MISSING !!!!
+*  p2 -  ipin  IS MISSING !!!!
+*  p3 -  ipin  IS MISSING !!!!
+*  l1 -  title  IS MISSING !!!!
+.ends

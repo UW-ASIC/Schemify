@@ -1,0 +1,42 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/test_ac_xyce.sch
+.subckt test_ac_xyce
+
+m1 D GN 0 0 cmosn w=5u l=2u m=1
+mtop_2nd DIFFOUT net1 VCC VCC cmosp w=5u l=2u m=1
+VVCC VCC 0 5
+m3 GN GN 0 0 cmosn w=5u l=2u m=1
+IBIAS 0 GN 10u
+m4 net1 PLUS D 0 cmosn w=10u l=1u m=1
+m5 DIFFOUT MINUS D 0 cmosn w=10u l=1u m=1
+mtop_1st net1 net1 VCC VCC cmosp w=5u l=2u m=1
+VPLUS PLUS 0 dc 2.5
+e1 DIFFOUT_L 0 DIFFOUT 0 1
+e2 D_L 0 D 0 1
+m7 DIFFOUT_L DIFFOUT D_L 0 cmosn w=10u l=1u m=1
+VLOOP MINUS net2 dc 0 ac 1 0
+R2 net2 0 10G m=1
+L1 DIFFOUT net2 100k m=1
+C1 net2 0 1 m=1
+**** begin user architecture code
+
+
+
+
+** models are generally not free: you must download
+** SPICE models for active devices and put them  into the below
+** referenced file in netlist/simulation directory.
+** http://bwrcs.eecs.berkeley.edu/Classes/icdesign/ee241_s00/ASSIGNMENTS/TSMC035-n96g-params.txt
+.include "models_cmos_example.txt"
+
+.control
+.ac dec 10 1000 10G
+
+** ngspice
+* .save all
+
+** xyce, not needed if -r given om cmdline
+* .print tran format=raw v(diffout) v(plus) v(minus)
+
+
+**** end user architecture code
+.ends

@@ -1,0 +1,21 @@
+.{
+    .name = .CircuitVision,
+    .version = "0.1.0",
+    .fingerprint = 0x73f74a31f0d4c893,
+    .minimum_zig_version = "0.15.0",
+    .dependencies = .{
+        .schemify_sdk = .{
+            .path = "../..",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "plugin.toml",
+        "requirements.txt",
+        "src",
+        "schemas",
+        "tests",
+        "training",
+    },
+}

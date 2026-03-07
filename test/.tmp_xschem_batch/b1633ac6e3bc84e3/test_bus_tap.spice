@@ -1,0 +1,208 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/test_bus_tap.sch
+.subckt test_bus_tap
+
+* tap: DATA[15:0] --> DATA[3]
+* tap: DATA[15:0] --> DATA[13]
+* tap: DATA[15:0] --> DATA[7:4]
+* tap: DATA[15:0] --> DATA[11:8]
+* tap: DATA[15:0] --> DATA[3:0]
+* tap: DATA[15:0] --> DATA[10]
+* tap: DATA[15:0] --> DATA[0]
+R1 VCC DATA[0] 1k m=1
+R2 VCC DATA[10] 1k m=1
+R3 VCC DATA[3] 1k m=1
+R4 VCC DATA[13] 1k m=1
+R5[3] DATA[3] VSS 1k m=1
+R5[2] DATA[2] VSS 1k m=1
+R5[1] DATA[1] VSS 1k m=1
+R5[0] DATA[0] VSS 1k m=1
+R6[3] DATA[11] VSS 1k m=1
+R6[2] DATA[10] VSS 1k m=1
+R6[1] DATA[9] VSS 1k m=1
+R6[0] DATA[8] VSS 1k m=1
+R7[3] DATA[7] VSS 1k m=1
+R7[2] DATA[6] VSS 1k m=1
+R7[1] DATA[5] VSS 1k m=1
+R7[0] DATA[4] VSS 1k m=1
+R8[3] DATA[15] VSS 1k m=1
+R8[2] DATA[14] VSS 1k m=1
+R8[1] DATA[13] VSS 1k m=1
+R8[0] DATA[12] VSS 1k m=1
+* tap: DATA[15:0] --> DATA[15:12]
+R9[15] VCC DATA[15] 1k m=1
+R9[14] VCC DATA[14] 1k m=1
+R9[13] VCC DATA[13] 1k m=1
+R9[12] VCC DATA[12] 1k m=1
+R9[11] VCC DATA[11] 1k m=1
+R9[10] VCC DATA[10] 1k m=1
+R9[9] VCC DATA[9] 1k m=1
+R9[8] VCC DATA[8] 1k m=1
+R9[7] VCC DATA[7] 1k m=1
+R9[6] VCC DATA[6] 1k m=1
+R9[5] VCC DATA[5] 1k m=1
+R9[4] VCC DATA[4] 1k m=1
+R9[3] VCC DATA[3] 1k m=1
+R9[2] VCC DATA[2] 1k m=1
+R9[1] VCC DATA[1] 1k m=1
+R9[0] VCC DATA[0] 1k m=1
+R10[15] VCC DATA[15] 1k m=1
+R10[14] VCC DATA[14] 1k m=1
+R10[13] VCC DATA[13] 1k m=1
+R10[12] VCC DATA[12] 1k m=1
+R10[11] VCC DATA[11] 1k m=1
+R10[10] VCC DATA[10] 1k m=1
+R10[9] VCC DATA[9] 1k m=1
+R10[8] VCC DATA[8] 1k m=1
+R10[7] VCC DATA[7] 1k m=1
+R10[6] VCC DATA[6] 1k m=1
+R10[5] VCC DATA[5] 1k m=1
+R10[4] VCC DATA[4] 1k m=1
+R10[3] VCC DATA[3] 1k m=1
+R10[2] VCC DATA[2] 1k m=1
+R10[1] VCC DATA[1] 1k m=1
+R10[0] VCC DATA[0] 1k m=1
+* tap: DIN[15..0] --> DIN0
+* tap: DIN[15..0] --> DIN[4..1]
+R11[3] DIN4 VSS 1k m=1
+R11[2] DIN3 VSS 1k m=1
+R11[1] DIN2 VSS 1k m=1
+R11[0] DIN1 VSS 1k m=1
+R12 DIN0 VSS 1k m=1
+* tap: DIN[15..0] --> DIN5
+R13 DIN5 VSS 1k m=1
+* tap: CK , S1, ADD[3:0],ENAB --> ADD[3:0]
+* tap: CK , S1, ADD[3:0],ENAB --> ENAB
+R15[3] ADD[3] VSS 1k m=1
+R15[2] ADD[2] VSS 1k m=1
+R15[1] ADD[1] VSS 1k m=1
+R15[0] ADD[0] VSS 1k m=1
+R14 ENAB VSS 1k m=1
+* tap: CK , S1, ADD[3:0],ENAB --> CK
+R16 CK VSS 1k m=1
+* tap: DOUT[15:0] --> DOUT[0]
+* tap: DOUT[15:0] --> DOUT[7:1]
+R18[6] DOUT[7] VSS 1k m=1
+R18[5] DOUT[6] VSS 1k m=1
+R18[4] DOUT[5] VSS 1k m=1
+R18[3] DOUT[4] VSS 1k m=1
+R18[2] DOUT[3] VSS 1k m=1
+R18[1] DOUT[2] VSS 1k m=1
+R18[0] DOUT[1] VSS 1k m=1
+R17 DOUT[0] VSS 1k m=1
+* tap: DOUT[15:0] --> DOUT[15:8]
+R19[7] DOUT[15] VSS 1k m=1
+R19[6] DOUT[14] VSS 1k m=1
+R19[5] DOUT[13] VSS 1k m=1
+R19[4] DOUT[12] VSS 1k m=1
+R19[3] DOUT[11] VSS 1k m=1
+R19[2] DOUT[10] VSS 1k m=1
+R19[1] DOUT[9] VSS 1k m=1
+R19[0] DOUT[8] VSS 1k m=1
+xsa[15] DOUT[15] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[14] DOUT[14] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[13] DOUT[13] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[12] DOUT[12] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[11] DOUT[11] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[10] DOUT[10] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[9] DOUT[9] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[8] DOUT[8] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[7] DOUT[7] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[6] DOUT[6] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[5] DOUT[5] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[4] DOUT[4] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[3] DOUT[3] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[2] DOUT[2] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[1] DOUT[1] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+xsa[0] DOUT[0] LDCP LDYMS LDOE LDPRECH LDSAL vcc vss rom2_sa
+* tap: DOUT[15:0] --> DOUT[15:0]
+* tap: CK , S1, ADD[3:0],ENAB --> ADD[1]
+R20 ADD[1] VSS 1k m=1
+.ends
+
+* expanding   symbol:  rom2_sa.sym # of pins=8
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/rom2_sa.sym
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/rom2_sa.sch
+.subckt rom2_sa LDQ LDCP LDYMS LDOE LDPRECH LDSAL vcc vss
+*.PININFO LDQ:O LDCP:I LDYMS:I LDOE:I LDPRECH:I LDSAL:I vcc:I vss:I
+x242 LDSALI LDSALI_B vcc vss lvnot wn=8.4u lln=2.4u wp=12u lp=2.4u m=1
+x249 LDCP_B LDCP vcc vss lvnot wn=8.4u lln=2.4u wp=20u lp=2.4u m=1
+x6 LDQ LDQIII LDOE vcc vss bts
+x7 net1 LDQII LDSALI LDSALI_B vcc vss passhs WN=12u LN=1.2u WP=12u LP=1.2u
+m6 LDQII LDQIB net2 0 cmosn w=24u l=2.4u ad={24u *4.4u} as={24u *4.4u} pd={24u *2 + 8.8u} ps={24u *2 + 8.8u} m=1
+m7 LDQII LDQIB net3 VCC cmosp w=24u l=2.4u ad={24u *4.4u} as={24u *4.4u} pd={24u *2 + 8.8u} ps={24u *2 + 8.8u} m=1
+m4 net2 LDSALI vss 0 cmosn w=24u l=2.4u ad={24u *4.4u} as={24u *4.4u} pd={24u *2 + 8.8u} ps={24u *2 + 8.8u} m=1
+m1 net3 LDSALI_B vcc VCC cmosp w=24u l=2.4u ad={24u *4.4u} as={24u *4.4u} pd={24u *2 + 8.8u} ps={24u *2 + 8.8u} m=1
+x8 net4 LDQII vcc vss lvnot wn=8.4u lln=2.4u wp=12u lp=2.4u m=1
+x9 net1 net4 vcc vss lvnot wn=8.4u lln=2.4u wp=12u lp=2.4u m=1
+c0 LDQII vss 3f m=1
+c1 LDQIB vss 3f m=1
+x228 LDQIII LDQII vcc vss lvnot wn=24u lln=2.4u wp=60u lp=2.4u m=1
+x1 LDSALI_B LDSAL vcc vss lvnot wn=8.4u lln=2.4u wp=12u lp=2.4u m=1
+xsacell LDCP_B LDPRECH vcc vss LDQI LDQIB LDYMS rom2_sacell
+.save v(ldqib)
+.save v(ldqii)
+.save v(ldcp_b)
+.save v(ldsali)
+.save v(ldqi)
+.save v(ldqiii)
+.ends
+
+
+* expanding   symbol:  lvnot.sym # of pins=2
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/lvnot.sym
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/lvnot.sch
+.subckt lvnot y a VCCPIN VSSPIN     wn=10u lln=1.2u wp=10u lp=1.2u
+*.PININFO y:O a:I
+m2 y a VCCPIN VCCPIN cmosp w=wp l=lp ad='wp *4.6u' as='wp *4.6u' pd='wp *2+9.2u' ps='wp *2+9.2u' m=1
+m1 y a VSSPIN VSSPIN cmosn w=wn l=lln ad='wn *4.3u' as='wn *4.3u' pd='wn *2+8.6u' ps='wn *2+8.6u' m=1
+.ends
+
+
+* expanding   symbol:  bts.sym # of pins=3
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/bts.sym
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/bts.sch
+.subckt bts Z A E VCCPIN VSSPIN
+*.PININFO A:I E:I Z:O
+m7 NN EN PP VCCPIN cmosp w=56u l=2.4u ad={56u *2.2u} as={56u *2.2u} pd={56u *2+4.4u} ps={56u *2+4.4u} m=1
+m8 PP A VCCPIN VCCPIN cmosp w=56u l=2.4u ad={56u *2.2u} as={56u *2.2u} pd={56u *2+4.4u} ps={56u *2+4.4u} m=1
+m9 NN A VSSPIN 0 cmosn w=20u l=2.4u ad={20u *4.4u} as={20u *4.4u} pd={20u *2 + 8.8u} ps={20u *2 + 8.8u} m=1
+m1 PP E NN 0 cmosn w=24u l=2.4u ad={24u *4.4u} as={24u *4.4u} pd={24u *2 + 8.8u} ps={24u *2 + 8.8u} m=1
+m11 Z PP VCCPIN VCCPIN cmosp w=200u l=2.4u ad={200u *2.2u} as={200u *2.2u} pd={200u *2+4.4u} ps={200u *2+4.4u} m=1
+m12 Z NN VSSPIN 0 cmosn w=80u l=2.4u ad={80u *4.4u} as={80u *4.4u} pd={80u *2 + 8.8u} ps={80u *2 + 8.8u} m=1
+m13 NN EN VSSPIN 0 cmosn w=20u l=2.4u ad={20u *4.4u} as={20u *4.4u} pd={20u *2 + 8.8u} ps={20u *2 + 8.8u} m=1
+m14 PP E VCCPIN VCCPIN cmosp w=50u l=2.4u ad={50u *2.2u} as={50u *2.2u} pd={50u *2+4.4u} ps={50u *2+4.4u} m=1
+m15 EN E VCCPIN VCCPIN cmosp w=50u l=2.4u ad={50u *2.2u} as={50u *2.2u} pd={50u *2+4.4u} ps={50u *2+4.4u} m=1
+m16 EN E VSSPIN 0 cmosn w=20u l=2.4u ad={20u *4.4u} as={20u *4.4u} pd={20u *2 + 8.8u} ps={20u *2 + 8.8u} m=1
+c0 E VSSPIN 3f m=1
+c4 NN VSSPIN 3f m=1
+c5 PP VSSPIN 3f m=1
+c6 EN VSSPIN 3f m=1
+.ends
+
+
+* expanding   symbol:  passhs.sym # of pins=4
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/passhs.sym
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/passhs.sch
+.subckt passhs Z A EN E VCCPIN VSSPIN  WN=2u LN=1.2u WP=2u LP=1.2u
+*.PININFO Z:B A:B EN:I E:I
+m60 Z EN A VCCPIN cmosp w=WP l=2.4u ad='WP *4.6u' as='WP *4.6u' pd='WP *2+9.2u' ps='WP *2+9.2u' m=1
+m1 A E Z VSSPIN cmosn w=WN l=2.4u ad='WN *4.3u' as='WN *4.3u' pd='WN *2+8.6u' ps='WN *2+8.6u' m=1
+* noconn VSSPIN
+* noconn VCCPIN
+.ends
+
+
+* expanding   symbol:  rom2_sacell.sym # of pins=7
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/rom2_sacell.sym
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/rom8k/rom2_sacell.sch
+.subckt rom2_sacell LDRESET LDPRECH VCC VSS LDQI LDQ_B LDYMS
+*.PININFO LDRESET:I LDPRECH:I VCC:I VSS:I LDQI:O LDQ_B:O LDYMS:B
+m3 VCC LDPRECH LDYMS VSS cmosn w=WPRECH l=2u ad='WPRECH *4.3u' as='WPRECH *4.3u' pd='WPRECH *2+8.6u' ps='WPRECH *2+8.6u' m=10
+m1 LDQI VCC LDYMS VSS cmosn w=WPRECH l=2u ad='WPRECH *4.3u' as='WPRECH *4.3u' pd='WPRECH *2+8.6u' ps='WPRECH *2+8.6u' m=2
+m5 LDQI LDRESET VCC VCC cmosp w=6.6u l=8.8u ad={6.6u *4.4u} as={6.6u *4.4u} pd={6.6u *2 + 8.8u} ps={6.6u *2 + 8.8u} m=1
+m11 LDYMS LDRESET VSS 0 cmosn w=16u l=2.4u ad={16u *4.4u} as={16u *4.4u} pd={16u *2 + 8.8u} ps={16u *2 + 8.8u} m=1
+c2 LDQI VSS 3f m=1
+m2 LDQ_B LDQI VSS 0 cmosn w=8u l=2.4u ad={8u *4.4u} as={8u *4.4u} pd={8u *2 + 8.8u} ps={8u *2 + 8.8u} m=1
+m4 LDQ_B LDQI VCC VCC cmosp w=40u l=2.4u ad='40u *4.6u' as='40u *4.6u' pd='40u *2+9.2u' ps='40u *2+9.2u' m=1
+.ends
+

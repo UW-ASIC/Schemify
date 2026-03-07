@@ -1,0 +1,233 @@
+name: Build Plugins
+
+# ── Triggers ──────────────────────────────────────────────────────────────────
+# Runs on every push to main that touches any plugin directory, the shared ABI,
+# the SDK helper, or the registry generator itself.
+# Can also be triggered manually (force-rebuild forces all plugins regardless).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/**/plugin.toml'
+      - 'plugins/**/src/**'
+      - 'plugins/**/build.zig'
+      - 'plugins/**/build.zig.zon'
+      - 'src/PluginIF.zig'
+      - 'tools/sdk/**'
+      - 'tools/gen_registry.py'
+  workflow_dispatch:
+    inputs:
+      force_rebuild_all:
+        description: 'Rebuild every plugin even if unchanged'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-plugins-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Job 1: Discover buildable plugins ─────────────────────────────────────────
+# Runs gen_registry.py --list-buildable to produce the job matrix automatically.
+# No plugin names are hardcoded here; the matrix is driven entirely by the
+# presence of plugin.toml + build.zig in each plugins/* subdirectory.
+jobs:
+
+  discover:
+    name: Discover plugins
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.scan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan plugins with gen_registry.py
+        id: scan
+        env:
+          REGISTRY_REPO:        ${{ github.repository }}
+          REGISTRY_BRANCH:      ${{ github.ref_name }}
+          REGISTRY_RELEASE_TAG: plugins-latest
+        run: |
+          matrix=$(python3 tools/gen_registry.py --list-buildable)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Discovered plugins:"
+          echo "$matrix" | python3 -m json.tool
+
+  # ── Job 2: Build (matrix — one job per plugin) ────────────────────────────
+  # Each job checks whether *this plugin's* files changed before building.
+  # An ABI or SDK change forces every plugin to rebuild.
+  build:
+    name: Build ${{ matrix.plugin.id }}
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJson(needs.discover.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2          # need HEAD~1 for diff check
+          submodules: recursive
+
+      # ── Incremental check ──────────────────────────────────────────────── //
+      # Skip the build if nothing in this plugin directory (or the shared ABI /
+      # SDK) has changed since the previous commit.  A manual dispatch with
+      # force_rebuild_all=true bypasses this check.
+      - name: Check for changes
+        id: changed
+        run: |
+          FORCE="${{ github.event.inputs.force_rebuild_all }}"
+          if [ "$FORCE" = "true" ]; then
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+            echo "Force-rebuild requested."
+            exit 0
+          fi
+
+          PLUGIN_DIR="${{ matrix.plugin.dir }}"
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "ALL")
+
+          if echo "$CHANGED" | grep -qE \
+               "^${PLUGIN_DIR}/|^src/PluginIF\.zig|^tools/sdk/|^tools/gen_registry\.py"; then
+            echo "rebuild=true"  >> "$GITHUB_OUTPUT"
+            echo "Changes detected – will build."
+          else
+            echo "rebuild=false" >> "$GITHUB_OUTPUT"
+            echo "No changes in $PLUGIN_DIR – skipping build."
+          fi
+
+      # ── Install system dependencies ──────────────────────────────────────── //
+      # apt_deps from plugin.toml (parsed by gen_registry.py into the matrix).
+      - name: Install apt dependencies
+        if: steps.changed.outputs.rebuild == 'true'
+        run: |
+          APT_DEPS='${{ toJson(matrix.plugin.apt_deps) }}'
+          # Convert JSON array to space-separated string
+          PKGS=$(echo "$APT_DEPS" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)))")
+          if [ -n "$PKGS" ]; then
+            echo "Installing: $PKGS"
+            sudo apt-get update -q
+            sudo apt-get install -y $PKGS
+          else
+            echo "No extra apt deps for this plugin."
+          fi
+
+      - name: Install Zig
+        if: steps.changed.outputs.rebuild == 'true'
+        uses: mlugg/setup-zig@v1
+        with:
+          version: '0.15.2'
+
+      # ── Build ────────────────────────────────────────────────────────────── //
+      - name: Build ${{ matrix.plugin.id }}
+        if: steps.changed.outputs.rebuild == 'true'
+        working-directory: '${{ matrix.plugin.dir }}'
+        run: zig build -Doptimize=ReleaseSafe
+
+      # ── Collect artifact ─────────────────────────────────────────────────── //
+      - name: Collect built artifact
+        if: steps.changed.outputs.rebuild == 'true'
+        run: |
+          mkdir -p dist
+          find "${{ matrix.plugin.dir }}/zig-out" \
+               -name '*.so' -o -name '*.dylib' 2>/dev/null \
+            | while read f; do
+                cp "$f" dist/
+                echo "Collected: $(basename $f)"
+              done
+          ls -lh dist/ || echo "(nothing collected)"
+
+      - name: Upload artifact
+        if: steps.changed.outputs.rebuild == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.plugin.id }}-linux-x86_64
+          path: dist/*.so
+          if-no-files-found: warn
+
+  # ── Job 3: Update registry + publish release ──────────────────────────────
+  # Regenerates registry.json from all plugin.toml files (always runs, even
+  # when no plugins were rebuilt), then commits the result and uploads
+  # any new binaries to the `plugins-latest` rolling release.
+  publish:
+    name: Update registry & release
+    runs-on: ubuntu-latest
+    needs: build
+    if: always() && !contains(needs.build.result, 'cancelled')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Regenerate registry.json from the current state of all plugin.toml files.
+      - name: Regenerate registry.json
+        env:
+          REGISTRY_REPO:        ${{ github.repository }}
+          REGISTRY_BRANCH:      ${{ github.ref_name }}
+          REGISTRY_RELEASE_TAG: plugins-latest
+        run: |
+          python3 tools/gen_registry.py
+          echo ""
+          echo "Generated plugins/registry.json:"
+          cat plugins/registry.json
+
+      # Commit the updated registry back to the branch.
+      - name: Commit registry.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add plugins/registry.json
+          if git diff --cached --quiet; then
+            echo "registry.json unchanged – nothing to commit."
+          else
+            git commit -m "chore: regenerate plugins/registry.json [skip ci]"
+            git push
+          fi
+
+      # Download all artifacts produced by the build jobs.
+      - name: Download built binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List downloaded binaries
+        run: find dist/ -type f | sort || echo "(no binaries downloaded)"
+
+      # Create the rolling release if it doesn't exist, then upload / overwrite
+      # every .so and .dylib found in dist/.
+      - name: Publish to plugins-latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create the release if it doesn't exist yet.
+          if ! gh release view plugins-latest --repo "$GITHUB_REPOSITORY" &>/dev/null; then
+            gh release create plugins-latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Plugin Binaries (latest)" \
+              --notes "Rolling release – updated automatically on every push to main.
+          Download by the in-app Plugin Marketplace." \
+              --prerelease
+          fi
+
+          # Upload (overwrite) every built binary.
+          find dist/ -type f \( -name '*.so' -o -name '*.dylib' \) | while read f; do
+            echo "Uploading $(basename $f) …"
+            gh release upload plugins-latest "$f" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          done
+
+      - name: Step summary
+        run: |
+          echo "### Plugin release updated" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File | Size |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
+          find dist/ -type f \( -name '*.so' -o -name '*.dylib' \) | while read f; do
+            sz=$(du -sh "$f" | cut -f1)
+            echo "| \`$(basename $f)\` | ${sz}B |" >> "$GITHUB_STEP_SUMMARY"
+          done || echo "_(no binaries in this run)_" >> "$GITHUB_STEP_SUMMARY"

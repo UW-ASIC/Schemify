@@ -1,0 +1,18 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_mos_binning.sch
+.subckt test_mos_binning
+
+*  p16 -  lab_pin  IS MISSING !!!!
+*  p21 -  lab_pin  IS MISSING !!!!
+*  Vd2 -  ammeter  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  NGSPICE -  code  IS MISSING !!!!
+*  M2 -  nfet_01v8  IS MISSING !!!!
+*  h4 -  launcher  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  l1 -  title  IS MISSING !!!!
+*  CORNER -  corner  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  l2 -  noconn  IS MISSING !!!!
+*  l3 -  noconn  IS MISSING !!!!
+.ends

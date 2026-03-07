@@ -1,0 +1,152 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/poweramp.sch
+.subckt poweramp
+
+V1 VPPI net3 dc 'VPP' pwl 0 0 1m 'VPP'
+V0 net3 VNNI dc 'VPP' pwl 0 0 1m 'VPP'
+R1 OUTM OUTP 8 m=1
+E3 REFP VSS IN VSS {gain*0.99}
+C3 VSS VNN 100u m=1
+R11 net1 VPPI 0.1 m=1
+R9 net2 VNNI 0.1 m=1
+R19 OUTM FBN 50k m=1
+R0 FBN net4 '50k/gain' m=1
+x1 FBN VSSX VSS OUTM VPP VNN mos_power_ampli
+x0 FB INX VSS OUTP VPP VNN mos_power_ampli
+R6 VPP INX 50k m=1
+R7 INX VSS 50k m=1
+E0 REFM VSS IN VSS {-gain*0.99}
+C5 net4 IN 100n ; ic=0 m=1
+C6 net5 VSS 100n ; ic=0 m=1
+R2 OUTP FB 50k m=1
+R3 FB net5 '50k/(gain-2)' m=1
+V3 IN_INT net6 dc 0 sin 0 1 {frequ} 1m
+R4 VPP VSSX 50k m=1
+R5 VSSX VSS 50k m=1
+R8 VPP FBN 50k m=1
+C4 INX IN 100n ; ic=0 m=1
+C1 VSSX VSS 100n ; ic=0 m=1
+R10 IN IN_INT 2 m=1
+R13 VPP FB 50k m=1
+Vin net6 VSS 0
+vcurrvpp net1 VPP 0
+.save i(vcurrvpp)
+vcurrvnn net2 VNN 0
+.save i(vcurrvnn)
+vcurrvss net3 VSS 0
+.save i(vcurrvss)
+C2 VPP VSS 100u m=1
+.save v(outm)
+.save v(outp)
+.save v(refp)
+.save v(refm)
+.save v(in)
+.save v(vpp)
+.save v(vnn)
+**** begin user architecture code
+
+
+
+.option ITL4=20000 ITL5=0
+vvss vss 0 dc 0
+.param VPP=50
+.temp 30
+.param frequ=15k
+.param gain=45
+.option savecurrents
+
+** models are generally not free: you must download
+** SPICE models for active devices and put them  into the below
+** referenced file in simulation directory.
+.include "models_poweramp.txt"
+.control
+save all
+op
+write poweramp.raw
+set appendwrite
+tran  2e-7 0.025 uic
+* .FOUR 20k v(outm,outp)
+* .probe i(*)
+save p(r*) p(v*)
+write poweramp.raw
+quit 0
+.endc
+
+
+
+
+**** end user architecture code
+.ends
+
+* expanding   symbol:  mos_power_ampli.sym # of pins=6
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/mos_power_ampli.sym
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/mos_power_ampli.sch
+.subckt mos_power_ampli MINUS PLUS VSS OUT VPP VNN
+*.PININFO PLUS:I VNN:I OUT:O MINUS:I VSS:I VPP:I
+xm2 net1 GB SB irf540 m=1
+R7 GB SB 320 m=1
+xm1 VPP GA SA irf540 m=1
+R0 GA SA 320 m=1
+R2 VPP E2 50 m=1
+R3 VBOOST E1 50 m=1
+Q5 C5 PLUS E9 q2n2222 area=1 m=1
+Q4 net8 net2 E4 q2n2907p area=1 m=1
+R9 VBOOST E4 50 m=1
+Q6 C6 C2 net5 q2n2907p area=1 m=1
+R4 VPP E6 50 m=1
+vd OUTI net1 0
+.save i(vd)
+vu SA OUTI 0
+.save i(vu)
+Q1 net2 net2 E1 q2n2907p area=1 m=1
+Q2 C2 C2 net4 q2n2907p area=1 m=1
+Q9 C9 MINUS E9 q2n2222 area=1 m=1
+R11 GB net6 1000 m=1
+Q8 C8 VSS E8 q2n2907p area=1 m=1
+C12 VBOOST net3 40u m=1
+D0 VPP VBOOST d1n4148 area=1
+R18 net3 OUTI 200 m=1
+D1 VPP VBOOST d1n758
+R14 B1 net7 4k m=1
+Q11 GA B1 E11 q2n2907p area=1 m=1
+R15 VBOOST B1 4k m=1
+R5 E9 net9 40 m=1
+R6 net9 net10 40 m=1
+D2 VSS B3 1N746
+Q3 C3 B3 E3 q2n2222 area=1 m=1
+R1 VPP B3 7k m=1
+R10 E3 VSS 110 m=1
+C3 B3 VSS 100n m=1
+R12 C6 E8 400 m=1
+R13 C2 C9 300 m=1
+Q7 C7 C9 C5 q2n2222 area=1 m=1
+v0 SB VNN 0
+.save i(v0)
+v1 E6 net5 0
+.save i(v1)
+v2 E2 net4 0
+.save i(v2)
+v3 net10 C3 0
+.save i(v3)
+v4 C8 net6 0
+.save i(v4)
+v5 net7 OUTI 0
+.save i(v5)
+v6 net2 C7 0
+.save i(v6)
+v7 net8 E11 0
+.save i(v7)
+.save v(gb)
+.save v(sb)
+.save v(ga)
+.save v(sa)
+v8 OUTI OUT 0
+.save i(v8)
+.save v(ga)
+.save v(gb)
+.save v(c2)
+.save v(net2)
+.save v(c7)
+.save v(vboost)
+.save v(outi)
+.ends
+

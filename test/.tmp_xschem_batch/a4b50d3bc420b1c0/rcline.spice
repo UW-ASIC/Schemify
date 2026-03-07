@@ -1,0 +1,7 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/rcline.sch
+.subckt rcline OUT IN
+*.PININFO IN:I OUT:O
+C1 net1 0 'Cap/2' m=1
+R1 net1 OUT 'Res/2' m=1
+R2 IN net1 'Res/2' m=1
+.ends

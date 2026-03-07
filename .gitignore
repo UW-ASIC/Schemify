@@ -1,0 +1,32 @@
+# Zig build artifacts
+zig-out/
+zig-cache/
+.zig-cache/
+
+# Nix
+result
+result-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Docs (VitePress + bun/npm)
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+# Claude Code toolchain (auto-added by claude-setup.sh)
+
+zig-lsp-plugin/
+.mcp.json
+
+# Claude Code agent worktrees
+.claude/worktrees/

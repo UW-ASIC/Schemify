@@ -1,0 +1,10 @@
+[plugin]
+name        = "CircuitVision"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libCircuitVision.so"
+description = "AI-powered circuit schematic detection using the SINA pipeline. Extracts component topology and connectivity from circuit images via YOLOv11 + CCL, achieving 96.47% end-to-end accuracy."
+tags        = ["AI", "vision", "detection", "SINA"]
+
+[build]
+apt_deps = ["python3-dev"]

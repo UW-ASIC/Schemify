@@ -1,0 +1,17 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/passgate_nlvt.sch
+.subckt passgate_nlvt Z A GP GN VCCBPIN VSSBPIN
+
+*  p179 -  lab_pin  IS MISSING !!!!
+*  p180 -  lab_pin  IS MISSING !!!!
+*  l1 -  title  IS MISSING !!!!
+*  p1 -  iopin  IS MISSING !!!!
+*  p2 -  iopin  IS MISSING !!!!
+*  p3 -  ipin  IS MISSING !!!!
+*  p4 -  ipin  IS MISSING !!!!
+*  M1 -  nfet_01v8_lvt  IS MISSING !!!!
+*  M2 -  pfet_01v8_lvt  IS MISSING !!!!
+*  l2 -  lab_pin  IS MISSING !!!!
+*  l3 -  noconn  IS MISSING !!!!
+*  l4 -  lab_pin  IS MISSING !!!!
+*  l5 -  noconn  IS MISSING !!!!
+.ends

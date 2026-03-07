@@ -1,0 +1,124 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/LCC_instances.sch
+.subckt LCC_instances
+
+V1 A 0 pwl 0 0 10u 3
+.save i(v1)
+V2 VDD 0 3
+.save i(v2)
+R1 net3 HALF 80k m=1
+V3 HALF 0 1.5
+.save i(v3)
+R2 net2 HALF 80k m=1
+Xinv ZZ A cmos_inv WN=15u WP=45u LLN=3u LLP=3u m=1
+Xinv2 ZZZ A cmos_inv WN=15u WP=45u LLN=3u LLP=3u m=1
+Xkeeper net1 bus_keeper WN_FB=6u WP_FB=12u
+Xinv1 Z A cmos_inv WN=1u WP=1u LLN=2u LLP=2u m=1
+Vmeas ZZ net1 0
+.save i(vmeas)
+M1 Z VDD VDD 0 n w=1u l=2u m=1
+**** begin user architecture code
+
+* .options SRCSTEPS=0
+.option savecurrents
+.control
+save all
+dc v1 0 3 0.001
+write LCC_instances.raw
+set appendwrite
+dc v1 3 0 -0.001
+write LCC_instances.raw
+op
+write LCC_instances.raw
+tran 10n 10u uic
+write LCC_instances.raw
+alter V1 pwl = [ 0 3 10u 0 ]
+tran 10n 10u uic
+write LCC_instances.raw
+* quit 0
+.endc
+
+
+
+************************************************
+*         NOMINAL N-Channel Transistor         *
+*            UCB-3 Parameter Set               *
+*         HIGH-SPEED CMOS Logic Family         *
+*                10-Jan.-1995                  *
+************************************************
+.Model N NMOS (
++LEVEL = 3
++KP    = 45.3E-6
++VTO   = 0.72
++TOX   = 51.5E-9
++NSUB  = 2.8E15
++GAMMA = 0.94
++PHI   = 0.65
++VMAX  = 150E3
++RS    = 40
++RD    = 40
++XJ    = 0.11E-6
++LD    = 0.52E-6
++DELTA = 0.315
++THETA = 0.054
++ETA   = 0.025
++KAPPA = 0.0
++WD    = 0.0 )
+
+***********************************************
+*        NOMINAL P-Channel transistor         *
+*           UCB-3 Parameter Set               *
+*         HIGH-SPEED CMOS Logic Family        *
+*               10-Jan.-1995                  *
+***********************************************
+.Model P PMOS (
++LEVEL = 3
++KP    = 22.1E-6
++VTO   = -0.71
++TOX   = 51.5E-9
++NSUB  = 3.3E16
++GAMMA = 0.92
++PHI   = 0.65
++VMAX  = 970E3
++RS    = 80
++RD    = 80
++XJ    = 0.63E-6
++LD    = 0.23E-6
++DELTA = 2.24
++THETA = 0.108
++ETA   = 0.322
++KAPPA = 0.0
++WD    = 0.0 )
+
+
+
+
+
+**** end user architecture code
+.ends
+
+* expanding   symbol:  cmos_inv.sch # of pins=2
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/cmos_inv.sch
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/cmos_inv.sch
+.subckt cmos_inv Z A  WN=15u WP=45u LLN=3u LLP=3u
+*.PININFO Z:O A:I
+M2 net1 A VDD VDD p w=WP l=LLP m=1
+M1 D A 0 0 n w=WN l=LLN m=1
+R1 net2 D 10 m=1
+V1 net1 D 0
+.save i(v1)
+Vmeas net2 Z 0
+.save i(vmeas)
+.ends
+
+
+* expanding   symbol:  bus_keeper.sch # of pins=1
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/bus_keeper.sch
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/bus_keeper.sch
+.subckt bus_keeper A  WN_FB=1u WP_FB=2u
+*.PININFO A:B
+X2 Y A cmos_inv WN=15u WP=45u LLN=3u LLP=3u m=1
+X1 A Y cmos_inv WN=WN_FB WP=WP_FB LLN=3u LLP=3u m=1
+C1 Y 0 10f m=1
+.ends
+
+.GLOBAL VDD

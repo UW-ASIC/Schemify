@@ -1,0 +1,94 @@
+{
+    "version": "1.0",
+    "metadata": {
+        "source_image": "tests/fixtures/inverting_opamp.png",
+        "detected_style": "textbook",
+        "overall_confidence": 0.93,
+        "image_dimensions": {"width": 1024, "height": 768},
+        "crossing_convention": "dot_means_connected",
+        "pipeline_version": "0.1.0"
+    },
+    "components": [
+        {
+            "id": "comp_000",
+            "type": "resistor",
+            "symbol": "devices/res",
+            "ref": "R1",
+            "value": "10k",
+            "confidence": 0.94,
+            "pins": [
+                {"id": "comp_000.1", "name": "1"},
+                {"id": "comp_000.2", "name": "2"}
+            ],
+            "source_bbox": {"x": 150, "y": 370, "w": 100, "h": 25},
+            "properties": {}
+        },
+        {
+            "id": "comp_001",
+            "type": "resistor",
+            "symbol": "devices/res",
+            "ref": "R2",
+            "value": "100k",
+            "confidence": 0.91,
+            "pins": [
+                {"id": "comp_001.1", "name": "1"},
+                {"id": "comp_001.2", "name": "2"}
+            ],
+            "source_bbox": {"x": 350, "y": 250, "w": 120, "h": 25},
+            "properties": {}
+        },
+        {
+            "id": "comp_002",
+            "type": "opamp",
+            "symbol": "devices/opamp",
+            "ref": "U1",
+            "confidence": 0.96,
+            "pins": [
+                {"id": "comp_002.IN+", "name": "IN+"},
+                {"id": "comp_002.IN-", "name": "IN-"},
+                {"id": "comp_002.OUT", "name": "OUT"},
+                {"id": "comp_002.V+", "name": "V+"},
+                {"id": "comp_002.V-", "name": "V-"}
+            ],
+            "source_bbox": {"x": 450, "y": 320, "w": 140, "h": 110},
+            "properties": {}
+        },
+        {
+            "id": "comp_003",
+            "type": "ground",
+            "symbol": "devices/gnd",
+            "confidence": 0.99,
+            "pins": [
+                {"id": "comp_003.1", "name": "1"}
+            ],
+            "source_bbox": {"x": 440, "y": 480, "w": 20, "h": 20},
+            "properties": {}
+        }
+    ],
+    "nets": [
+        {
+            "id": "net_000",
+            "name": "VIN",
+            "pins": ["comp_000.1"],
+            "confidence": 0.90
+        },
+        {
+            "id": "net_001",
+            "pins": ["comp_000.2", "comp_001.1", "comp_002.IN-"],
+            "confidence": 0.93
+        },
+        {
+            "id": "net_002",
+            "name": "VOUT",
+            "pins": ["comp_001.2", "comp_002.OUT"],
+            "confidence": 0.95
+        },
+        {
+            "id": "net_003",
+            "name": "GND",
+            "pins": ["comp_002.IN+", "comp_003.1"],
+            "confidence": 0.97
+        }
+    ],
+    "warnings": []
+}
