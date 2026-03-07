@@ -1,0 +1,29 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/test_lm324.sch
+.subckt test_lm324
+
+x1 P Q VCC VSS Q lm324
+r1 Q VSS 10k m=1
+c1 Q VSS 1n m=1
+* noconn P
+* noconn VCC
+**** begin user architecture code
+
+
+
+.option RUNLVL=5 post
+.param VCC=10
+.param VSS=0
+.temp  25
+vvcc vcc 0 dc VCC
+vvss vss 0 dc VSS
+vp p 0 pwl 0 0 100n 2 200u 2 201u 3 400u 3 401u 1
+
+** models are generally not free: you must download
+** SPICE models for active devices and put them  into the below
+** referenced file in netlist/simulation directory.
+.include model_lm324.txt
+.tran 0.1u 500u
+
+
+**** end user architecture code
+.ends

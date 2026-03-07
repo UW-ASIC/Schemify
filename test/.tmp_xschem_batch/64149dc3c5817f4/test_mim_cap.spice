@@ -1,0 +1,25 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_mim_cap.sch
+.subckt test_mim_cap
+
+*  l1 -  title  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+*  I1 -  isource  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  R1 -  res  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  I3 -  isource  IS MISSING !!!!
+*  p11 -  lab_pin  IS MISSING !!!!
+*  p12 -  lab_pin  IS MISSING !!!!
+*  R3 -  res  IS MISSING !!!!
+*  p13 -  lab_pin  IS MISSING !!!!
+*  C1 -  capa  IS MISSING !!!!
+*  V1 -  vsource  IS MISSING !!!!
+*  p14 -  lab_pin  IS MISSING !!!!
+*  p15 -  lab_pin  IS MISSING !!!!
+*  C2 -  cap_mim_m3_2  IS MISSING !!!!
+?
+*  COMMANDS_XYCE -  simulator_commands_shown  IS MISSING !!!!
+*  COMMANDS_NGSPICE -  simulator_commands_shown  IS MISSING !!!!
+.ends

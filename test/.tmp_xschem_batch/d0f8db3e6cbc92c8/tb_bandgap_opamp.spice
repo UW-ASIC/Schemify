@@ -1,0 +1,66 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/tb_bandgap_opamp.sch
+.subckt tb_bandgap_opamp
+
+*  l1 -  title  IS MISSING !!!!
+*  STIMULI -  code  IS MISSING !!!!
+*  h2 -  launcher  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  p4 -  lab_wire  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  x6 -  passgate_1  IS MISSING !!!!
+*  l34 -  lab_pin  IS MISSING !!!!
+*  l37 -  lab_pin  IS MISSING !!!!
+*  l255 -  lab_pin  IS MISSING !!!!
+*  l40 -  lab_pin  IS MISSING !!!!
+*  C1 -  cap_mim_m3_2  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  x2 -  not  IS MISSING !!!!
+*  p15 -  lab_pin  IS MISSING !!!!
+*  p16 -  lab_pin  IS MISSING !!!!
+*  CORNER -  corner  IS MISSING !!!!
+*  h5 -  launcher  IS MISSING !!!!
+*  x1 -  zero_opamp  IS MISSING !!!!
+*  p23 -  lab_pin  IS MISSING !!!!
+
+*  l5 -  lab_pin  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+
+*  p10 -  lab_pin  IS MISSING !!!!
+*  x3 -  gain_stage2  IS MISSING !!!!
+*  p12 -  lab_pin  IS MISSING !!!!
+*  p13 -  lab_pin  IS MISSING !!!!
+*  p14 -  lab_pin  IS MISSING !!!!
+*  p17 -  lab_pin  IS MISSING !!!!
+*  p18 -  lab_pin  IS MISSING !!!!
+*  p19 -  lab_pin  IS MISSING !!!!
+
+*  p113 -  lab_pin  IS MISSING !!!!
+*  p114 -  lab_pin  IS MISSING !!!!
+*  l12 -  noconn  IS MISSING !!!!
+*  p11 -  lab_pin  IS MISSING !!!!
+*  p20 -  lab_pin  IS MISSING !!!!
+*  p21 -  lab_pin  IS MISSING !!!!
+*  p24 -  lab_pin  IS MISSING !!!!
+*  p25 -  lab_pin  IS MISSING !!!!
+*  p22 -  ipin  IS MISSING !!!!
+*  p26 -  ipin  IS MISSING !!!!
+*  p27 -  ipin  IS MISSING !!!!
+*  p28 -  opin  IS MISSING !!!!
+*  p29 -  ipin  IS MISSING !!!!
+*  p30 -  ipin  IS MISSING !!!!
+*  l2 -  noconn  IS MISSING !!!!
+*  l3 -  noconn  IS MISSING !!!!
+*  l4 -  noconn  IS MISSING !!!!
+*  l6 -  noconn  IS MISSING !!!!
+*  l7 -  noconn  IS MISSING !!!!
+*  p31 -  lab_pin  IS MISSING !!!!
+
+*  l8 -  lab_pin  IS MISSING !!!!
+*  p32 -  lab_pin  IS MISSING !!!!
+
+*  p33 -  lab_pin  IS MISSING !!!!
+.ends

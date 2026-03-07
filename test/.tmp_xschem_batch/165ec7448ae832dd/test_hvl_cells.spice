@@ -1,0 +1,31 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_hvl_cells.sch
+.subckt test_hvl_cells
+
+*  p17 -  lab_pin  IS MISSING !!!!
+*  l1 -  title  IS MISSING !!!!
+*  VVCC -  vsource  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  h1 -  launcher  IS MISSING !!!!
+*  h2 -  launcher  IS MISSING !!!!
+*  h3 -  launcher  IS MISSING !!!!
+*  COMMANDS -  code_shown  IS MISSING !!!!
+*  x1 -  dfrtp_1  IS MISSING !!!!
+*  x2 -  and2_1  IS MISSING !!!!
+*  p1 -  lab_wire  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+*  VCK -  vsource  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  VDATA -  vsource  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+*  p10 -  lab_pin  IS MISSING !!!!
+*  VRST_B -  vsource  IS MISSING !!!!
+*  p11 -  lab_pin  IS MISSING !!!!
+*  p12 -  lab_pin  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+?
+*  l2 -  noconn  IS MISSING !!!!
+*  l3 -  noconn  IS MISSING !!!!
+.ends

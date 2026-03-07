@@ -1,0 +1,10 @@
+[plugin]
+name        = "GmIDVisualizer"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libGmIDVisualizer.so"
+description = "MOSFET Gm/Id design methodology overlay. Runs ngspice sweeps, validates SPICE model files, and produces SVG plots directly in the Schemify panel."
+tags        = ["simulation", "MOSFET", "ngspice", "analog"]
+
+[build]
+apt_deps = []

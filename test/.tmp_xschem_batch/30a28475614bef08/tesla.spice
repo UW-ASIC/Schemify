@@ -1,0 +1,48 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/tesla.sch
+.subckt tesla
+
+Rs VCC VCCS 1 m=1
+Vvcc VCCS VSS pwl 0 0 1u 12
+Cvcc VCC VSS 10u m=1
+C1 HV VSS 1p m=1
+L1 net2 VCC 9.8u m=1
+L2 HV net1 9.1m m=1
+K0 L1 L2 0.15
+R0 net1 FB .32 m=1
+C0 HV FB 4.1p m=1
+R3 net2 net3 0.22 m=1
+C5 VCC net3 13p m=1
+D2 VSS FB d1n4148 area=1
+D1 FB VCC d1n4148 area=1
+Q5 D FB VSS bd139 area=1 m=1
+R1 VCC FB 100k m=1
+D3 net3 VCC d1n5400 area=1
+vmeasure net3 D 0
+.save i(vmeasure)
+D4 VSS net3 d1n5400 area=1
+**** begin user architecture code
+
+.option SCALE=1e-6 PARHIER=LOCAL RUNLVL=6 post MODMONTE=1
+.option sampling_method = SRS
+.option method=gear savecurrents
+vvss vss 0 dc 0
+
+.save all
+.save tran @q5[p]
+** models are generally not free: you must download
+** SPICE models for active devices and put them  into the below
+** referenced file in simulation directory.
+.include models_tesla.txt
+.temp 30
+
+.control
+tran 40n 1m  uic
+meas tran iavg AVG i(vvcc) from=950u to=990u
+save tran p(q5) i(l1) i(l2)
+write tesla.raw
+quit 0
+.endc
+
+
+**** end user architecture code
+.ends

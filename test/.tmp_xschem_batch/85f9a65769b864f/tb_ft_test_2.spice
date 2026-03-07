@@ -1,0 +1,35 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/tb_ft_test_2.sch
+.subckt tb_ft_test_2
+
+*  VDS -  vsource  IS MISSING !!!!
+*  l1 -  gnd  IS MISSING !!!!
+*  SIMULATION -  code  IS MISSING !!!!
+*  l2 -  lab_wire  IS MISSING !!!!
+*  l4 -  title  IS MISSING !!!!
+*  VGS -  vsource  IS MISSING !!!!
+*  l3 -  lab_wire  IS MISSING !!!!
+*  Vd -  ammeter  IS MISSING !!!!
+*  L1 -  ind  IS MISSING !!!!
+*  Vg -  ammeter  IS MISSING !!!!
+*  L2 -  ind  IS MISSING !!!!
+*  C1 -  capa  IS MISSING !!!!
+*  C2 -  capa  IS MISSING !!!!
+*  VGS1 -  vsource  IS MISSING !!!!
+*  h2 -  launcher  IS MISSING !!!!
+*  Vd_dc -  ammeter  IS MISSING !!!!
+*  p1 -  spice_probe  IS MISSING !!!!
+*  p2 -  spice_probe  IS MISSING !!!!
+*  Vb -  ammeter  IS MISSING !!!!
+*  M2 -  nfet_01v8_lvt  IS MISSING !!!!
+*  l5 -  gnd  IS MISSING !!!!
+*  M3 -  nfet_01v8_lvt  IS MISSING !!!!
+*  l6 -  gnd  IS MISSING !!!!
+*  M1 -  nfet_01v8_lvt  IS MISSING !!!!
+*  l7 -  lab_wire  IS MISSING !!!!
+*  l8 -  gnd  IS MISSING !!!!
+*  M4 -  nfet_01v8_lvt  IS MISSING !!!!
+?
+*  h1 -  launcher  IS MISSING !!!!
+*  h3 -  launcher  IS MISSING !!!!
+*  annot1 -  annotate_fet_params  IS MISSING !!!!
+.ends

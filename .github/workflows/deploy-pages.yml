@@ -1,0 +1,135 @@
+# Reusable workflow — call this from your own repo to host a Schemify viewer
+# on your GitHub Pages, either as a standalone site or alongside existing content.
+#
+# Minimal caller (standalone, schematics in repo root):
+#
+#   jobs:
+#     deploy:
+#       uses: UWASIC/Schemify/.github/workflows/deploy-pages.yml@main
+#       permissions:
+#         pages: write
+#         id-token: write
+#
+# Schematics in a subdirectory:
+#
+#   with:
+#     project_dir: hardware
+#
+# Tab alongside an existing VitePress / static site (embed mode):
+#
+#   with:
+#     embed_in: docs/.vitepress/dist   # path to your pre-built site
+#
+#   The viewer lands at <embed_in>/schematic/ and the whole site is deployed.
+#   Build your site in the same job before calling this workflow.
+
+name: Deploy Schemify Viewer
+
+on:
+  workflow_call:
+    inputs:
+      # Directory (relative to caller repo root) containing config.toml
+      # and all schematic files.  Bundled as-is into the viewer.
+      project_dir:
+        description: 'Directory containing config.toml and schematics'
+        type: string
+        default: '.'
+
+      # Schemify release to download.  "latest" resolves automatically.
+      schemify_version:
+        description: 'Schemify release tag (e.g. v0.2.0) or "latest"'
+        type: string
+        default: 'latest'
+
+      # EMBED MODE: path to an already-built static site in the caller workspace.
+      # The viewer is placed at <embed_in>/schematic/ and the whole directory
+      # is deployed.  Leave empty for a standalone deployment.
+      embed_in:
+        description: 'Embed viewer into this pre-built site directory (optional)'
+        type: string
+        default: ''
+
+    outputs:
+      page_url:
+        description: 'URL of the deployed GitHub Pages site'
+        value: ${{ jobs.deploy.outputs.page_url }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ── 1. Assemble the viewer ───────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+
+      - name: Checkout Schemify build scripts
+        uses: actions/checkout@v4
+        with:
+          repository: UWASIC/Schemify
+          ref: main
+          path: .schemify-tools
+          sparse-checkout: |
+            scripts/build-viewer.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve Schemify version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ver="${{ inputs.schemify_version }}"
+          if [ "$ver" = "latest" ]; then
+            ver=$(gh release view --repo UWASIC/Schemify --json tagName -q .tagName)
+          fi
+          echo "tag=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Download WASM release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .schemify-assets
+          gh release download "${{ steps.version.outputs.tag }}" \
+            --repo UWASIC/Schemify \
+            --pattern "schemify.wasm" \
+            --pattern "web.js" \
+            --dir .schemify-assets
+
+      - name: Generate viewer
+        working-directory: ${{ inputs.project_dir }}
+        run: |
+          node "$GITHUB_WORKSPACE/.schemify-tools/scripts/build-viewer.mjs" \
+            "$GITHUB_WORKSPACE/.schemify-assets/schemify.wasm" \
+            "$GITHUB_WORKSPACE/.schemify-assets/web.js"       \
+            "$GITHUB_WORKSPACE/schemify-out"
+
+      - name: Embed viewer into existing site
+        if: ${{ inputs.embed_in != '' }}
+        run: |
+          dest="${{ inputs.embed_in }}/schematic"
+          mkdir -p "$dest"
+          cp -r schemify-out/. "$dest/"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ inputs.embed_in != '' && inputs.embed_in || 'schemify-out' }}
+
+  # ── 2. Deploy ────────────────────────────────────────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,4 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/LM5134A.sch
+.subckt LM5134A VDD PILOT OUT IN INB VSS
+*.PININFO VDD:I PILOT:I OUT:I IN:O INB:O VSS:O
+.ends

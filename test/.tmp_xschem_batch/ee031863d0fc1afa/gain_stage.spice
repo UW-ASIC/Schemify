@@ -1,0 +1,50 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/gain_stage.sch
+.subckt gain_stage IN OUT VCC VSS START_N START EN_N
+
+*  l1 -  title  IS MISSING !!!!
+*  p95 -  ipin  IS MISSING !!!!
+*  p96 -  ipin  IS MISSING !!!!
+*  p97 -  ipin  IS MISSING !!!!
+*  p116 -  opin  IS MISSING !!!!
+*  h3 -  launcher  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  l10 -  lab_pin  IS MISSING !!!!
+*  C5 -  parax_cap  IS MISSING !!!!
+*  M6 -  nfet_01v8_lvt  IS MISSING !!!!
+*  v4 -  ammeter  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  M7 -  nfet_01v8  IS MISSING !!!!
+*  l6 -  lab_pin  IS MISSING !!!!
+*  p123 -  lab_pin  IS MISSING !!!!
+*  p124 -  lab_pin  IS MISSING !!!!
+*  l65 -  lab_pin  IS MISSING !!!!
+*  M46 -  pfet_01v8  IS MISSING !!!!
+*  v17 -  ammeter  IS MISSING !!!!
+*  p144 -  lab_pin  IS MISSING !!!!
+*  M5 -  pfet_01v8_lvt  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  l7 -  lab_pin  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+*  M8 -  pfet_01v8_lvt  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  M9 -  nfet_01v8  IS MISSING !!!!
+*  p10 -  lab_pin  IS MISSING !!!!
+*  M10 -  nfet_01v8  IS MISSING !!!!
+*  l8 -  lab_pin  IS MISSING !!!!
+*  p11 -  lab_pin  IS MISSING !!!!
+*  p27 -  lab_pin  IS MISSING !!!!
+*  M1 -  pfet_01v8  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  l2 -  lab_pin  IS MISSING !!!!
+*  C1 -  parax_cap  IS MISSING !!!!
+*  x6 -  passgate_1  IS MISSING !!!!
+*  l34 -  lab_pin  IS MISSING !!!!
+*  l37 -  lab_pin  IS MISSING !!!!
+*  l40 -  lab_pin  IS MISSING !!!!
+*  C2 -  cap_mim_m3_2  IS MISSING !!!!
+*  p4 -  ipin  IS MISSING !!!!
+*  p12 -  ipin  IS MISSING !!!!
+*  p13 -  ipin  IS MISSING !!!!
+*  v1 -  ammeter  IS MISSING !!!!
+.ends

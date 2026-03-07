@@ -1,0 +1,9 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/generators/test_generators.sch
+.subckt test_generators
+
+R1 VDD VSS 1k m=1
+C1 net1 VSS 1p m=1
+C2 VDD VSS 1p m=1
+R2 VDD net1 100 m=1
+* shorted: R3  VDD <--> VDD 0.1
+.ends

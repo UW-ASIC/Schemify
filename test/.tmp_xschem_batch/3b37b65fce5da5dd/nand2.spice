@@ -1,0 +1,10 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/nand2.sch
+.subckt nand2 Z A B
+*.PININFO A:I Z:O B:I
+m1 Z A net1 VSS CMOSN w=WN l=LLN m=1
+m1 net1 B VSS VSS CMOSN w=WN l=LLN m=1
+m2 Z B VCC VCC CMOSP w=WP l=LP m=1
+m2 Z A VCC VCC CMOSP w=WP l=LP m=1
+.ends
+.GLOBAL VSS
+.GLOBAL VCC

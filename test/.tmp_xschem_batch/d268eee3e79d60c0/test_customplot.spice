@@ -1,0 +1,20 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_customplot.sch
+.subckt test_customplot
+
+*  V1 -  vsource  IS MISSING !!!!
+*  C1 -  capa  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  COMMANDS -  code_shown  IS MISSING !!!!
+*  M1 -  pfet_g5v0d10v5  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+?
+*  V2 -  vsource  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  l1 -  title  IS MISSING !!!!
+*  h1 -  launcher  IS MISSING !!!!
+*  R1 -  res  IS MISSING !!!!
+.ends

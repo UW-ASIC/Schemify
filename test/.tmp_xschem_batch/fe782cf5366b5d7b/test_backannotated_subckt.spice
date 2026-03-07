@@ -1,0 +1,28 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/test_backannotated_subckt.sch
+.subckt test_backannotated_subckt
+
+V1 IN 0 pwl 0 0 10n 0 11n 5
+x1 OUT IN rcline Res=240000.00000000003 Cap=5.000000000000001e-14
+**** begin user architecture code
+
+
+.control
+  save all
+  tran 0.1n 50n
+  write test_backannotated_subckt.raw
+.endc
+
+
+**** end user architecture code
+.ends
+
+* expanding   symbol:  rcline.sym # of pins=2
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/rcline.sym
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/rcline.sch
+.subckt rcline OUT IN  Res=1e4 Cap=1e-6
+*.PININFO IN:I OUT:O
+C1 net1 0 'Cap/2' m=1
+R1 net1 OUT 'Res/2' m=1
+R2 IN net1 'Res/2' m=1
+.ends
+

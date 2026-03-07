@@ -1,0 +1,17 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_multisim.sch
+.subckt test_multisim
+
+*  l1 -  title  IS MISSING !!!!
+*  V4 -  vsource  IS MISSING !!!!
+*  l1 -  gnd  IS MISSING !!!!
+*  p20 -  lab_pin  IS MISSING !!!!
+*  R1 -  res  IS MISSING !!!!
+*  C2 -  capa  IS MISSING !!!!
+*  l20 -  lab_wire  IS MISSING !!!!
+*  COMMANDS1 -  simulator_commands_shown  IS MISSING !!!!
+*  COMMANDS2 -  simulator_commands_shown  IS MISSING !!!!
+*  h2 -  launcher  IS MISSING !!!!
+*  h3 -  launcher  IS MISSING !!!!
+*  r2 -  ngspice_probe  IS MISSING !!!!
+*  r2 -  ngspice_probe  IS MISSING !!!!
+.ends

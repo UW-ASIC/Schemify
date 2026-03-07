@@ -1,0 +1,35 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/test_ne555.sch
+.subckt test_ne555
+
+x1 VSS TRIG OUT VSUPPLY CTRL TRIG DIS VSUPPLY ne555
+r3 DIS TRIG 2k m=1
+c6 TRIG VSS 2n m=1
+v1 VSUPPLY VSS 5
+r5 VSUPPLY DIS 2k m=1
+* noconn CTRL
+**** begin user architecture code
+
+.option SCALE=1e-6 PARHIER=LOCAL RUNLVL=6 post MODMONTE=1
+.option sampling_method = SRS
+* .option method=gear
+vvss vss 0 dc 0
+
+** models are generally not free: you must download
+** SPICE models for active devices and put them  into the below
+** referenced file in netlist/simulation directory.
+.temp 30
+* .include "model_test_ne555.txt"
+
+.control
+  save all
+  tran 0.1u 1m uic
+  write test_ne555.raw
+.endc
+
+
+**** end user architecture code
+.ends
+
+* expanding   symbol:  ne555.sym # of pins=8
+** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/ne555.sym
+.include /home/omare/Documents/UWASIC/Schemify/test/.tmp_xschem_batch/57a370ec94e201f6/model_test_ne555.txt

@@ -1,0 +1,4 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/SYMBOL_include.sch
+.subckt SYMBOL_include A[2] A[1] A[0] Z B Y[5] Y[4] Y[3] Y[2] C vcc VSS
+*.PININFO A[2:0]:I B:I C:I vcc:I VSS:I Z:O Y[5:2]:O
+.ends

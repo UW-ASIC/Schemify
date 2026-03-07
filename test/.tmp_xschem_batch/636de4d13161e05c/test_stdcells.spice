@@ -1,0 +1,60 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_stdcells.sch
+.subckt test_stdcells
+
+?
+*  V1 -  sqwsource  IS MISSING !!!!
+*  V2 -  sqwsource  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  V3 -  sqwsource  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  V4 -  sqwsource  IS MISSING !!!!
+*  p12 -  lab_pin  IS MISSING !!!!
+*  p13 -  lab_pin  IS MISSING !!!!
+*  l1 -  title  IS MISSING !!!!
+*  h1 -  launcher  IS MISSING !!!!
+*  x2 -  stdcells  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  p10 -  lab_pin  IS MISSING !!!!
+*  p11 -  lab_pin  IS MISSING !!!!
+*  x1 -  stdcells_xspice  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  p10 -  lab_pin  IS MISSING !!!!
+*  p11 -  lab_pin  IS MISSING !!!!
+*  XSPICE_MODELS -  code_shown  IS MISSING !!!!
+*  h2 -  launcher  IS MISSING !!!!
+*  p14 -  lab_pin  IS MISSING !!!!
+*  p15 -  lab_pin  IS MISSING !!!!
+*  l2 -  noconn  IS MISSING !!!!
+*  l3 -  noconn  IS MISSING !!!!
+*  p16 -  lab_pin  IS MISSING !!!!
+*  p17 -  lab_pin  IS MISSING !!!!
+*  p18 -  lab_pin  IS MISSING !!!!
+*  p19 -  lab_pin  IS MISSING !!!!
+*  p20 -  lab_pin  IS MISSING !!!!
+*  STIMULI -  code_shown  IS MISSING !!!!
+*  C1 -  parax_cap  IS MISSING !!!!
+*  C2 -  parax_cap  IS MISSING !!!!
+*  C3 -  parax_cap  IS MISSING !!!!
+*  C4 -  parax_cap  IS MISSING !!!!
+*  C5 -  parax_cap  IS MISSING !!!!
+.ends

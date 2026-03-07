@@ -1,0 +1,17 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/lvnand.sch
+.subckt lvnand A B Y VCCPIN VSSPIN
+
+*  l1 -  title  IS MISSING !!!!
+*  STIMULI -  code  IS MISSING !!!!
+*  p1 -  ipin  IS MISSING !!!!
+*  M1 -  nfet3_01v8  IS MISSING !!!!
+*  M2 -  pfet3_01v8  IS MISSING !!!!
+*  M3 -  pfet3_01v8  IS MISSING !!!!
+*  M4 -  nfet3_01v8  IS MISSING !!!!
+*  p2 -  ipin  IS MISSING !!!!
+*  p3 -  opin  IS MISSING !!!!
+*  l4 -  lab_wire  IS MISSING !!!!
+*  p179 -  lab_pin  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+?
+.ends

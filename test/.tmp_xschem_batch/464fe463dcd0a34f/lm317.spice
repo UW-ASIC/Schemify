@@ -1,0 +1,4 @@
+** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/lm317.sch
+.subckt lm317 IN ADJ OUT
+*.PININFO IN:I ADJ:I OUT:O
+.ends

@@ -1,0 +1,10 @@
+[plugin]
+name        = "EasyPDKLoader"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libEasyPDKLoader.so"
+description = "Native plugin embedding Python to import PDK xschem libraries via the volare PDK manager and emit .chn / .chn_tb schematics."
+tags        = ["PDK", "xschem", "volare", "import"]
+
+[build]
+apt_deps = ["python3-dev"]

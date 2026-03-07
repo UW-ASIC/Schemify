@@ -1,0 +1,79 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/mips_cpu/datapath.sch
+.subckt datapath clk rst alucontrol[2] alucontrol[1] alucontrol[0] alu_src branch jump mem_to_reg mem_write pc[31] pc[30] pc[29]
++ pc[28] pc[27] pc[26] pc[25] pc[24] pc[23] pc[22] pc[21] pc[20] pc[19] pc[18] pc[17] pc[16] pc[15] pc[14] pc[13] pc[12] pc[11] pc[10]
++ pc[9] pc[8] pc[7] pc[6] pc[5] pc[4] pc[3] pc[2] pc[1] pc[0] reg_dst alu_result[31] alu_result[30] alu_result[29] alu_result[28]
++ alu_result[27] alu_result[26] alu_result[25] alu_result[24] alu_result[23] alu_result[22] alu_result[21] alu_result[20] alu_result[19]
++ alu_result[18] alu_result[17] alu_result[16] alu_result[15] alu_result[14] alu_result[13] alu_result[12] alu_result[11] alu_result[10]
++ alu_result[9] alu_result[8] alu_result[7] alu_result[6] alu_result[5] alu_result[4] alu_result[3] alu_result[2] alu_result[1] alu_result[0]
++ reg_write write_data[31] write_data[30] write_data[29] write_data[28] write_data[27] write_data[26] write_data[25] write_data[24]
++ write_data[23] write_data[22] write_data[21] write_data[20] write_data[19] write_data[18] write_data[17] write_data[16] write_data[15]
++ write_data[14] write_data[13] write_data[12] write_data[11] write_data[10] write_data[9] write_data[8] write_data[7] write_data[6] write_data[5]
++ write_data[4] write_data[3] write_data[2] write_data[1] write_data[0] instr[31] instr[30] instr[29] instr[28] instr[27] instr[26] instr[25]
++ instr[24] instr[23] instr[22] instr[21] instr[20] instr[19] instr[18] instr[17] instr[16] instr[15] instr[14] instr[13] instr[12] instr[11]
++ instr[10] instr[9] instr[8] instr[7] instr[6] instr[5] instr[4] instr[3] instr[2] instr[1] instr[0] read_data[31] read_data[30]
++ read_data[29] read_data[28] read_data[27] read_data[26] read_data[25] read_data[24] read_data[23] read_data[22] read_data[21] read_data[20]
++ read_data[19] read_data[18] read_data[17] read_data[16] read_data[15] read_data[14] read_data[13] read_data[12] read_data[11] read_data[10]
++ read_data[9] read_data[8] read_data[7] read_data[6] read_data[5] read_data[4] read_data[3] read_data[2] read_data[1] read_data[0]
+
+*  l1 -  title  IS MISSING !!!!
+*  p2 -  ipin  IS MISSING !!!!
+*  p3 -  ipin  IS MISSING !!!!
+*  p5 -  ipin  IS MISSING !!!!
+*  p6 -  ipin  IS MISSING !!!!
+*  p7 -  ipin  IS MISSING !!!!
+*  p8 -  ipin  IS MISSING !!!!
+*  p9 -  ipin  IS MISSING !!!!
+*  p11 -  ipin  IS MISSING !!!!
+*  p12 -  ipin  IS MISSING !!!!
+*  p14 -  ipin  IS MISSING !!!!
+*  p15 -  opin  IS MISSING !!!!
+*  p1 -  ipin  IS MISSING !!!!
+*  p16 -  opin  IS MISSING !!!!
+*  p17 -  opin  IS MISSING !!!!
+*  xregfile_inst -  regfile  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+*  p13 -  lab_pin  IS MISSING !!!!
+*  p18 -  lab_pin  IS MISSING !!!!
+*  p19 -  lab_pin  IS MISSING !!!!
+*  p20 -  lab_pin  IS MISSING !!!!
+*  p21 -  lab_pin  IS MISSING !!!!
+*  p22 -  lab_pin  IS MISSING !!!!
+*  p23 -  lab_pin  IS MISSING !!!!
+*  xalu_inst -  alu  IS MISSING !!!!
+*  p24 -  lab_pin  IS MISSING !!!!
+*  p25 -  lab_pin  IS MISSING !!!!
+*  p26 -  lab_pin  IS MISSING !!!!
+*  p27 -  lab_pin  IS MISSING !!!!
+*  p28 -  lab_pin  IS MISSING !!!!
+*  p29 -  lab_pin  IS MISSING !!!!
+*  xsign_extend_inst -  sign_extend  IS MISSING !!!!
+*  p30 -  lab_pin  IS MISSING !!!!
+*  p31 -  lab_pin  IS MISSING !!!!
+*  x1 -    IS MISSING !!!!
+*  p10 -  ipin  IS MISSING !!!!
+*  l3 -  noconn  IS MISSING !!!!
+*  l4 -  noconn  IS MISSING !!!!
+*  l5 -  noconn  IS MISSING !!!!
+*  l6 -  noconn  IS MISSING !!!!
+*  l2 -  noconn  IS MISSING !!!!
+*  l7 -  noconn  IS MISSING !!!!
+*  l8 -  noconn  IS MISSING !!!!
+*  l9 -  noconn  IS MISSING !!!!
+*  l10 -  noconn  IS MISSING !!!!
+*  l11 -  noconn  IS MISSING !!!!
+*  l12 -  noconn  IS MISSING !!!!
+*  l13 -  noconn  IS MISSING !!!!
+*  l14 -  noconn  IS MISSING !!!!
+*  l15 -  noconn  IS MISSING !!!!
+*  l16 -  noconn  IS MISSING !!!!
+*  l17 -  noconn  IS MISSING !!!!
+*  l18 -  noconn  IS MISSING !!!!
+*  l19 -  noconn  IS MISSING !!!!
+*  l20 -  noconn  IS MISSING !!!!
+*  l21 -  noconn  IS MISSING !!!!
+*  l22 -  noconn  IS MISSING !!!!
+*  l23 -  noconn  IS MISSING !!!!
+*  l24 -  noconn  IS MISSING !!!!
+*  l25 -  noconn  IS MISSING !!!!
+*  l26 -  noconn  IS MISSING !!!!
+.ends

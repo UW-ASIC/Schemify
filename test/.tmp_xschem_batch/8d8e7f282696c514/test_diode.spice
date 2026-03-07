@@ -1,0 +1,28 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_diode.sch
+.subckt test_diode
+
+*  l1 -  title  IS MISSING !!!!
+*  p4 -  lab_pin  IS MISSING !!!!
+*  I1 -  isource  IS MISSING !!!!
+*  p1 -  lab_pin  IS MISSING !!!!
+*  D1 -  diode  IS MISSING !!!!
+*  p2 -  lab_pin  IS MISSING !!!!
+*  p3 -  lab_pin  IS MISSING !!!!
+*  p5 -  lab_pin  IS MISSING !!!!
+*  Vk2 -  ammeter  IS MISSING !!!!
+*  D2 -  lvsdiode  IS MISSING !!!!
+*  p6 -  lab_pin  IS MISSING !!!!
+*  F1 -  cccs  IS MISSING !!!!
+*  h17 -  launcher  IS MISSING !!!!
+*  Vk1 -  ammeter  IS MISSING !!!!
+*  COMMANDS1 -  simulator_commands_shown  IS MISSING !!!!
+*  COMMANDS2 -  simulator_commands_shown  IS MISSING !!!!
+*  CORNER -  corner  IS MISSING !!!!
+*  h1 -  launcher  IS MISSING !!!!
+*  D3 -  photodiode  IS MISSING !!!!
+*  p7 -  lab_pin  IS MISSING !!!!
+*  p8 -  lab_pin  IS MISSING !!!!
+*  Vk3 -  ammeter  IS MISSING !!!!
+*  p9 -  lab_pin  IS MISSING !!!!
+*  F2 -  cccs  IS MISSING !!!!
+.ends

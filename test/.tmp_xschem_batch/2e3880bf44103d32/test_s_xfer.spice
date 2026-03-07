@@ -1,0 +1,17 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/test/examples/xschem_sky130/sky130_tests/test_s_xfer.sch
+.subckt test_s_xfer
+
+*  A1 -  vsource  IS MISSING !!!!
+*  l1 -  gnd  IS MISSING !!!!
+*  l1 -  lab_pin  IS MISSING !!!!
+*  s1 -  code_shown  IS MISSING !!!!
+*  l1 -  lab_pin  IS MISSING !!!!
+*  h1 -  launcher  IS MISSING !!!!
+*  VIN -  vsource  IS MISSING !!!!
+*  l1 -  title  IS MISSING !!!!
+.ends
+**** begin user architecture code
+
+.model integrator s_xfer(num_coeff=[1] den_coeff=[1 0] int_ic=[0] denormalized_freq=1e5)
+
+**** end user architecture code
