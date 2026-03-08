@@ -767,13 +767,101 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         },
 
         // ── Export ────────────────────────────────────────────────────────
-        .export_pdf => state.setStatus("Export PDF (stub)"),
-        .export_png => state.setStatus("Export PNG (stub)"),
-        .export_svg => state.setStatus("Export SVG (stub)"),
-        .screenshot_area => state.setStatus("Screenshot (stub)"),
+        .export_pdf => state.setStatus("Export (stub — inkscape/imagemagick not found)"),
+        .export_png => state.setStatus("Export (stub — inkscape/imagemagick not found)"),
+        .export_svg => {
+            const fio = state.active() orelse return;
+            const sch = fio.schematic();
+            var buf: std.ArrayListUnmanaged(u8) = .{};
+            defer buf.deinit(state.allocator());
+            const w = buf.writer(state.allocator());
+            try w.writeAll("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-500 -500 1000 1000\">\n");
+            for (sch.wires.items) |wire| {
+                try w.print("  <line x1=\"{d}\" y1=\"{d}\" x2=\"{d}\" y2=\"{d}\" stroke=\"#4488ff\" stroke-width=\"2\"/>\n",
+                    .{ wire.start.x, wire.start.y, wire.end.x, wire.end.y });
+            }
+            for (sch.instances.items) |inst| {
+                try w.print("  <rect x=\"{d}\" y=\"{d}\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"#88ccff\"/>\n",
+                    .{ inst.pos.x - 10, inst.pos.y - 10 });
+                try w.print("  <text x=\"{d}\" y=\"{d}\" font-size=\"8\" fill=\"#ffffff\">{s}</text>\n",
+                    .{ inst.pos.x - 8, inst.pos.y - 14, inst.name });
+            }
+            try w.writeAll("</svg>\n");
+            const path = try std.fmt.allocPrint(state.allocator(), "{s}.svg", .{fio.comp.name});
+            defer state.allocator().free(path);
+            try std.fs.cwd().writeFile(.{ .sub_path = path, .data = buf.items });
+            state.setStatus("Exported SVG");
+        },
+        .screenshot_area => state.setStatus("Export (stub — inkscape/imagemagick not found)"),
 
         // ── Simulation extras ─────────────────────────────────────────────
-        .open_waveform_viewer => state.setStatus("Open waveform viewer (stub)"),
+        .open_waveform_viewer => {
+            const fio = state.active() orelse {
+                state.setStatus("No .raw file found — run simulation first");
+                return;
+            };
+            // Derive .raw path from the active document's origin path
+            const raw_path: ?[]const u8 = switch (fio.origin) {
+                .chn_file => |p| blk: {
+                    // Replace .chn or .chn_tb extension with .raw
+                    if (std.mem.endsWith(u8, p, ".chn_tb")) {
+                        break :blk try std.fmt.allocPrint(state.allocator(), "{s}.raw", .{p[0 .. p.len - 7]});
+                    } else if (std.mem.endsWith(u8, p, ".chn")) {
+                        break :blk try std.fmt.allocPrint(state.allocator(), "{s}.raw", .{p[0 .. p.len - 4]});
+                    }
+                    break :blk null;
+                },
+                else => null,
+            };
+            defer if (raw_path) |rp| state.allocator().free(rp);
+
+            if (raw_path == null) {
+                state.setStatus("No .raw file found — run simulation first");
+                return;
+            }
+
+            const rp = raw_path.?;
+            const raw_file = std.fs.cwd().openFile(rp, .{}) catch {
+                state.setStatus("No .raw file found — run simulation first");
+                return;
+            };
+            defer raw_file.close();
+
+            // Parse ASCII ngspice raw: look for "Values:" section then read floats
+            var reader = raw_file.reader();
+            var line_buf: [1024]u8 = undefined;
+            var in_values = false;
+            state.waveform_len = 0;
+
+            outer: while (true) {
+                const line = reader.readUntilDelimiterOrEof(&line_buf, '\n') catch break;
+                const l = line orelse break;
+                const trimmed = std.mem.trim(u8, l, " \t\r");
+                if (!in_values) {
+                    if (std.mem.startsWith(u8, trimmed, "Values:")) {
+                        in_values = true;
+                    }
+                    continue;
+                }
+                // Parse whitespace-separated floats on this line
+                var it = std.mem.tokenizeAny(u8, trimmed, " \t");
+                while (it.next()) |tok| {
+                    if (state.waveform_len >= 4096) break :outer;
+                    const val = std.fmt.parseFloat(f32, tok) catch continue;
+                    state.waveform_data[state.waveform_len] = val;
+                    state.waveform_len += 1;
+                }
+            }
+
+            // Set label from component name
+            const label = fio.comp.name;
+            const copy_len = @min(label.len, 63);
+            @memcpy(state.waveform_label[0..copy_len], label[0..copy_len]);
+            state.waveform_label_len = copy_len;
+
+            state.gui.view_mode = .waveform;
+            state.setStatus("Waveform viewer opened");
+        },
 
         // ── Misc ──────────────────────────────────────────────────────────
         .show_keybinds => state.setStatus("Keybinds: see documentation or use :help"),
