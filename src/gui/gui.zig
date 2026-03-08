@@ -34,6 +34,8 @@ pub fn frame(app: *AppState) !void {
     command_bar.draw(app);
     plugin_panels.drawOverlays(app);
     marketplace.draw(app);
+    if (app.gui.props_dialog_open) drawPropertiesDialog(app);
+    if (app.gui.lib_browser_open) drawLibraryBrowser(app);
 }
 
 /// Center column: renderer on top, optional bottom bar below.
@@ -472,4 +474,283 @@ fn keyToChar(code: dvui.enums.Key, shift: bool) u8 {
         .space => ' ',
         else => 0,
     };
+}
+
+// ── Persistent window rect for dialogs ────────────────────────────────────────
+
+var props_win_rect = dvui.Rect{ .x = 120, .y = 100, .w = 480, .h = 380 };
+var lib_win_rect   = dvui.Rect{ .x = 100, .y = 80,  .w = 420, .h = 460 };
+
+// ── Phase 6F / 7B — Properties dialog ────────────────────────────────────────
+
+fn drawPropertiesDialog(app: *AppState) void {
+    const gs = &app.gui;
+
+    var fwin = dvui.floatingWindow(@src(), .{
+        .modal     = true,
+        .open_flag = &gs.props_dialog_open,
+        .rect      = &props_win_rect,
+    }, .{
+        .min_size_content = .{ .w = 380, .h = 260 },
+    });
+    defer fwin.deinit();
+
+    const title = if (gs.props_view_only) "Instance Properties (read-only)" else "Instance Properties";
+    fwin.dragAreaSet(dvui.windowHeader(title, "", &gs.props_dialog_open));
+
+    const fio = app.active();
+    const inst_opt = if (fio) |f| blk: {
+        const sch = f.schematic();
+        if (gs.props_inst_idx < sch.instances.items.len)
+            break :blk sch.instances.items[gs.props_inst_idx]
+        else
+            break :blk null;
+    } else null;
+
+    {
+        var body = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand  = .both,
+            .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 },
+        });
+        defer body.deinit();
+
+        // Instance symbol name header
+        if (inst_opt) |inst| {
+            var hdr_buf: [256]u8 = undefined;
+            const hdr = std.fmt.bufPrint(&hdr_buf, "Symbol: {s}  Name: {s}", .{ inst.symbol, inst.name })
+                catch inst.name;
+            dvui.labelNoFmt(@src(), hdr, .{}, .{ .style = .control });
+            _ = dvui.separator(@src(), .{ .id_extra = 1 });
+        }
+
+        // Prop rows
+        const prop_count: usize = if (inst_opt) |inst|
+            @min(inst.props.items.len, 16)
+        else
+            0;
+
+        if (prop_count == 0) {
+            dvui.labelNoFmt(@src(), "(no properties)", .{}, .{ .style = .control });
+        }
+
+        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
+        defer scroll.deinit();
+
+        for (0..prop_count) |i| {
+            const inst = inst_opt.?;
+            const key = inst.props.items[i].key;
+
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .id_extra = i,
+                .expand   = .horizontal,
+                .margin   = .{ .x = 0, .y = 2, .w = 0, .h = 2 },
+            });
+            defer row.deinit();
+
+            // Key label (fixed ~35% width)
+            var key_buf: [64]u8 = undefined;
+            const key_label = std.fmt.bufPrint(&key_buf, "{s}:", .{key}) catch key;
+            dvui.labelNoFmt(@src(), key_label, .{}, .{
+                .id_extra          = i * 10 + 1,
+                .gravity_y         = 0.5,
+                .min_size_content  = .{ .w = 130 },
+            });
+
+            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 6 }, .id_extra = i * 10 + 2 });
+
+            if (gs.props_view_only) {
+                // Read-only: just show the value as a label
+                const val_slice = gs.props_bufs[i][0..gs.props_lens[i]];
+                dvui.labelNoFmt(@src(), val_slice, .{}, .{
+                    .id_extra  = i * 10 + 3,
+                    .expand    = .horizontal,
+                    .gravity_y = 0.5,
+                });
+            } else {
+                // Editable text entry — buffer is mutated in-place by dvui
+                var te = dvui.textEntry(@src(), .{
+                    .text = .{ .buffer = gs.props_bufs[i][0..127] },
+                }, .{
+                    .id_extra = i * 10 + 3,
+                    .expand   = .horizontal,
+                });
+                defer te.deinit();
+
+                // Update tracked length each frame
+                gs.props_lens[i] = std.mem.indexOfScalar(u8, &gs.props_bufs[i], 0) orelse 127;
+                gs.props_dirty[i] = true; // conservative: always dirty once dialog is open
+            }
+        }
+
+        // Buttons row (only if editable)
+        _ = dvui.separator(@src(), .{ .id_extra = 50 });
+        {
+            var btn_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+                .margin = .{ .x = 0, .y = 4, .w = 0, .h = 0 },
+            });
+            defer btn_row.deinit();
+
+            _ = dvui.spacer(@src(), .{ .expand = .horizontal });
+
+            if (!gs.props_view_only) {
+                if (dvui.button(@src(), "OK", .{}, .{ .id_extra = 100, .style = .highlight })) {
+                    // Apply all props (both dirty and unchanged for simplicity)
+                    if (fio) |f| {
+                        if (inst_opt) |inst| {
+                            const pc = @min(inst.props.items.len, 16);
+                            for (0..pc) |i| {
+                                const key = inst.props.items[i].key;
+                                const buf_len = std.mem.indexOfScalar(u8, &gs.props_bufs[i], 0) orelse gs.props_lens[i];
+                                const val = gs.props_bufs[i][0..buf_len];
+                                f.setProp(gs.props_inst_idx, key, val) catch {};
+                            }
+                        }
+                    }
+                    app.setStatus("Properties updated");
+                    gs.props_dialog_open = false;
+                }
+                _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 } });
+            }
+
+            if (dvui.button(@src(), "Cancel", .{}, .{ .id_extra = 101 })) {
+                gs.props_dialog_open = false;
+                app.setStatus("Properties canceled");
+            }
+        }
+    }
+}
+
+// ── Phase 7A — Library browser ────────────────────────────────────────────────
+
+fn drawLibraryBrowser(app: *AppState) void {
+    const gs = &app.gui;
+
+    var fwin = dvui.floatingWindow(@src(), .{
+        .modal     = true,
+        .open_flag = &gs.lib_browser_open,
+        .rect      = &lib_win_rect,
+    }, .{
+        .min_size_content = .{ .w = 320, .h = 360 },
+    });
+    defer fwin.deinit();
+
+    fwin.dragAreaSet(dvui.windowHeader("Library Browser", "", &gs.lib_browser_open));
+
+    {
+        var body = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand  = .both,
+            .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 },
+        });
+        defer body.deinit();
+
+        // Search bar
+        {
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
+            defer row.deinit();
+            dvui.labelNoFmt(@src(), "Search:", .{}, .{ .gravity_y = 0.5 });
+            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 6 } });
+            var te = dvui.textEntry(@src(), .{
+                .text = .{ .buffer = gs.lib_search_buf[0..127] },
+            }, .{ .expand = .horizontal });
+            defer te.deinit();
+            gs.lib_search_len = std.mem.indexOfScalar(u8, &gs.lib_search_buf, 0) orelse 0;
+        }
+
+        _ = dvui.separator(@src(), .{ .id_extra = 1 });
+
+        if (gs.lib_entry_count == 0) {
+            dvui.labelNoFmt(@src(), "No .sym files found in symbols/", .{}, .{ .style = .control });
+        }
+
+        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
+        defer scroll.deinit();
+
+        const search_text = gs.lib_search_buf[0..gs.lib_search_len];
+
+        for (0..gs.lib_entry_count) |i| {
+            const entry_name = std.mem.sliceTo(&gs.lib_entries[i], 0);
+
+            // Filter by search text
+            if (search_text.len > 0) {
+                var found = false;
+                if (entry_name.len >= search_text.len) {
+                    var si: usize = 0;
+                    while (si + search_text.len <= entry_name.len) : (si += 1) {
+                        var match = true;
+                        for (search_text, 0..) |sc, j| {
+                            if (std.ascii.toLower(entry_name[si + j]) != std.ascii.toLower(sc)) {
+                                match = false;
+                                break;
+                            }
+                        }
+                        if (match) { found = true; break; }
+                    }
+                }
+                if (!found) continue;
+            }
+
+            const is_selected = gs.lib_selected == @as(i32, @intCast(i));
+
+            var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .id_extra   = i,
+                .expand     = .horizontal,
+                .background = true,
+                .border     = .{ .x = 1, .y = 1, .w = 1, .h = 1 },
+                .padding    = .{ .x = 6, .y = 4, .w = 6, .h = 4 },
+                .margin     = .{ .x = 0, .y = 2, .w = 0, .h = 2 },
+                .color_fill = if (is_selected)
+                    .{ .r = 38, .g = 52, .b = 90, .a = 255 }
+                else
+                    .{ .r = 36, .g = 36, .b = 42, .a = 0 },
+            });
+            defer card.deinit();
+
+            dvui.labelNoFmt(@src(), entry_name, .{}, .{
+                .id_extra  = i * 10 + 1,
+                .expand    = .horizontal,
+                .gravity_y = 0.5,
+            });
+
+            if (dvui.button(@src(), "Select", .{}, .{ .id_extra = i * 10 + 2 })) {
+                gs.lib_selected = @intCast(i);
+            }
+        }
+
+        _ = dvui.separator(@src(), .{ .id_extra = 20 });
+
+        {
+            var btn_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+                .margin = .{ .x = 0, .y = 4, .w = 0, .h = 0 },
+            });
+            defer btn_row.deinit();
+
+            _ = dvui.spacer(@src(), .{ .expand = .horizontal });
+
+            if (dvui.button(@src(), "Place", .{}, .{ .id_extra = 200, .style = .highlight })) {
+                if (gs.lib_selected >= 0 and @as(usize, @intCast(gs.lib_selected)) < gs.lib_entry_count) {
+                    const sel_idx: usize = @intCast(gs.lib_selected);
+                    const sym_name = std.mem.sliceTo(&gs.lib_entries[sel_idx], 0);
+                    app.queue.push(.{ .place_device = .{
+                        .sym_path = sym_name,
+                        .name     = sym_name,
+                        .x        = 0,
+                        .y        = 0,
+                    } }) catch {};
+                    app.setStatus("Symbol placed");
+                    gs.lib_browser_open = false;
+                } else {
+                    app.setStatus("No symbol selected");
+                }
+            }
+
+            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 } });
+
+            if (dvui.button(@src(), "Cancel", .{}, .{ .id_extra = 201 })) {
+                gs.lib_browser_open = false;
+                app.setStatus("Library browser closed");
+            }
+        }
+    }
 }

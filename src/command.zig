@@ -429,9 +429,78 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         .edit_in_new_tab => state.setStatus("Edit in new tab (stub)"),
 
         // ── Properties ────────────────────────────────────────────────────
-        .edit_properties => state.setStatus("Edit properties (stub)"),
-        .view_properties => state.setStatus("View properties (stub)"),
-        .edit_schematic_metadata => state.setStatus("Edit metadata (stub)"),
+        .edit_properties => {
+            const fio = state.active() orelse {
+                state.setStatus("No active schematic");
+                return;
+            };
+            const sch = fio.schematic();
+            // Find first selected instance
+            var inst_idx: ?usize = null;
+            for (0..sch.instances.items.len) |i| {
+                if (i < state.selection.instances.bit_length and state.selection.instances.isSet(i)) {
+                    inst_idx = i;
+                    break;
+                }
+            }
+            const idx = inst_idx orelse {
+                state.setStatus("No instance selected");
+                return;
+            };
+            const inst = &sch.instances.items[idx];
+            state.gui.props_dialog_open = true;
+            state.gui.props_view_only = false;
+            state.gui.props_inst_idx = idx;
+            for (0..16) |i| {
+                @memset(&state.gui.props_bufs[i], 0);
+                state.gui.props_lens[i] = 0;
+                state.gui.props_dirty[i] = false;
+            }
+            const prop_count = @min(inst.props.items.len, 16);
+            for (0..prop_count) |i| {
+                const val = inst.props.items[i].val;
+                const copy_len = @min(val.len, 127);
+                @memcpy(state.gui.props_bufs[i][0..copy_len], val[0..copy_len]);
+                state.gui.props_lens[i] = copy_len;
+            }
+            state.setStatus("Editing instance properties");
+        },
+        .view_properties => {
+            const fio = state.active() orelse {
+                state.setStatus("No active schematic");
+                return;
+            };
+            const sch = fio.schematic();
+            var inst_idx: ?usize = null;
+            for (0..sch.instances.items.len) |i| {
+                if (i < state.selection.instances.bit_length and state.selection.instances.isSet(i)) {
+                    inst_idx = i;
+                    break;
+                }
+            }
+            const idx = inst_idx orelse {
+                state.setStatus("No instance selected");
+                return;
+            };
+            const inst = &sch.instances.items[idx];
+            state.gui.props_dialog_open = true;
+            state.gui.props_view_only = true;
+            state.gui.props_inst_idx = idx;
+            for (0..16) |i| {
+                @memset(&state.gui.props_bufs[i], 0);
+                state.gui.props_lens[i] = 0;
+                state.gui.props_dirty[i] = false;
+            }
+            const prop_count = @min(inst.props.items.len, 16);
+            for (0..prop_count) |i| {
+                const val = inst.props.items[i].val;
+                const copy_len = @min(val.len, 127);
+                @memcpy(state.gui.props_bufs[i][0..copy_len], val[0..copy_len]);
+                state.gui.props_lens[i] = copy_len;
+            }
+            state.setStatus("Viewing instance properties");
+        },
+        .edit_schematic_metadata => state.setStatus("(stub — use CLI :rename)"),
 
         // ── Netlist ───────────────────────────────────────────────────────
         .netlist_hierarchical => {
@@ -464,7 +533,39 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         .make_symbol_from_schematic => state.setStatus("Make symbol from schematic (stub)"),
         .make_schematic_from_symbol => state.setStatus("Make schematic from symbol (stub)"),
         .make_schem_and_sym => state.setStatus("Make both schematic and symbol (stub)"),
-        .insert_from_library => state.setStatus("Insert from library (stub)"),
+        .insert_from_library => {
+            state.gui.lib_browser_open = true;
+            state.gui.lib_selected = -1;
+            // Scan project_dir/symbols/ for .sym files
+            state.gui.lib_entry_count = 0;
+            var sym_path_buf: [512]u8 = undefined;
+            const sym_dir_path = std.fmt.bufPrint(&sym_path_buf, "{s}/symbols", .{state.project_dir})
+                catch {
+                    state.setStatus("Library path too long");
+                    return;
+                };
+            var sym_dir = std.fs.openDirAbsolute(sym_dir_path, .{ .iterate = true }) catch |err| blk: {
+                // Try cwd-relative fallback
+                _ = err;
+                break :blk std.fs.cwd().openDir("symbols", .{ .iterate = true }) catch {
+                    state.setStatus("Library browser: symbols/ dir not found");
+                    return;
+                };
+            };
+            defer sym_dir.close();
+            var it = sym_dir.iterate();
+            while (it.next() catch null) |entry| {
+                if (entry.kind != .file) continue;
+                if (!std.mem.endsWith(u8, entry.name, ".sym")) continue;
+                if (state.gui.lib_entry_count >= 256) break;
+                const idx = state.gui.lib_entry_count;
+                @memset(&state.gui.lib_entries[idx], 0);
+                const copy_len = @min(entry.name.len, 255);
+                @memcpy(state.gui.lib_entries[idx][0..copy_len], entry.name[0..copy_len]);
+                state.gui.lib_entry_count += 1;
+            }
+            state.setStatus("Library browser opened");
+        },
 
         // ── Tab management ────────────────────────────────────────────────
         .new_tab => {
