@@ -8,7 +8,46 @@
 - **No hidden control flow.** No virtual dispatch except the Plugin VTable ABI (which must stay for ABI stability). Use `comptime` interfaces everywhere else.
 - **Flat and explicit.** Prefer flat arrays (`ArrayListUnmanaged`, fixed arrays) over deep trees of heap objects.
 - **One concern per file.** A file either owns data definitions OR logic that transforms data — not both.
-- **GUI renders Schemify formats only.** The `gui/` layer, `state.zig`, and `command.zig` are aware of exactly three file types: `.chn` (schematic), `.chn_tb` (testbench), and `.sym` (symbol). XSchem's `.sch` / `.sym` formats are **not** known to the GUI layer. `core/xschem.zig` exists solely as a conversion engine used by the future XSchem-import plugin. No `FileType::xschem_sch`, no `Origin::xschem_files`, no `initFromXSchem` calls anywhere outside `core/`.
+- **GUI renders Schemify formats only.** The `gui/` layer, `state.zig`, and `command.zig` are aware of exactly three file types: `.chn` (schematic), `.chn_tb` (testbench), and `.chn_sym` (symbol). XSchem's `.sch` / `.sym` formats are **not** known to the GUI layer. `core/xschem.zig` exists solely as a conversion engine used by the future XSchem-import plugin. No `FileType::xschem_sch`, no `Origin::xschem_files`, no `initFromXSchem` calls anywhere outside `core/`.
+
+### gui/ file standard (enforced from Phase 9 onward)
+
+Every file in `src/gui/` must follow this exact layout:
+
+```zig
+//! One-line module description.
+
+const std = @import("std");
+const dvui = @import("dvui");
+const AppState = @import("../state.zig").AppState;
+// ...other imports...
+
+// ── Layout constants (if any) ─────────────────────────────────────────────── //
+const SOME_HEIGHT: f32 = 30;
+
+// ── Local state ──────────────────────────────────────────────────────────── //
+// All module-level mutable state lives here. Global state (view_mode,
+// selection, etc.) belongs in AppState; only panel-local concerns go here.
+
+pub const State = struct {
+    // e.g. for renderer: drag tracking, cursor pos, symbol cache
+    // e.g. for dialogs: open flag, window rect, per-dialog buffers
+    field: Type = default_value,
+};
+
+pub var state: State = .{};
+
+// ── Public API ────────────────────────────────────────────────────────────── //
+
+/// Draw this panel/dialog. Called once per frame from gui.zig.
+pub fn draw(app: *AppState) void { ... }
+```
+
+Rules:
+- Bare module-level `var` declarations are **forbidden** — all mutable module state goes in `State`.
+- `pub fn draw(app: *AppState) void` is the single entry point called by `gui.zig`.
+- If the panel needs init/deinit (e.g. to free a cache allocator), expose `pub fn init() void` / `pub fn deinit() void`.
+- Dialog-state that was previously in `GuiState` (props buffers, lib browser entries, find query, etc.) moves into the owning file's `State` struct.
 
 ---
 
@@ -615,37 +654,189 @@ In `src/gui/plugin_panels.zig`, four host-side UiCtx functions are stubs:
 Round 1 — COMPLETE (applied 2026-03-08):
   ✅ Phase 5A   snap-to-grid in p2w                           renderer.zig
   ✅ Phase 5B   zoom fit with real bounding box               command.zig + state.zig (canvas_w/h)
-  ✅ Phase 5C   instance label rendering (line indicator)     renderer.zig
-  ✅ Phase 5D   net label dot at wire midpoint                renderer.zig
-  ✅ Phase 5E   symbol cache + real geometry                  STUB (placeholder box remains)
+  ✅ Phase 5C   instance label rendering (dvui.labelNoFmt)    renderer.zig
+  ✅ Phase 5D   net label at wire midpoint (dvui.labelNoFmt)  renderer.zig
+  ✅ Phase 5E   symbol cache + real .chn_sym geometry         renderer.zig
   ✅ Phase 5F   rubber-band drag-select                       renderer.zig
   ✅ Phase 5G   interactive move tool                         renderer.zig
   ✅ Phase 5H   draw tool canvas interactions (line/rect/poly/text) renderer.zig
   ✅ Phase 5I   right-click context menu                      gui.zig + renderer.zig
   ✅ Phase 5J   crosshair cursor                              renderer.zig
-  ✅ Phase 5K   info overlay (tool badge + coords)            renderer.zig
+  ✅ Phase 5K   info overlay (tool badge + coords + zoom)     renderer.zig
   ✅ Phase 6A   selection ops (connected, nets, dup refdes)   command.zig
   ✅ Phase 6B   clipboard copy/cut/paste                      state.zig + command.zig
   ✅ Phase 6C   align-to-grid                                 command.zig
   ✅ Phase 6D   break/join wires                              command.zig
-  ✅ Phase 6I   toggle_fullscreen/colorscheme stubs, show_keybinds command.zig
+  ✅ Phase 6I   toggle_fullscreen/colorscheme (dvui.themeSet), show_keybinds command.zig
   ✅ Phase 7C   find/select dialog                            gui.zig
   ✅ Phase 7D   keybinds help window                          gui.zig
 
-  ⚠️  Phase 5E (symbol cache)  — placeholder box; needs real .sym parser wiring
-  ⚠️  Phase 5C/5D text labels  — line indicators only; real dvui text at world pos TBD
-  ⚠️  Phase 6I fullscreen/theme — state flags set; actual dvui/window API call TBD
-
-Round 2 (READY TO START — no file I/O blockers for most):
+Round 2 — COMPLETE (applied 2026-03-08):
   ✅ Agent L-hierarchy → Phase 6E  (descend/ascend, insert from library, reopen)
   ✅ Agent M-dialogs   → Phase 6F + 7A + 7B  (props dialog, library browser)
   ✅ Agent N-netlist   → Phase 6G + 6H + 7E  (netlist gen, real file I/O, preview panel)
   ✅ Agent P-export    → Phase 6J + 6L  (export, simulation child process)
   ✅ Agent Q-undo      → Phase 6K  (inverse command undo/redo)
 
-Round 3 (after Round 2):
-  Agent E (cont)    → Phase 8  (plugin panel widget stubs)
+Round 3 — COMPLETE (applied 2026-03-08):
+  ✅ Phase 8  plugin panel widget stubs (hostTextInput/Slider/Checkbox/Progress)  plugin_panels.zig
+
+Round 4 (current):
+  Agent R-gui-std  → Phase 9A  gui/ renderer.zig State struct
+  Agent S-dialogs  → Phase 9B  gui/ dialog files extracted from gui.zig
+  Agent T-state    → Phase 10  state.zig slim-down (remove dialog fields from GuiState)
+  Agent U-cmd      → Phase 11  command.zig cleanup (split dispatch into groups)
 ```
+
+---
+
+## Phase 9 — gui/ module standardization
+
+**Goal:** Every `src/gui/*.zig` file follows the State-struct standard defined in Guiding Principles.
+No bare module-level `var` declarations; all local state lives in a `pub const State` struct with
+a `pub var state: State = .{};` singleton.
+
+### 9A — renderer.zig (Agent R-gui-std)
+
+Current bare module-level vars to collect into `RendererState`:
+
+| Current var | Type | Purpose |
+|---|---|---|
+| `pan_dragging` | `bool` | middle-mouse pan in progress |
+| `pan_last` | `dvui.Point.Physical` | previous pan position |
+| `drag_start` | `?dvui.Point.Physical` | drag-select start |
+| `drag_current` | `dvui.Point.Physical` | drag-select current pos |
+| `move_anchor` | `?CT.Point` | move-tool anchor in world space |
+| `cursor_pos` | `dvui.Point.Physical` | current mouse position |
+| `symbol_cache` | `std.StringHashMapUnmanaged(CT.Symbol)` | loaded symbol geometry |
+| `symbol_cache_arena` | `?std.heap.ArenaAllocator` | backing allocator for cache |
+
+New shape:
+
+```zig
+pub const State = struct {
+    pan_dragging:       bool                                     = false,
+    pan_last:           dvui.Point.Physical                      = .{ .x = 0, .y = 0 },
+    drag_start:         ?dvui.Point.Physical                     = null,
+    drag_current:       dvui.Point.Physical                      = .{ .x = 0, .y = 0 },
+    move_anchor:        ?CT.Point                                = null,
+    cursor_pos:         dvui.Point.Physical                      = .{ .x = 0, .y = 0 },
+    symbol_cache:       std.StringHashMapUnmanaged(CT.Symbol)    = .{},
+    symbol_cache_arena: ?std.heap.ArenaAllocator                 = null,
+};
+
+pub var state: State = .{};
+```
+
+All internal functions that read/write these vars use `state.field` instead of the bare name.
+`getSymbolCacheAllocator` becomes a method or inline helper operating on `state.symbol_cache_arena`.
+
+### 9B — gui.zig dialogs → separate files (Agent S-dialogs)
+
+`gui.zig` currently contains 5 inline dialogs plus 2 bare window-rect vars. Each dialog moves to its own file with a `State` struct.
+
+#### Files to create
+
+| New file | Extracted from gui.zig | State fields |
+|---|---|---|
+| `gui/find_dialog.zig` | `drawFindDialog` + `runFindQuery` | `open: bool`, `query: [128]u8`, `query_len: usize`, `results: [64]usize`, `result_count: usize` |
+| `gui/context_menu.zig` | `drawContextMenu` | `open: bool`, `inst_idx: i32 = -1`, `wire_idx: i32 = -1` |
+| `gui/keybinds_dialog.zig` | `drawKeybindsWindow` | `open: bool` |
+| `gui/props_dialog.zig` | `drawPropertiesDialog` | `open: bool`, `view_only: bool`, `inst_idx: usize`, `bufs: [16][128]u8`, `lens: [16]usize`, `dirty: [16]bool`, `win_rect: dvui.Rect` |
+| `gui/library_browser.zig` | `drawLibraryBrowser` | `open: bool`, `search_buf: [128]u8`, `search_len: usize`, `entries: [256][256]u8`, `entry_count: usize`, `selected: i32`, `win_rect: dvui.Rect` |
+
+Each new file has `pub var state: State = .{};` and `pub fn draw(app: *AppState) void`.
+
+`gui.zig`'s `frame()` calls each as:
+```zig
+find_dialog.draw(app);
+context_menu.draw(app);
+keybinds_dialog.draw(app);
+if (props_dialog.state.open) props_dialog.draw(app);
+if (library_browser.state.open) library_browser.draw(app);
+```
+
+Also move `keyToChar`, `KeybindAction`, `Keybind`, `static_keybinds`, `dispatchStaticKeybind`,
+`dispatchPluginKeybind`, `encodeMods` → `gui/keybinds.zig` (pure data + lookup, no drawing).
+`gui.zig` calls `keybinds.dispatchStatic(app, …)` and `keybinds.dispatchPlugin(app, …)`.
+
+#### gui.zig after 9B
+
+`gui.zig` retains only:
+- `frame()` — layout shell
+- `handleInput()` / `handleNormalMode()` / `handleCommandMode()` — keyboard routing (uses `keybinds.*`)
+- `drawCenterColumn()` + `drawNetlistPreview()`
+
+---
+
+## Phase 10 — state.zig slim-down
+
+**Goal:** `GuiState` becomes a lean struct. Dialog-specific state that moved to `gui/*.zig` (Phase 9B)
+is deleted from `GuiState`. CT types move to `src/types.zig`. `FileIO` moves to `src/document.zig`.
+
+### Tasks
+
+1. **Remove from `GuiState`** (now owned by their gui/ files):
+   - `find_dialog_open`, `find_query`, `find_query_len`, `find_results`, `find_result_count`
+   - `keybinds_open`
+   - `context_menu_open`, `context_menu_inst`, `context_menu_wire`
+   - `props_dialog_open`, `props_view_only`, `props_inst_idx`, `props_bufs`, `props_lens`, `props_dirty`
+   - `lib_browser_open`, `lib_search_buf`, `lib_search_len`, `lib_entries`, `lib_entry_count`, `lib_selected`
+
+2. **Keep in `GuiState`** (truly global GUI state):
+   - `view_mode`, `command_mode`, `command_buf`, `command_len`
+   - `plugin_panels`, `key_to_panel`, `marketplace`, `plugin_keybinds`
+
+3. **Extract `CT` types** → `src/types.zig`
+   Exports: `CT.Point`, `CT.Wire`, `CT.Instance`, `CT.InstanceProp`, `CT.Schematic`,
+   `CT.Shape`, `CT.ShapeTag`, `CT.SymbolPin`, `CT.Symbol`, `CT.Transform`.
+   `state.zig` re-exports: `pub const CT = @import("types.zig");`
+
+4. **Extract `FileIO`** → `src/document.zig`
+   `state.zig` re-exports: `pub const FileIO = @import("document.zig").FileIO;`
+
+5. **`AppState`** retains only fields; all mutation free-functions move to `src/state_ops.zig`
+   (except `init`, `deinit`, `allocator`).
+
+**Agent T-state** — implement tasks 1–2 first (no new files needed); tasks 3–5 in a follow-up.
+
+---
+
+## Phase 11 — command.zig cleanup
+
+**Goal:** The 1 400-line `dispatch()` monolith is split into small, named handler groups.
+The `Command` union, `History`, and `CommandQueue` types stay in `command.zig` as pure data.
+Dispatch logic moves out.
+
+### Split
+
+```
+src/
+  command.zig          ← Command union, History, CommandQueue  (data only, no dispatch logic)
+  cmd/
+    dispatch.zig       ← pub fn dispatch(c: Command, app: *AppState) !void — routes to groups
+    selection.zig      ← select_all, select_none, select_connected, highlight_*, find_select_dialog
+    clipboard.zig      ← clipboard_copy/cut/paste, copy_selected, duplicate_selected
+    edit.zig           ← delete_selected, rotate_cw/ccw, flip_*, nudge_*, align_to_grid
+    wire.zig           ← add_wire, cancel_wire, break_wires_*, join_collapse_wires, start_wire*
+    view.zig           ← zoom_*, pan_*, toggle_*, snap_*, show_keybinds, open_waveform_viewer
+    file.zig           ← new_tab, close_tab, save_*, reload_from_disk, reopen_last_closed
+    hierarchy.zig      ← descend_*, ascend, edit_in_new_tab, make_symbol_*, insert_from_library
+    netlist.zig        ← netlist_*, toggle_show_netlist, generateNetlistAndStore
+    sim.zig            ← run_sim, open_waveform_viewer
+    props.zig          ← edit_properties, view_properties, edit_schematic_metadata, set_prop
+    plugin.zig         ← plugin_command, plugins_refresh
+    undo.zig           ← undo, redo  (full inverse-command logic)
+```
+
+### Rules
+
+- Each `cmd/*.zig` file exposes: `pub fn handle(c: Command, app: *AppState) !void`
+- `dispatch.zig` is a pure routing switch: `switch (c) { .select_all, .select_none, ... => selection.handle(c, app), ... }`
+- No business logic in `dispatch.zig` itself.
+- Toggle flags (e.g. `toggle_crosshair`) are expressed as data: a comptime table mapping tag → `*bool` field, handled by a single generic `toggleFlag` in `view.zig`.
+
+**Agent U-cmd** — implement the split. Start with `command.zig` (data only) + `cmd/dispatch.zig` + one group (`view.zig`) to verify the pattern compiles, then fill the remaining groups.
 
 ---
 
