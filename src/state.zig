@@ -464,6 +464,9 @@ pub const MarketplaceState = struct {
     install_status:   MktStatus = .idle,
 };
 
+/// GUI display state: view mode, command bar, plugin panels.
+/// Dialog-local state (find query, props buffers, lib browser, etc.) lives
+/// in the respective gui/*.zig State structs, not here.
 pub const GuiState = struct {
     view_mode: GuiViewMode = .schematic,
     command_mode: bool = false,
@@ -473,31 +476,6 @@ pub const GuiState = struct {
     key_to_panel: [256]i16 = [_]i16{-1} ** 256,
     marketplace: MarketplaceState = .{},
     plugin_keybinds: std.ArrayListUnmanaged(PluginKeybind) = .{},
-    find_dialog_open: bool = false,
-    find_query: [128]u8 = [_]u8{0} ** 128,
-    find_query_len: usize = 0,
-    find_results: [64]usize = [_]usize{0} ** 64,
-    find_result_count: usize = 0,
-    keybinds_open: bool = false,
-    context_menu_open: bool = false,
-    context_menu_inst: i32 = -1,
-    context_menu_wire: i32 = -1,
-
-    // ── Phase 6F / 7B — Properties dialog ────────────────────────────────
-    props_dialog_open: bool = false,
-    props_view_only: bool = false,
-    props_inst_idx: usize = 0,
-    props_bufs: [16][128]u8 = [_][128]u8{[_]u8{0} ** 128} ** 16,
-    props_lens: [16]usize = [_]usize{0} ** 16,
-    props_dirty: [16]bool = [_]bool{false} ** 16,
-
-    // ── Phase 7A — Library browser ────────────────────────────────────────
-    lib_browser_open: bool = false,
-    lib_search_buf: [128]u8 = [_]u8{0} ** 128,
-    lib_search_len: usize = 0,
-    lib_entries: [256][256]u8 = [_][256]u8{[_]u8{0} ** 256} ** 256,
-    lib_entry_count: usize = 0,
-    lib_selected: i32 = -1,
 };
 
 pub const Clipboard = struct {
