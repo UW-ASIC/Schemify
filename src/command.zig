@@ -423,10 +423,105 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         },
 
         // ── Hierarchy ─────────────────────────────────────────────────────
-        .descend_schematic => state.setStatus("Descend into schematic (stub)"),
-        .descend_symbol => state.setStatus("Descend into symbol (stub)"),
-        .ascend => state.setStatus("Ascend to parent (stub)"),
-        .edit_in_new_tab => state.setStatus("Edit in new tab (stub)"),
+        .descend_schematic => {
+            const fio = state.active() orelse return;
+            const inst_idx = firstSelectedInstance(state) orelse {
+                state.setStatus("No instance selected");
+                return;
+            };
+            const sch = fio.schematic();
+            if (inst_idx >= sch.instances.items.len) {
+                state.setStatus("Selected instance index out of range");
+                return;
+            }
+            const inst = &sch.instances.items[inst_idx];
+            // Replace .sym extension with .chn to find the schematic path
+            const sym_path = inst.symbol;
+            var sch_path: []const u8 = undefined;
+            var sch_path_owned = false;
+            if (std.mem.endsWith(u8, sym_path, ".sym")) {
+                const base = sym_path[0 .. sym_path.len - 4];
+                const p = try std.fmt.allocPrint(state.allocator(), "{s}.chn", .{base});
+                sch_path = p;
+                sch_path_owned = true;
+            } else {
+                sch_path = sym_path;
+            }
+            defer if (sch_path_owned) state.allocator().free(sch_path);
+            try state.hierarchy_stack.append(state.allocator(), .{
+                .doc_idx = state.active_idx,
+                .instance_idx = inst_idx,
+            });
+            state.openPath(sch_path) catch |err| {
+                _ = state.hierarchy_stack.pop();
+                state.setStatusErr("Failed to descend into schematic");
+                state.log.err("CMD", "descend_schematic failed: {}", .{err});
+            };
+        },
+        .descend_symbol => {
+            const fio = state.active() orelse return;
+            const inst_idx = firstSelectedInstance(state) orelse {
+                state.setStatus("No instance selected");
+                return;
+            };
+            const sch = fio.schematic();
+            if (inst_idx >= sch.instances.items.len) {
+                state.setStatus("Selected instance index out of range");
+                return;
+            }
+            const inst = &sch.instances.items[inst_idx];
+            const sym_path = inst.symbol;
+            try state.hierarchy_stack.append(state.allocator(), .{
+                .doc_idx = state.active_idx,
+                .instance_idx = inst_idx,
+            });
+            state.openPath(sym_path) catch |err| {
+                _ = state.hierarchy_stack.pop();
+                state.setStatusErr("Failed to descend into symbol");
+                state.log.err("CMD", "descend_symbol failed: {}", .{err});
+                return;
+            };
+            state.gui.view_mode = .symbol;
+        },
+        .ascend => {
+            const entry = state.hierarchy_stack.pop() orelse {
+                state.setStatus("Already at top level");
+                return;
+            };
+            if (entry.doc_idx >= state.schematics.items.len) {
+                state.setStatus("Hierarchy parent no longer open");
+                return;
+            }
+            state.active_idx = entry.doc_idx;
+            state.selection.clear();
+            const fio = state.active() orelse return;
+            const sch = fio.schematic();
+            const inst_count = sch.instances.items.len;
+            const alloc = state.allocator();
+            state.selection.instances.resize(alloc, inst_count, false) catch return;
+            if (entry.instance_idx < inst_count) {
+                state.selection.instances.set(entry.instance_idx);
+            }
+            state.setStatus("Ascended to parent");
+        },
+        .edit_in_new_tab => {
+            const fio = state.active() orelse return;
+            const inst_idx = firstSelectedInstance(state) orelse {
+                state.setStatus("No instance selected");
+                return;
+            };
+            const sch = fio.schematic();
+            if (inst_idx >= sch.instances.items.len) {
+                state.setStatus("Selected instance index out of range");
+                return;
+            }
+            const inst = &sch.instances.items[inst_idx];
+            const sym_path = inst.symbol;
+            state.openPath(sym_path) catch |err| {
+                state.setStatusErr("Failed to open symbol in new tab");
+                state.log.err("CMD", "edit_in_new_tab failed: {}", .{err});
+            };
+        },
 
         // ── Properties ────────────────────────────────────────────────────
         .edit_properties => {
@@ -536,7 +631,6 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         .insert_from_library => {
             state.gui.lib_browser_open = true;
             state.gui.lib_selected = -1;
-            // Scan project_dir/symbols/ for .sym files
             state.gui.lib_entry_count = 0;
             var sym_path_buf: [512]u8 = undefined;
             const sym_dir_path = std.fmt.bufPrint(&sym_path_buf, "{s}/symbols", .{state.project_dir})
@@ -545,7 +639,6 @@ pub fn dispatch(c: Command, state: *AppState) !void {
                     return;
                 };
             var sym_dir = std.fs.openDirAbsolute(sym_dir_path, .{ .iterate = true }) catch |err| blk: {
-                // Try cwd-relative fallback
                 _ = err;
                 break :blk std.fs.cwd().openDir("symbols", .{ .iterate = true }) catch {
                     state.setStatus("Library browser: symbols/ dir not found");
@@ -556,7 +649,7 @@ pub fn dispatch(c: Command, state: *AppState) !void {
             var it = sym_dir.iterate();
             while (it.next() catch null) |entry| {
                 if (entry.kind != .file) continue;
-                if (!std.mem.endsWith(u8, entry.name, ".sym")) continue;
+                if (!std.mem.endsWith(u8, entry.name, ".chn_sym")) continue;
                 if (state.gui.lib_entry_count >= 256) break;
                 const idx = state.gui.lib_entry_count;
                 @memset(&state.gui.lib_entries[idx], 0);
@@ -584,6 +677,18 @@ pub fn dispatch(c: Command, state: *AppState) !void {
             const alloc = state.allocator();
             const idx = state.active_idx;
             const fio = state.schematics.items[idx];
+            // Save origin path to closed_tabs before destroying
+            const origin_path: ?[]const u8 = switch (fio.origin) {
+                .chn_file => |p| p,
+                .sym_file => |p| p,
+                else => null,
+            };
+            if (origin_path) |p| {
+                const duped = alloc.dupe(u8, p) catch null;
+                if (duped) |d| {
+                    state.closed_tabs.append(alloc, d) catch alloc.free(d);
+                }
+            }
             fio.deinit();
             alloc.destroy(fio);
             _ = state.schematics.orderedRemove(idx);
@@ -608,7 +713,17 @@ pub fn dispatch(c: Command, state: *AppState) !void {
                 state.setStatus("Previous tab");
             }
         },
-        .reopen_last_closed => state.setStatus("Reopen last closed (stub)"),
+        .reopen_last_closed => {
+            const path = state.closed_tabs.pop() orelse {
+                state.setStatus("No recently closed tabs");
+                return;
+            };
+            defer state.allocator().free(path);
+            state.openPath(path) catch |err| {
+                state.setStatusErr("Failed to reopen tab");
+                state.log.err("CMD", "reopen_last_closed failed: {}", .{err});
+            };
+        },
 
         // ── File operations ───────────────────────────────────────────────
         .save_as_dialog => state.setStatus("Save as (use :saveas <path>)"),
@@ -617,6 +732,7 @@ pub fn dispatch(c: Command, state: *AppState) !void {
             const fio = state.active() orelse return;
             const reload_path: ?[]const u8 = switch (fio.origin) {
                 .chn_file => |p| p,
+                .sym_file => |p| p,
                 .xschem_files => |xf| xf.sch,
                 .buffer, .unsaved => null,
             };
@@ -755,12 +871,10 @@ fn generateNetlistAndStore(state: *AppState, alloc: std.mem.Allocator, status_pr
     const fio = state.active() orelse return error.NoActiveDocument;
     const sch_ct = fio.schematic();
 
-    // Build a temporary core.Schemify from CT.Schematic
     var s = core.Schemify.init(alloc);
     defer s.deinit();
     s.name = sch_ct.name;
 
-    // Copy instances
     for (sch_ct.instances.items) |inst| {
         const prop_start: u32 = @intCast(s.props.items.len);
         for (inst.props.items) |p| {
@@ -817,6 +931,11 @@ fn generateNetlistAndStore(state: *AppState, alloc: std.mem.Allocator, status_pr
     // Set status — use module-level static buffer (GUI is single-threaded)
     const status = std.fmt.bufPrint(&netlist_status_buf, "{s}{s}.sp", .{ status_prefix, sch_ct.name }) catch "Netlist written";
     state.setStatus(status);
+}
+
+fn firstSelectedInstance(state: *AppState) ?usize {
+    var it = state.selection.instances.iterator(.{});
+    return it.next();
 }
 
 fn pointFromF64(x: f64, y: f64) CT.Point {

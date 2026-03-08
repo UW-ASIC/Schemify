@@ -82,12 +82,14 @@ pub const FileType = enum {
     xschem_sch,
     chn,
     chn_tb,
+    sym,
     unknown,
 
     pub fn fromPath(path: []const u8) FileType {
         if (std.mem.endsWith(u8, path, ".sch")) return .xschem_sch;
         if (std.mem.endsWith(u8, path, ".chn_tb")) return .chn_tb;
         if (std.mem.endsWith(u8, path, ".chn")) return .chn;
+        if (std.mem.endsWith(u8, path, ".sym")) return .sym;
         return .unknown;
     }
 };
@@ -97,6 +99,7 @@ pub const FileIO = struct {
         unsaved,
         buffer,
         chn_file: []const u8,
+        sym_file: []const u8,
         xschem_files: struct { sch: []const u8, sym: ?[]const u8 },
     };
 
@@ -177,6 +180,13 @@ pub const FileIO = struct {
         return fio;
     }
 
+    pub fn initFromSym(alloc: std.mem.Allocator, logger: *Logger, path: []const u8) !FileIO {
+        var fio = try initNew(alloc, logger, std.fs.path.stem(path), false);
+        fio.origin = .{ .sym_file = try alloc.dupe(u8, path) };
+        fio.dirty = false;
+        return fio;
+    }
+
     pub fn initFromXSchem(alloc: std.mem.Allocator, logger: *Logger, sch_path: []const u8, sym_path: ?[]const u8) !FileIO {
         var fio = try initNew(alloc, logger, std.fs.path.stem(sch_path), false);
         fio.origin = .{ .xschem_files = .{
@@ -191,6 +201,7 @@ pub const FileIO = struct {
         self.alloc.free(self.comp.name);
         switch (self.origin) {
             .chn_file       => |p|  self.alloc.free(p),
+            .sym_file       => |p|  self.alloc.free(p),
             .xschem_files   => |xf| {
                 self.alloc.free(xf.sch);
                 if (xf.sym) |s| self.alloc.free(s);
@@ -212,6 +223,7 @@ pub const FileIO = struct {
     pub fn save(self: *FileIO) !void {
         switch (self.origin) {
             .chn_file => |p| try self.saveAsChn(p),
+            .sym_file => |p| try self.saveAsChn(p),
             else => {},
         }
     }
@@ -506,6 +518,8 @@ pub const GuiState = struct {
 };
 
 pub const AppState = struct {
+    pub const HierEntry = struct { doc_idx: usize, instance_idx: usize };
+
     gpa: std.heap.GeneralPurposeAllocator(.{}),
 
     project_dir: []const u8,
@@ -513,6 +527,8 @@ pub const AppState = struct {
 
     schematics: std.ArrayListUnmanaged(*FileIO) = .{},
     active_idx: usize = 0,
+    hierarchy_stack: std.ArrayListUnmanaged(HierEntry) = .{},
+    closed_tabs: std.ArrayListUnmanaged([]const u8) = .{},
 
     history: cmd.History = .{},
     queue: cmd.CommandQueue = .{},
@@ -607,6 +623,9 @@ pub const AppState = struct {
             alloc.destroy(fio);
         }
         self.schematics.deinit(alloc);
+        self.hierarchy_stack.deinit(alloc);
+        for (self.closed_tabs.items) |p| alloc.free(p);
+        self.closed_tabs.deinit(alloc);
         self.history.deinit(alloc);
         self.selection.deinit(alloc);
         for (self.gui.plugin_panels.items) |panel| {
@@ -666,6 +685,7 @@ pub const AppState = struct {
         fio.* = switch (ft) {
             .xschem_sch => try FileIO.initFromXSchem(alloc, &self.log, path, null),
             .chn, .chn_tb => try FileIO.initFromChn(alloc, &self.log, path),
+            .sym => try FileIO.initFromSym(alloc, &self.log, path),
             else => {
                 self.setStatusErr("Unsupported file type");
                 return error.InvalidFormat;
