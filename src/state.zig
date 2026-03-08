@@ -79,17 +79,15 @@ pub const CT = struct {
 };
 
 pub const FileType = enum {
-    xschem_sch,
-    chn,
-    chn_tb,
-    sym,
+    chn,      // schematic — renders with Sch + Sym view-mode buttons
+    chn_tb,   // testbench — locked to schematic view, button labelled "Testbench"
+    chn_sym,  // symbol-only — locked to symbol view, button labelled "Symbol"
     unknown,
 
     pub fn fromPath(path: []const u8) FileType {
-        if (std.mem.endsWith(u8, path, ".sch")) return .xschem_sch;
-        if (std.mem.endsWith(u8, path, ".chn_tb")) return .chn_tb;
-        if (std.mem.endsWith(u8, path, ".chn")) return .chn;
-        if (std.mem.endsWith(u8, path, ".sym")) return .sym;
+        if (std.mem.endsWith(u8, path, ".chn_tb"))  return .chn_tb;
+        if (std.mem.endsWith(u8, path, ".chn_sym")) return .chn_sym;
+        if (std.mem.endsWith(u8, path, ".chn"))     return .chn;
         return .unknown;
     }
 };
@@ -98,37 +96,44 @@ pub const FileIO = struct {
     pub const Origin = union(enum) {
         unsaved,
         buffer,
-        chn_file: []const u8,
-        sym_file: []const u8,
-        xschem_files: struct { sch: []const u8, sym: ?[]const u8 },
+        chn_file:     []const u8,
+        chn_sym_file: []const u8,
     };
 
-    alloc: std.mem.Allocator,
-    logger: *Logger,
-    comp: struct { name: []const u8 },
-    sch: CT.Schematic,
-    sym: ?CT.Symbol = null,
-    origin: Origin = .unsaved,
-    dirty: bool = true,
+    alloc:     std.mem.Allocator,
+    logger:    *Logger,
+    comp:      struct { name: []const u8 },
+    sch:       CT.Schematic,
+    sym:       ?CT.Symbol = null,
+    origin:    Origin = .unsaved,
+    file_type: FileType = .unknown,
+    dirty:     bool = true,
 
     pub fn initNew(alloc: std.mem.Allocator, logger: *Logger, name: []const u8, _: bool) !FileIO {
         const name_owned = try alloc.dupe(u8, name);
         return .{
-            .alloc = alloc,
-            .logger = logger,
-            .comp = .{ .name = name_owned },
-            .sch = CT.Schematic.init(alloc, name),
-            .origin = .unsaved,
-            .dirty = true,
+            .alloc     = alloc,
+            .logger    = logger,
+            .comp      = .{ .name = name_owned },
+            .sch       = CT.Schematic.init(alloc, name),
+            .origin    = .unsaved,
+            .file_type = .chn,
+            .dirty     = true,
         };
+    }
+
+    /// Returns the FileType of this document (set at open time).
+    pub fn fileType(self: *const FileIO) FileType {
+        return self.file_type;
     }
 
     pub fn initFromChn(alloc: std.mem.Allocator, logger: *Logger, path: []const u8) !FileIO {
         var fio = try initNew(alloc, logger, std.fs.path.stem(path), false);
-        fio.origin = .{ .chn_file = try alloc.dupe(u8, path) };
-        fio.dirty = false;
+        fio.origin    = .{ .chn_file = try alloc.dupe(u8, path) };
+        fio.file_type = FileType.fromPath(path); // .chn or .chn_tb
+        fio.dirty     = false;
 
-        // Read and parse the CHN file
+        // Read and parse the CHN file into CT.Schematic.
         const data = std.fs.cwd().readFileAlloc(alloc, path, 1024 * 1024 * 4) catch |err| {
             logger.err("FileIO", "failed to read {s}: {}", .{ path, err });
             return fio;
@@ -138,24 +143,17 @@ pub const FileIO = struct {
         var parsed = core.Schemify.readFile(data, alloc, logger);
         defer parsed.deinit();
 
-        // Copy instances from parsed Schemify into CT.Schematic
         const ins = parsed.instances.slice();
         for (0..parsed.instances.len) |i| {
-            const src_start = ins.items(.prop_start)[i];
-            const src_count = ins.items(.prop_count)[i];
+            const prop_start = ins.items(.prop_start)[i];
+            const prop_count = ins.items(.prop_count)[i];
             var inst: CT.Instance = .{
-                .name = fio.sch.alloc().dupe(u8, ins.items(.name)[i]) catch ins.items(.name)[i],
+                .name   = fio.sch.alloc().dupe(u8, ins.items(.name)[i])   catch ins.items(.name)[i],
                 .symbol = fio.sch.alloc().dupe(u8, ins.items(.symbol)[i]) catch ins.items(.symbol)[i],
-                .pos = .{
-                    .x = ins.items(.x)[i],
-                    .y = ins.items(.y)[i],
-                },
-                .xform = .{
-                    .rot = ins.items(.rot)[i],
-                    .flip = ins.items(.flip)[i],
-                },
+                .pos    = .{ .x = ins.items(.x)[i], .y = ins.items(.y)[i] },
+                .xform  = .{ .rot = ins.items(.rot)[i], .flip = ins.items(.flip)[i] },
             };
-            for (parsed.props.items[src_start..][0..src_count]) |p| {
+            for (parsed.props.items[prop_start..][0..prop_count]) |p| {
                 inst.props.append(fio.sch.alloc(), .{
                     .key = fio.sch.alloc().dupe(u8, p.key) catch p.key,
                     .val = fio.sch.alloc().dupe(u8, p.val) catch p.val,
@@ -164,12 +162,11 @@ pub const FileIO = struct {
             fio.sch.instances.append(fio.sch.alloc(), inst) catch {};
         }
 
-        // Copy wires from parsed Schemify into CT.Schematic
         const ws = parsed.wires.slice();
         for (0..parsed.wires.len) |i| {
             fio.sch.wires.append(fio.sch.alloc(), .{
-                .start = .{ .x = ws.items(.x0)[i], .y = ws.items(.y0)[i] },
-                .end   = .{ .x = ws.items(.x1)[i], .y = ws.items(.y1)[i] },
+                .start    = .{ .x = ws.items(.x0)[i], .y = ws.items(.y0)[i] },
+                .end      = .{ .x = ws.items(.x1)[i], .y = ws.items(.y1)[i] },
                 .net_name = if (ws.items(.net_name)[i]) |n|
                     fio.sch.alloc().dupe(u8, n) catch null
                 else
@@ -180,32 +177,18 @@ pub const FileIO = struct {
         return fio;
     }
 
-    pub fn initFromSym(alloc: std.mem.Allocator, logger: *Logger, path: []const u8) !FileIO {
+    pub fn initFromChnSym(alloc: std.mem.Allocator, logger: *Logger, path: []const u8) !FileIO {
         var fio = try initNew(alloc, logger, std.fs.path.stem(path), false);
-        fio.origin = .{ .sym_file = try alloc.dupe(u8, path) };
-        fio.dirty = false;
-        return fio;
-    }
-
-    pub fn initFromXSchem(alloc: std.mem.Allocator, logger: *Logger, sch_path: []const u8, sym_path: ?[]const u8) !FileIO {
-        var fio = try initNew(alloc, logger, std.fs.path.stem(sch_path), false);
-        fio.origin = .{ .xschem_files = .{
-            .sch = try alloc.dupe(u8, sch_path),
-            .sym = if (sym_path) |p| try alloc.dupe(u8, p) else null,
-        } };
-        fio.dirty = false;
+        fio.origin    = .{ .chn_sym_file = try alloc.dupe(u8, path) };
+        fio.file_type = .chn_sym;
+        fio.dirty     = false;
         return fio;
     }
 
     pub fn deinit(self: *FileIO) void {
         self.alloc.free(self.comp.name);
         switch (self.origin) {
-            .chn_file       => |p|  self.alloc.free(p),
-            .sym_file       => |p|  self.alloc.free(p),
-            .xschem_files   => |xf| {
-                self.alloc.free(xf.sch);
-                if (xf.sym) |s| self.alloc.free(s);
-            },
+            .chn_file, .chn_sym_file => |p| self.alloc.free(p),
             .unsaved, .buffer => {},
         }
         self.sch.deinit();
@@ -223,19 +206,15 @@ pub const FileIO = struct {
     pub fn save(self: *FileIO) !void {
         switch (self.origin) {
             .chn_file => |p| try self.saveAsChn(p),
-            .sym_file => |p| try self.saveAsChn(p),
             else => {},
         }
     }
 
     pub fn saveAsChn(self: *FileIO, path: []const u8) !void {
-        // Build a core.Schemify from CT.Schematic and write via writeFile API.
-        // TODO: core.Schemify.writeFile(s, alloc, logger) ?[]u8 — returns owned CHN bytes.
         var s = core.Schemify.init(self.alloc);
         defer s.deinit();
         s.name = self.comp.name;
 
-        // Copy instances into core.Schemify
         for (self.sch.instances.items) |inst| {
             const prop_start: u32 = @intCast(s.props.items.len);
             for (inst.props.items) |p| {
@@ -245,7 +224,7 @@ pub const FileIO = struct {
                 }) catch {};
             }
             s.instances.append(s.alloc(), .{
-                .name       = s.alloc().dupe(u8, inst.name) catch inst.name,
+                .name       = s.alloc().dupe(u8, inst.name)   catch inst.name,
                 .symbol     = s.alloc().dupe(u8, inst.symbol) catch inst.symbol,
                 .x          = inst.pos.x,
                 .y          = inst.pos.y,
@@ -258,8 +237,6 @@ pub const FileIO = struct {
                 .conn_count = 0,
             }) catch {};
         }
-
-        // Copy wires into core.Schemify
         for (self.sch.wires.items) |wire| {
             s.wires.append(s.alloc(), .{
                 .x0       = wire.start.x,
@@ -274,7 +251,6 @@ pub const FileIO = struct {
             defer self.alloc.free(bytes);
             try std.fs.cwd().writeFile(.{ .sub_path = path, .data = bytes });
         } else {
-            // writeFile failed; fall back to minimal placeholder
             var out: std.ArrayListUnmanaged(u8) = .{};
             defer out.deinit(self.alloc);
             try out.writer(self.alloc).print("* Schemify CHN for {s}\n.end\n", .{self.comp.name});
@@ -362,22 +338,18 @@ pub const FileIO = struct {
         self.logger.info("SIM", "stub run {s} on {s}", .{ if (sim == .ngspice) "ngspice" else "xyce", path });
     }
 
-    /// Enhanced runSpiceSim stub — determines netlist path from origin and logs intent.
+    /// Determines netlist path from origin and logs simulation intent.
     /// TODO: spawn std.process.Child with argv = [ngspice/xyce, "-b", netlist_path]
     pub fn runSpiceSimAuto(self: *FileIO, sim: Sim) !void {
-        // Determine netlist path from origin
         const chn_path: []const u8 = switch (self.origin) {
             .chn_file => |p| p,
             else => return error.NoNetlist,
         };
-        // Replace .chn (or .chn_tb) extension with .sp
         const base = std.fs.path.stem(chn_path);
         const dir = std.fs.path.dirname(chn_path) orelse ".";
         var path_buf: [std.fs.max_path_bytes]u8 = undefined;
         const netlist_path = std.fmt.bufPrint(&path_buf, "{s}/{s}.sp", .{ dir, base }) catch chn_path;
         _ = netlist_path;
-        // Spawn: std.process.Child with argv = [ngspice/xyce, "-b", path]
-        // For now log a stub message
         self.logger.info("SIM", "runSpiceSim stub — would run {s}", .{@tagName(sim)});
     }
 };
@@ -415,6 +387,8 @@ pub const ToolState = struct {
     snap_to_grid: bool = true,
     snap_size: f32 = 10.0,
     wire_start: ?[2]i32 = null,
+    draw_points: [16]CT.Point = [_]CT.Point{.{ .x = 0, .y = 0 }} ** 16,
+    draw_point_count: u8 = 0,
 
     pub fn label(self: *const ToolState) []const u8 {
         return switch (self.active) {
@@ -432,7 +406,7 @@ pub const ToolState = struct {
     }
 };
 
-pub const GuiViewMode = enum { schematic, symbol, waveform };
+pub const GuiViewMode = enum { schematic, symbol };
 pub const PluginPanelLayout = enum { overlay, left_sidebar, right_sidebar, bottom_bar };
 
 pub const PanelDrawFn = *const fn (ctx: *const PluginIF.UiCtx) callconv(.c) void;
@@ -499,6 +473,15 @@ pub const GuiState = struct {
     key_to_panel: [256]i16 = [_]i16{-1} ** 256,
     marketplace: MarketplaceState = .{},
     plugin_keybinds: std.ArrayListUnmanaged(PluginKeybind) = .{},
+    find_dialog_open: bool = false,
+    find_query: [128]u8 = [_]u8{0} ** 128,
+    find_query_len: usize = 0,
+    find_results: [64]usize = [_]usize{0} ** 64,
+    find_result_count: usize = 0,
+    keybinds_open: bool = false,
+    context_menu_open: bool = false,
+    context_menu_inst: i32 = -1,
+    context_menu_wire: i32 = -1,
 
     // ── Phase 6F / 7B — Properties dialog ────────────────────────────────
     props_dialog_open: bool = false,
@@ -515,6 +498,29 @@ pub const GuiState = struct {
     lib_entries: [256][256]u8 = [_][256]u8{[_]u8{0} ** 256} ** 256,
     lib_entry_count: usize = 0,
     lib_selected: i32 = -1,
+};
+
+pub const Clipboard = struct {
+    instances: std.ArrayListUnmanaged(CT.Instance) = .{},
+    wires: std.ArrayListUnmanaged(CT.Wire) = .{},
+
+    pub fn clear(self: *Clipboard, alloc: std.mem.Allocator) void {
+        for (self.instances.items) |inst| {
+            alloc.free(inst.name);
+            alloc.free(inst.symbol);
+        }
+        self.instances.clearRetainingCapacity();
+        for (self.wires.items) |wire| {
+            if (wire.net_name) |n| alloc.free(n);
+        }
+        self.wires.clearRetainingCapacity();
+    }
+
+    pub fn deinit(self: *Clipboard, alloc: std.mem.Allocator) void {
+        self.clear(alloc);
+        self.instances.deinit(alloc);
+        self.wires.deinit(alloc);
+    }
 };
 
 pub const AppState = struct {
@@ -538,13 +544,13 @@ pub const AppState = struct {
     tool: ToolState = .{},
     cmd_flags: CommandFlags = .{},
     gui: GuiState = .{},
+    clipboard: Clipboard = .{},
+    highlighted_nets: std.DynamicBitSetUnmanaged = .{},
+    canvas_w: f32 = 800.0,
+    canvas_h: f32 = 600.0,
     show_grid: bool = true,
     status_msg: []const u8 = "Ready",
     plugin_refresh_requested: bool = false,
-    waveform_data: [4096]f32 = [_]f32{0.0} ** 4096,
-    waveform_len: usize = 0,
-    waveform_label: [64]u8 = [_]u8{0} ** 64,
-    waveform_label_len: usize = 0,
     plugin_state: std.StringHashMapUnmanaged([]const u8) = .{},
     log: Logger = undefined,
     last_netlist: [8192]u8 = [_]u8{0} ** 8192,
@@ -645,6 +651,8 @@ pub const AppState = struct {
             alloc.free(entry.value_ptr.*);
         }
         self.plugin_state.deinit(alloc);
+        self.clipboard.deinit(alloc);
+        self.highlighted_nets.deinit(alloc);
         self.config.deinit();
         self.log.deinit();
         _ = self.gpa.deinit();
@@ -687,11 +695,10 @@ pub const AppState = struct {
 
         const ft = FileType.fromPath(path);
         fio.* = switch (ft) {
-            .xschem_sch => try FileIO.initFromXSchem(alloc, &self.log, path, null),
             .chn, .chn_tb => try FileIO.initFromChn(alloc, &self.log, path),
-            .sym => try FileIO.initFromSym(alloc, &self.log, path),
-            else => {
-                self.setStatusErr("Unsupported file type");
+            .chn_sym       => try FileIO.initFromChnSym(alloc, &self.log, path),
+            .unknown       => {
+                self.setStatusErr("Unsupported file type (only .chn, .chn_tb, .chn_sym)");
                 return error.InvalidFormat;
             },
         };
@@ -847,3 +854,17 @@ pub const AppState = struct {
         return ch;
     }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module-level exported globals
+//
+// These are the process-wide singletons accessible from any file via
+//   const state = @import("state.zig");
+//   state.app.something
+// without threading *AppState through every function signature.
+//
+// Initialised by appInit() in main.zig; valid for the entire process lifetime.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Process-wide application state singleton. Call AppState.init() before use.
+pub var app: AppState = undefined;

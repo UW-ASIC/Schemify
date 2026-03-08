@@ -7,6 +7,7 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const AppState = @import("../state.zig").AppState;
+const cmd_mod = @import("../command.zig");
 const actions = @import("actions.zig");
 const toolbar = @import("toolbar.zig");
 const tabbar = @import("tabbar.zig");
@@ -34,6 +35,9 @@ pub fn frame(app: *AppState) !void {
     command_bar.draw(app);
     plugin_panels.drawOverlays(app);
     marketplace.draw(app);
+    drawFindDialog(app);
+    drawKeybindsWindow(app);
+    drawContextMenu(app);
     if (app.gui.props_dialog_open) drawPropertiesDialog(app);
     if (app.gui.lib_browser_open) drawLibraryBrowser(app);
 }
@@ -47,33 +51,29 @@ fn drawCenterColumn(app: *AppState) void {
     drawNetlistPreview(app);
 }
 
-/// Netlist preview panel — shown when show_netlist is true and last_netlist_len > 0.
 fn drawNetlistPreview(app: *AppState) void {
     if (!app.cmd_flags.show_netlist) return;
     if (app.last_netlist_len == 0) return;
 
     var panel = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .background = true,
-        .color_fill = .{ .r = 20, .g = 20, .b = 24, .a = 255 },
-        .min_size_content = .{ .h = 200 },
         .expand = .horizontal,
+        .min_size_content = .{ .h = 200 },
+        .background = true,
     });
     defer panel.deinit();
 
-    dvui.labelNoFmt(@src(), "Netlist Preview", .{}, .{});
+    dvui.labelNoFmt(@src(), "Netlist", .{}, .{ .style = .control });
+    _ = dvui.separator(@src(), .{});
 
-    var scroll = dvui.scrollArea(@src(), .{}, .{
-        .expand = .both,
-        .min_size_content = .{ .h = 170 },
-    });
+    var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
     defer scroll.deinit();
 
     const text = app.last_netlist[0..app.last_netlist_len];
     var lines = std.mem.splitScalar(u8, text, '\n');
-    var line_i: u32 = 0;
+    var line_idx: usize = 0;
     while (lines.next()) |line| {
-        dvui.labelNoFmt(@src(), line, .{}, .{ .id_extra = 0x7E00 + line_i });
-        line_i += 1;
+        dvui.labelNoFmt(@src(), line, .{}, .{ .id_extra = line_idx });
+        line_idx += 1;
     }
 }
 
@@ -108,6 +108,28 @@ fn handleInput(app: *AppState) void {
 }
 
 fn handleCommandMode(app: *AppState, code: dvui.enums.Key, shift: bool) bool {
+    // If find dialog is open, route typing into the find query
+    if (app.gui.find_dialog_open) {
+        switch (code) {
+            .escape => { app.gui.find_dialog_open = false; return true; },
+            .enter => {
+                runFindQuery(app);
+                return true;
+            },
+            .backspace => {
+                if (app.gui.find_query_len > 0) app.gui.find_query_len -= 1;
+                return true;
+            },
+            else => {
+                const ch = keyToChar(code, shift);
+                if (ch != 0 and app.gui.find_query_len < app.gui.find_query.len - 1) {
+                    app.gui.find_query[app.gui.find_query_len] = ch;
+                    app.gui.find_query_len += 1;
+                }
+                return ch != 0;
+            },
+        }
+    }
     switch (code) {
         .escape => {
             app.gui.command_mode = false;
@@ -155,6 +177,9 @@ fn handleNormalMode(app: *AppState, code: dvui.enums.Key, ctrl: bool, shift: boo
             return true;
         } else return false,
         .escape => {
+            if (app.gui.find_dialog_open) { app.gui.find_dialog_open = false; return true; }
+            if (app.gui.keybinds_open) { app.gui.keybinds_open = false; return true; }
+            if (app.gui.context_menu_open) { app.gui.context_menu_open = false; return true; }
             actions.enqueue(app, .{ .escape_mode = {} }, "Escape");
             return true;
         },
@@ -309,6 +334,167 @@ fn handleNormalMode(app: *AppState, code: dvui.enums.Key, ctrl: bool, shift: boo
             return true;
         } else return false,
         else => return false,
+    }
+}
+
+fn runFindQuery(app: *AppState) void {
+    const fio = app.active() orelse return;
+    const sch = fio.schematic();
+    const query = app.gui.find_query[0..app.gui.find_query_len];
+    app.gui.find_result_count = 0;
+    for (sch.instances.items, 0..) |inst, i| {
+        if (std.mem.indexOf(u8, inst.name, query) != null or
+            std.mem.indexOf(u8, inst.symbol, query) != null)
+        {
+            if (app.gui.find_result_count < app.gui.find_results.len) {
+                app.gui.find_results[app.gui.find_result_count] = i;
+                app.gui.find_result_count += 1;
+            }
+        }
+    }
+    app.setStatus("Find: results updated");
+}
+
+// ── Phase 7C: Find / select dialog ───────────────────────────────────────────
+
+fn drawFindDialog(app: *AppState) void {
+    if (!app.gui.find_dialog_open) return;
+
+    var fw = dvui.floatingWindow(@src(), .{}, .{ .min_size_content = .{ .w = 320, .h = 200 } });
+    defer fw.deinit();
+
+    dvui.labelNoFmt(@src(), "Find / Select", .{}, .{ .style = .highlight });
+
+    {
+        var query_buf: [130]u8 = undefined;
+        const query_text = std.fmt.bufPrint(&query_buf, "{s}", .{app.gui.find_query[0..app.gui.find_query_len]}) catch "";
+        dvui.labelNoFmt(@src(), query_text, .{}, .{});
+    }
+
+    {
+        var count_buf: [64]u8 = undefined;
+        const count_text = std.fmt.bufPrint(&count_buf, "{d} match(es)", .{app.gui.find_result_count}) catch "?";
+        dvui.labelNoFmt(@src(), count_text, .{}, .{ .id_extra = 1 });
+    }
+
+    if (dvui.button(@src(), "Select All Matches", .{}, .{})) {
+        const fio = app.active() orelse { app.gui.find_dialog_open = false; return; };
+        const sch = fio.schematic();
+        const alloc = app.allocator();
+        app.selection.clear();
+        for (sch.instances.items, 0..) |inst, i| {
+            const matches = std.mem.indexOf(u8, inst.name, app.gui.find_query[0..app.gui.find_query_len]) != null or
+                std.mem.indexOf(u8, inst.symbol, app.gui.find_query[0..app.gui.find_query_len]) != null;
+            if (matches) {
+                app.selection.instances.resize(alloc, i + 1, false) catch continue;
+                app.selection.instances.set(i);
+            }
+        }
+        app.gui.find_dialog_open = false;
+    }
+
+    if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 1 })) {
+        app.gui.find_dialog_open = false;
+    }
+}
+
+// ── Phase 7D: Keybinds help window ───────────────────────────────────────────
+
+fn drawKeybindsWindow(app: *AppState) void {
+    if (!app.gui.keybinds_open) return;
+
+    var fw = dvui.floatingWindow(@src(), .{}, .{ .min_size_content = .{ .w = 500, .h = 400 } });
+    defer fw.deinit();
+
+    dvui.labelNoFmt(@src(), "Keyboard Shortcuts", .{}, .{ .style = .highlight });
+
+    var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
+    defer scroll.deinit();
+
+    for (static_keybinds, 0..) |kb, i| {
+        var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = i });
+        defer row.deinit();
+
+        var key_buf: [32]u8 = undefined;
+        const ctrl_str: []const u8 = if (kb.ctrl) "Ctrl+" else "";
+        const shift_str: []const u8 = if (kb.shift) "Shift+" else "";
+        const alt_str: []const u8 = if (kb.alt) "Alt+" else "";
+        const key_str = std.fmt.bufPrint(&key_buf, "{s}{s}{s}{s}", .{ ctrl_str, shift_str, alt_str, @tagName(kb.key) }) catch "?";
+        dvui.labelNoFmt(@src(), key_str, .{}, .{ .min_size_content = .{ .w = 150 }, .id_extra = i });
+
+        var action_buf: [64]u8 = undefined;
+        const action_str: []const u8 = switch (kb.action) {
+            .queue => |q| q.msg,
+            .gui => |g| @tagName(g),
+        };
+        const action_text = std.fmt.bufPrint(&action_buf, "{s}", .{action_str}) catch "?";
+        dvui.labelNoFmt(@src(), action_text, .{}, .{ .expand = .horizontal, .id_extra = i + 1000 });
+    }
+
+    if (dvui.button(@src(), "Close [Esc]", .{}, .{})) {
+        app.gui.keybinds_open = false;
+    }
+}
+
+// ── Phase 5I: Context menu ────────────────────────────────────────────────────
+
+fn drawContextMenu(app: *AppState) void {
+    if (!app.gui.context_menu_open) return;
+
+    var fw = dvui.floatingWindow(@src(), .{}, .{ .min_size_content = .{ .w = 180, .h = 160 } });
+    defer fw.deinit();
+
+    if (app.gui.context_menu_inst >= 0) {
+        dvui.labelNoFmt(@src(), "Instance", .{}, .{ .style = .highlight });
+        if (dvui.button(@src(), "Properties [Q]", .{}, .{})) {
+            actions.enqueue(app, .{ .edit_properties = {} }, "Edit properties");
+            app.gui.context_menu_open = false;
+        }
+        if (dvui.button(@src(), "Delete [Del]", .{}, .{ .id_extra = 1 })) {
+            actions.enqueue(app, .{ .delete_selected = {} }, "Delete");
+            app.gui.context_menu_open = false;
+        }
+        if (dvui.button(@src(), "Rotate CW [R]", .{}, .{ .id_extra = 2 })) {
+            actions.enqueue(app, .{ .rotate_cw = {} }, "Rotate CW");
+            app.gui.context_menu_open = false;
+        }
+        if (dvui.button(@src(), "Flip H [X]", .{}, .{ .id_extra = 3 })) {
+            actions.enqueue(app, .{ .flip_horizontal = {} }, "Flip H");
+            app.gui.context_menu_open = false;
+        }
+        if (dvui.button(@src(), "Move [M]", .{}, .{ .id_extra = 4 })) {
+            actions.enqueue(app, .{ .move_interactive = {} }, "Move");
+            app.gui.context_menu_open = false;
+        }
+        if (dvui.button(@src(), "Descend [E]", .{}, .{ .id_extra = 5 })) {
+            actions.enqueue(app, .{ .descend_schematic = {} }, "Descend");
+            app.gui.context_menu_open = false;
+        }
+    } else if (app.gui.context_menu_wire >= 0) {
+        dvui.labelNoFmt(@src(), "Wire", .{}, .{ .style = .highlight });
+        if (dvui.button(@src(), "Delete [Del]", .{}, .{})) {
+            actions.enqueue(app, .{ .delete_selected = {} }, "Delete");
+            app.gui.context_menu_open = false;
+        }
+        if (dvui.button(@src(), "Select Connected", .{}, .{ .id_extra = 1 })) {
+            actions.enqueue(app, .{ .select_connected = {} }, "Select connected");
+            app.gui.context_menu_open = false;
+        }
+    } else {
+        dvui.labelNoFmt(@src(), "Canvas", .{}, .{ .style = .highlight });
+        if (dvui.button(@src(), "Paste [Ctrl+V]", .{}, .{})) {
+            actions.enqueue(app, .{ .clipboard_paste = {} }, "Paste");
+            app.gui.context_menu_open = false;
+        }
+        if (dvui.button(@src(), "Insert from Library", .{}, .{ .id_extra = 1 })) {
+            actions.enqueue(app, .{ .insert_from_library = {} }, "Insert from library");
+            app.gui.context_menu_open = false;
+        }
+    }
+
+    _ = dvui.separator(@src(), .{ .id_extra = 99 });
+    if (dvui.button(@src(), "Cancel", .{}, .{ .id_extra = 99 })) {
+        app.gui.context_menu_open = false;
     }
 }
 
@@ -476,7 +662,7 @@ fn keyToChar(code: dvui.enums.Key, shift: bool) u8 {
     };
 }
 
-// ── Persistent window rect for dialogs ────────────────────────────────────────
+// ── Persistent window rects for dialogs ───────────────────────────────────────
 
 var props_win_rect = dvui.Rect{ .x = 120, .y = 100, .w = 480, .h = 380 };
 var lib_win_rect   = dvui.Rect{ .x = 100, .y = 80,  .w = 420, .h = 460 };
@@ -499,7 +685,8 @@ fn drawPropertiesDialog(app: *AppState) void {
     fwin.dragAreaSet(dvui.windowHeader(title, "", &gs.props_dialog_open));
 
     const fio = app.active();
-    const inst_opt = if (fio) |f| blk: {
+    const CT = @import("../state.zig").CT;
+    const inst_opt: ?CT.Instance = if (fio) |f| blk: {
         const sch = f.schematic();
         if (gs.props_inst_idx < sch.instances.items.len)
             break :blk sch.instances.items[gs.props_inst_idx]
@@ -514,7 +701,6 @@ fn drawPropertiesDialog(app: *AppState) void {
         });
         defer body.deinit();
 
-        // Instance symbol name header
         if (inst_opt) |inst| {
             var hdr_buf: [256]u8 = undefined;
             const hdr = std.fmt.bufPrint(&hdr_buf, "Symbol: {s}  Name: {s}", .{ inst.symbol, inst.name })
@@ -523,7 +709,6 @@ fn drawPropertiesDialog(app: *AppState) void {
             _ = dvui.separator(@src(), .{ .id_extra = 1 });
         }
 
-        // Prop rows
         const prop_count: usize = if (inst_opt) |inst|
             @min(inst.props.items.len, 16)
         else
@@ -547,7 +732,6 @@ fn drawPropertiesDialog(app: *AppState) void {
             });
             defer row.deinit();
 
-            // Key label (fixed ~35% width)
             var key_buf: [64]u8 = undefined;
             const key_label = std.fmt.bufPrint(&key_buf, "{s}:", .{key}) catch key;
             dvui.labelNoFmt(@src(), key_label, .{}, .{
@@ -559,7 +743,6 @@ fn drawPropertiesDialog(app: *AppState) void {
             _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 6 }, .id_extra = i * 10 + 2 });
 
             if (gs.props_view_only) {
-                // Read-only: just show the value as a label
                 const val_slice = gs.props_bufs[i][0..gs.props_lens[i]];
                 dvui.labelNoFmt(@src(), val_slice, .{}, .{
                     .id_extra  = i * 10 + 3,
@@ -567,7 +750,6 @@ fn drawPropertiesDialog(app: *AppState) void {
                     .gravity_y = 0.5,
                 });
             } else {
-                // Editable text entry — buffer is mutated in-place by dvui
                 var te = dvui.textEntry(@src(), .{
                     .text = .{ .buffer = gs.props_bufs[i][0..127] },
                 }, .{
@@ -575,14 +757,11 @@ fn drawPropertiesDialog(app: *AppState) void {
                     .expand   = .horizontal,
                 });
                 defer te.deinit();
-
-                // Update tracked length each frame
                 gs.props_lens[i] = std.mem.indexOfScalar(u8, &gs.props_bufs[i], 0) orelse 127;
-                gs.props_dirty[i] = true; // conservative: always dirty once dialog is open
+                gs.props_dirty[i] = true;
             }
         }
 
-        // Buttons row (only if editable)
         _ = dvui.separator(@src(), .{ .id_extra = 50 });
         {
             var btn_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -595,7 +774,6 @@ fn drawPropertiesDialog(app: *AppState) void {
 
             if (!gs.props_view_only) {
                 if (dvui.button(@src(), "OK", .{}, .{ .id_extra = 100, .style = .highlight })) {
-                    // Apply all props (both dirty and unchanged for simplicity)
                     if (fio) |f| {
                         if (inst_opt) |inst| {
                             const pc = @min(inst.props.items.len, 16);
@@ -644,7 +822,6 @@ fn drawLibraryBrowser(app: *AppState) void {
         });
         defer body.deinit();
 
-        // Search bar
         {
             var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
             defer row.deinit();
@@ -660,7 +837,7 @@ fn drawLibraryBrowser(app: *AppState) void {
         _ = dvui.separator(@src(), .{ .id_extra = 1 });
 
         if (gs.lib_entry_count == 0) {
-            dvui.labelNoFmt(@src(), "No .sym files found in symbols/", .{}, .{ .style = .control });
+            dvui.labelNoFmt(@src(), "No .chn_sym files found in symbols/", .{}, .{ .style = .control });
         }
 
         var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
@@ -671,7 +848,6 @@ fn drawLibraryBrowser(app: *AppState) void {
         for (0..gs.lib_entry_count) |i| {
             const entry_name = std.mem.sliceTo(&gs.lib_entries[i], 0);
 
-            // Filter by search text
             if (search_text.len > 0) {
                 var found = false;
                 if (entry_name.len >= search_text.len) {

@@ -5,14 +5,15 @@ const std = @import("std");
 const build_options = @import("build_options");
 const toml = @import("toml.zig");
 const command = @import("command.zig");
-const State = @import("state.zig").AppState;
+const state_mod = @import("state.zig");
+const State = state_mod.AppState;
 const dvui = @import("dvui");
 const gui = @import("gui/gui.zig");
 const has_cli = build_options.has_cli;
 const cli = @import("cli.zig");
 const plugin_runtime = @import("plugins/runtime.zig");
 
-var app: State = undefined;
+// state_mod.app is the process-wide AppState singleton (declared in state.zig).
 var plugins: plugin_runtime.Runtime = undefined;
 
 pub fn getConfig() dvui.App.StartOptions {
@@ -36,31 +37,31 @@ pub fn getConfig() dvui.App.StartOptions {
 
 pub fn appInit(win: *dvui.Window) !void {
     _ = win;
-    app = try State.init(projectDir());
-    app.initLogger();
-    try app.newFile("untitled");
-    plugins = plugin_runtime.Runtime.init(app.allocator());
-    plugins.loadStartup(&app);
+    state_mod.app = try State.init(projectDir());
+    state_mod.app.initLogger();
+    try state_mod.app.newFile("untitled");
+    plugins = plugin_runtime.Runtime.init(state_mod.app.allocator());
+    plugins.loadStartup(&state_mod.app);
 }
 
 pub fn appDeinit() void {
-    plugins.deinit(&app);
-    app.deinit();
+    plugins.deinit(&state_mod.app);
+    state_mod.app.deinit();
 }
 
 pub fn appFrame() !dvui.App.Result {
-    while (app.queue.pop()) |c| {
-        command.dispatch(c, &app) catch |err| {
-            app.setStatusErr("Command failed");
-            app.log.err("CMD", "dispatch {s} failed: {}", .{ @tagName(c), err });
+    while (state_mod.app.queue.pop()) |c| {
+        command.dispatch(c, &state_mod.app) catch |err| {
+            state_mod.app.setStatusErr("Command failed");
+            state_mod.app.log.err("CMD", "dispatch {s} failed: {}", .{ @tagName(c), err });
         };
     }
-    if (app.plugin_refresh_requested) {
-        app.plugin_refresh_requested = false;
-        plugins.refresh(&app);
+    if (state_mod.app.plugin_refresh_requested) {
+        state_mod.app.plugin_refresh_requested = false;
+        plugins.refresh(&state_mod.app);
     }
-    plugins.tick(&app, 1.0 / 60.0);
-    try gui.frame(&app);
+    plugins.tick(&state_mod.app, 1.0 / 60.0);
+    try gui.frame(&state_mod.app);
     return .ok;
 }
 
