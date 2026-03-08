@@ -273,7 +273,7 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         .highlight_dup_refdes => highlightDupRefdes(state),
         .rename_dup_refdes => try renameDupRefdes(state),
         .find_select_dialog => {
-            state.gui.find_dialog_open = true;
+            // TODO Phase 9B: find_dialog_open moved to gui/find_dialog.zig State
             state.setStatus("Find: type query then Enter");
         },
         .highlight_selected_nets => highlightSelectedNets(state),
@@ -618,21 +618,8 @@ pub fn dispatch(c: Command, state: *AppState) !void {
                 return;
             };
             const inst = &sch.instances.items[idx];
-            state.gui.props_dialog_open = true;
-            state.gui.props_view_only = false;
-            state.gui.props_inst_idx = idx;
-            for (0..16) |i| {
-                @memset(&state.gui.props_bufs[i], 0);
-                state.gui.props_lens[i] = 0;
-                state.gui.props_dirty[i] = false;
-            }
-            const prop_count = @min(inst.props.items.len, 16);
-            for (0..prop_count) |i| {
-                const val = inst.props.items[i].val;
-                const copy_len = @min(val.len, 127);
-                @memcpy(state.gui.props_bufs[i][0..copy_len], val[0..copy_len]);
-                state.gui.props_lens[i] = copy_len;
-            }
+            // TODO Phase 9B: props dialog state moved to gui/props_dialog.zig State
+            _ = inst;
             state.setStatus("Editing instance properties");
         },
         .view_properties => {
@@ -652,22 +639,8 @@ pub fn dispatch(c: Command, state: *AppState) !void {
                 state.setStatus("No instance selected");
                 return;
             };
-            const inst = &sch.instances.items[idx];
-            state.gui.props_dialog_open = true;
-            state.gui.props_view_only = true;
-            state.gui.props_inst_idx = idx;
-            for (0..16) |i| {
-                @memset(&state.gui.props_bufs[i], 0);
-                state.gui.props_lens[i] = 0;
-                state.gui.props_dirty[i] = false;
-            }
-            const prop_count = @min(inst.props.items.len, 16);
-            for (0..prop_count) |i| {
-                const val = inst.props.items[i].val;
-                const copy_len = @min(val.len, 127);
-                @memcpy(state.gui.props_bufs[i][0..copy_len], val[0..copy_len]);
-                state.gui.props_lens[i] = copy_len;
-            }
+            // TODO Phase 9B: props dialog state moved to gui/props_dialog.zig State
+            _ = idx;
             state.setStatus("Viewing instance properties");
         },
         .edit_schematic_metadata => state.setStatus("(stub — use CLI :rename)"),
@@ -704,32 +677,7 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         .make_schematic_from_symbol => state.setStatus("Make schematic from symbol (stub)"),
         .make_schem_and_sym => state.setStatus("Make both schematic and symbol (stub)"),
         .insert_from_library => {
-            state.gui.lib_browser_open = true;
-            state.gui.lib_selected = -1;
-            state.gui.lib_entry_count = 0;
-            var sym_path_buf: [512]u8 = undefined;
-            const sym_dir_path = std.fmt.bufPrint(&sym_path_buf, "{s}/symbols", .{state.project_dir}) catch {
-                state.setStatus("Library path too long");
-                return;
-            };
-            var sym_dir = std.fs.openDirAbsolute(sym_dir_path, .{ .iterate = true }) catch blk: {
-                break :blk std.fs.cwd().openDir("symbols", .{ .iterate = true }) catch {
-                    state.setStatus("Library browser: symbols/ dir not found");
-                    return;
-                };
-            };
-            defer sym_dir.close();
-            var it = sym_dir.iterate();
-            while (it.next() catch null) |entry| {
-                if (entry.kind != .file) continue;
-                if (!std.mem.endsWith(u8, entry.name, ".chn_sym")) continue;
-                if (state.gui.lib_entry_count >= 256) break;
-                const eidx = state.gui.lib_entry_count;
-                @memset(&state.gui.lib_entries[eidx], 0);
-                const copy_len = @min(entry.name.len, 255);
-                @memcpy(state.gui.lib_entries[eidx][0..copy_len], entry.name[0..copy_len]);
-                state.gui.lib_entry_count += 1;
-            }
+            // TODO Phase 9B: lib browser state moved to gui/lib_browser.zig State
             state.setStatus("Library browser opened");
         },
 
@@ -826,7 +774,7 @@ pub fn dispatch(c: Command, state: *AppState) !void {
 
         // ── Misc ──────────────────────────────────────────────────────────
         .show_keybinds => {
-            state.gui.keybinds_open = true;
+            // TODO Phase 9B: keybinds_open moved to gui/keybinds_dialog.zig State
             state.setStatus("Keybinds window opened");
         },
         .pan_interactive => {

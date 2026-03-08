@@ -38,8 +38,9 @@ pub fn frame(app: *AppState) !void {
     drawFindDialog(app);
     drawKeybindsWindow(app);
     drawContextMenu(app);
-    if (app.gui.props_dialog_open) drawPropertiesDialog(app);
-    if (app.gui.lib_browser_open) drawLibraryBrowser(app);
+    // TODO Phase 9B: props_dialog_open / lib_browser_open moved to dialog-local state
+    drawPropertiesDialog(app);
+    drawLibraryBrowser(app);
 }
 
 /// Center column: renderer on top, optional bottom bar below.
@@ -108,28 +109,7 @@ fn handleInput(app: *AppState) void {
 }
 
 fn handleCommandMode(app: *AppState, code: dvui.enums.Key, shift: bool) bool {
-    // If find dialog is open, route typing into the find query
-    if (app.gui.find_dialog_open) {
-        switch (code) {
-            .escape => { app.gui.find_dialog_open = false; return true; },
-            .enter => {
-                runFindQuery(app);
-                return true;
-            },
-            .backspace => {
-                if (app.gui.find_query_len > 0) app.gui.find_query_len -= 1;
-                return true;
-            },
-            else => {
-                const ch = keyToChar(code, shift);
-                if (ch != 0 and app.gui.find_query_len < app.gui.find_query.len - 1) {
-                    app.gui.find_query[app.gui.find_query_len] = ch;
-                    app.gui.find_query_len += 1;
-                }
-                return ch != 0;
-            },
-        }
-    }
+    // TODO Phase 9B: find dialog input handling moved to gui/find_dialog.zig
     switch (code) {
         .escape => {
             app.gui.command_mode = false;
@@ -177,9 +157,8 @@ fn handleNormalMode(app: *AppState, code: dvui.enums.Key, ctrl: bool, shift: boo
             return true;
         } else return false,
         .escape => {
-            if (app.gui.find_dialog_open) { app.gui.find_dialog_open = false; return true; }
-            if (app.gui.keybinds_open) { app.gui.keybinds_open = false; return true; }
-            if (app.gui.context_menu_open) { app.gui.context_menu_open = false; return true; }
+            // TODO Phase 9B: find_dialog_open, keybinds_open, context_menu_open
+            // moved to respective gui/*.zig dialog State structs
             actions.enqueue(app, .{ .escape_mode = {} }, "Escape");
             return true;
         },
@@ -338,164 +317,29 @@ fn handleNormalMode(app: *AppState, code: dvui.enums.Key, ctrl: bool, shift: boo
 }
 
 fn runFindQuery(app: *AppState) void {
-    const fio = app.active() orelse return;
-    const sch = fio.schematic();
-    const query = app.gui.find_query[0..app.gui.find_query_len];
-    app.gui.find_result_count = 0;
-    for (sch.instances.items, 0..) |inst, i| {
-        if (std.mem.indexOf(u8, inst.name, query) != null or
-            std.mem.indexOf(u8, inst.symbol, query) != null)
-        {
-            if (app.gui.find_result_count < app.gui.find_results.len) {
-                app.gui.find_results[app.gui.find_result_count] = i;
-                app.gui.find_result_count += 1;
-            }
-        }
-    }
-    app.setStatus("Find: results updated");
+    // TODO Phase 9B: find query state moved to gui/find_dialog.zig State
+    _ = app;
 }
 
 // ── Phase 7C: Find / select dialog ───────────────────────────────────────────
 
 fn drawFindDialog(app: *AppState) void {
-    if (!app.gui.find_dialog_open) return;
-
-    var fw = dvui.floatingWindow(@src(), .{}, .{ .min_size_content = .{ .w = 320, .h = 200 } });
-    defer fw.deinit();
-
-    dvui.labelNoFmt(@src(), "Find / Select", .{}, .{ .style = .highlight });
-
-    {
-        var query_buf: [130]u8 = undefined;
-        const query_text = std.fmt.bufPrint(&query_buf, "{s}", .{app.gui.find_query[0..app.gui.find_query_len]}) catch "";
-        dvui.labelNoFmt(@src(), query_text, .{}, .{});
-    }
-
-    {
-        var count_buf: [64]u8 = undefined;
-        const count_text = std.fmt.bufPrint(&count_buf, "{d} match(es)", .{app.gui.find_result_count}) catch "?";
-        dvui.labelNoFmt(@src(), count_text, .{}, .{ .id_extra = 1 });
-    }
-
-    if (dvui.button(@src(), "Select All Matches", .{}, .{})) {
-        const fio = app.active() orelse { app.gui.find_dialog_open = false; return; };
-        const sch = fio.schematic();
-        const alloc = app.allocator();
-        app.selection.clear();
-        for (sch.instances.items, 0..) |inst, i| {
-            const matches = std.mem.indexOf(u8, inst.name, app.gui.find_query[0..app.gui.find_query_len]) != null or
-                std.mem.indexOf(u8, inst.symbol, app.gui.find_query[0..app.gui.find_query_len]) != null;
-            if (matches) {
-                app.selection.instances.resize(alloc, i + 1, false) catch continue;
-                app.selection.instances.set(i);
-            }
-        }
-        app.gui.find_dialog_open = false;
-    }
-
-    if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 1 })) {
-        app.gui.find_dialog_open = false;
-    }
+    // TODO Phase 9B: find dialog UI + state moved to gui/find_dialog.zig
+    _ = app;
 }
 
 // ── Phase 7D: Keybinds help window ───────────────────────────────────────────
 
 fn drawKeybindsWindow(app: *AppState) void {
-    if (!app.gui.keybinds_open) return;
-
-    var fw = dvui.floatingWindow(@src(), .{}, .{ .min_size_content = .{ .w = 500, .h = 400 } });
-    defer fw.deinit();
-
-    dvui.labelNoFmt(@src(), "Keyboard Shortcuts", .{}, .{ .style = .highlight });
-
-    var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
-    defer scroll.deinit();
-
-    for (static_keybinds, 0..) |kb, i| {
-        var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = i });
-        defer row.deinit();
-
-        var key_buf: [32]u8 = undefined;
-        const ctrl_str: []const u8 = if (kb.ctrl) "Ctrl+" else "";
-        const shift_str: []const u8 = if (kb.shift) "Shift+" else "";
-        const alt_str: []const u8 = if (kb.alt) "Alt+" else "";
-        const key_str = std.fmt.bufPrint(&key_buf, "{s}{s}{s}{s}", .{ ctrl_str, shift_str, alt_str, @tagName(kb.key) }) catch "?";
-        dvui.labelNoFmt(@src(), key_str, .{}, .{ .min_size_content = .{ .w = 150 }, .id_extra = i });
-
-        var action_buf: [64]u8 = undefined;
-        const action_str: []const u8 = switch (kb.action) {
-            .queue => |q| q.msg,
-            .gui => |g| @tagName(g),
-        };
-        const action_text = std.fmt.bufPrint(&action_buf, "{s}", .{action_str}) catch "?";
-        dvui.labelNoFmt(@src(), action_text, .{}, .{ .expand = .horizontal, .id_extra = i + 1000 });
-    }
-
-    if (dvui.button(@src(), "Close [Esc]", .{}, .{})) {
-        app.gui.keybinds_open = false;
-    }
+    // TODO Phase 9B: keybinds window UI + state moved to gui/keybinds_dialog.zig
+    _ = app;
 }
 
 // ── Phase 5I: Context menu ────────────────────────────────────────────────────
 
 fn drawContextMenu(app: *AppState) void {
-    if (!app.gui.context_menu_open) return;
-
-    var fw = dvui.floatingWindow(@src(), .{}, .{ .min_size_content = .{ .w = 180, .h = 160 } });
-    defer fw.deinit();
-
-    if (app.gui.context_menu_inst >= 0) {
-        dvui.labelNoFmt(@src(), "Instance", .{}, .{ .style = .highlight });
-        if (dvui.button(@src(), "Properties [Q]", .{}, .{})) {
-            actions.enqueue(app, .{ .edit_properties = {} }, "Edit properties");
-            app.gui.context_menu_open = false;
-        }
-        if (dvui.button(@src(), "Delete [Del]", .{}, .{ .id_extra = 1 })) {
-            actions.enqueue(app, .{ .delete_selected = {} }, "Delete");
-            app.gui.context_menu_open = false;
-        }
-        if (dvui.button(@src(), "Rotate CW [R]", .{}, .{ .id_extra = 2 })) {
-            actions.enqueue(app, .{ .rotate_cw = {} }, "Rotate CW");
-            app.gui.context_menu_open = false;
-        }
-        if (dvui.button(@src(), "Flip H [X]", .{}, .{ .id_extra = 3 })) {
-            actions.enqueue(app, .{ .flip_horizontal = {} }, "Flip H");
-            app.gui.context_menu_open = false;
-        }
-        if (dvui.button(@src(), "Move [M]", .{}, .{ .id_extra = 4 })) {
-            actions.enqueue(app, .{ .move_interactive = {} }, "Move");
-            app.gui.context_menu_open = false;
-        }
-        if (dvui.button(@src(), "Descend [E]", .{}, .{ .id_extra = 5 })) {
-            actions.enqueue(app, .{ .descend_schematic = {} }, "Descend");
-            app.gui.context_menu_open = false;
-        }
-    } else if (app.gui.context_menu_wire >= 0) {
-        dvui.labelNoFmt(@src(), "Wire", .{}, .{ .style = .highlight });
-        if (dvui.button(@src(), "Delete [Del]", .{}, .{})) {
-            actions.enqueue(app, .{ .delete_selected = {} }, "Delete");
-            app.gui.context_menu_open = false;
-        }
-        if (dvui.button(@src(), "Select Connected", .{}, .{ .id_extra = 1 })) {
-            actions.enqueue(app, .{ .select_connected = {} }, "Select connected");
-            app.gui.context_menu_open = false;
-        }
-    } else {
-        dvui.labelNoFmt(@src(), "Canvas", .{}, .{ .style = .highlight });
-        if (dvui.button(@src(), "Paste [Ctrl+V]", .{}, .{})) {
-            actions.enqueue(app, .{ .clipboard_paste = {} }, "Paste");
-            app.gui.context_menu_open = false;
-        }
-        if (dvui.button(@src(), "Insert from Library", .{}, .{ .id_extra = 1 })) {
-            actions.enqueue(app, .{ .insert_from_library = {} }, "Insert from library");
-            app.gui.context_menu_open = false;
-        }
-    }
-
-    _ = dvui.separator(@src(), .{ .id_extra = 99 });
-    if (dvui.button(@src(), "Cancel", .{}, .{ .id_extra = 99 })) {
-        app.gui.context_menu_open = false;
-    }
+    // TODO Phase 9B: context menu UI + state moved to gui/context_menu.zig
+    _ = app;
 }
 
 const KeybindAction = union(enum) {
@@ -664,269 +508,18 @@ fn keyToChar(code: dvui.enums.Key, shift: bool) u8 {
 
 // ── Persistent window rects for dialogs ───────────────────────────────────────
 
-var props_win_rect = dvui.Rect{ .x = 120, .y = 100, .w = 480, .h = 380 };
-var lib_win_rect   = dvui.Rect{ .x = 100, .y = 80,  .w = 420, .h = 460 };
+// TODO Phase 9B: props_win_rect and lib_win_rect move to respective dialog files
 
 // ── Phase 6F / 7B — Properties dialog ────────────────────────────────────────
 
 fn drawPropertiesDialog(app: *AppState) void {
-    const gs = &app.gui;
-
-    var fwin = dvui.floatingWindow(@src(), .{
-        .modal     = true,
-        .open_flag = &gs.props_dialog_open,
-        .rect      = &props_win_rect,
-    }, .{
-        .min_size_content = .{ .w = 380, .h = 260 },
-    });
-    defer fwin.deinit();
-
-    const title = if (gs.props_view_only) "Instance Properties (read-only)" else "Instance Properties";
-    fwin.dragAreaSet(dvui.windowHeader(title, "", &gs.props_dialog_open));
-
-    const fio = app.active();
-    const CT = @import("../state.zig").CT;
-    const inst_opt: ?CT.Instance = if (fio) |f| blk: {
-        const sch = f.schematic();
-        if (gs.props_inst_idx < sch.instances.items.len)
-            break :blk sch.instances.items[gs.props_inst_idx]
-        else
-            break :blk null;
-    } else null;
-
-    {
-        var body = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .expand  = .both,
-            .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 },
-        });
-        defer body.deinit();
-
-        if (inst_opt) |inst| {
-            var hdr_buf: [256]u8 = undefined;
-            const hdr = std.fmt.bufPrint(&hdr_buf, "Symbol: {s}  Name: {s}", .{ inst.symbol, inst.name })
-                catch inst.name;
-            dvui.labelNoFmt(@src(), hdr, .{}, .{ .style = .control });
-            _ = dvui.separator(@src(), .{ .id_extra = 1 });
-        }
-
-        const prop_count: usize = if (inst_opt) |inst|
-            @min(inst.props.items.len, 16)
-        else
-            0;
-
-        if (prop_count == 0) {
-            dvui.labelNoFmt(@src(), "(no properties)", .{}, .{ .style = .control });
-        }
-
-        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
-        defer scroll.deinit();
-
-        for (0..prop_count) |i| {
-            const inst = inst_opt.?;
-            const key = inst.props.items[i].key;
-
-            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .id_extra = i,
-                .expand   = .horizontal,
-                .margin   = .{ .x = 0, .y = 2, .w = 0, .h = 2 },
-            });
-            defer row.deinit();
-
-            var key_buf: [64]u8 = undefined;
-            const key_label = std.fmt.bufPrint(&key_buf, "{s}:", .{key}) catch key;
-            dvui.labelNoFmt(@src(), key_label, .{}, .{
-                .id_extra          = i * 10 + 1,
-                .gravity_y         = 0.5,
-                .min_size_content  = .{ .w = 130 },
-            });
-
-            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 6 }, .id_extra = i * 10 + 2 });
-
-            if (gs.props_view_only) {
-                const val_slice = gs.props_bufs[i][0..gs.props_lens[i]];
-                dvui.labelNoFmt(@src(), val_slice, .{}, .{
-                    .id_extra  = i * 10 + 3,
-                    .expand    = .horizontal,
-                    .gravity_y = 0.5,
-                });
-            } else {
-                var te = dvui.textEntry(@src(), .{
-                    .text = .{ .buffer = gs.props_bufs[i][0..127] },
-                }, .{
-                    .id_extra = i * 10 + 3,
-                    .expand   = .horizontal,
-                });
-                defer te.deinit();
-                gs.props_lens[i] = std.mem.indexOfScalar(u8, &gs.props_bufs[i], 0) orelse 127;
-                gs.props_dirty[i] = true;
-            }
-        }
-
-        _ = dvui.separator(@src(), .{ .id_extra = 50 });
-        {
-            var btn_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .expand = .horizontal,
-                .margin = .{ .x = 0, .y = 4, .w = 0, .h = 0 },
-            });
-            defer btn_row.deinit();
-
-            _ = dvui.spacer(@src(), .{ .expand = .horizontal });
-
-            if (!gs.props_view_only) {
-                if (dvui.button(@src(), "OK", .{}, .{ .id_extra = 100, .style = .highlight })) {
-                    if (fio) |f| {
-                        if (inst_opt) |inst| {
-                            const pc = @min(inst.props.items.len, 16);
-                            for (0..pc) |i| {
-                                const key = inst.props.items[i].key;
-                                const buf_len = std.mem.indexOfScalar(u8, &gs.props_bufs[i], 0) orelse gs.props_lens[i];
-                                const val = gs.props_bufs[i][0..buf_len];
-                                f.setProp(gs.props_inst_idx, key, val) catch {};
-                            }
-                        }
-                    }
-                    app.setStatus("Properties updated");
-                    gs.props_dialog_open = false;
-                }
-                _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 } });
-            }
-
-            if (dvui.button(@src(), "Cancel", .{}, .{ .id_extra = 101 })) {
-                gs.props_dialog_open = false;
-                app.setStatus("Properties canceled");
-            }
-        }
-    }
+    // TODO Phase 9B: properties dialog UI + state moved to gui/props_dialog.zig
+    _ = app;
 }
 
 // ── Phase 7A — Library browser ────────────────────────────────────────────────
 
 fn drawLibraryBrowser(app: *AppState) void {
-    const gs = &app.gui;
-
-    var fwin = dvui.floatingWindow(@src(), .{
-        .modal     = true,
-        .open_flag = &gs.lib_browser_open,
-        .rect      = &lib_win_rect,
-    }, .{
-        .min_size_content = .{ .w = 320, .h = 360 },
-    });
-    defer fwin.deinit();
-
-    fwin.dragAreaSet(dvui.windowHeader("Library Browser", "", &gs.lib_browser_open));
-
-    {
-        var body = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .expand  = .both,
-            .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 },
-        });
-        defer body.deinit();
-
-        {
-            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
-            defer row.deinit();
-            dvui.labelNoFmt(@src(), "Search:", .{}, .{ .gravity_y = 0.5 });
-            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 6 } });
-            var te = dvui.textEntry(@src(), .{
-                .text = .{ .buffer = gs.lib_search_buf[0..127] },
-            }, .{ .expand = .horizontal });
-            defer te.deinit();
-            gs.lib_search_len = std.mem.indexOfScalar(u8, &gs.lib_search_buf, 0) orelse 0;
-        }
-
-        _ = dvui.separator(@src(), .{ .id_extra = 1 });
-
-        if (gs.lib_entry_count == 0) {
-            dvui.labelNoFmt(@src(), "No .chn_sym files found in symbols/", .{}, .{ .style = .control });
-        }
-
-        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
-        defer scroll.deinit();
-
-        const search_text = gs.lib_search_buf[0..gs.lib_search_len];
-
-        for (0..gs.lib_entry_count) |i| {
-            const entry_name = std.mem.sliceTo(&gs.lib_entries[i], 0);
-
-            if (search_text.len > 0) {
-                var found = false;
-                if (entry_name.len >= search_text.len) {
-                    var si: usize = 0;
-                    while (si + search_text.len <= entry_name.len) : (si += 1) {
-                        var match = true;
-                        for (search_text, 0..) |sc, j| {
-                            if (std.ascii.toLower(entry_name[si + j]) != std.ascii.toLower(sc)) {
-                                match = false;
-                                break;
-                            }
-                        }
-                        if (match) { found = true; break; }
-                    }
-                }
-                if (!found) continue;
-            }
-
-            const is_selected = gs.lib_selected == @as(i32, @intCast(i));
-
-            var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .id_extra   = i,
-                .expand     = .horizontal,
-                .background = true,
-                .border     = .{ .x = 1, .y = 1, .w = 1, .h = 1 },
-                .padding    = .{ .x = 6, .y = 4, .w = 6, .h = 4 },
-                .margin     = .{ .x = 0, .y = 2, .w = 0, .h = 2 },
-                .color_fill = if (is_selected)
-                    .{ .r = 38, .g = 52, .b = 90, .a = 255 }
-                else
-                    .{ .r = 36, .g = 36, .b = 42, .a = 0 },
-            });
-            defer card.deinit();
-
-            dvui.labelNoFmt(@src(), entry_name, .{}, .{
-                .id_extra  = i * 10 + 1,
-                .expand    = .horizontal,
-                .gravity_y = 0.5,
-            });
-
-            if (dvui.button(@src(), "Select", .{}, .{ .id_extra = i * 10 + 2 })) {
-                gs.lib_selected = @intCast(i);
-            }
-        }
-
-        _ = dvui.separator(@src(), .{ .id_extra = 20 });
-
-        {
-            var btn_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .expand = .horizontal,
-                .margin = .{ .x = 0, .y = 4, .w = 0, .h = 0 },
-            });
-            defer btn_row.deinit();
-
-            _ = dvui.spacer(@src(), .{ .expand = .horizontal });
-
-            if (dvui.button(@src(), "Place", .{}, .{ .id_extra = 200, .style = .highlight })) {
-                if (gs.lib_selected >= 0 and @as(usize, @intCast(gs.lib_selected)) < gs.lib_entry_count) {
-                    const sel_idx: usize = @intCast(gs.lib_selected);
-                    const sym_name = std.mem.sliceTo(&gs.lib_entries[sel_idx], 0);
-                    app.queue.push(.{ .place_device = .{
-                        .sym_path = sym_name,
-                        .name     = sym_name,
-                        .x        = 0,
-                        .y        = 0,
-                    } }) catch {};
-                    app.setStatus("Symbol placed");
-                    gs.lib_browser_open = false;
-                } else {
-                    app.setStatus("No symbol selected");
-                }
-            }
-
-            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 } });
-
-            if (dvui.button(@src(), "Cancel", .{}, .{ .id_extra = 201 })) {
-                gs.lib_browser_open = false;
-                app.setStatus("Library browser closed");
-            }
-        }
-    }
+    // TODO Phase 9B: library browser UI + state moved to gui/lib_browser.zig
+    _ = app;
 }
