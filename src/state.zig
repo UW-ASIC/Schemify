@@ -432,7 +432,7 @@ pub const ToolState = struct {
     }
 };
 
-pub const GuiViewMode = enum { schematic, symbol };
+pub const GuiViewMode = enum { schematic, symbol, waveform };
 pub const PluginPanelLayout = enum { overlay, left_sidebar, right_sidebar, bottom_bar };
 
 pub const PanelDrawFn = *const fn (ctx: *const PluginIF.UiCtx) callconv(.c) void;
@@ -541,6 +541,10 @@ pub const AppState = struct {
     show_grid: bool = true,
     status_msg: []const u8 = "Ready",
     plugin_refresh_requested: bool = false,
+    waveform_data: [4096]f32 = [_]f32{0.0} ** 4096,
+    waveform_len: usize = 0,
+    waveform_label: [64]u8 = [_]u8{0} ** 64,
+    waveform_label_len: usize = 0,
     plugin_state: std.StringHashMapUnmanaged([]const u8) = .{},
     log: Logger = undefined,
     last_netlist: [8192]u8 = [_]u8{0} ** 8192,

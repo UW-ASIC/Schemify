@@ -167,6 +167,11 @@ pub fn draw(app: *AppState) void {
         .bounds = rs.r,
     };
 
+    if (app.gui.view_mode == .waveform) {
+        drawWaveform(app, pal, viewport);
+        return;
+    }
+
     handleCanvasInput(app, wd, viewport);
     drawGrid(app, pal, viewport);
     drawOriginCross(pal, viewport);
@@ -175,6 +180,7 @@ pub fn draw(app: *AppState) void {
         switch (app.gui.view_mode) {
             .schematic => drawSchematic(app, pal, fio.schematic(), viewport),
             .symbol => if (fio.symbol()) |sym| drawSymbol(pal, sym, viewport),
+            .waveform => {}, // handled above
         }
     }
 
@@ -191,6 +197,84 @@ const Viewport = struct {
     pan: [2]f32,
     bounds: dvui.Rect.Physical,
 };
+
+// ── Waveform viewer ───────────────────────────────────────────────────────────
+
+fn drawWaveform(app: *AppState, pal: Palette, vp: Viewport) void {
+    const cx = vp.bounds.x;
+    const cy = vp.bounds.y;
+    const bw = vp.bounds.w;
+    const bh = vp.bounds.h;
+
+    // Title area
+    const title_h: f32 = 30.0;
+    const label_bytes = app.waveform_label[0..app.waveform_label_len];
+    _ = label_bytes; // used in text below
+
+    // Draw title background strip
+    dvui.Path.stroke(.{
+        .points = &.{
+            .{ .x = cx, .y = cy + title_h },
+            .{ .x = cx + bw, .y = cy + title_h },
+        },
+    }, .{ .thickness = 1.0, .color = pal.wire });
+
+    // Plot area margins
+    const mx: f32 = 40.0;
+    const my: f32 = title_h + 20.0;
+    const pw: f32 = bw - mx * 2.0;
+    const ph: f32 = bh - my - 20.0;
+
+    if (app.waveform_len == 0) {
+        // No data: draw a centered placeholder line
+        dvui.Path.stroke(.{
+            .points = &.{
+                .{ .x = cx + bw * 0.2, .y = cy + bh / 2.0 },
+                .{ .x = cx + bw * 0.8, .y = cy + bh / 2.0 },
+            },
+        }, .{ .thickness = 1.0, .color = pal.grid_dot });
+        return;
+    }
+
+    const n = app.waveform_len;
+
+    // Find min/max for scaling
+    var vmin: f32 = app.waveform_data[0];
+    var vmax: f32 = app.waveform_data[0];
+    for (app.waveform_data[0..n]) |v| {
+        if (v < vmin) vmin = v;
+        if (v > vmax) vmax = v;
+    }
+    const vrange = if (vmax - vmin < 1e-9) 1.0 else vmax - vmin;
+
+    // Draw waveform as connected line segments
+    const nf: f32 = @floatFromInt(n);
+    const nsteps: f32 = if (n > 1) nf - 1.0 else 1.0;
+    var i: usize = 1;
+    while (i < n) : (i += 1) {
+        const i0: f32 = @floatFromInt(i - 1);
+        const i1: f32 = @floatFromInt(i);
+        const x0 = cx + mx + (i0 / nsteps) * pw;
+        const y0 = cy + my + ph - ((app.waveform_data[i - 1] - vmin) / vrange) * ph;
+        const x1 = cx + mx + (i1 / nsteps) * pw;
+        const y1 = cy + my + ph - ((app.waveform_data[i] - vmin) / vrange) * ph;
+        dvui.Path.stroke(.{
+            .points = &.{
+                .{ .x = x0, .y = y0 },
+                .{ .x = x1, .y = y1 },
+            },
+        }, .{ .thickness = 1.5, .color = pal.wire });
+    }
+
+    // Draw axes
+    dvui.Path.stroke(.{
+        .points = &.{
+            .{ .x = cx + mx, .y = cy + my },
+            .{ .x = cx + mx, .y = cy + my + ph },
+            .{ .x = cx + mx + pw, .y = cy + my + ph },
+        },
+    }, .{ .thickness = 1.0, .color = pal.origin });
+}
 
 // ── Grid ──────────────────────────────────────────────────────────────────────
 
