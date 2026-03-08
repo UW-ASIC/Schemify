@@ -58,23 +58,38 @@ fn uiEndRow(id: u32) callconv(.c) void {
 // the dvui widget wrappers are wired up.
 
 fn hostTextInput(buf: [*]u8, buf_len: usize, cur_len: *usize, id: u32) callconv(.c) bool {
-    _ = .{ buf, buf_len, cur_len, id };
-    // TODO: bridge to dvui textInput when dvui API is available
-    return false;
+    if (buf_len == 0) return false;
+    const slice = buf[0..buf_len];
+    // Zero-terminate at cur_len so dvui sees the current content.
+    if (cur_len.* < buf_len) slice[cur_len.*] = 0;
+    var te = dvui.textEntry(@src(), .{
+        .text = .{ .buffer = slice },
+    }, .{ .id_extra = id, .expand = .horizontal });
+    defer te.deinit();
+    // Recalculate length from the buffer (dvui zero-terminates edits).
+    const new_len = std.mem.indexOfScalar(u8, slice, 0) orelse buf_len;
+    const changed = new_len != cur_len.*;
+    cur_len.* = new_len;
+    return changed;
 }
 
 fn hostSlider(val: *f32, min: f32, max: f32, id: u32) callconv(.c) bool {
-    _ = .{ val, min, max, id };
-    return false;
+    const range = max - min;
+    if (range <= 0) return false;
+    // dvui.slider works with a 0–1 fraction.
+    var frac: f32 = (val.* - min) / range;
+    frac = @max(0, @min(1, frac));
+    const changed = dvui.slider(@src(), .{ .fraction = &frac }, .{ .id_extra = id, .expand = .horizontal });
+    if (changed) val.* = min + frac * range;
+    return changed;
 }
 
 fn hostCheckbox(val: *bool, text: [*]const u8, len: usize, id: u32) callconv(.c) bool {
-    _ = .{ val, text, len, id };
-    return false;
+    return dvui.checkbox(@src(), val, text[0..len], .{ .id_extra = id });
 }
 
 fn hostProgress(fraction: f32, id: u32) callconv(.c) void {
-    _ = .{ fraction, id };
+    dvui.progress(@src(), .{ .percent = @max(0, @min(1, fraction)) }, .{ .id_extra = id, .expand = .horizontal });
 }
 
 const g_ui_ctx: PluginIF.UiCtx = .{

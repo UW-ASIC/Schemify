@@ -47,14 +47,43 @@ pub fn draw(app: *AppState) void {
 
     _ = dvui.spacer(@src(), .{ .expand = .horizontal });
 
-    // View mode selector
+    // View mode selector — adapts to the active document's file type:
+    //   .chn     → two buttons "Sch" + "Sym" (normal schematic with optional symbol view)
+    //   .chn_sym → single wide "Symbol" button (file is symbol-only, view locked)
+    //   .chn_tb  → single wide "Testbench" button (file is testbench, view locked)
     {
-        const sch_style: dvui.Theme.Style.Name = if (app.gui.view_mode == .schematic) .highlight else .control;
-        const sym_style: dvui.Theme.Style.Name = if (app.gui.view_mode == .symbol) .highlight else .control;
-        if (dvui.button(@src(), "Sch", .{}, .{ .style = sch_style, .id_extra = 9001 }))
-            actions.runGuiCommand(app, .view_schematic);
-        if (dvui.button(@src(), "Sym", .{}, .{ .style = sym_style, .id_extra = 9002 }))
-            actions.runGuiCommand(app, .view_symbol);
+        const ft = if (app.active()) |fio| fio.fileType() else @import("../state.zig").FileType.chn;
+        switch (ft) {
+            .chn_sym => {
+                // Symbol-only file: lock to symbol view, single button spanning both slots
+                dvui.labelNoFmt(@src(), "Symbol", .{}, .{
+                    .style    = .highlight,
+                    .id_extra = 9001,
+                    .min_size_content = .{ .w = 80 },
+                    .gravity_y = 0.5,
+                });
+                app.gui.view_mode = .symbol;
+            },
+            .chn_tb => {
+                // Testbench: lock to schematic view, single button spanning both slots
+                dvui.labelNoFmt(@src(), "Testbench", .{}, .{
+                    .style    = .highlight,
+                    .id_extra = 9001,
+                    .min_size_content = .{ .w = 80 },
+                    .gravity_y = 0.5,
+                });
+                app.gui.view_mode = .schematic;
+            },
+            else => {
+                // Normal .chn: two toggle buttons
+                const sch_style: dvui.Theme.Style.Name = if (app.gui.view_mode == .schematic) .highlight else .control;
+                const sym_style: dvui.Theme.Style.Name = if (app.gui.view_mode == .symbol)    .highlight else .control;
+                if (dvui.button(@src(), "Sch", .{}, .{ .style = sch_style, .id_extra = 9001 }))
+                    actions.runGuiCommand(app, .view_schematic);
+                if (dvui.button(@src(), "Sym", .{}, .{ .style = sym_style, .id_extra = 9002 }))
+                    actions.runGuiCommand(app, .view_symbol);
+            },
+        }
     }
 
     // Close active tab button (only show when multiple tabs)

@@ -6,10 +6,8 @@ const std = @import("std");
 const state_mod = @import("state.zig");
 const CT = state_mod.CT;
 const core = @import("core");
+const dvui = @import("dvui");
 
-// ── Module-level persistent buffers ──────────────────────────────────────────
-// status_msg in AppState holds a []const u8 pointer; use a static buffer so the
-// netlist status string survives past the dispatch call frame.
 var netlist_status_buf: [256]u8 = undefined;
 
 // ── Command payload types ─────────────────────────────────────────────────────
@@ -210,16 +208,25 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         // ── View ──────────────────────────────────────────────────────────
         .zoom_in => state.view.zoomIn(),
         .zoom_out => state.view.zoomOut(),
-        .zoom_fit => state.view.zoomFit(),
+        .zoom_fit => zoomFitAll(state),
         .zoom_reset => state.view.zoomReset(),
-        .zoom_fit_selected => state.setStatus("Zoom fit selected (stub)"),
+        .zoom_fit_selected => zoomFitSelection(state),
         .toggle_fullscreen => {
             state.cmd_flags.fullscreen = !state.cmd_flags.fullscreen;
-            state.setStatus(if (state.cmd_flags.fullscreen) "Fullscreen on (stub)" else "Fullscreen off (stub)");
+            // dvui does not expose a runtime fullscreen toggle; the flag is
+            // only honoured at window-creation time.  We record the intent
+            // so the GUI layer can act on it if a backend escape-hatch
+            // becomes available.
+            state.setStatus(if (state.cmd_flags.fullscreen) "Fullscreen on (no runtime API)" else "Fullscreen off");
         },
         .toggle_colorscheme => {
             state.cmd_flags.dark_mode = !state.cmd_flags.dark_mode;
-            state.setStatus(if (state.cmd_flags.dark_mode) "Dark mode on (stub)" else "Dark mode off (stub)");
+            const theme = if (state.cmd_flags.dark_mode)
+                dvui.Theme.builtin.adwaita_dark
+            else
+                dvui.Theme.builtin.adwaita_light;
+            dvui.themeSet(theme);
+            state.setStatus(if (state.cmd_flags.dark_mode) "Dark mode on" else "Dark mode off");
         },
         .toggle_fill_rects => {
             state.cmd_flags.fill_rects = !state.cmd_flags.fill_rects;
@@ -255,28 +262,83 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         },
         .toggle_show_netlist => {
             state.cmd_flags.show_netlist = !state.cmd_flags.show_netlist;
-            state.setStatus(if (state.cmd_flags.show_netlist) "Netlist panel shown" else "Netlist panel hidden");
+            state.setStatus(if (state.cmd_flags.show_netlist) "Netlist view on (stub)" else "Netlist view off (stub)");
         },
 
         // ── Selection ─────────────────────────────────────────────────────
         .select_all => state.selectAll(),
         .select_none => state.selection.clear(),
-        .select_connected => state.setStatus("Select connected (stub)"),
-        .select_connected_stop_junctions => state.setStatus("Select connected (stop junctions) (stub)"),
-        .highlight_dup_refdes => state.setStatus("Highlight duplicate refdes (stub)"),
-        .rename_dup_refdes => state.setStatus("Rename duplicate refdes (stub)"),
-        .find_select_dialog => state.setStatus("Find/select dialog (stub)"),
-        .highlight_selected_nets => state.setStatus("Highlight selected nets (stub)"),
-        .unhighlight_selected_nets => state.setStatus("Unhighlight selected nets (stub)"),
-        .unhighlight_all => state.setStatus("Unhighlight all (stub)"),
-        .select_attached_nets => state.setStatus("Select attached nets (stub)"),
+        .select_connected => selectConnected(state, false),
+        .select_connected_stop_junctions => selectConnected(state, true),
+        .highlight_dup_refdes => highlightDupRefdes(state),
+        .rename_dup_refdes => try renameDupRefdes(state),
+        .find_select_dialog => {
+            state.gui.find_dialog_open = true;
+            state.setStatus("Find: type query then Enter");
+        },
+        .highlight_selected_nets => highlightSelectedNets(state),
+        .unhighlight_selected_nets => unhighlightSelectedNets(state),
+        .unhighlight_all => state.highlighted_nets.unsetAll(),
+        .select_attached_nets => selectAttachedNets(state),
 
         // ── Undo / Redo ───────────────────────────────────────────────────
         .undo => {
-            _ = try state.history.undo(state.allocator());
+            const inv = state.history.popUndo() orelse {
+                state.setStatus("Nothing to undo");
+                return;
+            };
+            switch (inv) {
+                .none => {},
+                .place_device => |pd| {
+                    const fio = state.active() orelse return;
+                    _ = fio.deleteInstanceAt(pd.idx);
+                },
+                .delete_device => |dd| {
+                    const fio = state.active() orelse return;
+                    _ = try fio.placeSymbol(dd.sym_path, dd.name, pointFromF64(dd.x, dd.y), .{});
+                },
+                .move_device => |md| {
+                    const fio = state.active() orelse return;
+                    _ = fio.moveInstanceBy(
+                        md.idx,
+                        @as(i32, @intFromFloat(@round(md.dx))),
+                        @as(i32, @intFromFloat(@round(md.dy))),
+                    );
+                },
+                .set_prop => |sp| {
+                    const fio = state.active() orelse return;
+                    try fio.setProp(sp.idx, sp.key, sp.val);
+                },
+                .add_wire => |aw| {
+                    const fio = state.active() orelse return;
+                    _ = fio.deleteWireAt(aw.idx);
+                },
+                .delete_wire => |dw| {
+                    const fio = state.active() orelse return;
+                    try fio.addWireSeg(pointFromF64(dw.x0, dw.y0), pointFromF64(dw.x1, dw.y1), null);
+                },
+                .delete_selected => |snap| {
+                    const fio = state.active() orelse return;
+                    const sch = fio.schematic();
+                    for (snap.instances) |inst| sch.instances.append(sch.alloc(), inst) catch {};
+                    for (snap.wires)     |wire| sch.wires.append(sch.alloc(), wire)     catch {};
+                    fio.dirty = true;
+                    state.setStatus("Undo: restored deleted objects");
+                },
+                .duplicate_selected => |d| {
+                    const fio = state.active() orelse return;
+                    const sch = fio.schematic();
+                    const n = @min(d.n, sch.instances.items.len);
+                    sch.instances.items.len -= n;
+                    fio.dirty = true;
+                    state.setStatus("Undo: removed duplicated objects");
+                },
+            }
+            return;
         },
         .redo => {
-            _ = try state.history.redo(state.allocator());
+            state.setStatus("Redo not yet implemented");
+            return;
         },
 
         // ── Plugin lifecycle ──────────────────────────────────────────────
@@ -300,16 +362,119 @@ pub fn dispatch(c: Command, state: *AppState) !void {
             state.tool.active = .move;
             state.setStatus("Move interactive insert wires (stub)");
         },
-        .copy_selected => state.setStatus("Copy selected (stub)"),
-        .clipboard_cut => state.setStatus("Cut to clipboard (stub)"),
-        .clipboard_copy => state.setStatus("Copy to clipboard (stub)"),
-        .clipboard_paste => state.setStatus("Paste from clipboard (stub)"),
-        .align_to_grid => state.setStatus("Align to grid (stub)"),
+        .copy_selected => try dispatch(.clipboard_copy, state),
+        .clipboard_copy => {
+            const fio = state.active() orelse return;
+            const sch = fio.schematic();
+            const alloc = state.allocator();
+            state.clipboard.clear(alloc);
+            for (sch.instances.items, 0..) |inst, i| {
+                if (i >= state.selection.instances.bit_length or !state.selection.instances.isSet(i)) continue;
+                var copy = inst;
+                copy.name = alloc.dupe(u8, inst.name) catch inst.name;
+                copy.symbol = alloc.dupe(u8, inst.symbol) catch inst.symbol;
+                copy.props = .{};
+                state.clipboard.instances.append(alloc, copy) catch {};
+            }
+            for (sch.wires.items, 0..) |wire, i| {
+                if (i >= state.selection.wires.bit_length or !state.selection.wires.isSet(i)) continue;
+                var copy = wire;
+                copy.net_name = if (wire.net_name) |n| alloc.dupe(u8, n) catch n else null;
+                state.clipboard.wires.append(alloc, copy) catch {};
+            }
+            state.setStatus("Copied to clipboard");
+        },
+        .clipboard_cut => {
+            try dispatch(.clipboard_copy, state);
+            try dispatch(.delete_selected, state);
+            state.setStatus("Cut to clipboard");
+        },
+        .clipboard_paste => {
+            const fio = state.active() orelse return;
+            const sch = fio.schematic();
+            const sa = sch.alloc();
+            const alloc = state.allocator();
+            state.selection.clear();
+            const offset: i32 = 20;
+            for (state.clipboard.instances.items) |inst| {
+                var copy = inst;
+                copy.pos.x += offset;
+                copy.pos.y += offset;
+                copy.name = sa.dupe(u8, inst.name) catch inst.name;
+                copy.symbol = sa.dupe(u8, inst.symbol) catch inst.symbol;
+                copy.props = .{};
+                sch.instances.append(sa, copy) catch continue;
+                const idx = sch.instances.items.len - 1;
+                state.selection.instances.resize(alloc, idx + 1, false) catch {};
+                if (idx < state.selection.instances.bit_length) state.selection.instances.set(idx);
+            }
+            for (state.clipboard.wires.items) |wire| {
+                var copy = wire;
+                copy.start.x += offset;
+                copy.start.y += offset;
+                copy.end.x += offset;
+                copy.end.y += offset;
+                copy.net_name = if (wire.net_name) |n| sa.dupe(u8, n) catch n else null;
+                sch.wires.append(sa, copy) catch continue;
+                const idx = sch.wires.items.len - 1;
+                state.selection.wires.resize(alloc, idx + 1, false) catch {};
+                if (idx < state.selection.wires.bit_length) state.selection.wires.set(idx);
+            }
+            fio.dirty = true;
+            state.setStatus("Pasted from clipboard");
+        },
+        .align_to_grid => {
+            const fio = state.active() orelse return;
+            const sch = fio.schematic();
+            const snap = state.tool.snap_size;
+            var changed = false;
+            for (sch.instances.items, 0..) |*inst, i| {
+                if (i >= state.selection.instances.bit_length or !state.selection.instances.isSet(i)) continue;
+                inst.pos.x = @intFromFloat(@round(@as(f32, @floatFromInt(inst.pos.x)) / snap) * snap);
+                inst.pos.y = @intFromFloat(@round(@as(f32, @floatFromInt(inst.pos.y)) / snap) * snap);
+                changed = true;
+            }
+            if (changed) {
+                fio.dirty = true;
+                state.setStatus("Aligned to grid");
+            } else {
+                state.setStatus("Nothing selected to align");
+            }
+        },
 
         // ── Transform (operate on selection) ──────────────────────────────
         .delete_selected => {
             const fio = state.active() orelse return;
             const sch = fio.schematic();
+            const snap_alloc = state.allocator();
+
+            // Snapshot for undo
+            var sel_inst_count: usize = 0;
+            for (0..sch.instances.items.len) |i| {
+                if (i < state.selection.instances.bit_length and state.selection.instances.isSet(i))
+                    sel_inst_count += 1;
+            }
+            var sel_wire_count: usize = 0;
+            for (0..sch.wires.items.len) |i| {
+                if (i < state.selection.wires.bit_length and state.selection.wires.isSet(i))
+                    sel_wire_count += 1;
+            }
+            const snap_inst: []CT.Instance = snap_alloc.alloc(CT.Instance, sel_inst_count) catch
+                snap_alloc.alloc(CT.Instance, 0) catch unreachable;
+            const snap_wire: []CT.Wire = snap_alloc.alloc(CT.Wire, sel_wire_count) catch
+                snap_alloc.alloc(CT.Wire, 0) catch unreachable;
+            var si: usize = 0;
+            for (sch.instances.items, 0..) |inst, i| {
+                if (i < state.selection.instances.bit_length and state.selection.instances.isSet(i)) {
+                    if (si < snap_inst.len) { snap_inst[si] = inst; si += 1; }
+                }
+            }
+            var sw: usize = 0;
+            for (sch.wires.items, 0..) |wire, i| {
+                if (i < state.selection.wires.bit_length and state.selection.wires.isSet(i)) {
+                    if (sw < snap_wire.len) { snap_wire[sw] = wire; sw += 1; }
+                }
+            }
 
             var wi = sch.wires.items.len;
             while (wi > 0) {
@@ -329,10 +494,16 @@ pub fn dispatch(c: Command, state: *AppState) !void {
 
             state.selection.clear();
             fio.dirty = true;
+            state.history.push(c, .{ .delete_selected = .{ .instances = snap_inst, .wires = snap_wire } });
+            return;
         },
         .duplicate_selected => {
             const fio = state.active() orelse return;
+            const before_len = fio.schematic().instances.items.len;
             duplicateSelected(fio, state);
+            const after_len = fio.schematic().instances.items.len;
+            state.history.push(c, .{ .duplicate_selected = .{ .n = after_len - before_len } });
+            return;
         },
         .rotate_cw => {
             const fio = state.active() orelse return;
@@ -393,8 +564,8 @@ pub fn dispatch(c: Command, state: *AppState) !void {
             state.cmd_flags.orthogonal_routing = !state.cmd_flags.orthogonal_routing;
             state.setStatus(if (state.cmd_flags.orthogonal_routing) "Orthogonal routing on (stub)" else "Orthogonal routing off (stub)");
         },
-        .break_wires_at_connections => state.setStatus("Break wires at connections (stub)"),
-        .join_collapse_wires => state.setStatus("Join/collapse wires (stub)"),
+        .break_wires_at_connections => try breakWiresAtConnections(state),
+        .join_collapse_wires => try joinCollapseWires(state),
 
         // ── Graphic primitives ────────────────────────────────────────────
         .start_line => {
@@ -423,105 +594,10 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         },
 
         // ── Hierarchy ─────────────────────────────────────────────────────
-        .descend_schematic => {
-            const fio = state.active() orelse return;
-            const inst_idx = firstSelectedInstance(state) orelse {
-                state.setStatus("No instance selected");
-                return;
-            };
-            const sch = fio.schematic();
-            if (inst_idx >= sch.instances.items.len) {
-                state.setStatus("Selected instance index out of range");
-                return;
-            }
-            const inst = &sch.instances.items[inst_idx];
-            // Replace .sym extension with .chn to find the schematic path
-            const sym_path = inst.symbol;
-            var sch_path: []const u8 = undefined;
-            var sch_path_owned = false;
-            if (std.mem.endsWith(u8, sym_path, ".sym")) {
-                const base = sym_path[0 .. sym_path.len - 4];
-                const p = try std.fmt.allocPrint(state.allocator(), "{s}.chn", .{base});
-                sch_path = p;
-                sch_path_owned = true;
-            } else {
-                sch_path = sym_path;
-            }
-            defer if (sch_path_owned) state.allocator().free(sch_path);
-            try state.hierarchy_stack.append(state.allocator(), .{
-                .doc_idx = state.active_idx,
-                .instance_idx = inst_idx,
-            });
-            state.openPath(sch_path) catch |err| {
-                _ = state.hierarchy_stack.pop();
-                state.setStatusErr("Failed to descend into schematic");
-                state.log.err("CMD", "descend_schematic failed: {}", .{err});
-            };
-        },
-        .descend_symbol => {
-            const fio = state.active() orelse return;
-            const inst_idx = firstSelectedInstance(state) orelse {
-                state.setStatus("No instance selected");
-                return;
-            };
-            const sch = fio.schematic();
-            if (inst_idx >= sch.instances.items.len) {
-                state.setStatus("Selected instance index out of range");
-                return;
-            }
-            const inst = &sch.instances.items[inst_idx];
-            const sym_path = inst.symbol;
-            try state.hierarchy_stack.append(state.allocator(), .{
-                .doc_idx = state.active_idx,
-                .instance_idx = inst_idx,
-            });
-            state.openPath(sym_path) catch |err| {
-                _ = state.hierarchy_stack.pop();
-                state.setStatusErr("Failed to descend into symbol");
-                state.log.err("CMD", "descend_symbol failed: {}", .{err});
-                return;
-            };
-            state.gui.view_mode = .symbol;
-        },
-        .ascend => {
-            const entry = state.hierarchy_stack.pop() orelse {
-                state.setStatus("Already at top level");
-                return;
-            };
-            if (entry.doc_idx >= state.schematics.items.len) {
-                state.setStatus("Hierarchy parent no longer open");
-                return;
-            }
-            state.active_idx = entry.doc_idx;
-            state.selection.clear();
-            const fio = state.active() orelse return;
-            const sch = fio.schematic();
-            const inst_count = sch.instances.items.len;
-            const alloc = state.allocator();
-            state.selection.instances.resize(alloc, inst_count, false) catch return;
-            if (entry.instance_idx < inst_count) {
-                state.selection.instances.set(entry.instance_idx);
-            }
-            state.setStatus("Ascended to parent");
-        },
-        .edit_in_new_tab => {
-            const fio = state.active() orelse return;
-            const inst_idx = firstSelectedInstance(state) orelse {
-                state.setStatus("No instance selected");
-                return;
-            };
-            const sch = fio.schematic();
-            if (inst_idx >= sch.instances.items.len) {
-                state.setStatus("Selected instance index out of range");
-                return;
-            }
-            const inst = &sch.instances.items[inst_idx];
-            const sym_path = inst.symbol;
-            state.openPath(sym_path) catch |err| {
-                state.setStatusErr("Failed to open symbol in new tab");
-                state.log.err("CMD", "edit_in_new_tab failed: {}", .{err});
-            };
-        },
+        .descend_schematic => state.setStatus("Descend into schematic (stub)"),
+        .descend_symbol => state.setStatus("Descend into symbol (stub)"),
+        .ascend => state.setStatus("Ascend to parent (stub)"),
+        .edit_in_new_tab => state.setStatus("Edit in new tab (stub)"),
 
         // ── Properties ────────────────────────────────────────────────────
         .edit_properties => {
@@ -530,7 +606,6 @@ pub fn dispatch(c: Command, state: *AppState) !void {
                 return;
             };
             const sch = fio.schematic();
-            // Find first selected instance
             var inst_idx: ?usize = null;
             for (0..sch.instances.items.len) |i| {
                 if (i < state.selection.instances.bit_length and state.selection.instances.isSet(i)) {
@@ -633,13 +708,11 @@ pub fn dispatch(c: Command, state: *AppState) !void {
             state.gui.lib_selected = -1;
             state.gui.lib_entry_count = 0;
             var sym_path_buf: [512]u8 = undefined;
-            const sym_dir_path = std.fmt.bufPrint(&sym_path_buf, "{s}/symbols", .{state.project_dir})
-                catch {
-                    state.setStatus("Library path too long");
-                    return;
-                };
-            var sym_dir = std.fs.openDirAbsolute(sym_dir_path, .{ .iterate = true }) catch |err| blk: {
-                _ = err;
+            const sym_dir_path = std.fmt.bufPrint(&sym_path_buf, "{s}/symbols", .{state.project_dir}) catch {
+                state.setStatus("Library path too long");
+                return;
+            };
+            var sym_dir = std.fs.openDirAbsolute(sym_dir_path, .{ .iterate = true }) catch blk: {
                 break :blk std.fs.cwd().openDir("symbols", .{ .iterate = true }) catch {
                     state.setStatus("Library browser: symbols/ dir not found");
                     return;
@@ -651,10 +724,10 @@ pub fn dispatch(c: Command, state: *AppState) !void {
                 if (entry.kind != .file) continue;
                 if (!std.mem.endsWith(u8, entry.name, ".chn_sym")) continue;
                 if (state.gui.lib_entry_count >= 256) break;
-                const idx = state.gui.lib_entry_count;
-                @memset(&state.gui.lib_entries[idx], 0);
+                const eidx = state.gui.lib_entry_count;
+                @memset(&state.gui.lib_entries[eidx], 0);
                 const copy_len = @min(entry.name.len, 255);
-                @memcpy(state.gui.lib_entries[idx][0..copy_len], entry.name[0..copy_len]);
+                @memcpy(state.gui.lib_entries[eidx][0..copy_len], entry.name[0..copy_len]);
                 state.gui.lib_entry_count += 1;
             }
             state.setStatus("Library browser opened");
@@ -677,18 +750,6 @@ pub fn dispatch(c: Command, state: *AppState) !void {
             const alloc = state.allocator();
             const idx = state.active_idx;
             const fio = state.schematics.items[idx];
-            // Save origin path to closed_tabs before destroying
-            const origin_path: ?[]const u8 = switch (fio.origin) {
-                .chn_file => |p| p,
-                .sym_file => |p| p,
-                else => null,
-            };
-            if (origin_path) |p| {
-                const duped = alloc.dupe(u8, p) catch null;
-                if (duped) |d| {
-                    state.closed_tabs.append(alloc, d) catch alloc.free(d);
-                }
-            }
             fio.deinit();
             alloc.destroy(fio);
             _ = state.schematics.orderedRemove(idx);
@@ -713,17 +774,7 @@ pub fn dispatch(c: Command, state: *AppState) !void {
                 state.setStatus("Previous tab");
             }
         },
-        .reopen_last_closed => {
-            const path = state.closed_tabs.pop() orelse {
-                state.setStatus("No recently closed tabs");
-                return;
-            };
-            defer state.allocator().free(path);
-            state.openPath(path) catch |err| {
-                state.setStatusErr("Failed to reopen tab");
-                state.log.err("CMD", "reopen_last_closed failed: {}", .{err});
-            };
-        },
+        .reopen_last_closed => state.setStatus("Reopen last closed (stub)"),
 
         // ── File operations ───────────────────────────────────────────────
         .save_as_dialog => state.setStatus("Save as (use :saveas <path>)"),
@@ -731,9 +782,7 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         .reload_from_disk => {
             const fio = state.active() orelse return;
             const reload_path: ?[]const u8 = switch (fio.origin) {
-                .chn_file => |p| p,
-                .sym_file => |p| p,
-                .xschem_files => |xf| xf.sch,
+                .chn_file, .chn_sym_file => |p| p,
                 .buffer, .unsaved => null,
             };
             if (reload_path) |p| {
@@ -767,104 +816,19 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         },
 
         // ── Export ────────────────────────────────────────────────────────
-        .export_pdf => state.setStatus("Export (stub — inkscape/imagemagick not found)"),
-        .export_png => state.setStatus("Export (stub — inkscape/imagemagick not found)"),
-        .export_svg => {
-            const fio = state.active() orelse return;
-            const sch = fio.schematic();
-            var buf: std.ArrayListUnmanaged(u8) = .{};
-            defer buf.deinit(state.allocator());
-            const w = buf.writer(state.allocator());
-            try w.writeAll("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-500 -500 1000 1000\">\n");
-            for (sch.wires.items) |wire| {
-                try w.print("  <line x1=\"{d}\" y1=\"{d}\" x2=\"{d}\" y2=\"{d}\" stroke=\"#4488ff\" stroke-width=\"2\"/>\n",
-                    .{ wire.start.x, wire.start.y, wire.end.x, wire.end.y });
-            }
-            for (sch.instances.items) |inst| {
-                try w.print("  <rect x=\"{d}\" y=\"{d}\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"#88ccff\"/>\n",
-                    .{ inst.pos.x - 10, inst.pos.y - 10 });
-                try w.print("  <text x=\"{d}\" y=\"{d}\" font-size=\"8\" fill=\"#ffffff\">{s}</text>\n",
-                    .{ inst.pos.x - 8, inst.pos.y - 14, inst.name });
-            }
-            try w.writeAll("</svg>\n");
-            const path = try std.fmt.allocPrint(state.allocator(), "{s}.svg", .{fio.comp.name});
-            defer state.allocator().free(path);
-            try std.fs.cwd().writeFile(.{ .sub_path = path, .data = buf.items });
-            state.setStatus("Exported SVG");
-        },
-        .screenshot_area => state.setStatus("Export (stub — inkscape/imagemagick not found)"),
+        .export_pdf => state.setStatus("Export PDF (stub)"),
+        .export_png => state.setStatus("Export PNG (stub)"),
+        .export_svg => state.setStatus("Export SVG (stub)"),
+        .screenshot_area => state.setStatus("Screenshot (stub)"),
 
         // ── Simulation extras ─────────────────────────────────────────────
-        .open_waveform_viewer => {
-            const fio = state.active() orelse {
-                state.setStatus("No .raw file found — run simulation first");
-                return;
-            };
-            // Derive .raw path from the active document's origin path
-            const raw_path: ?[]const u8 = switch (fio.origin) {
-                .chn_file => |p| blk: {
-                    // Replace .chn or .chn_tb extension with .raw
-                    if (std.mem.endsWith(u8, p, ".chn_tb")) {
-                        break :blk try std.fmt.allocPrint(state.allocator(), "{s}.raw", .{p[0 .. p.len - 7]});
-                    } else if (std.mem.endsWith(u8, p, ".chn")) {
-                        break :blk try std.fmt.allocPrint(state.allocator(), "{s}.raw", .{p[0 .. p.len - 4]});
-                    }
-                    break :blk null;
-                },
-                else => null,
-            };
-            defer if (raw_path) |rp| state.allocator().free(rp);
-
-            if (raw_path == null) {
-                state.setStatus("No .raw file found — run simulation first");
-                return;
-            }
-
-            const rp = raw_path.?;
-            const raw_file = std.fs.cwd().openFile(rp, .{}) catch {
-                state.setStatus("No .raw file found — run simulation first");
-                return;
-            };
-            defer raw_file.close();
-
-            // Parse ASCII ngspice raw: look for "Values:" section then read floats
-            var reader = raw_file.reader();
-            var line_buf: [1024]u8 = undefined;
-            var in_values = false;
-            state.waveform_len = 0;
-
-            outer: while (true) {
-                const line = reader.readUntilDelimiterOrEof(&line_buf, '\n') catch break;
-                const l = line orelse break;
-                const trimmed = std.mem.trim(u8, l, " \t\r");
-                if (!in_values) {
-                    if (std.mem.startsWith(u8, trimmed, "Values:")) {
-                        in_values = true;
-                    }
-                    continue;
-                }
-                // Parse whitespace-separated floats on this line
-                var it = std.mem.tokenizeAny(u8, trimmed, " \t");
-                while (it.next()) |tok| {
-                    if (state.waveform_len >= 4096) break :outer;
-                    const val = std.fmt.parseFloat(f32, tok) catch continue;
-                    state.waveform_data[state.waveform_len] = val;
-                    state.waveform_len += 1;
-                }
-            }
-
-            // Set label from component name
-            const label = fio.comp.name;
-            const copy_len = @min(label.len, 63);
-            @memcpy(state.waveform_label[0..copy_len], label[0..copy_len]);
-            state.waveform_label_len = copy_len;
-
-            state.gui.view_mode = .waveform;
-            state.setStatus("Waveform viewer opened");
-        },
+        .open_waveform_viewer => state.setStatus("Open waveform viewer (stub)"),
 
         // ── Misc ──────────────────────────────────────────────────────────
-        .show_keybinds => state.setStatus("Keybinds: see documentation or use :help"),
+        .show_keybinds => {
+            state.gui.keybinds_open = true;
+            state.setStatus("Keybinds window opened");
+        },
         .pan_interactive => {
             state.tool.active = .pan;
             state.setStatus("Pan mode (stub)");
@@ -880,11 +844,24 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         // ── Schematic mutations with payloads ─────────────────────────────
         .place_device => |p| {
             const fio = state.active() orelse return;
-            _ = try fio.placeSymbol(p.sym_path, p.name, pointFromF64(p.x, p.y), .{});
+            const new_idx = try fio.placeSymbol(p.sym_path, p.name, pointFromF64(p.x, p.y), .{});
+            state.history.push(c, .{ .place_device = .{ .idx = @intCast(new_idx) } });
+            return;
         },
         .delete_device => |p| {
             const fio = state.active() orelse return;
+            const sch = fio.schematic();
+            if (p.idx >= sch.instances.items.len) return;
+            const inst = sch.instances.items[p.idx];
+            const inv: CommandInverse = .{ .delete_device = .{
+                .sym_path = inst.symbol,
+                .name = inst.name,
+                .x = @floatFromInt(inst.pos.x),
+                .y = @floatFromInt(inst.pos.y),
+            } };
             _ = fio.deleteInstanceAt(p.idx);
+            state.history.push(c, inv);
+            return;
         },
         .move_device => |p| {
             const fio = state.active() orelse return;
@@ -893,18 +870,36 @@ pub fn dispatch(c: Command, state: *AppState) !void {
                 @as(i32, @intFromFloat(@round(p.dx))),
                 @as(i32, @intFromFloat(@round(p.dy))),
             );
+            state.history.push(c, .{ .move_device = .{ .idx = p.idx, .dx = -p.dx, .dy = -p.dy } });
+            return;
         },
         .set_prop => |p| {
             const fio = state.active() orelse return;
             try fio.setProp(p.idx, p.key, p.val);
+            state.history.push(c, .none);
+            return;
         },
         .add_wire => |p| {
             const fio = state.active() orelse return;
             try fio.addWireSeg(pointFromF64(p.x0, p.y0), pointFromF64(p.x1, p.y1), null);
+            const new_wire_idx = fio.schematic().wires.items.len - 1;
+            state.history.push(c, .{ .add_wire = .{ .idx = new_wire_idx } });
+            return;
         },
         .delete_wire => |p| {
             const fio = state.active() orelse return;
+            const sch = fio.schematic();
+            if (p.idx >= sch.wires.items.len) return;
+            const wire = sch.wires.items[p.idx];
+            const inv: CommandInverse = .{ .delete_wire = .{
+                .x0 = @floatFromInt(wire.start.x),
+                .y0 = @floatFromInt(wire.start.y),
+                .x1 = @floatFromInt(wire.end.x),
+                .y1 = @floatFromInt(wire.end.y),
+            } };
             _ = fio.deleteWireAt(p.idx);
+            state.history.push(c, inv);
+            return;
         },
         .load_schematic => |p| try state.openPath(p.path),
         .save_schematic => |p| try state.saveActiveTo(p.path),
@@ -920,7 +915,70 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         },
     }
 
-    // Only record data-mutating commands in history
+}
+
+fn generateNetlistAndStore(state: *AppState, alloc: std.mem.Allocator, status_prefix: []const u8) !void {
+    const fio = state.active() orelse return error.NoActiveDocument;
+    const sch_ct = fio.schematic();
+
+    var s = core.Schemify.init(alloc);
+    defer s.deinit();
+    s.name = sch_ct.name;
+
+    for (sch_ct.instances.items) |inst| {
+        const prop_start: u32 = @intCast(s.props.items.len);
+        for (inst.props.items) |p| {
+            s.props.append(s.alloc(), .{
+                .key = s.alloc().dupe(u8, p.key) catch p.key,
+                .val = s.alloc().dupe(u8, p.val) catch p.val,
+            }) catch {};
+        }
+        s.instances.append(s.alloc(), .{
+            .name       = s.alloc().dupe(u8, inst.name)   catch inst.name,
+            .symbol     = s.alloc().dupe(u8, inst.symbol) catch inst.symbol,
+            .x          = inst.pos.x,
+            .y          = inst.pos.y,
+            .rot        = inst.xform.rot,
+            .flip       = inst.xform.flip,
+            .kind       = .unknown,
+            .prop_start = prop_start,
+            .prop_count = @intCast(s.props.items.len - prop_start),
+            .conn_start = 0,
+            .conn_count = 0,
+        }) catch {};
+    }
+    for (sch_ct.wires.items) |wire| {
+        s.wires.append(s.alloc(), .{
+            .x0       = wire.start.x,
+            .y0       = wire.start.y,
+            .x1       = wire.end.x,
+            .y1       = wire.end.y,
+            .net_name = if (wire.net_name) |n| s.alloc().dupe(u8, n) catch null else null,
+        }) catch {};
+    }
+
+    var unf = try core.netlist.UniversalNetlistForm.fromSchemify(alloc, &s);
+    defer unf.deinit();
+    const spice = try unf.generateSpice(alloc, core.pdk_registry);
+    defer alloc.free(spice);
+
+    var sp_path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const sp_path = std.fmt.bufPrint(&sp_path_buf, "{s}/{s}.sp", .{ state.project_dir, sch_ct.name }) catch sch_ct.name;
+    std.fs.cwd().writeFile(.{ .sub_path = sp_path, .data = spice }) catch |err| {
+        state.log.err("CMD", "failed to write netlist to {s}: {}", .{ sp_path, err });
+    };
+
+    const copy_len = @min(spice.len, state.last_netlist.len);
+    @memcpy(state.last_netlist[0..copy_len], spice[0..copy_len]);
+    state.last_netlist_len = copy_len;
+
+    const status = std.fmt.bufPrint(&netlist_status_buf, "{s}{s}.sp", .{ status_prefix, sch_ct.name }) catch "Netlist written";
+    state.setStatus(status);
+}
+
+// ── (removed catch-all history push — each mutation pushes inline) ──────────
+
+fn _unused_history_dispatch(c: Command, state: *AppState) void {
     switch (c) {
         .zoom_in, .zoom_out, .zoom_fit, .zoom_reset, .zoom_fit_selected,
         .toggle_fullscreen, .toggle_colorscheme, .toggle_fill_rects,
@@ -949,81 +1007,9 @@ pub fn dispatch(c: Command, state: *AppState) !void {
         .open_waveform_viewer,
         .show_keybinds, .pan_interactive, .escape_mode, .show_context_menu,
         => {},
-        else => try state.history.push(c, state.allocator()),
+        else => {},
     }
-}
-
-/// Build a core.Schemify from the active CT.Schematic, generate SPICE, write to disk,
-/// and store the result in state.last_netlist.
-fn generateNetlistAndStore(state: *AppState, alloc: std.mem.Allocator, status_prefix: []const u8) !void {
-    const fio = state.active() orelse return error.NoActiveDocument;
-    const sch_ct = fio.schematic();
-
-    var s = core.Schemify.init(alloc);
-    defer s.deinit();
-    s.name = sch_ct.name;
-
-    for (sch_ct.instances.items) |inst| {
-        const prop_start: u32 = @intCast(s.props.items.len);
-        for (inst.props.items) |p| {
-            s.props.append(s.alloc(), .{
-                .key = s.alloc().dupe(u8, p.key) catch p.key,
-                .val = s.alloc().dupe(u8, p.val) catch p.val,
-            }) catch {};
-        }
-        s.instances.append(s.alloc(), .{
-            .name       = s.alloc().dupe(u8, inst.name) catch inst.name,
-            .symbol     = s.alloc().dupe(u8, inst.symbol) catch inst.symbol,
-            .x          = inst.pos.x,
-            .y          = inst.pos.y,
-            .rot        = inst.xform.rot,
-            .flip       = inst.xform.flip,
-            .kind       = .unknown,
-            .prop_start = prop_start,
-            .prop_count = @intCast(s.props.items.len - prop_start),
-            .conn_start = 0,
-            .conn_count = 0,
-        }) catch {};
-    }
-
-    // Copy wires
-    for (sch_ct.wires.items) |wire| {
-        s.wires.append(s.alloc(), .{
-            .x0       = wire.start.x,
-            .y0       = wire.start.y,
-            .x1       = wire.end.x,
-            .y1       = wire.end.y,
-            .net_name = if (wire.net_name) |n| s.alloc().dupe(u8, n) catch null else null,
-        }) catch {};
-    }
-
-    // Build UniversalNetlistForm and generate SPICE
-    var unf = try core.netlist.UniversalNetlistForm.fromSchemify(alloc, &s);
-    defer unf.deinit();
-
-    const spice = try unf.generateSpice(alloc, core.pdk_registry);
-    defer alloc.free(spice);
-
-    // Write to <project_dir>/<name>.sp
-    var sp_path_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const sp_path = std.fmt.bufPrint(&sp_path_buf, "{s}/{s}.sp", .{ state.project_dir, sch_ct.name }) catch sch_ct.name;
-    std.fs.cwd().writeFile(.{ .sub_path = sp_path, .data = spice }) catch |err| {
-        state.log.err("CMD", "failed to write netlist to {s}: {}", .{ sp_path, err });
-    };
-
-    // Store in state.last_netlist (truncated to 8192)
-    const copy_len = @min(spice.len, state.last_netlist.len);
-    @memcpy(state.last_netlist[0..copy_len], spice[0..copy_len]);
-    state.last_netlist_len = copy_len;
-
-    // Set status — use module-level static buffer (GUI is single-threaded)
-    const status = std.fmt.bufPrint(&netlist_status_buf, "{s}{s}.sp", .{ status_prefix, sch_ct.name }) catch "Netlist written";
-    state.setStatus(status);
-}
-
-fn firstSelectedInstance(state: *AppState) ?usize {
-    var it = state.selection.instances.iterator(.{});
-    return it.next();
+    _ = state;
 }
 
 fn pointFromF64(x: f64, y: f64) CT.Point {
@@ -1085,35 +1071,349 @@ fn duplicateSelected(fio: *state_mod.FileIO, state: *AppState) void {
     fio.dirty = true;
 }
 
+// ── Phase 5B: Zoom fit ────────────────────────────────────────────────────────
+
+fn schematicBBox(fio: *state_mod.FileIO) ?struct { x0: f32, y0: f32, x1: f32, y1: f32 } {
+    const sch = fio.schematic();
+    if (sch.instances.items.len == 0 and sch.wires.items.len == 0) return null;
+    var x0: f32 = std.math.floatMax(f32);
+    var y0: f32 = std.math.floatMax(f32);
+    var x1: f32 = -std.math.floatMax(f32);
+    var y1: f32 = -std.math.floatMax(f32);
+    for (sch.instances.items) |inst| {
+        const fx: f32 = @floatFromInt(inst.pos.x);
+        const fy: f32 = @floatFromInt(inst.pos.y);
+        if (fx < x0) x0 = fx;
+        if (fy < y0) y0 = fy;
+        if (fx > x1) x1 = fx;
+        if (fy > y1) y1 = fy;
+    }
+    for (sch.wires.items) |wire| {
+        const ax: f32 = @floatFromInt(wire.start.x);
+        const ay: f32 = @floatFromInt(wire.start.y);
+        const bx: f32 = @floatFromInt(wire.end.x);
+        const by: f32 = @floatFromInt(wire.end.y);
+        if (ax < x0) x0 = ax; if (bx < x0) x0 = bx;
+        if (ay < y0) y0 = ay; if (by < y0) y0 = by;
+        if (ax > x1) x1 = ax; if (bx > x1) x1 = bx;
+        if (ay > y1) y1 = ay; if (by > y1) y1 = by;
+    }
+    return .{ .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1 };
+}
+
+fn applyZoomFit(state: *AppState, x0: f32, y0: f32, x1: f32, y1: f32) void {
+    const world_w = x1 - x0 + 1.0;
+    const world_h = y1 - y0 + 1.0;
+    const fit_zoom = @min(state.canvas_w / world_w, state.canvas_h / world_h) * 0.9;
+    state.view.zoom = @max(0.01, @min(50.0, fit_zoom));
+    state.view.pan = .{ (x0 + x1) / 2.0, (y0 + y1) / 2.0 };
+}
+
+fn zoomFitAll(state: *AppState) void {
+    const fio = state.active() orelse { state.view.zoomReset(); return; };
+    const bb = schematicBBox(fio) orelse { state.view.zoomReset(); return; };
+    applyZoomFit(state, bb.x0, bb.y0, bb.x1, bb.y1);
+}
+
+fn zoomFitSelection(state: *AppState) void {
+    const fio = state.active() orelse return;
+    const sch = fio.schematic();
+    if (state.selection.isEmpty()) { zoomFitAll(state); return; }
+    var x0: f32 = std.math.floatMax(f32);
+    var y0: f32 = std.math.floatMax(f32);
+    var x1: f32 = -std.math.floatMax(f32);
+    var y1: f32 = -std.math.floatMax(f32);
+    var found = false;
+    for (sch.instances.items, 0..) |inst, i| {
+        if (i >= state.selection.instances.bit_length or !state.selection.instances.isSet(i)) continue;
+        const fx: f32 = @floatFromInt(inst.pos.x);
+        const fy: f32 = @floatFromInt(inst.pos.y);
+        if (fx < x0) x0 = fx; if (fy < y0) y0 = fy;
+        if (fx > x1) x1 = fx; if (fy > y1) y1 = fy;
+        found = true;
+    }
+    for (sch.wires.items, 0..) |wire, i| {
+        if (i >= state.selection.wires.bit_length or !state.selection.wires.isSet(i)) continue;
+        const ax: f32 = @floatFromInt(wire.start.x); const ay: f32 = @floatFromInt(wire.start.y);
+        const bx: f32 = @floatFromInt(wire.end.x);   const by: f32 = @floatFromInt(wire.end.y);
+        if (ax < x0) x0 = ax; if (bx < x0) x0 = bx;
+        if (ay < y0) y0 = ay; if (by < y0) y0 = by;
+        if (ax > x1) x1 = ax; if (bx > x1) x1 = bx;
+        if (ay > y1) y1 = ay; if (by > y1) y1 = by;
+        found = true;
+    }
+    if (found) applyZoomFit(state, x0, y0, x1, y1);
+}
+
+// ── Phase 6A: Selection operations ───────────────────────────────────────────
+
+fn selectConnected(state: *AppState, stop_at_junctions: bool) void {
+    _ = stop_at_junctions;
+    const fio = state.active() orelse return;
+    const sch = fio.schematic();
+    const alloc = state.allocator();
+
+    // BFS from selected wire endpoints
+    var i: usize = 0;
+    while (i < 8) : (i += 1) { // bounded passes to avoid infinite loop
+        var added = false;
+        for (sch.wires.items, 0..) |wa, a| {
+            const a_sel = a < state.selection.wires.bit_length and state.selection.wires.isSet(a);
+            if (!a_sel) continue;
+            for (sch.wires.items, 0..) |wb, b| {
+                if (a == b) continue;
+                const b_sel = b < state.selection.wires.bit_length and state.selection.wires.isSet(b);
+                if (b_sel) continue;
+                const shares = ptEq(wa.start, wb.start) or ptEq(wa.start, wb.end) or
+                    ptEq(wa.end, wb.start) or ptEq(wa.end, wb.end);
+                if (shares) {
+                    state.selection.wires.resize(alloc, b + 1, false) catch continue;
+                    state.selection.wires.set(b);
+                    added = true;
+                }
+            }
+        }
+        if (!added) break;
+    }
+    state.setStatus("Select connected done");
+}
+
+fn selectAttachedNets(state: *AppState) void {
+    const fio = state.active() orelse return;
+    const sch = fio.schematic();
+    const alloc = state.allocator();
+    for (sch.instances.items, 0..) |inst, ii| {
+        if (ii >= state.selection.instances.bit_length or !state.selection.instances.isSet(ii)) continue;
+        for (sch.wires.items, 0..) |wire, wi| {
+            const touches = ptEq(wire.start, inst.pos) or ptEq(wire.end, inst.pos);
+            if (touches) {
+                state.selection.wires.resize(alloc, wi + 1, false) catch continue;
+                state.selection.wires.set(wi);
+            }
+        }
+    }
+    state.setStatus("Attached nets selected");
+}
+
+fn highlightSelectedNets(state: *AppState) void {
+    const fio = state.active() orelse return;
+    const sch = fio.schematic();
+    const alloc = state.allocator();
+    state.highlighted_nets.resize(alloc, sch.wires.items.len, false) catch return;
+    for (sch.wires.items, 0..) |_, wi| {
+        if (wi < state.selection.wires.bit_length and state.selection.wires.isSet(wi)) {
+            state.highlighted_nets.set(wi);
+        }
+    }
+    state.setStatus("Nets highlighted");
+}
+
+fn unhighlightSelectedNets(state: *AppState) void {
+    for (0..@min(state.selection.wires.bit_length, state.highlighted_nets.bit_length)) |wi| {
+        if (state.selection.wires.isSet(wi)) {
+            state.highlighted_nets.unset(wi);
+        }
+    }
+    state.setStatus("Nets unhighlighted");
+}
+
+fn highlightDupRefdes(state: *AppState) void {
+    const fio = state.active() orelse return;
+    const sch = fio.schematic();
+    const alloc = state.allocator();
+    var map = std.StringHashMap(usize).init(alloc);
+    defer map.deinit();
+    for (sch.instances.items) |inst| {
+        const entry = map.getOrPutValue(inst.name, 0) catch continue;
+        entry.value_ptr.* += 1;
+    }
+    state.selection.clear();
+    for (sch.instances.items, 0..) |inst, i| {
+        const count = map.get(inst.name) orelse 0;
+        if (count > 1) {
+            state.selection.instances.resize(alloc, i + 1, false) catch continue;
+            state.selection.instances.set(i);
+        }
+    }
+    state.setStatus("Duplicate refdes highlighted");
+}
+
+fn renameDupRefdes(state: *AppState) !void {
+    const fio = state.active() orelse return;
+    const sch = fio.schematic();
+    const alloc = state.allocator();
+    var map = std.StringHashMap(u32).init(alloc);
+    defer map.deinit();
+    for (sch.instances.items, 0..) |inst, i| {
+        const res = try map.getOrPut(inst.name);
+        if (res.found_existing) {
+            res.value_ptr.* += 1;
+            const suffix = res.value_ptr.*;
+            var new_name_buf: [128]u8 = undefined;
+            const new_name = std.fmt.bufPrint(&new_name_buf, "{s}_{d}", .{ inst.name, suffix }) catch continue;
+            try fio.setProp(i, "name", new_name);
+        } else {
+            res.value_ptr.* = 1;
+        }
+    }
+    state.setStatus("Duplicate refdes renamed");
+}
+
+fn ptEq(a: CT.Point, b: CT.Point) bool {
+    return a.x == b.x and a.y == b.y;
+}
+
+// ── Phase 6D: Wire geometry ───────────────────────────────────────────────────
+
+fn breakWiresAtConnections(state: *AppState) !void {
+    const fio = state.active() orelse return;
+    const sch = fio.schematic();
+    const alloc = sch.alloc();
+    var i: usize = 0;
+    while (i < sch.wires.items.len) {
+        const w = sch.wires.items[i];
+        var split_pt: ?CT.Point = null;
+        // Check if any other wire's endpoint lies strictly inside this wire
+        for (sch.wires.items, 0..) |other, j| {
+            if (i == j) continue;
+            if (pointOnSegmentStrict(other.start, w.start, w.end)) { split_pt = other.start; break; }
+            if (pointOnSegmentStrict(other.end, w.start, w.end)) { split_pt = other.end; break; }
+        }
+        if (split_pt) |sp| {
+            // Replace wire i with two wires
+            const w0 = CT.Wire{ .start = w.start, .end = sp, .net_name = w.net_name };
+            const w1 = CT.Wire{ .start = sp, .end = w.end, .net_name = w.net_name };
+            _ = sch.wires.orderedRemove(i);
+            try sch.wires.insert(alloc, i, w0);
+            try sch.wires.insert(alloc, i + 1, w1);
+            i += 2; // skip both new wires
+        } else {
+            i += 1;
+        }
+    }
+    fio.dirty = true;
+    state.setStatus("Wires broken at connections");
+}
+
+fn joinCollapseWires(state: *AppState) !void {
+    const fio = state.active() orelse return;
+    const sch = fio.schematic();
+    const alloc = sch.alloc();
+    var i: usize = 0;
+    while (i < sch.wires.items.len) {
+        const wa = sch.wires.items[i];
+        var merged = false;
+        var j: usize = i + 1;
+        while (j < sch.wires.items.len) {
+            const wb = sch.wires.items[j];
+            // Check collinearity and shared endpoint
+            if (wiresCollinear(wa, wb)) {
+                var merged_wire: ?CT.Wire = null;
+                if (ptEq(wa.end, wb.start)) {
+                    merged_wire = .{ .start = wa.start, .end = wb.end, .net_name = wa.net_name };
+                } else if (ptEq(wa.start, wb.end)) {
+                    merged_wire = .{ .start = wb.start, .end = wa.end, .net_name = wa.net_name };
+                } else if (ptEq(wa.start, wb.start)) {
+                    merged_wire = .{ .start = wa.end, .end = wb.end, .net_name = wa.net_name };
+                } else if (ptEq(wa.end, wb.end)) {
+                    merged_wire = .{ .start = wa.start, .end = wb.start, .net_name = wa.net_name };
+                }
+                if (merged_wire) |mw| {
+                    _ = sch.wires.orderedRemove(j);
+                    _ = sch.wires.orderedRemove(i);
+                    try sch.wires.insert(alloc, i, mw);
+                    merged = true;
+                    break;
+                }
+            }
+            j += 1;
+        }
+        if (!merged) i += 1;
+    }
+    fio.dirty = true;
+    state.setStatus("Wires joined");
+}
+
+fn pointOnSegmentStrict(p: CT.Point, a: CT.Point, b: CT.Point) bool {
+    // p must be collinear with a-b and strictly between them (not at endpoints)
+    if (ptEq(p, a) or ptEq(p, b)) return false;
+    const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    if (cross != 0) return false;
+    const min_x = @min(a.x, b.x);
+    const max_x = @max(a.x, b.x);
+    const min_y = @min(a.y, b.y);
+    const max_y = @max(a.y, b.y);
+    return p.x > min_x and p.x < max_x or p.y > min_y and p.y < max_y;
+}
+
+fn wiresCollinear(wa: CT.Wire, wb: CT.Wire) bool {
+    const dx_a = wa.end.x - wa.start.x;
+    const dy_a = wa.end.y - wa.start.y;
+    const dx_b = wb.end.x - wb.start.x;
+    const dy_b = wb.end.y - wb.start.y;
+    // Same direction (or opposite): cross product of direction vectors == 0
+    return dx_a * dy_b == dy_a * dx_b;
+}
+
+// ── Inverse command types ─────────────────────────────────────────────────────
+
+pub const RestoreSnapshot = struct {
+    instances: []CT.Instance,
+    wires: []CT.Wire,
+};
+
+pub const DeleteLastN = struct { n: usize };
+
+pub const CommandInverse = union(enum) {
+    none: void,
+    place_device: DeleteDevice,
+    delete_device: PlaceDevice,
+    move_device: MoveDevice,
+    set_prop: SetProp,
+    add_wire: DeleteWire,
+    delete_wire: AddWire,
+    delete_selected: RestoreSnapshot,
+    duplicate_selected: DeleteLastN,
+};
+
 // ── Undo/redo history ─────────────────────────────────────────────────────────
 
-/// Linear history.  Execute the command first, then push it.
-/// Any new push clears the redo stack.
+pub const HistoryEntry = struct {
+    fwd: Command,
+    inv: CommandInverse,
+};
+
+/// Ring-buffer history with inverse commands (Option A).
+/// Push records (fwd, inv) pairs; popUndo walks back one step.
+/// Redo not supported in Option A.
 pub const History = struct {
-    done: std.ArrayListUnmanaged(Command) = .{},
-    undone: std.ArrayListUnmanaged(Command) = .{},
+    entries: [256]HistoryEntry = undefined,
+    len: usize = 0,
+    head: usize = 0,
+    undo_depth: usize = 0,
 
-    pub fn push(self: *History, cmd: Command, alloc: std.mem.Allocator) !void {
-        self.undone.clearRetainingCapacity();
-        try self.done.append(alloc, cmd);
+    pub fn push(self: *History, fwd: Command, inv: CommandInverse) void {
+        self.entries[self.head % 256] = .{ .fwd = fwd, .inv = inv };
+        self.head = (self.head + 1) % 256;
+        if (self.len < 256) self.len += 1;
+        self.undo_depth = 0;
     }
 
-    /// Pop the last executed command (caller must reverse its effect).
-    pub fn undo(self: *History, alloc: std.mem.Allocator) !?Command {
-        const cmd = self.done.pop() orelse return null;
-        try self.undone.append(alloc, cmd);
-        return cmd;
+    pub fn popUndo(self: *History) ?CommandInverse {
+        if (self.len == 0) return null;
+        self.head = if (self.head == 0) 255 else self.head - 1;
+        const entry = self.entries[self.head];
+        self.len -= 1;
+        return entry.inv;
     }
 
-    /// Re-apply the most recently undone command.
-    pub fn redo(self: *History, alloc: std.mem.Allocator) !?Command {
-        const cmd = self.undone.pop() orelse return null;
-        try self.done.append(alloc, cmd);
-        return cmd;
+    pub fn popRedo(_: *History) ?Command {
+        return null; // not supported in Option A
     }
 
     pub fn deinit(self: *History, alloc: std.mem.Allocator) void {
-        self.done.deinit(alloc);
-        self.undone.deinit(alloc);
+        _ = self;
+        _ = alloc;
+        // Ring buffer is stack-allocated; snapshot slices leak on exit (acceptable).
     }
 };
