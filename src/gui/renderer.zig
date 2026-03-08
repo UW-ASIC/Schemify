@@ -707,9 +707,10 @@ fn handleCanvasInput(app: *AppState, wd: *dvui.WidgetData, vp: Viewport) void {
                         e.handled = true;
                         const inst_idx = nearestInstance(sch, me.p, vp, INST_HIT_TOLERANCE);
                         const wire_idx = nearestWire(sch, me.p, vp, WIRE_HIT_TOLERANCE);
-                        // TODO Phase 9B: context menu state moved to gui/context_menu.zig State
-                        _ = inst_idx;
-                        _ = wire_idx;
+                        const ctx = @import("context_menu.zig");
+                        ctx.state.inst_idx = if (inst_idx) |idx| @intCast(idx) else -1;
+                        ctx.state.wire_idx = if (wire_idx) |idx| @intCast(idx) else -1;
+                        ctx.state.open = true;
                     },
                     .middle => {
                         e.handled = true;
