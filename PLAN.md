@@ -681,11 +681,14 @@ Round 2 — COMPLETE (applied 2026-03-08):
 Round 3 — COMPLETE (applied 2026-03-08):
   ✅ Phase 8  plugin panel widget stubs (hostTextInput/Slider/Checkbox/Progress)  plugin_panels.zig
 
-Round 4 (current):
-  Agent R-gui-std  → Phase 9A  gui/ renderer.zig State struct
-  Agent S-dialogs  → Phase 9B  gui/ dialog files extracted from gui.zig
-  Agent T-state    → Phase 10  state.zig slim-down (remove dialog fields from GuiState)
-  Agent U-cmd      → Phase 11  command.zig cleanup (split dispatch into groups)
+Round 4 — IN PROGRESS (2026-03-08):
+  ✅ Phase 9A  renderer.zig — 8 bare vars → pub const State struct        renderer.zig
+  ✅ Phase 9B  gui/ dialogs extracted: find_dialog, context_menu,          gui.zig + 5 new files
+               keybinds_dialog, props_dialog, library_browser
+               keybind dispatch + keyToChar moved to keybinds_dialog.zig
+               renderer.zig right-click uses context_menu.state
+  ✅ Phase 10  GuiState slim-down: 21 dialog-local fields removed          state.zig
+  ✅ Phase 11  command.zig split → src/cmd/ 12 group files                 command.zig + src/cmd/
 ```
 
 ---
