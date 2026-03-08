@@ -18,6 +18,7 @@ const marketplace = @import("marketplace.zig");
 const find_dialog = @import("find_dialog.zig");
 const context_menu = @import("context_menu.zig");
 const keybinds_dialog = @import("keybinds_dialog.zig");
+const keybinds = @import("keybinds.zig");
 const props_dialog = @import("props_dialog.zig");
 const library_browser = @import("library_browser.zig");
 
@@ -126,7 +127,7 @@ fn handleCommandMode(app: *AppState, code: dvui.enums.Key, shift: bool) bool {
                 return true;
             },
             else => {
-                const ch = keybinds_dialog.keyToChar(code, shift);
+                const ch = keybinds.keyToChar(code, shift);
                 if (ch != 0 and find_dialog.state.query_len < find_dialog.state.query.len - 1) {
                     find_dialog.state.query[find_dialog.state.query_len] = ch;
                     find_dialog.state.query_len += 1;
@@ -156,7 +157,7 @@ fn handleCommandMode(app: *AppState, code: dvui.enums.Key, shift: bool) bool {
             return true;
         },
         else => {
-            const ch = keybinds_dialog.keyToChar(code, shift);
+            const ch = keybinds.keyToChar(code, shift);
             if (ch == 0 or app.gui.command_len >= app.gui.command_buf.len - 1) return false;
             app.gui.command_buf[app.gui.command_len] = ch;
             app.gui.command_len += 1;
@@ -167,11 +168,11 @@ fn handleCommandMode(app: *AppState, code: dvui.enums.Key, shift: bool) bool {
 
 fn handleNormalMode(app: *AppState, code: dvui.enums.Key, ctrl: bool, shift: bool, alt: bool) bool {
     // Plugin keybinds take priority
-    if (keybinds_dialog.dispatchPlugin(app, code, ctrl, shift, alt)) return true;
+    if (keybinds.dispatchPlugin(app, code, ctrl, shift, alt)) return true;
 
     const plain = !ctrl and !shift and !alt;
-    if (plain and plugin_panels.handlePlainKeyToggle(app, keybinds_dialog.keyToChar(code, false))) return true;
-    if (keybinds_dialog.dispatchStatic(app, code, ctrl, shift, alt)) return true;
+    if (plain and plugin_panels.handlePlainKeyToggle(app, keybinds.keyToChar(code, false))) return true;
+    if (keybinds.dispatchStatic(app, code, ctrl, shift, alt)) return true;
 
     switch (code) {
         .semicolon => if (shift) {

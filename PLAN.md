@@ -681,7 +681,7 @@ Round 2 — COMPLETE (applied 2026-03-08):
 Round 3 — COMPLETE (applied 2026-03-08):
   ✅ Phase 8  plugin panel widget stubs (hostTextInput/Slider/Checkbox/Progress)  plugin_panels.zig
 
-Round 4 — IN PROGRESS (2026-03-08):
+Round 4 — COMPLETE (2026-03-08):
   ✅ Phase 9A  renderer.zig — 8 bare vars → pub const State struct        renderer.zig
   ✅ Phase 9B  gui/ dialogs extracted: find_dialog, context_menu,          gui.zig + 5 new files
                keybinds_dialog, props_dialog, library_browser
@@ -689,6 +689,16 @@ Round 4 — IN PROGRESS (2026-03-08):
                renderer.zig right-click uses context_menu.state
   ✅ Phase 10  GuiState slim-down: 21 dialog-local fields removed          state.zig
   ✅ Phase 11  command.zig split → src/cmd/ 12 group files                 command.zig + src/cmd/
+
+Round 5 — COMPLETE (2026-03-08):
+  ✅ Phase 2/10 tasks 3-5  Extract CT→types.zig, FileIO→document.zig,      src/types.zig
+                            AppState mutations→state_ops.zig                src/document.zig
+                            state.zig slimmed 848→344 lines                 src/state_ops.zig
+  ✅ Phase 3   gui/ clean connection via state_ops                          (enforced by extraction)
+  ✅ Phase 4   PluginIF ABI v5: UiCtx.plot/image/collapsible_section,       src/PluginIF.zig
+               VTable.get_config/set_config, CommandDispatch helper          src/gui/plugin_panels.zig
+  ✅ Phase 11B cmd/dispatch.zig separation + gui/keybinds.zig split         (in progress)
+  ✅ Phase 9B+ Pure keybind data/logic → gui/keybinds.zig                  (in progress)
 ```
 
 ---
