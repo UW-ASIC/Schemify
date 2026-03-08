@@ -22,7 +22,6 @@ const Def = struct { []const u8, []const u8, []const []const u8 };
 
 const module_defs = [_]Def{
     .{ "core", "src/core/FileIO.zig", &.{} },
-
     .{ "PluginIF", "src/PluginIF.zig", &.{ "core", "dvui" } },
 };
 
@@ -416,18 +415,20 @@ pub fn build(b: *std.Build) void {
     const is_web = backend == .web;
     const target = if (is_web) b.resolveTargetQuery(wasm32) else b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const is_release = optimize != .Debug;
     const spice = build_dep.SpiceConfig{};
 
     // dvui — native uses raylib, web uses wasm backend
     const dvui_dep = if (is_web)
         b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .web })
-    else b.dependency("dvui", .{
-        .target = target,
-        .optimize = optimize,
-        .backend = .raylib,
-        .linux_display_backend = .X11,
-        .freetype = false,
-    });
+    else
+        b.dependency("dvui", .{
+            .target = target,
+            .optimize = optimize,
+            .backend = .raylib,
+            .linux_display_backend = .X11,
+            .freetype = false,
+        });
     const dvui_mod = if (is_web) dvui_dep.module("dvui_web_wasm") else dvui_dep.module("dvui_raylib");
 
     // Build options passed into the executable
@@ -446,13 +447,29 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Executable ────────────────────────────────────────────────────────────
-    const exe_mod = b.createModule(.{ .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
+    const exe_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
     exe_mod.addOptions("build_options", build_opts);
     addImports(exe_mod, &mods, &.{ "dvui", "core", "PluginIF" });
 
+    // ── Release optimizations on the root module ──────────────────────────────
+    if (is_release) {
+        exe_mod.strip = true;
+        exe_mod.unwind_tables = .none;
+        exe_mod.omit_frame_pointer = true;
+        exe_mod.error_tracing = false;
+    }
+
     const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
-    exe.root_module.strip = optimize != .Debug;
-    if (!is_web) exe.use_lld = false;
+
+    if (!is_web) {
+        // In release mode, use LLD so we get LTO across Zig + C boundaries.
+        // In debug mode, use Zig's self-hosted linker for faster iteration.
+        exe.use_lld = is_release;
+    }
     if (is_web) exe.entry = .disabled;
     if (!is_web) addSpiceRPaths(exe, spice);
     b.installArtifact(exe);

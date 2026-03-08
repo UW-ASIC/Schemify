@@ -8,403 +8,18 @@ const core = @import("core");
 const Logger = core.Logger;
 const PluginIF = @import("PluginIF");
 
-pub const Sim = enum { ngspice, xyce };
+// ── Re-exports from sub-modules ───────────────────────────────────────────────
 
-pub const CT = struct {
-    pub const Point = struct { x: i32, y: i32 };
-    pub const Transform = struct { rot: u2 = 0, flip: bool = false };
-    pub const Wire = struct {
-        start: Point,
-        end: Point,
-        net_name: ?[]const u8 = null,
-    };
-    pub const InstanceProp = struct {
-        key: []const u8,
-        val: []const u8,
-    };
-    pub const Instance = struct {
-        name: []const u8,
-        symbol: []const u8,
-        pos: Point,
-        xform: Transform = .{},
-        props: std.ArrayListUnmanaged(InstanceProp) = .{},
-    };
-    pub const Schematic = struct {
-        arena: std.heap.ArenaAllocator,
-        name: []const u8,
-        instances: std.ArrayListUnmanaged(Instance) = .{},
-        wires: std.ArrayListUnmanaged(Wire) = .{},
+pub const CT           = @import("types.zig").CT;
+pub const Sim          = @import("types.zig").Sim;
+pub const FileType     = @import("types.zig").FileType;
+pub const Tool         = @import("types.zig").Tool;
+pub const CommandFlags = @import("types.zig").CommandFlags;
+pub const ToolState    = @import("types.zig").ToolState;
 
-        pub fn init(backing: std.mem.Allocator, name: []const u8) Schematic {
-            var arena = std.heap.ArenaAllocator.init(backing);
-            const a = arena.allocator();
-            // Dupe the name BEFORE the struct literal so that the arena's node
-            // list is populated before `arena` is copied into the return value.
-            // If we put the dupe inside the struct literal after `.arena = arena`,
-            // Zig evaluates `.arena = arena` first (copying the empty arena), then
-            // runs a.dupe() against the local arena — the new node is never seen
-            // by the returned arena and leaks.
-            const name_copy = a.dupe(u8, name) catch "untitled";
-            return .{
-                .arena = arena,
-                .name = name_copy,
-            };
-        }
+pub const FileIO       = @import("document.zig").FileIO;
 
-        pub fn alloc(self: *Schematic) std.mem.Allocator {
-            return self.arena.allocator();
-        }
-
-        pub fn deinit(self: *Schematic) void {
-            self.instances.deinit(self.alloc());
-            self.wires.deinit(self.alloc());
-            self.arena.deinit();
-        }
-    };
-
-    pub const ShapeTag = enum { line, rect, other };
-    pub const Shape = struct {
-        tag: ShapeTag,
-        data: union(ShapeTag) {
-            line: struct { start: Point, end: Point },
-            rect: struct { min: Point, max: Point },
-            other: void,
-        },
-    };
-    pub const SymbolPin = struct { pos: Point };
-    pub const Symbol = struct {
-        shapes: std.ArrayListUnmanaged(Shape) = .{},
-        pins: std.ArrayListUnmanaged(SymbolPin) = .{},
-    };
-};
-
-pub const FileType = enum {
-    chn,      // schematic — renders with Sch + Sym view-mode buttons
-    chn_tb,   // testbench — locked to schematic view, button labelled "Testbench"
-    chn_sym,  // symbol-only — locked to symbol view, button labelled "Symbol"
-    unknown,
-
-    pub fn fromPath(path: []const u8) FileType {
-        if (std.mem.endsWith(u8, path, ".chn_tb"))  return .chn_tb;
-        if (std.mem.endsWith(u8, path, ".chn_sym")) return .chn_sym;
-        if (std.mem.endsWith(u8, path, ".chn"))     return .chn;
-        return .unknown;
-    }
-};
-
-pub const FileIO = struct {
-    pub const Origin = union(enum) {
-        unsaved,
-        buffer,
-        chn_file:     []const u8,
-        chn_sym_file: []const u8,
-    };
-
-    alloc:     std.mem.Allocator,
-    logger:    *Logger,
-    comp:      struct { name: []const u8 },
-    sch:       CT.Schematic,
-    sym:       ?CT.Symbol = null,
-    origin:    Origin = .unsaved,
-    file_type: FileType = .unknown,
-    dirty:     bool = true,
-
-    pub fn initNew(alloc: std.mem.Allocator, logger: *Logger, name: []const u8, _: bool) !FileIO {
-        const name_owned = try alloc.dupe(u8, name);
-        return .{
-            .alloc     = alloc,
-            .logger    = logger,
-            .comp      = .{ .name = name_owned },
-            .sch       = CT.Schematic.init(alloc, name),
-            .origin    = .unsaved,
-            .file_type = .chn,
-            .dirty     = true,
-        };
-    }
-
-    /// Returns the FileType of this document (set at open time).
-    pub fn fileType(self: *const FileIO) FileType {
-        return self.file_type;
-    }
-
-    pub fn initFromChn(alloc: std.mem.Allocator, logger: *Logger, path: []const u8) !FileIO {
-        var fio = try initNew(alloc, logger, std.fs.path.stem(path), false);
-        fio.origin    = .{ .chn_file = try alloc.dupe(u8, path) };
-        fio.file_type = FileType.fromPath(path); // .chn or .chn_tb
-        fio.dirty     = false;
-
-        // Read and parse the CHN file into CT.Schematic.
-        const data = std.fs.cwd().readFileAlloc(alloc, path, 1024 * 1024 * 4) catch |err| {
-            logger.err("FileIO", "failed to read {s}: {}", .{ path, err });
-            return fio;
-        };
-        defer alloc.free(data);
-
-        var parsed = core.Schemify.readFile(data, alloc, logger);
-        defer parsed.deinit();
-
-        const ins = parsed.instances.slice();
-        for (0..parsed.instances.len) |i| {
-            const prop_start = ins.items(.prop_start)[i];
-            const prop_count = ins.items(.prop_count)[i];
-            var inst: CT.Instance = .{
-                .name   = fio.sch.alloc().dupe(u8, ins.items(.name)[i])   catch ins.items(.name)[i],
-                .symbol = fio.sch.alloc().dupe(u8, ins.items(.symbol)[i]) catch ins.items(.symbol)[i],
-                .pos    = .{ .x = ins.items(.x)[i], .y = ins.items(.y)[i] },
-                .xform  = .{ .rot = ins.items(.rot)[i], .flip = ins.items(.flip)[i] },
-            };
-            for (parsed.props.items[prop_start..][0..prop_count]) |p| {
-                inst.props.append(fio.sch.alloc(), .{
-                    .key = fio.sch.alloc().dupe(u8, p.key) catch p.key,
-                    .val = fio.sch.alloc().dupe(u8, p.val) catch p.val,
-                }) catch {};
-            }
-            fio.sch.instances.append(fio.sch.alloc(), inst) catch {};
-        }
-
-        const ws = parsed.wires.slice();
-        for (0..parsed.wires.len) |i| {
-            fio.sch.wires.append(fio.sch.alloc(), .{
-                .start    = .{ .x = ws.items(.x0)[i], .y = ws.items(.y0)[i] },
-                .end      = .{ .x = ws.items(.x1)[i], .y = ws.items(.y1)[i] },
-                .net_name = if (ws.items(.net_name)[i]) |n|
-                    fio.sch.alloc().dupe(u8, n) catch null
-                else
-                    null,
-            }) catch {};
-        }
-
-        return fio;
-    }
-
-    pub fn initFromChnSym(alloc: std.mem.Allocator, logger: *Logger, path: []const u8) !FileIO {
-        var fio = try initNew(alloc, logger, std.fs.path.stem(path), false);
-        fio.origin    = .{ .chn_sym_file = try alloc.dupe(u8, path) };
-        fio.file_type = .chn_sym;
-        fio.dirty     = false;
-        return fio;
-    }
-
-    pub fn deinit(self: *FileIO) void {
-        self.alloc.free(self.comp.name);
-        switch (self.origin) {
-            .chn_file, .chn_sym_file => |p| self.alloc.free(p),
-            .unsaved, .buffer => {},
-        }
-        self.sch.deinit();
-    }
-
-    pub fn schematic(self: *FileIO) *CT.Schematic {
-        return &self.sch;
-    }
-
-    pub fn symbol(self: *FileIO) ?*CT.Symbol {
-        if (self.sym) |*s| return s;
-        return null;
-    }
-
-    pub fn save(self: *FileIO) !void {
-        switch (self.origin) {
-            .chn_file => |p| try self.saveAsChn(p),
-            else => {},
-        }
-    }
-
-    pub fn saveAsChn(self: *FileIO, path: []const u8) !void {
-        var s = core.Schemify.init(self.alloc);
-        defer s.deinit();
-        s.name = self.comp.name;
-
-        for (self.sch.instances.items) |inst| {
-            const prop_start: u32 = @intCast(s.props.items.len);
-            for (inst.props.items) |p| {
-                s.props.append(s.alloc(), .{
-                    .key = s.alloc().dupe(u8, p.key) catch p.key,
-                    .val = s.alloc().dupe(u8, p.val) catch p.val,
-                }) catch {};
-            }
-            s.instances.append(s.alloc(), .{
-                .name       = s.alloc().dupe(u8, inst.name)   catch inst.name,
-                .symbol     = s.alloc().dupe(u8, inst.symbol) catch inst.symbol,
-                .x          = inst.pos.x,
-                .y          = inst.pos.y,
-                .rot        = inst.xform.rot,
-                .flip       = inst.xform.flip,
-                .kind       = .unknown,
-                .prop_start = prop_start,
-                .prop_count = @intCast(s.props.items.len - prop_start),
-                .conn_start = 0,
-                .conn_count = 0,
-            }) catch {};
-        }
-        for (self.sch.wires.items) |wire| {
-            s.wires.append(s.alloc(), .{
-                .x0       = wire.start.x,
-                .y0       = wire.start.y,
-                .x1       = wire.end.x,
-                .y1       = wire.end.y,
-                .net_name = if (wire.net_name) |n| s.alloc().dupe(u8, n) catch null else null,
-            }) catch {};
-        }
-
-        if (s.writeFile(self.alloc, self.logger)) |bytes| {
-            defer self.alloc.free(bytes);
-            try std.fs.cwd().writeFile(.{ .sub_path = path, .data = bytes });
-        } else {
-            var out: std.ArrayListUnmanaged(u8) = .{};
-            defer out.deinit(self.alloc);
-            try out.writer(self.alloc).print("* Schemify CHN for {s}\n.end\n", .{self.comp.name});
-            try std.fs.cwd().writeFile(.{ .sub_path = path, .data = out.items });
-        }
-
-        self.origin = .{ .chn_file = self.alloc.dupe(u8, path) catch path };
-        self.dirty = false;
-    }
-
-    pub fn isDirty(self: *const FileIO) bool {
-        return self.dirty;
-    }
-
-    pub fn placeSymbol(self: *FileIO, sym_path: []const u8, name: []const u8, pos: CT.Point, _: anytype) !u32 {
-        const inst: CT.Instance = .{
-            .name = self.sch.alloc().dupe(u8, name) catch name,
-            .symbol = self.sch.alloc().dupe(u8, sym_path) catch sym_path,
-            .pos = pos,
-        };
-        try self.sch.instances.append(self.sch.alloc(), inst);
-        self.dirty = true;
-        return @intCast(self.sch.instances.items.len - 1);
-    }
-
-    pub fn deleteInstanceAt(self: *FileIO, idx: usize) bool {
-        if (idx >= self.sch.instances.items.len) return false;
-        _ = self.sch.instances.orderedRemove(idx);
-        self.dirty = true;
-        return true;
-    }
-
-    pub fn moveInstanceBy(self: *FileIO, idx: usize, dx: i32, dy: i32) bool {
-        if (idx >= self.sch.instances.items.len) return false;
-        self.sch.instances.items[idx].pos.x += dx;
-        self.sch.instances.items[idx].pos.y += dy;
-        self.dirty = true;
-        return true;
-    }
-
-    pub fn setProp(self: *FileIO, idx: usize, key: []const u8, val: []const u8) !void {
-        if (idx >= self.sch.instances.items.len) return;
-        var inst = &self.sch.instances.items[idx];
-        for (inst.props.items) |*p| {
-            if (std.mem.eql(u8, p.key, key)) {
-                p.val = self.sch.alloc().dupe(u8, val) catch val;
-                self.dirty = true;
-                return;
-            }
-        }
-        try inst.props.append(self.sch.alloc(), .{
-            .key = self.sch.alloc().dupe(u8, key) catch key,
-            .val = self.sch.alloc().dupe(u8, val) catch val,
-        });
-        self.dirty = true;
-    }
-
-    pub fn addWireSeg(self: *FileIO, p0: CT.Point, p1: CT.Point, net: ?[]const u8) !void {
-        try self.sch.wires.append(self.sch.alloc(), .{
-            .start = p0,
-            .end = p1,
-            .net_name = if (net) |n| self.sch.alloc().dupe(u8, n) catch n else null,
-        });
-        self.dirty = true;
-    }
-
-    pub fn deleteWireAt(self: *FileIO, idx: usize) bool {
-        if (idx >= self.sch.wires.items.len) return false;
-        _ = self.sch.wires.orderedRemove(idx);
-        self.dirty = true;
-        return true;
-    }
-
-    pub fn createNetlist(self: *FileIO, sim: Sim) ![]u8 {
-        const mode = if (sim == .ngspice) "ngspice" else "xyce";
-        const net = try std.fmt.allocPrint(self.alloc, "* placeholder {s} netlist for {s}\n.end\n", .{ mode, self.comp.name });
-        defer self.alloc.free(net);
-
-        const path = try std.fmt.allocPrint(self.alloc, ".schemify_{d}.sp", .{std.time.timestamp()});
-        try std.fs.cwd().writeFile(.{ .sub_path = path, .data = net });
-        return path;
-    }
-
-    pub fn runSpiceSim(self: *FileIO, sim: Sim, path: []const u8) void {
-        self.logger.info("SIM", "stub run {s} on {s}", .{ if (sim == .ngspice) "ngspice" else "xyce", path });
-    }
-
-    /// Determines netlist path from origin and logs simulation intent.
-    /// TODO: spawn std.process.Child with argv = [ngspice/xyce, "-b", netlist_path]
-    pub fn runSpiceSimAuto(self: *FileIO, sim: Sim) !void {
-        const chn_path: []const u8 = switch (self.origin) {
-            .chn_file => |p| p,
-            else => return error.NoNetlist,
-        };
-        const base = std.fs.path.stem(chn_path);
-        const dir = std.fs.path.dirname(chn_path) orelse ".";
-        var path_buf: [std.fs.max_path_bytes]u8 = undefined;
-        const netlist_path = std.fmt.bufPrint(&path_buf, "{s}/{s}.sp", .{ dir, base }) catch chn_path;
-        _ = netlist_path;
-        self.logger.info("SIM", "runSpiceSim stub — would run {s}", .{@tagName(sim)});
-    }
-};
-
-pub const Tool = enum {
-    select,
-    wire,
-    move,
-    pan,
-    line,
-    rect,
-    polygon,
-    arc,
-    circle,
-    text,
-};
-
-pub const CommandFlags = struct {
-    fullscreen: bool = false,
-    dark_mode: bool = false,
-    fill_rects: bool = false,
-    text_in_symbols: bool = false,
-    symbol_details: bool = false,
-    show_all_layers: bool = true,
-    show_netlist: bool = false,
-    crosshair: bool = false,
-    wire_routing: bool = false,
-    orthogonal_routing: bool = false,
-    flat_netlist: bool = false,
-    line_width: i32 = 1,
-};
-
-pub const ToolState = struct {
-    active: Tool = .select,
-    snap_to_grid: bool = true,
-    snap_size: f32 = 10.0,
-    wire_start: ?[2]i32 = null,
-    draw_points: [16]CT.Point = [_]CT.Point{.{ .x = 0, .y = 0 }} ** 16,
-    draw_point_count: u8 = 0,
-
-    pub fn label(self: *const ToolState) []const u8 {
-        return switch (self.active) {
-            .select => "SELECT",
-            .wire => "WIRE",
-            .move => "MOVE",
-            .pan => "PAN",
-            .line => "LINE",
-            .rect => "RECT",
-            .polygon => "POLYGON",
-            .arc => "ARC",
-            .circle => "CIRCLE",
-            .text => "TEXT",
-        };
-    }
-};
+// ── GUI-layer types (stay here — they ARE global GUI state) ───────────────────
 
 pub const GuiViewMode = enum { schematic, symbol };
 pub const PluginPanelLayout = enum { overlay, left_sidebar, right_sidebar, bottom_bar };
@@ -596,7 +211,7 @@ pub const AppState = struct {
             self.gpa.allocator(),
             project_dir,
         );
-        self.seedDefaultPluginPanels();
+        @import("state_ops.zig").seedDefaultPluginPanels(&self);
         return self;
     }
 
@@ -636,86 +251,46 @@ pub const AppState = struct {
         _ = self.gpa.deinit();
     }
 
-    pub fn setStatus(self: *AppState, msg: []const u8) void {
-        self.status_msg = msg;
-        self.log.info("STATUS", "{s}", .{msg});
-    }
-
-    pub fn setStatusErr(self: *AppState, msg: []const u8) void {
-        self.status_msg = msg;
-        self.log.err("STATUS", "{s}", .{msg});
-    }
-
-    pub fn dumpLog(self: *AppState) void {
-        const entries = self.log.entries();
-        for (entries) |entry| {
-            std.debug.print("[{s}] {s}: {s}\n", .{ entry.level.sym(), entry.src, entry.msg });
-        }
-        const err_count = self.log.countAt(.err);
-        std.debug.print("[INF] LOG: entries={d} errors={d}\n", .{ entries.len, err_count });
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Accessor ──────────────────────────────────────────────────────────────
 
     pub fn allocator(self: *AppState) std.mem.Allocator {
         return self.gpa.allocator();
     }
 
+    // ── Forwarding wrappers (delegate to state_ops) ───────────────────────────
+    // These keep existing call-sites working while we migrate callers to use
+    // state_ops directly. New code should call state_ops.func(app, ...) directly.
+
+    pub fn setStatus(self: *AppState, msg: []const u8) void {
+        @import("state_ops.zig").setStatus(self, msg);
+    }
+
+    pub fn setStatusErr(self: *AppState, msg: []const u8) void {
+        @import("state_ops.zig").setStatusErr(self, msg);
+    }
+
+    pub fn dumpLog(self: *AppState) void {
+        @import("state_ops.zig").dumpLog(self);
+    }
+
     pub fn active(self: *AppState) ?*FileIO {
-        if (self.schematics.items.len == 0) return null;
-        return self.schematics.items[self.active_idx];
+        return @import("state_ops.zig").active(self);
     }
 
     pub fn openPath(self: *AppState, path: []const u8) !void {
-        const alloc = self.allocator();
-        const fio = try alloc.create(FileIO);
-        errdefer alloc.destroy(fio);
-
-        const ft = FileType.fromPath(path);
-        fio.* = switch (ft) {
-            .chn, .chn_tb => try FileIO.initFromChn(alloc, &self.log, path),
-            .chn_sym       => try FileIO.initFromChnSym(alloc, &self.log, path),
-            .unknown       => {
-                self.setStatusErr("Unsupported file type (only .chn, .chn_tb, .chn_sym)");
-                return error.InvalidFormat;
-            },
-        };
-
-        try self.schematics.append(alloc, fio);
-        self.active_idx = self.schematics.items.len - 1;
-        self.selection.clear();
-        self.setStatus("Opened file");
+        return @import("state_ops.zig").openPath(self, path);
     }
 
     pub fn newFile(self: *AppState, name: []const u8) !void {
-        const alloc = self.allocator();
-        const fio = try alloc.create(FileIO);
-        errdefer alloc.destroy(fio);
-        fio.* = try FileIO.initNew(alloc, &self.log, name, false);
-        try self.schematics.append(alloc, fio);
-        self.active_idx = self.schematics.items.len - 1;
-        self.selection.clear();
-        self.setStatus("New file created");
+        return @import("state_ops.zig").newFile(self, name);
     }
 
     pub fn saveActiveTo(self: *AppState, path: []const u8) !void {
-        const fio = self.active() orelse {
-            self.setStatusErr("No active document");
-            return error.NoActiveDocument;
-        };
-        try fio.saveAsChn(path);
-        self.setStatus("Saved file");
+        return @import("state_ops.zig").saveActiveTo(self, path);
     }
 
-    /// Select every instance and wire in the active schematic.
     pub fn selectAll(self: *AppState) void {
-        const fio = self.active() orelse return;
-        const sch = fio.schematic();
-        const alloc = self.allocator();
-        self.selection.instances.resize(alloc, sch.instances.items.len, false) catch return;
-        self.selection.wires.resize(alloc, sch.wires.items.len, false) catch return;
-        self.selection.instances.setRangeValue(.{ .start = 0, .end = sch.instances.items.len }, true);
-        self.selection.wires.setRangeValue(.{ .start = 0, .end = sch.wires.items.len }, true);
+        @import("state_ops.zig").selectAll(self);
     }
 
     pub fn registerPluginPanel(
@@ -726,7 +301,7 @@ pub const AppState = struct {
         layout: PluginPanelLayout,
         keybind: ?u8,
     ) bool {
-        return self.registerPluginPanelEx(id, title, vim_cmd, layout, keybind, null);
+        return @import("state_ops.zig").registerPluginPanel(self, id, title, vim_cmd, layout, keybind);
     }
 
     pub fn registerPluginPanelEx(
@@ -738,98 +313,19 @@ pub const AppState = struct {
         keybind: ?u8,
         draw_fn: ?PanelDrawFn,
     ) bool {
-        if (id.len == 0 or title.len == 0 or vim_cmd.len == 0) return false;
-        const alloc = self.allocator();
-
-        if (self.findPluginPanelById(id)) |existing| {
-            var panel = &self.gui.plugin_panels.items[existing];
-            const new_title = alloc.dupe(u8, title) catch return false;
-            const new_vim = alloc.dupe(u8, vim_cmd) catch {
-                alloc.free(new_title);
-                return false;
-            };
-            alloc.free(panel.title);
-            alloc.free(panel.vim_cmd);
-            panel.title = new_title;
-            panel.vim_cmd = new_vim;
-            panel.layout = layout;
-            panel.keybind = if (keybind) |k| asciiLower(k) else 0;
-            panel.draw_fn = draw_fn;
-            self.rebuildPluginPanelIndexes();
-            return true;
-        }
-
-        const panel_id = alloc.dupe(u8, id) catch return false;
-        errdefer alloc.free(panel_id);
-        const panel_title = alloc.dupe(u8, title) catch return false;
-        errdefer alloc.free(panel_title);
-        const panel_vim = alloc.dupe(u8, vim_cmd) catch return false;
-        errdefer alloc.free(panel_vim);
-
-        self.gui.plugin_panels.append(alloc, .{
-            .id = panel_id,
-            .title = panel_title,
-            .vim_cmd = panel_vim,
-            .layout = layout,
-            .keybind = if (keybind) |k| asciiLower(k) else 0,
-            .draw_fn = draw_fn,
-        }) catch return false;
-        self.rebuildPluginPanelIndexes();
-        return true;
+        return @import("state_ops.zig").registerPluginPanelEx(self, id, title, vim_cmd, layout, keybind, draw_fn);
     }
 
     pub fn togglePluginPanelByVim(self: *AppState, vim_cmd: []const u8) bool {
-        for (self.gui.plugin_panels.items, 0..) |panel, i| {
-            if (std.mem.eql(u8, panel.vim_cmd, vim_cmd)) {
-                self.gui.plugin_panels.items[i].visible = !self.gui.plugin_panels.items[i].visible;
-                self.status_msg = if (self.gui.plugin_panels.items[i].visible) "Panel opened" else "Panel hidden";
-                return true;
-            }
-        }
-        return false;
+        return @import("state_ops.zig").togglePluginPanelByVim(self, vim_cmd);
     }
 
     pub fn togglePluginPanelByKey(self: *AppState, key: u8) bool {
-        const lowered = asciiLower(key);
-        const idx = self.gui.key_to_panel[lowered];
-        if (idx >= 0) {
-            const i: usize = @intCast(idx);
-            self.gui.plugin_panels.items[i].visible = !self.gui.plugin_panels.items[i].visible;
-            self.status_msg = if (self.gui.plugin_panels.items[i].visible) "Panel opened" else "Panel hidden";
-            return true;
-        }
-        return false;
+        return @import("state_ops.zig").togglePluginPanelByKey(self, key);
     }
 
-    /// Dynamic registry of plugin panels (name + draw callback link).
     pub fn pluginPanels(self: *const AppState) []const PluginPanel {
-        return self.gui.plugin_panels.items;
-    }
-
-    fn findPluginPanelById(self: *const AppState, id: []const u8) ?usize {
-        for (self.gui.plugin_panels.items, 0..) |panel, i| {
-            if (std.mem.eql(u8, panel.id, id)) return i;
-        }
-        return null;
-    }
-
-    fn seedDefaultPluginPanels(self: *AppState) void {
-        _ = self;
-    }
-
-    fn rebuildPluginPanelIndexes(self: *AppState) void {
-        self.gui.key_to_panel = [_]i16{-1} ** 256;
-
-        for (self.gui.plugin_panels.items, 0..) |panel, i| {
-            if (panel.keybind != 0) {
-                self.gui.key_to_panel[panel.keybind] = @intCast(i);
-            }
-        }
-    }
-
-    fn asciiLower(ch: u8) u8 {
-        if (ch >= 'A' and ch <= 'Z') return ch + 32;
-        return ch;
+        return @import("state_ops.zig").pluginPanels(self);
     }
 };
 

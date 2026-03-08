@@ -51,7 +51,7 @@ pub const Vfs = @import("core").Vfs;
 // ── ABI versioning ────────────────────────────────────────────────────────── //
 
 /// Bump whenever VTable or Descriptor change layout.
-pub const ABI_VERSION: u32 = 4;
+pub const ABI_VERSION: u32 = 5;
 
 /// Symbol the runtime looks up in each .so / each WASM export table.
 pub const EXPORT_SYMBOL: [*:0]const u8 = "schemify_plugin";
@@ -98,6 +98,18 @@ pub const UiCtx = extern struct {
     /// Progress bar (fraction 0.0–1.0). No return value.
     progress: *const fn (fraction: f32, id: u32) callconv(.c) void = &stubProgress,
 
+    // ── v5 additions ─────────────────────────────────────────────────────────
+    /// 2D line chart widget. `x_data` and `y_data` are arrays of `count` f32 values.
+    /// `title` is a null-terminated string. Returns true if the widget was clicked.
+    plot: *const fn (title: [*:0]const u8, x_data: [*]const f32, y_data: [*]const f32, count: u32, id: u32) callconv(.c) bool = &stubPlot,
+    /// Render a bitmap image. `pixels` is RGBA8 data of width*height pixels.
+    image: *const fn (pixels: [*]const u8, width: u32, height: u32, id: u32) callconv(.c) void = &stubImage,
+    /// Begin a collapsible section. Returns true if the section is open (content should be drawn).
+    /// Must be paired with `end_collapsible(id)` regardless of return value.
+    collapsible_section: *const fn (label: [*:0]const u8, open: *bool, id: u32) callconv(.c) bool = &stubCollapsible,
+    /// End a collapsible section started with collapsible_section(id).
+    end_collapsible: *const fn (id: u32) callconv(.c) void = &stubEndCollapsible,
+
     fn stubTextInput(_: [*]u8, _: usize, _: *usize, _: u32) callconv(.c) bool {
         return false;
     }
@@ -108,6 +120,10 @@ pub const UiCtx = extern struct {
         return false;
     }
     fn stubProgress(_: f32, _: u32) callconv(.c) void {}
+    fn stubPlot(_: [*:0]const u8, _: [*]const f32, _: [*]const f32, _: u32, _: u32) callconv(.c) bool { return false; }
+    fn stubImage(_: [*]const u8, _: u32, _: u32, _: u32) callconv(.c) void {}
+    fn stubCollapsible(_: [*:0]const u8, _: *bool, _: u32) callconv(.c) bool { return false; }
+    fn stubEndCollapsible(_: u32) callconv(.c) void {}
 };
 
 /// Plugin-provided draw callback.
@@ -180,6 +196,12 @@ pub const VTable = extern struct {
     /// Returns null when unavailable (WASM, or host does not implement).
     get_pdk_registry: *const fn (state: *anyopaque) callconv(.c) ?*anyopaque = &vtStubGetPdkRegistry,
 
+    // ── v5 additions ─────────────────────────────────────────────────────────
+    /// Read a TOML-backed per-plugin config value. Returns bytes written or -1.
+    get_config: *const fn (state: *anyopaque, plugin_id: [*]const u8, id_len: usize, key: [*]const u8, key_len: usize, buf: [*]u8, buf_len: usize) callconv(.c) i32 = &vtStubGetBuf2,
+    /// Write a TOML-backed per-plugin config value. Returns true on success.
+    set_config: *const fn (state: *anyopaque, plugin_id: [*]const u8, id_len: usize, key: [*]const u8, key_len: usize, val: [*]const u8, val_len: usize) callconv(.c) bool = &vtStubSetConfig,
+
     fn vtStubGetPdkRegistry(_: *anyopaque) callconv(.c) ?*anyopaque {
         return null;
     }
@@ -205,6 +227,8 @@ pub const VTable = extern struct {
     fn vtStubGetProp(_: *anyopaque, _: u32, _: [*]const u8, _: usize, _: [*]u8, _: usize) callconv(.c) i32 {
         return -1;
     }
+    fn vtStubGetBuf2(_: *anyopaque, _: [*]const u8, _: usize, _: [*]const u8, _: usize, _: [*]u8, _: usize) callconv(.c) i32 { return -1; }
+    fn vtStubSetConfig(_: *anyopaque, _: [*]const u8, _: usize, _: [*]const u8, _: usize, _: [*]const u8, _: usize) callconv(.c) bool { return false; }
 };
 
 // ── Ctx (host-facing + plugin-facing) ────────────────────────────────────── //
@@ -597,6 +621,53 @@ pub fn getNetName(idx: u32, buf: []u8) ?[]const u8 {
     const n = c._vtable.get_net_name(c._state, idx, buf.ptr, buf.len);
     if (n < 0) return null;
     return buf[0..@intCast(n)];
+}
+
+// ── v5 public API ─────────────────────────────────────────────────────────── //
+
+/// Read a TOML-backed per-plugin config value into buf.
+/// Returns null if the key is not found, otherwise the slice of buf written.
+pub fn getConfig(plugin_id: []const u8, key: []const u8, buf: []u8) ?[]const u8 {
+    if (comptime is_wasm) return null;
+    const c = _g_ctx orelse return null;
+    const n = c._vtable.get_config(c._state, plugin_id.ptr, plugin_id.len, key.ptr, key.len, buf.ptr, buf.len);
+    if (n < 0) return null;
+    return buf[0..@intCast(n)];
+}
+
+/// Write a TOML-backed per-plugin config value. Returns true on success.
+pub fn setConfig(plugin_id: []const u8, key: []const u8, value: []const u8) bool {
+    if (comptime is_wasm) return false;
+    const c = _g_ctx orelse return false;
+    return c._vtable.set_config(c._state, plugin_id.ptr, plugin_id.len, key.ptr, key.len, value.ptr, value.len);
+}
+
+// ── CommandDispatch ───────────────────────────────────────────────────────── //
+
+/// Comptime command dispatch table. Plugins declare this instead of a
+/// manual switch in `on_command`.
+///
+/// Usage:
+///   const dispatch = PluginIF.CommandDispatch(&.{
+///       .{ "my_cmd",   handleMyCmd },
+///       .{ "other",    handleOther },
+///   });
+///   // then in Plugin.on_command:
+///   pub fn on_command(tag: [*:0]const u8, payload: ?[*:0]const u8) callconv(.c) void {
+///       dispatch.handle(tag, payload);
+///   }
+pub fn CommandDispatch(comptime entries: []const struct { []const u8, *const fn ([*:0]const u8, ?[*:0]const u8) callconv(.c) void }) type {
+    return struct {
+        pub fn handle(tag: [*:0]const u8, payload: ?[*:0]const u8) void {
+            const tag_slice = std.mem.span(tag);
+            inline for (entries) |entry| {
+                if (std.mem.eql(u8, entry[0], tag_slice)) {
+                    entry[1](tag, payload);
+                    return;
+                }
+            }
+        }
+    };
 }
 
 /// Place a device in the active schematic (via command queue).
