@@ -92,16 +92,65 @@ fn hostProgress(fraction: f32, id: u32) callconv(.c) void {
     dvui.progress(@src(), .{ .percent = @max(0, @min(1, fraction)) }, .{ .id_extra = id, .expand = .horizontal });
 }
 
+// ── v5 UiCtx host implementations ─────────────────────────────────────────── //
+
+fn hostPlot(title: [*:0]const u8, x_data: [*]const f32, y_data: [*]const f32, count: u32, id: u32) callconv(.c) bool {
+    _ = title;
+    if (count == 0) return false;
+    // Convert f32 slices to f64 for dvui.plotXY.
+    var xs_buf: [1024]f64 = undefined;
+    var ys_buf: [1024]f64 = undefined;
+    const n = @min(count, xs_buf.len);
+    for (0..n) |i| {
+        xs_buf[i] = x_data[i];
+        ys_buf[i] = y_data[i];
+    }
+    dvui.plotXY(@src(), .{ .xs = xs_buf[0..n], .ys = ys_buf[0..n] }, .{ .id_extra = id, .expand = .horizontal });
+    return false; // no click tracking for now
+}
+
+fn hostImage(_: [*]const u8, _: u32, _: u32, _: u32) callconv(.c) void {
+    // dvui image upload requires a texture handle; stub is a no-op until wired.
+}
+
+// expander_open_stack tracks whether each collapsible_section is open, so that
+// end_collapsible can unconditionally call deinit on any box widget opened.
+// dvui.expander() manages its own state; we just track the return value here
+// so the plugin can skip drawing children when collapsed.
+var expander_open_stack: [8]bool = undefined;
+var expander_stack_top: usize = 0;
+
+fn hostCollapsibleSection(label: [*:0]const u8, open: *bool, id: u32) callconv(.c) bool {
+    _ = open; // dvui expander manages its own expanded state internally
+    const label_slice = std.mem.span(label);
+    const is_open = dvui.expander(@src(), label_slice, .{ .default_expanded = true }, .{ .id_extra = id });
+    if (expander_stack_top < expander_open_stack.len) {
+        expander_open_stack[expander_stack_top] = is_open;
+        expander_stack_top += 1;
+    }
+    return is_open;
+}
+
+fn hostEndCollapsible(_: u32) callconv(.c) void {
+    if (expander_stack_top > 0) {
+        expander_stack_top -= 1;
+    }
+}
+
 const g_ui_ctx: PluginIF.UiCtx = .{
-    .label      = &uiLabel,
-    .button     = &uiButton,
-    .separator  = &uiSeparator,
-    .begin_row  = &uiBeginRow,
-    .end_row    = &uiEndRow,
-    .text_input = &hostTextInput,
-    .slider     = &hostSlider,
-    .checkbox   = &hostCheckbox,
-    .progress   = &hostProgress,
+    .label               = &uiLabel,
+    .button              = &uiButton,
+    .separator           = &uiSeparator,
+    .begin_row           = &uiBeginRow,
+    .end_row             = &uiEndRow,
+    .text_input          = &hostTextInput,
+    .slider              = &hostSlider,
+    .checkbox            = &hostCheckbox,
+    .progress            = &hostProgress,
+    .plot                = &hostPlot,
+    .image               = &hostImage,
+    .collapsible_section = &hostCollapsibleSection,
+    .end_collapsible     = &hostEndCollapsible,
 };
 
 // ── Layout constants ──────────────────────────────────────────────────────── //
@@ -208,6 +257,7 @@ pub fn tryHandleVim(app: *AppState, name: []const u8) bool {
 
 fn drawPanelBody(panel: PluginPanel) void {
     box_stack_top = 0; // guard against unbalanced begin_row/end_row
+    expander_stack_top = 0; // guard against unbalanced collapsible_section/end_collapsible
     if (panel.draw_fn) |draw| {
         draw(&g_ui_ctx);
         // Clean up any boxes the plugin left open (shouldn't happen, but safe)
@@ -215,6 +265,8 @@ fn drawPanelBody(panel: PluginPanel) void {
             box_stack_top -= 1;
             box_stack[box_stack_top].deinit();
         }
+        // Reset expander stack (expander() is a simple bool return, no deinit needed)
+        expander_stack_top = 0;
         return;
     }
     dvui.labelNoFmt(@src(), panel.title, .{}, .{});
