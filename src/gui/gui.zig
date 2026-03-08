@@ -4,6 +4,7 @@
 //!   toolbar -> tabbar -> { left_sidebar | { renderer / bottom_bar } | right_sidebar }
 //!   -> command_bar -> overlays -> marketplace
 
+const std = @import("std");
 const dvui = @import("dvui");
 const AppState = @import("../state.zig").AppState;
 const actions = @import("actions.zig");
@@ -41,6 +42,37 @@ fn drawCenterColumn(app: *AppState) void {
     defer col.deinit();
     renderer.draw(app);
     plugin_panels.drawBottomBar(app);
+    drawNetlistPreview(app);
+}
+
+/// Netlist preview panel — shown when show_netlist is true and last_netlist_len > 0.
+fn drawNetlistPreview(app: *AppState) void {
+    if (!app.cmd_flags.show_netlist) return;
+    if (app.last_netlist_len == 0) return;
+
+    var panel = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .background = true,
+        .color_fill = .{ .r = 20, .g = 20, .b = 24, .a = 255 },
+        .min_size_content = .{ .h = 200 },
+        .expand = .horizontal,
+    });
+    defer panel.deinit();
+
+    dvui.labelNoFmt(@src(), "Netlist Preview", .{}, .{});
+
+    var scroll = dvui.scrollArea(@src(), .{}, .{
+        .expand = .both,
+        .min_size_content = .{ .h = 170 },
+    });
+    defer scroll.deinit();
+
+    const text = app.last_netlist[0..app.last_netlist_len];
+    var lines = std.mem.splitScalar(u8, text, '\n');
+    var line_i: u32 = 0;
+    while (lines.next()) |line| {
+        dvui.labelNoFmt(@src(), line, .{}, .{ .id_extra = 0x7E00 + line_i });
+        line_i += 1;
+    }
 }
 
 fn handleInput(app: *AppState) void {

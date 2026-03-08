@@ -124,6 +124,56 @@ pub const FileIO = struct {
         var fio = try initNew(alloc, logger, std.fs.path.stem(path), false);
         fio.origin = .{ .chn_file = try alloc.dupe(u8, path) };
         fio.dirty = false;
+
+        // Read and parse the CHN file
+        const data = std.fs.cwd().readFileAlloc(alloc, path, 1024 * 1024 * 4) catch |err| {
+            logger.err("FileIO", "failed to read {s}: {}", .{ path, err });
+            return fio;
+        };
+        defer alloc.free(data);
+
+        var parsed = core.Schemify.readFile(data, alloc, logger);
+        defer parsed.deinit();
+
+        // Copy instances from parsed Schemify into CT.Schematic
+        const ins = parsed.instances.slice();
+        for (0..parsed.instances.len) |i| {
+            const src_start = ins.items(.prop_start)[i];
+            const src_count = ins.items(.prop_count)[i];
+            var inst: CT.Instance = .{
+                .name = fio.sch.alloc().dupe(u8, ins.items(.name)[i]) catch ins.items(.name)[i],
+                .symbol = fio.sch.alloc().dupe(u8, ins.items(.symbol)[i]) catch ins.items(.symbol)[i],
+                .pos = .{
+                    .x = ins.items(.x)[i],
+                    .y = ins.items(.y)[i],
+                },
+                .xform = .{
+                    .rot = ins.items(.rot)[i],
+                    .flip = ins.items(.flip)[i],
+                },
+            };
+            for (parsed.props.items[src_start..][0..src_count]) |p| {
+                inst.props.append(fio.sch.alloc(), .{
+                    .key = fio.sch.alloc().dupe(u8, p.key) catch p.key,
+                    .val = fio.sch.alloc().dupe(u8, p.val) catch p.val,
+                }) catch {};
+            }
+            fio.sch.instances.append(fio.sch.alloc(), inst) catch {};
+        }
+
+        // Copy wires from parsed Schemify into CT.Schematic
+        const ws = parsed.wires.slice();
+        for (0..parsed.wires.len) |i| {
+            fio.sch.wires.append(fio.sch.alloc(), .{
+                .start = .{ .x = ws.items(.x0)[i], .y = ws.items(.y0)[i] },
+                .end   = .{ .x = ws.items(.x1)[i], .y = ws.items(.y1)[i] },
+                .net_name = if (ws.items(.net_name)[i]) |n|
+                    fio.sch.alloc().dupe(u8, n) catch null
+                else
+                    null,
+            }) catch {};
+        }
+
         return fio;
     }
 
@@ -167,10 +217,58 @@ pub const FileIO = struct {
     }
 
     pub fn saveAsChn(self: *FileIO, path: []const u8) !void {
-        var out: std.ArrayListUnmanaged(u8) = .{};
-        defer out.deinit(self.alloc);
-        try out.writer(self.alloc).print("* Schemify placeholder CHN for {s}\n", .{self.comp.name});
-        try std.fs.cwd().writeFile(.{ .sub_path = path, .data = out.items });
+        // Build a core.Schemify from CT.Schematic and write via writeFile API.
+        // TODO: core.Schemify.writeFile(s, alloc, logger) ?[]u8 — returns owned CHN bytes.
+        var s = core.Schemify.init(self.alloc);
+        defer s.deinit();
+        s.name = self.comp.name;
+
+        // Copy instances into core.Schemify
+        for (self.sch.instances.items) |inst| {
+            const prop_start: u32 = @intCast(s.props.items.len);
+            for (inst.props.items) |p| {
+                s.props.append(s.alloc(), .{
+                    .key = s.alloc().dupe(u8, p.key) catch p.key,
+                    .val = s.alloc().dupe(u8, p.val) catch p.val,
+                }) catch {};
+            }
+            s.instances.append(s.alloc(), .{
+                .name       = s.alloc().dupe(u8, inst.name) catch inst.name,
+                .symbol     = s.alloc().dupe(u8, inst.symbol) catch inst.symbol,
+                .x          = inst.pos.x,
+                .y          = inst.pos.y,
+                .rot        = inst.xform.rot,
+                .flip       = inst.xform.flip,
+                .kind       = .unknown,
+                .prop_start = prop_start,
+                .prop_count = @intCast(s.props.items.len - prop_start),
+                .conn_start = 0,
+                .conn_count = 0,
+            }) catch {};
+        }
+
+        // Copy wires into core.Schemify
+        for (self.sch.wires.items) |wire| {
+            s.wires.append(s.alloc(), .{
+                .x0       = wire.start.x,
+                .y0       = wire.start.y,
+                .x1       = wire.end.x,
+                .y1       = wire.end.y,
+                .net_name = if (wire.net_name) |n| s.alloc().dupe(u8, n) catch null else null,
+            }) catch {};
+        }
+
+        if (s.writeFile(self.alloc, self.logger)) |bytes| {
+            defer self.alloc.free(bytes);
+            try std.fs.cwd().writeFile(.{ .sub_path = path, .data = bytes });
+        } else {
+            // writeFile failed; fall back to minimal placeholder
+            var out: std.ArrayListUnmanaged(u8) = .{};
+            defer out.deinit(self.alloc);
+            try out.writer(self.alloc).print("* Schemify CHN for {s}\n.end\n", .{self.comp.name});
+            try std.fs.cwd().writeFile(.{ .sub_path = path, .data = out.items });
+        }
+
         self.origin = .{ .chn_file = self.alloc.dupe(u8, path) catch path };
         self.dirty = false;
     }
@@ -250,6 +348,25 @@ pub const FileIO = struct {
 
     pub fn runSpiceSim(self: *FileIO, sim: Sim, path: []const u8) void {
         self.logger.info("SIM", "stub run {s} on {s}", .{ if (sim == .ngspice) "ngspice" else "xyce", path });
+    }
+
+    /// Enhanced runSpiceSim stub — determines netlist path from origin and logs intent.
+    /// TODO: spawn std.process.Child with argv = [ngspice/xyce, "-b", netlist_path]
+    pub fn runSpiceSimAuto(self: *FileIO, sim: Sim) !void {
+        // Determine netlist path from origin
+        const chn_path: []const u8 = switch (self.origin) {
+            .chn_file => |p| p,
+            else => return error.NoNetlist,
+        };
+        // Replace .chn (or .chn_tb) extension with .sp
+        const base = std.fs.path.stem(chn_path);
+        const dir = std.fs.path.dirname(chn_path) orelse ".";
+        var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const netlist_path = std.fmt.bufPrint(&path_buf, "{s}/{s}.sp", .{ dir, base }) catch chn_path;
+        _ = netlist_path;
+        // Spawn: std.process.Child with argv = [ngspice/xyce, "-b", path]
+        // For now log a stub message
+        self.logger.info("SIM", "runSpiceSim stub — would run {s}", .{@tagName(sim)});
     }
 };
 
@@ -394,6 +511,8 @@ pub const AppState = struct {
     plugin_refresh_requested: bool = false,
     plugin_state: std.StringHashMapUnmanaged([]const u8) = .{},
     log: Logger = undefined,
+    last_netlist: [8192]u8 = [_]u8{0} ** 8192,
+    last_netlist_len: usize = 0,
 
     // ── Viewport ──────────────────────────────────────────────────────────────
 
