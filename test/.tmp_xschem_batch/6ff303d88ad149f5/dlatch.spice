@@ -1,8 +1,0 @@
-** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/dlatch.sch
-.subckt dlatch D Q G VSS
-*.PININFO D:I Q:O VSS:I G:I
-G5 net2 net1 vcr pwl(1) G VSS 'VTH-0.1' 10G 'VTH+0.1' 10
-c1 net2 VSS 1p m=1
-E5 net1 VSS pwl(1) D VSS 'VTH-0.1' 0 'VTH+0.1' VHI
-E1 Q VSS pwl(1) net2 VSS 'VTH-0.1' 0 'VTH+0.1' VHI
-.ends

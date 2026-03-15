@@ -4,15 +4,7 @@
     .fingerprint = 0x89ad4d9b40b3c0ab,
     .minimum_zig_version = "0.14.0",
     .dependencies = .{
-        .schemify_sdk = .{
-            .path = "../..",
-        },
+        .schemify_sdk = .{ .path = "../.." },
     },
-    .paths = .{
-        "build.zig",
-        "build.zig.zon",
-        "plugin.toml",
-        "README.md",
-        "src",
-    },
+    .paths = .{ "build.zig", "build.zig.zon", "plugin.toml", "README.md", "src" },
 }

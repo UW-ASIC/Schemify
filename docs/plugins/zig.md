@@ -1,45 +1,57 @@
 # Writing a Zig Plugin
 
 This guide walks through creating a complete Zig plugin from scratch — from
-the initial `build.zig.zon` to a rendered panel in the editor.
+`build.zig.zon` to a rendered panel in the editor.  Zig is the first-class
+plugin language: the plugin interface is defined in Zig and all host internals
+are written in Zig.  Both native (`.so`) and WASM targets are supported from
+a single source file.
 
-## 1. Project layout
+## 1. Prerequisites
+
+- Zig 0.14 or later — https://ziglang.org/download/
+- `zls` for IDE support (optional but recommended)
+
+## 2. Project layout
 
 ```
 my-plugin/
   build.zig
   build.zig.zon
-  plugin.toml
   src/
     main.zig
 ```
 
-## 2. `build.zig.zon` — single dependency
+## 3. `build.zig.zon` — single dependency
 
 ```zig
 .{
     .name    = .my_plugin,
     .version = "0.1.0",
+    .minimum_zig_version = "0.14.0",
+    .fingerprint = 0x<random_hex>,
     .dependencies = .{
-        // For an external (published) SDK:
-        .schemify_sdk = .{
-            .url  = "https://github.com/UWASIC/Schemify/archive/<COMMIT>.tar.gz",
-            .hash = "<hash from zig fetch>",
-        },
-        // Or, when working inside the Schemify monorepo:
-        // .schemify_sdk = .{ .path = "../.." },
+        // Inside the Schemify monorepo (examples use this form):
+        .schemify_sdk = .{ .path = "../../.." },
+
+        // For a standalone project outside the monorepo, replace the path
+        // with a URL dependency (see section 7):
+        // .schemify_sdk = .{
+        //     .url  = "https://github.com/UWASIC/Schemify/archive/refs/tags/v1.0.0.tar.gz",
+        //     .hash = "...",
+        // },
     },
-    .paths = .{ "build.zig", "build.zig.zon", "plugin.toml", "src" },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
 }
 ```
 
-Run `zig fetch --save=schemify_sdk <url>` once to fill in the hash.
+Run `zig fetch --save=schemify_sdk <url>` once to populate the hash for a URL
+dependency.
 
-## 3. `build.zig` — two lines of SDK
+## 4. `build.zig`
 
 ```zig
 const std    = @import("std");
-const sdk    = @import("schemify_sdk");   // imports Schemify's build.zig
+const sdk    = @import("schemify_sdk");
 const helper = sdk.build_plugin_helper;
 
 pub fn build(b: *std.Build) void {
@@ -52,15 +64,15 @@ pub fn build(b: *std.Build) void {
         const lib = helper.addNativePluginLibrary(b, ctx, "MyPlugin", "src/main.zig");
         b.installArtifact(lib);
 
-        // Copies .so to ~/.config/Schemify/MyPlugin/ and runs `zig build run`
-        // in the host repo:
-        helper.addNativeAutoInstallRunStep(b, "MyPlugin", sdk_dep, "MyPlugin");
+        // Copies .so to ~/.config/Schemify/MyPlugin/ then launches Schemify:
+        helper.addNativeAutoInstallRunStep(b, "MyPlugin", sdk_dep, "my-plugin");
     }
 
-    // ── Web .wasm ───────────────────────────────────────────────────────── //
+    // ── WASM .wasm ──────────────────────────────────────────────────────── //
 
     if (ctx.is_web) {
         helper.addWasmPlugin(b, ctx, "MyPlugin", "src/main.zig");
+        helper.addWasmAutoServeStep(b, sdk_dep, "MyPlugin", "my-plugin");
     }
 }
 ```
@@ -70,8 +82,9 @@ pub fn build(b: *std.Build) void {
 | `zig build` | `zig-out/lib/libMyPlugin.so` |
 | `zig build run` | installs + launches Schemify |
 | `zig build -Dbackend=web` | `zig-out/plugins/MyPlugin.wasm` |
+| `zig build run -Dbackend=web` | builds + serves at `localhost:8080` |
 
-## 4. `src/main.zig` — minimal plugin
+## 5. `src/main.zig` — minimal plugin
 
 ```zig
 const std    = @import("std");
@@ -80,102 +93,123 @@ const Plugin = @import("PluginIF");
 // ── Plugin descriptor ───────────────────────────────────────────────────── //
 
 export const schemify_plugin: Plugin.Descriptor = .{
-    .abi_version = Plugin.ABI_VERSION,
-    .name        = "my-plugin",
+    .name        = "MyPlugin",
     .version_str = "0.1.0",
-    .set_ctx     = Plugin.setCtx,   // always this; the SDK provides it
-    .on_load     = &onLoad,
-    .on_unload   = &onUnload,
-    .on_tick     = null,            // set to &onTick if you need per-frame work
+    .process     = schemify_process,
 };
 
-// ── Lifecycle ───────────────────────────────────────────────────────────── //
-
-fn onLoad() callconv(.c) void {
-    Plugin.setStatus("my-plugin loaded");
-    Plugin.logInfo("my-plugin", "onLoad");
-
-    // Register a panel that appears as a sidebar tab
-    _ = Plugin.registerPanel(&.{
-        .id       = "my-plugin",
-        .title    = "My Plugin",
-        .vim_cmd  = "my-plugin",
-        .layout   = .right_sidebar,
-        .keybind  = 'm',
-        .draw_fn  = &drawPanel,
-    });
-}
-
-fn onUnload() callconv(.c) void {
-    Plugin.logInfo("my-plugin", "onUnload");
-}
-
-// ── Panel draw callback ─────────────────────────────────────────────────── //
+// ── Entry point — called by the host for every lifecycle event ──────────── //
 //
-// The host passes a `*const Plugin.UiCtx` each frame.  Call widgets through
-// it — do NOT import dvui directly (the host and plugin compile separate
-// static copies of dvui; sharing its internal state leads to crashes).
-//
-// Every `id` argument must be unique within a single frame for your panel.
-// A simple sequential constant works well.
+// The host sends messages in `in_ptr[0..in_len]` and reads responses from
+// `out_ptr[0..out_cap]`.  Use Plugin.Reader to iterate incoming messages and
+// Plugin.Writer to emit responses.  Return the number of bytes written, or
+// std.math.maxInt(usize) on buffer overflow.
 
-fn drawPanel(ctx: *const Plugin.UiCtx) callconv(.c) void {
-    const alloc = Plugin.allocator();
+export fn schemify_process(
+    in_ptr:  [*]const u8,
+    in_len:  usize,
+    out_ptr: [*]u8,
+    out_cap: usize,
+) usize {
+    var r = Plugin.Reader.init(in_ptr[0..in_len]);
+    var w = Plugin.Writer.init(out_ptr[0..out_cap]);
 
-    // Show the current project directory in the status bar
-    var dir_buf: [512]u8 = undefined;
-    const project = Plugin.getProjectDir(&dir_buf);
-    Plugin.setStatus(project);
-
-    ctx.label("Hello from my-plugin!", 21, 0);
-    ctx.separator(1);
-
-    // Read a file from the project using the platform-agnostic VFS
-    if (Plugin.Vfs.readAlloc(alloc, "myconfig.toml") catch null) |d| {
-        defer alloc.free(d);
-        ctx.label(d.ptr, @intCast(d.len), 2);
+    while (r.next()) |msg| {
+        switch (msg) {
+            .load => {
+                // Register a panel shown as an overlay (keybind: 'm')
+                w.registerPanel(.{
+                    .id       = "my-plugin",
+                    .title    = "My Plugin",
+                    .vim_cmd  = "myplugin",
+                    .layout   = .overlay,
+                    .keybind  = 'm',
+                });
+                w.setStatus("My plugin loaded!");
+            },
+            .draw_panel => {
+                w.label("Hello from Zig!", 0);
+                w.label("Built with the Zig SDK.", 1);
+            },
+            else => {},
+        }
     }
+
+    return if (w.overflow()) std.math.maxInt(usize) else w.pos;
 }
 ```
 
-## 5. `plugin.toml`
+## 6. Complete working example
 
-```toml
-[plugin]
-name        = "my-plugin"
-version     = "0.1.0"
-author      = "Your Name"
-description = "Minimal example plugin."
-entry       = "libMyPlugin.so"
+The repo ships a ready-to-build example at `plugins/examples/zig-hello/`:
+
 ```
+plugins/examples/zig-hello/
+  build.zig
+  build.zig.zon
+  src/
+    main.zig          ← same structure as above
+```
+
+```bash
+cd plugins/examples/zig-hello
+zig build run          # install + launch
+zig build run -Dbackend=web  # WASM build + serve
+```
+
+## 7. LSP / IDE setup
+
+`zls` works out of the box — point your editor at the directory containing
+`build.zig` and language features (completion, go-to-definition, error
+highlighting) are available immediately.
+
+## 8. Standalone git project
+
+For a plugin that lives in its own repository, replace the `.path` entry in
+`build.zig.zon` with a `.url` + `.hash` remote dependency:
+
+```zig
+.dependencies = .{
+    .schemify_sdk = .{
+        .url  = "https://github.com/UWASIC/Schemify/archive/refs/tags/v1.0.0.tar.gz",
+        .hash = "...",
+    },
+},
+```
+
+Run `zig fetch --save=schemify_sdk <url>` to populate the hash automatically.
+The rest of `build.zig` is identical.
+
+## 9. Plugin API reference
+
+The full interface is defined in `src/PluginIF.zig`.  The key types are:
+
+- `Plugin.Descriptor` — exported symbol `schemify_plugin`; holds `.name`,
+  `.version_str`, and `.process`
+- `Plugin.Reader` — iterate over incoming host messages (`.load`, `.unload`,
+  `.tick`, `.draw_panel`, `.button_clicked`, `.slider_changed`, etc.)
+- `Plugin.Writer` — emit responses: `registerPanel`, `setStatus`, `label`,
+  `button`, `slider`, `checkbox`, `separator`, `progress`, `plot`, `image`,
+  `collapsibleSection`, and more
+
+See also `docs/plugins/api.md` for the complete message protocol reference.
 
 ## Receiving per-frame updates
 
-Set `.on_tick = &onTick` in your `Descriptor` to receive a delta-time callback
-every frame:
+Handle the `.tick` message variant to receive a delta-time value every frame:
 
 ```zig
-var elapsed: f32 = 0;
-
-fn onTick(dt: f32) callconv(.c) void {
-    elapsed += dt;
-    if (elapsed > 5.0) {
-        elapsed = 0;
-        Plugin.requestRefresh(); // trigger a UI redraw
-    }
-}
+.tick => |dt| {
+    _ = dt; // seconds since last frame
+    w.setStatus("tick");
+},
 ```
 
-## Using the host allocator
+## Panel layout constants
 
-`Plugin.allocator()` returns a `std.mem.Allocator` backed by the host's heap.
-You can use it for any allocation that the plugin needs:
-
-```zig
-const alloc = Plugin.allocator();
-const buf   = try alloc.alloc(u8, 1024);
-defer alloc.free(buf);
-```
-
-On WASM this returns `std.heap.wasm_allocator` automatically — no special
-handling needed for dual-target builds.
+| Zig value | Position |
+|-----------|----------|
+| `.overlay` | Floating overlay |
+| `.left_sidebar` | Left panel |
+| `.right_sidebar` | Right panel |
+| `.bottom_bar` | Bottom bar |

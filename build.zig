@@ -12,338 +12,212 @@ pub const build_plugin_helper = @import("tools/sdk/build_plugin_helper.zig");
 
 pub const Backend = enum { native, web };
 
-/// { name, source-path, dependency-names }
-const Def = struct { []const u8, []const u8, []const []const u8 };
-
 // ── Module graph ──────────────────────────────────────────────────────────────
-//
 // Order matters: each module may only depend on modules listed before it,
 // or on "dvui" / the spice modules injected by addSpiceMods().
-
+const Def = struct { []const u8, []const u8, []const []const u8 };
 const module_defs = [_]Def{
-    .{ "core", "src/core/FileIO.zig", &.{} },
+    .{ "spice", "src/core/spice/root.zig", &.{} },
+    .{ "core", "src/core/core.zig", &.{"spice"} },
     .{ "PluginIF", "src/PluginIF.zig", &.{ "core", "dvui" } },
+    .{ "commands", "src/commands/command.zig", &.{ "core", "dvui" } },
+    .{ "state", "src/state/state.zig", &.{ "core", "commands", "PluginIF" } },
+    .{ "installer", "src/plugins/installer.zig", &.{} },
+    // theme_config: no external deps — shared between runtime and renderer.
+    .{ "theme_config", "src/gui/renderer/theme_config.zig", &.{} },
+    .{ "runtime", "src/plugins/runtime.zig", &.{ "PluginIF", "state", "theme_config" } },
+    .{ "cli", "src/cli/cli.zig", &.{ "core", "installer" } },
 };
 
 // ── Test suites ───────────────────────────────────────────────────────────────
-//
 // All tests import "core" so types shared with FileIO are identical instances.
 // Run individually: zig build test_<name>  |  Run all: zig build test
-
 const test_defs = [_]Def{
     .{ "core", "test/core/test_core.zig", &.{"core"} },
 };
 
-// ── WASM target ───────────────────────────────────────────────────────────────
-
+// ── web-specific ───────────────────────────────────────────────────────────────
 const wasm32 = std.Target.Query{ .cpu_arch = .wasm32, .os_tag = .freestanding };
 
-// ── Web index.html ────────────────────────────────────────────────────────────
+// ── build() ───────────────────────────────────────────────────────────────────
 
-const web_index_html =
-    \\<!doctype html>
-    \\<html lang="en" style="height:100%;">
-    \\  <head>
-    \\    <meta charset="utf-8"/>
-    \\    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-    \\    <title>N1Schem</title>
-    \\  </head>
-    \\  <body style="height:100%;margin:0;padding:0;">
-    \\    <canvas id="dvui-canvas" tabIndex="1"
-    \\      style="display:block;width:100%;height:100%;outline:none;caret-color:transparent;">
-    \\    </canvas>
-    \\    <script src="./plugin_host.js"></script>
-    \\    <script type="module">
-    \\      import { dvui } from "./web.js";
-    \\      dvui("#dvui-canvas", "n1schem.wasm");
-    \\    </script>
-    \\  </body>
-    \\</html>
-;
+pub fn build(b: *std.Build) void {
+    const backend = b.option(Backend, "backend", "native (raylib) or web (WASM)") orelse .native;
+    const is_web = backend == .web;
+    const target = if (is_web) b.resolveTargetQuery(wasm32) else b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+    const spice = build_dep.SpiceConfig{};
 
-const web_plugins_manifest_json =
-    \\{
-    \\  "plugins": []
-    \\}
-;
+    // dvui — native uses raylib, web uses wasm backend
+    const dvui_dep = if (is_web)
+        b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .web })
+    else
+        b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .raylib, .linux_display_backend = .X11, .freetype = false });
+    const dvui_mod = if (is_web) dvui_dep.module("dvui_web_wasm") else dvui_dep.module("dvui_raylib");
 
-const web_plugin_host_js =
-    \\// plugin_host.js — Schemify WASM plugin host.
-    \\//
-    \\// Loaded by index.html before the main Schemify WASM module.
-    \\// Reads plugins/plugins.json, instantiates each listed .wasm file,
-    \\// and forwards lifecycle calls (on_load / on_unload / on_tick).
-    \\//
-    \\// Each plugin .wasm must export:
-    \\//   on_load()         — called once after instantiation
-    \\//   on_unload()       — called on refresh / page unload
-    \\//   on_tick(dt: f32)  — called every animation frame (optional)
-    \\//   memory            — shared linear memory (for string passing)
-    \\//
-    \\// And may import from the "host" namespace (all provided below):
-    \\//   set_status(ptr, len)
-    \\//   log(level, tag_ptr, tag_len, msg_ptr, msg_len)
-    \\//   register_panel(id_ptr, id_len, title_ptr, title_len,
-    \\//                  vim_ptr, vim_len, layout, keybind) → i32
-    \\//   project_dir_len() → i32
-    \\//   project_dir_copy(dest_ptr)
-    \\//   active_schematic_len() → i32
-    \\//   active_schematic_copy(dest_ptr)
-    \\//   request_refresh()
-    \\
-    \\(() => {
-    \\  // ── Shared app state (set by dvui/main WASM on init) ──────────────── //
-    \\  //
-    \\  // schemifyPluginHost.setAppState({ statusFn, registerPanelFn, ... })
-    \\  // is called by the main Schemify WASM glue once the app is ready.
-    \\
-    \\  let _app = {
-    \\    statusFn:        (msg) => console.info("[plugin] status:", msg),
-    \\    registerPanelFn: (id, title, vim, layout, keybind) => {
-    \\      console.debug("[plugin] register_panel", { id, title, vim, layout, keybind });
-    \\      return 1;
-    \\    },
-    \\    projectDir:            ".",
-    \\    activeSchematicName:   null,
-    \\    requestRefreshFn:      () => {},
-    \\  };
-    \\
-    \\  // ── Utilities ─────────────────────────────────────────────────────── //
-    \\
-    \\  function readStr(mem, ptr, len) {
-    \\    return new TextDecoder().decode(new Uint8Array(mem.buffer, ptr, len));
-    \\  }
-    \\
-    \\  function writeStr(mem, dest, str) {
-    \\    const enc = new TextEncoder().encode(str);
-    \\    new Uint8Array(mem.buffer, dest, enc.length).set(enc);
-    \\  }
-    \\
-    \\  const LOG_LABELS = ["INFO", "WARN", "ERR"];
-    \\  const ENC = new TextEncoder();
-    \\
-    \\  // ── In-memory VFS ─────────────────────────────────────────────────────── //
-    \\  //
-    \\  // Simple Map-backed virtual filesystem shared across all plugins.
-    \\  // schemifyPluginHost.vfs exposes it so the host page can seed files
-    \\  // (e.g. from IndexedDB / OPFS) before boot().
-    \\  //
-    \\  //   schemifyPluginHost.vfs.write("my-plugin/config.toml", new Uint8Array(...));
-    \\  //   const data = schemifyPluginHost.vfs.read("my-plugin/config.toml");
-    \\
-    \\  const _vfs = {
-    \\    _store: new Map(),       // path → Uint8Array
-    \\    _dirs:  new Set([""]),   // tracked directory paths
-    \\
-    \\    read(path) { return this._store.get(path) ?? null; },
-    \\
-    \\    write(path, data) {
-    \\      const bytes = data instanceof Uint8Array ? data : ENC.encode(data);
-    \\      this._store.set(path, bytes);
-    \\      // ensure parent directories are registered
-    \\      let p = path;
-    \\      while (p.includes("/")) {
-    \\        p = p.substring(0, p.lastIndexOf("/"));
-    \\        this._dirs.add(p);
-    \\      }
-    \\    },
-    \\
-    \\    mkdir(path) { this._dirs.add(path); },
-    \\
-    \\    del(path) { this._store.delete(path); },
-    \\
-    \\    list(dirPath) {
-    \\      const prefix = dirPath === "" ? "" : dirPath + "/";
-    \\      const entries = [];
-    \\      for (const k of this._store.keys()) {
-    \\        if (k.startsWith(prefix)) {
-    \\          const rest = k.slice(prefix.length);
-    \\          if (!rest.includes("/")) entries.push(rest);
-    \\        }
-    \\      }
-    \\      for (const d of this._dirs) {
-    \\        if (d !== dirPath && d.startsWith(prefix)) {
-    \\          const rest = d.slice(prefix.length);
-    \\          if (!rest.includes("/")) entries.push(rest + "/");
-    \\        }
-    \\      }
-    \\      return entries;
-    \\    },
-    \\  };
-    \\
-    \\  // ── Host import object (passed to every plugin .wasm) ──────────────── //
-    \\
-    \\  function makeHost(memRef) {
-    \\    const m = () => memRef();
-    \\    return {
-    \\      // ── Status / logging ────────────────────────────────────────────── //
-    \\      set_status(ptr, len) {
-    \\        _app.statusFn(readStr(m(), ptr, len));
-    \\      },
-    \\      log_msg(level, tagPtr, tagLen, msgPtr, msgLen) {
-    \\        const lbl = LOG_LABELS[level] ?? "LOG";
-    \\        const tag = readStr(m(), tagPtr, tagLen);
-    \\        const msg = readStr(m(), msgPtr, msgLen);
-    \\        console.info(`[plugin][${lbl}] ${tag}: ${msg}`);
-    \\      },
-    \\      // ── Panel registration ───────────────────────────────────────────── //
-    \\      register_panel(idPtr, idLen, titlePtr, titleLen,
-    \\                     vimPtr, vimLen, layout, keybind, _drawFnIdx) {
-    \\        const id    = readStr(m(), idPtr, idLen);
-    \\        const title = readStr(m(), titlePtr, titleLen);
-    \\        const vim   = readStr(m(), vimPtr, vimLen);
-    \\        return _app.registerPanelFn(id, title, vim, layout, keybind) ? 1 : 0;
-    \\      },
-    \\      // ── Schematic info ───────────────────────────────────────────────── //
-    \\      project_dir_len() {
-    \\        return ENC.encode(_app.projectDir).length;
-    \\      },
-    \\      project_dir_copy(dest, destLen) {
-    \\        const bytes = ENC.encode(_app.projectDir);
-    \\        const n = Math.min(bytes.length, destLen);
-    \\        new Uint8Array(m().buffer, dest, n).set(bytes.slice(0, n));
-    \\      },
-    \\      active_schematic_len() {
-    \\        if (_app.activeSchematicName == null) return -1;
-    \\        return ENC.encode(_app.activeSchematicName).length;
-    \\      },
-    \\      active_schematic_copy(dest, destLen) {
-    \\        if (_app.activeSchematicName == null) return;
-    \\        const bytes = ENC.encode(_app.activeSchematicName);
-    \\        const n = Math.min(bytes.length, destLen);
-    \\        new Uint8Array(m().buffer, dest, n).set(bytes.slice(0, n));
-    \\      },
-    \\      request_refresh() { _app.requestRefreshFn(); },
-    \\      // ── Virtual filesystem (Vfs.zig) ─────────────────────────────────── //
-    \\      //
-    \\      // Two-step protocol: plugin calls *_len to learn the size, allocates a
-    \\      // buffer in WASM linear memory, then calls the matching *_read/*_write.
-    \\      vfs_file_len(pathPtr, pathLen) {
-    \\        const path = readStr(m(), pathPtr, pathLen);
-    \\        const data = _vfs.read(path);
-    \\        return data ? data.length : -1;
-    \\      },
-    \\      vfs_file_read(pathPtr, pathLen, dest, destLen) {
-    \\        const path = readStr(m(), pathPtr, pathLen);
-    \\        const data = _vfs.read(path);
-    \\        if (!data) return -1;
-    \\        const n = Math.min(data.length, destLen);
-    \\        new Uint8Array(m().buffer, dest, n).set(data.slice(0, n));
-    \\        return n;
-    \\      },
-    \\      vfs_file_write(pathPtr, pathLen, src, srcLen) {
-    \\        const path = readStr(m(), pathPtr, pathLen);
-    \\        const bytes = new Uint8Array(m().buffer, src, srcLen).slice();
-    \\        _vfs.write(path, bytes);
-    \\        return 0;
-    \\      },
-    \\      vfs_file_delete(pathPtr, pathLen) {
-    \\        _vfs.del(readStr(m(), pathPtr, pathLen));
-    \\        return 0;
-    \\      },
-    \\      vfs_dir_make(pathPtr, pathLen) {
-    \\        _vfs.mkdir(readStr(m(), pathPtr, pathLen));
-    \\        return 0;
-    \\      },
-    \\      vfs_dir_list_len(pathPtr, pathLen) {
-    \\        const entries = _vfs.list(readStr(m(), pathPtr, pathLen));
-    \\        return entries.reduce((acc, e) => acc + ENC.encode(e).length + 1, 0);
-    \\      },
-    \\      vfs_dir_list_read(pathPtr, pathLen, dest, destLen) {
-    \\        const entries = _vfs.list(readStr(m(), pathPtr, pathLen));
-    \\        let pos = dest;
-    \\        const view = new Uint8Array(m().buffer);
-    \\        for (const e of entries) {
-    \\          const bytes = ENC.encode(e);
-    \\          if (pos + bytes.length + 1 > dest + destLen) break;
-    \\          view.set(bytes, pos);
-    \\          view[pos + bytes.length] = 0;
-    \\          pos += bytes.length + 1;
-    \\        }
-    \\        return pos - dest;
-    \\      },
-    \\    };
-    \\  }
-    \\
-    \\  // ── Plugin lifecycle ──────────────────────────────────────────────── //
-    \\
-    \\  const state = { modules: [], ready: false };
-    \\
-    \\  async function loadManifest(path = "plugins/plugins.json") {
-    \\    try {
-    \\      const res = await fetch(path, { cache: "no-store" });
-    \\      if (!res.ok) return [];
-    \\      const json = await res.json();
-    \\      if (!json || !Array.isArray(json.plugins)) return [];
-    \\      return json.plugins
-    \\        .filter((x) => typeof x === "string")
-    \\        .map((x) => x.startsWith("http") ? x : `plugins/${x}`);
-    \\    } catch (_e) { return []; }
-    \\  }
-    \\
-    \\  async function loadWasmPlugin(url) {
-    \\    try {
-    \\      let mem = null;
-    \\      const host = makeHost(() => mem);
-    \\      const result = await WebAssembly.instantiateStreaming(
-    \\        fetch(url), { host }
-    \\      );
-    \\      const inst = result.instance;
-    \\      mem = inst.exports.memory;
-    \\      if (inst.exports.on_load) inst.exports.on_load();
-    \\      state.modules.push({ url, inst, mem });
-    \\      console.info("[plugin-host] loaded", url);
-    \\    } catch (e) {
-    \\      console.warn("[plugin-host] failed to load", url, e);
-    \\    }
-    \\  }
-    \\
-    \\  async function boot(path = "plugins/plugins.json") {
-    \\    const urls = await loadManifest(path);
-    \\    for (const url of urls) await loadWasmPlugin(url);
-    \\    state.ready = true;
-    \\  }
-    \\
-    \\  // ── Public API ────────────────────────────────────────────────────── //
-    \\
-    \\  window.schemifyPluginHost = {
-    \\    boot,
-    \\
-    \\    refresh: async (path = "plugins/plugins.json") => {
-    \\      for (const m of state.modules)
-    \\        if (m.inst.exports.on_unload) m.inst.exports.on_unload();
-    \\      state.modules = [];
-    \\      state.ready = false;
-    \\      await boot(path);
-    \\    },
-    \\
-    \\    tick: (dt) => {
-    \\      for (const m of state.modules)
-    \\        if (m.inst.exports.on_tick) m.inst.exports.on_tick(dt);
-    \\    },
-    \\
-    \\    /** Called by the main WASM glue to wire up app callbacks. */
-    \\    setAppState: (appState) => { Object.assign(_app, appState); },
-    \\
-    \\    /**
-    \\     * In-memory virtual filesystem.  Seed files before boot() so plugins
-    \\     * can read them via Plugin.Vfs.readAlloc():
-    \\     *
-    \\     *   schemifyPluginHost.vfs.write("my-plugin/config.toml", tomlBytes);
-    \\     *   schemifyPluginHost.vfs.mkdir("my-plugin/cache");
-    \\     *
-    \\     * Persist to IndexedDB / OPFS by syncing with this store externally.
-    \\     */
-    \\    vfs: _vfs,
-    \\
-    \\    state,
-    \\  };
-    \\
-    \\  void boot();
-    \\})();
-;
+    // Executable-level build options.
+    const build_opts = b.addOptions();
+    build_opts.addOption(Backend, "backend", backend);
+    build_opts.addOption(bool, "has_cli", !is_web);
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+    // Module graph
+    var mods = std.StringHashMap(*std.Build.Module).init(b.allocator);
+    mods.put("dvui", dvui_mod) catch @panic("OOM");
+    if (!is_web) addSpiceMods(b, target, optimize, spice, &mods);
+    for (&module_defs) |def| {
+        const mod = b.addModule(def[0], .{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
+        addImports(mod, &mods, def[2]);
+        mods.put(def[0], mod) catch @panic("OOM");
+    }
+
+    // ── Executable ────────────────────────────────────────────────────────────
+    const exe_mod = b.createModule(.{ .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
+    exe_mod.addOptions("build_options", build_opts);
+    addImports(exe_mod, &mods, &.{ "dvui", "core", "PluginIF", "commands", "state", "cli", "runtime", "theme_config" });
+
+    const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
+    exe.root_module.strip = optimize != .Debug;
+    if (!is_web) exe.use_lld = false;
+    if (is_web) exe.entry = .disabled;
+    if (!is_web) addSpiceRPaths(exe, spice);
+    b.installArtifact(exe);
+
+    // Size
+    const size_cmd = b.addSystemCommand(&.{ "sh", "-c", "printf 'Executable size: '; du -h \"$1\" | cut -f1", "--" });
+    size_cmd.addArtifactArg(exe);
+    b.getInstallStep().dependOn(&size_cmd.step);
+
+    // ── Native: run + test steps ──────────────────────────────────────────────
+    if (!is_web) {
+        const run = b.addRunArtifact(exe);
+        run.setCwd(b.path("."));
+        run.step.dependOn(b.getInstallStep());
+        if (b.args) |args| run.addArgs(args);
+        b.step("run", "Run N1Schem GUI (-- --cli for CLI)").dependOn(&run.step);
+
+        const test_step = b.step("test", "Run all tests");
+        for (&test_defs) |def| {
+            const tmod = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
+            addImports(tmod, &mods, def[2]);
+            const test_exe = b.addTest(.{
+                .root_module = tmod,
+                .test_runner = .{ .path = b.path("test/test_runner.zig"), .mode = .simple },
+            });
+            const test_run = b.addRunArtifact(test_exe);
+            test_run.setCwd(b.path(".")); // file paths in tests resolve from project root
+            test_step.dependOn(&test_run.step);
+            const step_name = b.fmt("test_{s}", .{def[0]});
+            b.step(step_name, b.fmt("Run {s} tests", .{def[0]})).dependOn(&test_run.step);
+            // Hyphenated alias (e.g. test-xschem) for developer convenience
+            const step_name_hyphen = b.fmt("test-{s}", .{def[0]});
+            b.step(step_name_hyphen, b.fmt("Run {s} tests (alias)", .{def[0]})).dependOn(&test_run.step);
+            if (std.mem.eql(u8, def[0], "core")) {
+                b.step("core", "Build and test core module").dependOn(&test_run.step);
+            }
+        }
+
+        // ── get_bench: time every Benchmark test in src/ ─────────────────
+        const bench_step = b.step("get_bench", "Time every 'Benchmark <FILE> <FN>' test in src/");
+        {
+            var bmods = std.StringHashMap(*std.Build.Module).init(b.allocator);
+            bmods.put("dvui", dvui_mod) catch @panic("OOM");
+            addSpiceMods(b, target, optimize, build_dep.SpiceConfig{ .enable_ngspice = false, .enable_xyce = false }, &bmods);
+            for (&module_defs) |def| {
+                const bm = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
+                addImports(bm, &bmods, def[2]);
+                bmods.put(def[0], bm) catch @panic("OOM");
+            }
+
+            var bench_outputs: std.ArrayList(std.Build.LazyPath) = .{};
+
+            var bsrc_dir = std.fs.cwd().openDir("src", .{ .iterate = true }) catch @panic("cannot open src/");
+            defer bsrc_dir.close();
+            var bwalker = bsrc_dir.walk(b.allocator) catch @panic("OOM");
+            defer bwalker.deinit();
+            while (bwalker.next() catch null) |entry| {
+                if (entry.kind != .file or !std.mem.endsWith(u8, entry.path, ".zig")) continue;
+                const contents = bsrc_dir.readFileAlloc(b.allocator, entry.path, 1 << 20) catch continue;
+                if (std.mem.indexOf(u8, contents, "Benchmark ") == null) continue;
+                const rel = b.fmt("src/{s}", .{entry.path});
+                const bmod = b.createModule(.{ .root_source_file = b.path(rel), .target = target, .optimize = optimize });
+                var it = bmods.iterator();
+                while (it.next()) |kv| bmod.addImport(kv.key_ptr.*, kv.value_ptr.*);
+                bmod.addOptions("build_options", build_opts);
+                const bt = b.addTest(.{
+                    .root_module = bmod,
+                    .filters = &[_][]const u8{"Benchmark "},
+                    .test_runner = .{ .path = b.path("test/benchmark_runner.zig"), .mode = .simple },
+                });
+                const bench_run = b.addRunArtifact(bt);
+                bench_run.setEnvironmentVariable("BENCH_SOURCE_FILE", rel);
+                bench_outputs.append(b.allocator, bench_run.captureStdOut()) catch @panic("OOM");
+            }
+
+            const bsort_cmd = b.addSystemCommand(&.{ "sh", "-c", "sort -rn \"$@\" | cut -f2-", "--" });
+            for (bench_outputs.items) |lp| bsort_cmd.addFileArg(lp);
+            bench_step.dependOn(&bsort_cmd.step);
+        }
+
+        // ── get_size: print @sizeOf for every struct in src/ ─────────────
+        const size_step = b.step("get_size", "Print @sizeOf for every struct in src/");
+        {
+            var smods = std.StringHashMap(*std.Build.Module).init(b.allocator);
+            smods.put("dvui", dvui_mod) catch @panic("OOM");
+            addSpiceMods(b, target, optimize, build_dep.SpiceConfig{ .enable_ngspice = false, .enable_xyce = false }, &smods);
+            for (&module_defs) |def| {
+                const sm = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
+                addImports(sm, &smods, def[2]);
+                smods.put(def[0], sm) catch @panic("OOM");
+            }
+
+            var size_outputs: std.ArrayList(std.Build.LazyPath) = .{};
+
+            var src_dir = std.fs.cwd().openDir("src", .{ .iterate = true }) catch @panic("cannot open src/");
+            defer src_dir.close();
+            var walker = src_dir.walk(b.allocator) catch @panic("OOM");
+            defer walker.deinit();
+            while (walker.next() catch null) |entry| {
+                if (entry.kind != .file or !std.mem.endsWith(u8, entry.path, ".zig")) continue;
+                // Only compile files that actually contain a size test.
+                const contents = src_dir.readFileAlloc(b.allocator, entry.path, 1 << 20) catch continue;
+                if (std.mem.indexOf(u8, contents, "Expose struct size") == null) continue;
+                const rel = b.fmt("src/{s}", .{entry.path});
+                const m = b.createModule(.{ .root_source_file = b.path(rel), .target = target, .optimize = optimize });
+                // Wire all stub modules — files only import what they use.
+                var it = smods.iterator();
+                while (it.next()) |kv| m.addImport(kv.key_ptr.*, kv.value_ptr.*);
+                m.addOptions("build_options", build_opts);
+                const t = b.addTest(.{
+                    .root_module = m,
+                    .filters = &[_][]const u8{"Expose struct size"},
+                    .test_runner = .{ .path = b.path("test/size_runner.zig"), .mode = .simple },
+                });
+                const size_run = b.addRunArtifact(t);
+                size_run.setEnvironmentVariable("SIZE_SOURCE_FILE", rel);
+                size_outputs.append(b.allocator, size_run.captureStdOut()) catch @panic("OOM");
+            }
+
+            // Collect all per-file totals, sort highest → lowest, print.
+            const sort_cmd = b.addSystemCommand(&.{ "sh", "-c", "sort -rn \"$@\" | cut -f2-", "--" });
+            for (size_outputs.items) |lp| sort_cmd.addFileArg(lp);
+            size_step.dependOn(&sort_cmd.step);
+        }
+    }
+
+    // ── Web: install assets + run_local dev server ────────────────────────────
+    if (is_web) {
+        const install = b.getInstallStep();
+        install.dependOn(&b.addInstallFileWithDir(dvui_dep.path("src/backends/web.js"), .bin, "web.js").step);
+
+        const kill = b.addSystemCommand(&.{ "sh", "-c", "fuser -k 8080/tcp 2>/dev/null; sleep 0.3; exit 0" });
+        kill.step.dependOn(install);
+        const serve = b.addSystemCommand(&.{ "python3", "-m", "http.server", "8080", "--directory", b.getInstallPath(.bin, "") });
+        serve.step.dependOn(&kill.step);
+        b.step("run_local", "Build WASM + serve at http://localhost:8080").dependOn(&serve.step);
+    }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
 
 fn addImports(
     mod: *std.Build.Module,
@@ -405,129 +279,5 @@ fn addSpiceRPaths(exe: *std.Build.Step.Compile, comptime cfg: build_dep.SpiceCon
     }
     if (cfg.enable_xyce) {
         exe.addRPath(.{ .cwd_relative = cfg.xyce_dir ++ "/" ++ cfg.xyce_install_subdir ++ "/lib" });
-    }
-}
-
-// ── build() ───────────────────────────────────────────────────────────────────
-
-pub fn build(b: *std.Build) void {
-    const backend = b.option(Backend, "backend", "native (raylib) or web (WASM)") orelse .native;
-    const is_web = backend == .web;
-    const target = if (is_web) b.resolveTargetQuery(wasm32) else b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
-    const is_release = optimize != .Debug;
-    const spice = build_dep.SpiceConfig{};
-
-    // dvui — native uses raylib, web uses wasm backend
-    const dvui_dep = if (is_web)
-        b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .web })
-    else
-        b.dependency("dvui", .{
-            .target = target,
-            .optimize = optimize,
-            .backend = .raylib,
-            .linux_display_backend = .X11,
-            .freetype = false,
-        });
-    const dvui_mod = if (is_web) dvui_dep.module("dvui_web_wasm") else dvui_dep.module("dvui_raylib");
-
-    // Build options passed into the executable
-    const build_opts = b.addOptions();
-    build_opts.addOption(Backend, "backend", backend);
-    build_opts.addOption(bool, "has_cli", !is_web);
-
-    // Module graph
-    var mods = std.StringHashMap(*std.Build.Module).init(b.allocator);
-    mods.put("dvui", dvui_mod) catch @panic("OOM");
-    if (!is_web) addSpiceMods(b, target, optimize, spice, &mods);
-    for (&module_defs) |def| {
-        const mod = b.addModule(def[0], .{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
-        addImports(mod, &mods, def[2]);
-        mods.put(def[0], mod) catch @panic("OOM");
-    }
-
-    // ── Executable ────────────────────────────────────────────────────────────
-    const exe_mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    exe_mod.addOptions("build_options", build_opts);
-    addImports(exe_mod, &mods, &.{ "dvui", "core", "PluginIF" });
-
-    // ── Release optimizations on the root module ──────────────────────────────
-    if (is_release) {
-        exe_mod.strip = true;
-        exe_mod.unwind_tables = .none;
-        exe_mod.omit_frame_pointer = true;
-        exe_mod.error_tracing = false;
-    }
-
-    const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
-
-    if (!is_web) {
-        // In release mode, use LLD so we get LTO across Zig + C boundaries.
-        // In debug mode, use Zig's self-hosted linker for faster iteration.
-        exe.use_lld = is_release;
-    }
-    if (is_web) exe.entry = .disabled;
-    if (!is_web) addSpiceRPaths(exe, spice);
-    b.installArtifact(exe);
-
-    const size_cmd = b.addSystemCommand(&.{ "sh", "-c", "printf 'Executable size: '; du -h \"$1\" | cut -f1", "--" });
-    size_cmd.addArtifactArg(exe);
-    b.getInstallStep().dependOn(&size_cmd.step);
-
-    // ── Native: run + test steps ──────────────────────────────────────────────
-    if (!is_web) {
-        const run = b.addRunArtifact(exe);
-        run.setCwd(b.path("."));
-        run.step.dependOn(b.getInstallStep());
-        if (b.args) |args| run.addArgs(args);
-        b.step("run", "Run N1Schem GUI (-- --cli for CLI)").dependOn(&run.step);
-
-        const audit_mod = b.createModule(.{
-            .root_source_file = b.path("tools/struct_audit.zig"),
-            .target = target,
-            .optimize = optimize,
-        });
-        addImports(audit_mod, &mods, &.{"core"});
-
-        // -Dtest-filter=<name> narrows to a single test (Zig extension code-lens).
-        const test_filters = b.option([]const []const u8, "test-filter", "Filter tests by name") orelse &[0][]const u8{};
-        const test_step = b.step("test", "Run all tests");
-        for (&test_defs) |def| {
-            const tmod = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
-            addImports(tmod, &mods, def[2]);
-            const test_exe = b.addTest(.{
-                .root_module = tmod,
-                .filters = test_filters,
-                .test_runner = .{ .path = b.path("test/test_runner.zig"), .mode = .simple },
-            });
-            const test_run = b.addRunArtifact(test_exe);
-            test_run.setCwd(b.path(".")); // file paths in tests resolve from project root
-            test_step.dependOn(&test_run.step);
-            const step_name = b.fmt("test_{s}", .{def[0]});
-            b.step(step_name, b.fmt("Run {s} tests", .{def[0]})).dependOn(&test_run.step);
-            if (std.mem.eql(u8, def[0], "core")) {
-                b.step("core", "Build and test core module").dependOn(&test_run.step);
-            }
-        }
-    }
-
-    // ── Web: install assets + run_local dev server ────────────────────────────
-    if (is_web) {
-        const install = b.getInstallStep();
-        install.dependOn(&b.addInstallFileWithDir(dvui_dep.path("src/backends/web.js"), .bin, "web.js").step);
-        const wf = b.addWriteFiles();
-        install.dependOn(&b.addInstallFileWithDir(wf.add("index.html", web_index_html), .bin, "index.html").step);
-        install.dependOn(&b.addInstallFileWithDir(wf.add("plugin_host.js", web_plugin_host_js), .bin, "plugin_host.js").step);
-        install.dependOn(&b.addInstallFileWithDir(wf.add("plugins/plugins.json", web_plugins_manifest_json), .bin, "plugins/plugins.json").step);
-
-        const kill = b.addSystemCommand(&.{ "sh", "-c", "fuser -k 8080/tcp 2>/dev/null; sleep 0.3; exit 0" });
-        kill.step.dependOn(install);
-        const serve = b.addSystemCommand(&.{ "python3", "-m", "http.server", "8080", "--directory", b.getInstallPath(.bin, "") });
-        serve.step.dependOn(&kill.step);
-        b.step("run_local", "Build WASM + serve at http://localhost:8080").dependOn(&serve.step);
     }
 }

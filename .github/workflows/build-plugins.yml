@@ -14,7 +14,7 @@ on:
       - 'plugins/**/build.zig.zon'
       - 'src/PluginIF.zig'
       - 'tools/sdk/**'
-      - 'tools/gen_registry.py'
+      - 'tools/scripts/gen_registry.py'
   workflow_dispatch:
     inputs:
       force_rebuild_all:
@@ -50,7 +50,7 @@ jobs:
           REGISTRY_BRANCH:      ${{ github.ref_name }}
           REGISTRY_RELEASE_TAG: plugins-latest
         run: |
-          matrix=$(python3 tools/gen_registry.py --list-buildable)
+          matrix=$(python3 tools/scripts/gen_registry.py --list-buildable)
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "Discovered plugins:"
           echo "$matrix" | python3 -m json.tool
@@ -91,7 +91,7 @@ jobs:
           CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "ALL")
 
           if echo "$CHANGED" | grep -qE \
-               "^${PLUGIN_DIR}/|^src/PluginIF\.zig|^tools/sdk/|^tools/gen_registry\.py"; then
+               "^${PLUGIN_DIR}/|^src/PluginIF\.zig|^tools/sdk/|^tools/scripts/gen_registry\.py"; then
             echo "rebuild=true"  >> "$GITHUB_OUTPUT"
             echo "Changes detected – will build."
           else
@@ -127,16 +127,40 @@ jobs:
         working-directory: '${{ matrix.plugin.dir }}'
         run: zig build -Doptimize=ReleaseSafe
 
+      - name: Install Emscripten
+        if: steps.changed.outputs.rebuild == 'true'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+          actions-cache-folder: emsdk-cache
+
+      - name: Build ${{ matrix.plugin.id }} (WASM)
+        if: steps.changed.outputs.rebuild == 'true'
+        working-directory: '${{ matrix.plugin.dir }}'
+        continue-on-error: true
+        run: zig build -Dbackend=web -Doptimize=ReleaseSafe
+
       # ── Collect artifact ─────────────────────────────────────────────────── //
-      - name: Collect built artifact
+      - name: Collect built artifacts
         if: steps.changed.outputs.rebuild == 'true'
         run: |
           mkdir -p dist
+          # Native: strip lib prefix so MyPlugin.so matches WASM naming MyPlugin.wasm
           find "${{ matrix.plugin.dir }}/zig-out" \
-               -name '*.so' -o -name '*.dylib' 2>/dev/null \
+               \( -name '*.so' -o -name '*.dylib' \) 2>/dev/null \
             | while read f; do
-                cp "$f" dist/
-                echo "Collected: $(basename $f)"
+                base=$(basename "$f")
+                # strip lib prefix if present
+                case "$base" in lib*)  base="${base#lib}" ;; esac
+                cp "$f" "dist/$base"
+                echo "Collected native: $base"
+              done
+          # WASM: addWasmPlugin outputs to zig-out/plugins/ or zig-out/bin/plugins/
+          find "${{ matrix.plugin.dir }}/zig-out" -name '*.wasm' 2>/dev/null \
+            | while read f; do
+                base=$(basename "$f")
+                cp "$f" "dist/$base"
+                echo "Collected WASM: $base"
               done
           ls -lh dist/ || echo "(nothing collected)"
 
@@ -144,8 +168,8 @@ jobs:
         if: steps.changed.outputs.rebuild == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.plugin.id }}-linux-x86_64
-          path: dist/*.so
+          name: ${{ matrix.plugin.id }}-artifacts
+          path: dist/
           if-no-files-found: warn
 
   # ── Job 3: Update registry + publish release ──────────────────────────────
@@ -169,7 +193,7 @@ jobs:
           REGISTRY_BRANCH:      ${{ github.ref_name }}
           REGISTRY_RELEASE_TAG: plugins-latest
         run: |
-          python3 tools/gen_registry.py
+          python3 tools/scripts/gen_registry.py
           echo ""
           echo "Generated plugins/registry.json:"
           cat plugins/registry.json
@@ -214,7 +238,7 @@ jobs:
           fi
 
           # Upload (overwrite) every built binary.
-          find dist/ -type f \( -name '*.so' -o -name '*.dylib' \) | while read f; do
+          find dist/ -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.wasm' \) | while read f; do
             echo "Uploading $(basename $f) …"
             gh release upload plugins-latest "$f" \
               --repo "$GITHUB_REPOSITORY" \
@@ -227,7 +251,7 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| File | Size |" >> "$GITHUB_STEP_SUMMARY"
           echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
-          find dist/ -type f \( -name '*.so' -o -name '*.dylib' \) | while read f; do
+          find dist/ -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.wasm' \) | while read f; do
             sz=$(du -sh "$f" | cut -f1)
             echo "| \`$(basename $f)\` | ${sz}B |" >> "$GITHUB_STEP_SUMMARY"
           done || echo "_(no binaries in this run)_" >> "$GITHUB_STEP_SUMMARY"

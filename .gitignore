@@ -23,10 +23,7 @@ docs/node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 
-# Claude Code toolchain (auto-added by claude-setup.sh)
+# toolchain
 
 zig-lsp-plugin/
 .mcp.json
-
-# Claude Code agent worktrees
-.claude/worktrees/

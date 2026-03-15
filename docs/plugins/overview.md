@@ -7,45 +7,40 @@ to both targets.
 
 ## What plugins can do
 
-| Capability | API |
+| Capability | How |
 |------------|-----|
-| Add a dockable panel or overlay to the UI | `Plugin.registerPanel` / `Plugin.registerOverlay` |
-| Set the editor status bar text | `Plugin.setStatus` |
-| Write structured log messages | `Plugin.logInfo` / `logWarn` / `logErr` |
+| Add a dockable panel or overlay to the UI | `w.registerPanel(...)` in response to `.load` |
+| Set the editor status bar text | `w.setStatus(msg)` |
+| Write structured log messages | `w.log(level, tag, msg)` |
 | Read and write project files | `Plugin.Vfs` |
-| Allocate memory on the host heap | `Plugin.allocator()` |
-| Know which project is open | `Plugin.getProjectDir` |
-| Know which schematic is active | `Plugin.getActiveSchematicName` |
-| Trigger a UI redraw | `Plugin.requestRefresh` |
-| Register PDK symbol libraries | `SymbolLibrary` vtable (see Devices) |
+| Trigger a UI redraw | `w.requestRefresh()` |
+| Place devices / wires in the schematic | `w.placeDevice(...)` / `w.addWire(...)` |
+| Persist per-plugin key/value state | `w.setState(key, val)` / `w.getState(key)` |
+| Push commands to the host queue | `w.pushCommand(tag, payload)` |
+| Register keyboard shortcuts | `w.registerKeybind(key, mods, tag)` |
+| Query schematic instances and nets | `w.queryInstances()` / `w.queryNets()` |
 
 ## Plugin lifecycle
 
-Every plugin exports a single symbol named `schemify_plugin` of type
-`PluginIF.Descriptor`.  The runtime calls three lifecycle hooks around each
-application frame:
+Every plugin exports a symbol named `schemify_plugin` (`PluginIF.Descriptor`)
+and a single function `schemify_process`.  The host drives the plugin purely
+by passing binary message batches through that function:
 
 ```
-Runtime                         Plugin
-  │                               │
-  │── set_ctx(&ctx) ─────────────►│
-  │── on_load() ─────────────────►│  (once, on first load)
-  │── set_ctx(null) ──────────────►│
-  │                               │
-  │   ... per frame ...           │
-  │                               │
-  │── set_ctx(&ctx) ─────────────►│
-  │── on_tick(dt) ───────────────►│  (every frame, optional)
-  │── set_ctx(null) ──────────────►│
-  │                               │
-  │── set_ctx(&ctx) ─────────────►│
-  │── on_unload() ───────────────►│  (on exit / hot-reload)
-  │── set_ctx(null) ──────────────►│
+Runtime                             Plugin
+  │                                   │
+  │── process([load msg]) ───────────►│  registers panels, sets status
+  │                                   │
+  │   ... per frame ...               │
+  │── process([tick msg]) ───────────►│  background work, state updates
+  │── process([draw_panel msg]) ──────►│  emits ui_* widget messages
+  │                                   │
+  │── process([unload msg]) ─────────►│  cleanup
 ```
 
-`set_ctx` injects the host context pointer so the plugin can call back into
-the host.  Only use host APIs **inside** a lifecycle function — the context
-pointer is `null` outside them.
+The return value is the number of bytes written to the output buffer.  If the
+buffer is too small the plugin returns `maxInt(usize)` and the host retries
+with a doubled buffer.
 
 ## Language support
 
@@ -53,9 +48,10 @@ pointer is `null` outside them.
 |----------|-----------|
 | **Zig** | Write the plugin entirely in Zig |
 | **C / C++** | Call via `@cImport` / `addCSourceFile` in build.zig |
-| **Rust** | Build a static lib, link into Zig's plugin wrapper |
-| **Python** | Use `libpython` loaded at runtime via dlopen (see the Python guide) |
-| **Any language** | Compile to a C-ABI static library, link into a thin Zig wrapper |
+| **Rust** | `schemify-plugin` crate; `export_plugin!` macro |
+| **Python** | Pure `.py` files; `addPythonPlugin` deploys them |
+| **TinyGo** | `schemify` package; `RunPlugin` entry point |
+| **C / C++** | `schemify_plugin.h` header + `addCPlugin` / `addCppPlugin` |
 
 The plugin ABI boundary is a plain C `extern struct`, so any language that
 can emit C-compatible shared-library exports works.

@@ -1,0 +1,17 @@
+.{
+    .name = .Optimizer,
+    .version = "0.1.0",
+    .fingerprint = 0xaaaa111122223333,
+    .minimum_zig_version = "0.14.0",
+    .dependencies = .{
+        .schemify_sdk = .{
+            .path = "../..",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "README.md",
+    },
+}

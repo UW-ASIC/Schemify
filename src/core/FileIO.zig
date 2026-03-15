@@ -1,72 +1,24 @@
-// ==============================================================================
-//! Unified FileIO — comptime backend wrapper for schematic I/O.
+//! FileIO — comptime backend wrapper for schematic I/O.
 //!
-//! Architecture goal:
-//! - one generic `FileIO(Backend)` wrapper
-//! - backends are swappable via type parameter (XSchem, Schemify, others)
-//! - no separate parallel architecture per backend
+//! One generic factory `FileIO(Backend)` validates the required backend surface
+//! at compile time and wraps it with uniform read/write/transform methods.
 //!
 //! Required backend surface:
-//!   - `readFile(data, alloc, logger) Backend`
-//!   - `writeFile(self, alloc, logger) ?[]u8`
+//!   readFile(data: []const u8, alloc, logger) Backend
+//!   writeFile(self, alloc, logger) ?[]u8
 //!
-//! Optional backend surface:
-//!   - `transformComponent(self, req, logger) !void`
-//!   - `addComponent(self, comp, pos, logger) !void`
-//!   - `removeComponent(self, selector, logger) !void`
-//!   - `checkDangling(self, logger) bool`
-//!
-//! ── Plugin Surface ─────────────────────────────────────────────────────────
-//!
-//! This is the top-level import for plugin authors. Everything needed to
-//! build a PDK loader, custom format backend, or device registry extension
-//! is re-exported here:
-//!
-//!   const FileIO = @import("core/FileIO.zig");
-//!
-//!   // File operations
-//!   const Vfs = FileIO.Vfs;
-//!
-//!   // Device registry (populate in your loader)
-//!   const Registry = FileIO.PdkDeviceRegistry;
-//!   const PrimEntry = FileIO.PrimEntry;
-//!   const CompEntry = FileIO.CompEntry;
-//!
-//!   // Device types (for building SpiceDevice templates)
-//!   const DeviceKind = FileIO.DeviceKind;
-//!   const SpiceDevice = FileIO.SpiceDevice;
-//!   const SpiceFormat = FileIO.SpiceFormat;
-//!   const LibInclude = FileIO.LibInclude;
-//!
-//!   // Lookup results
-//!   const CellRef = FileIO.CellRef;
-//!   const CellTier = FileIO.CellTier;
-// ==============================================================================
+//! Optional backend surface (absent → BackendError.UnsupportedOperation):
+//!   transformComponent(self, req, logger) !void
+//!   addComponent(self, comp, pos, logger) !void
+//!   removeComponent(self, selector, logger) !void
+//!   checkDangling(self, logger) bool
 
 const std = @import("std");
-const log = @import("logger.zig");
+const log = @import("Logger.zig");
+const Vfs = @import("Vfs.zig").Vfs;
 
-// ── Re-exports: filesystem ──────────────────────────────────────────────── //
-
-pub const Vfs = @import("Vfs.zig");
-
-// ── Re-exports: schematic formats ───────────────────────────────────────── //
-
-pub const Logger = log.Logger;
-pub const XSchem = @import("xschem.zig").XSchem;
-pub const XSchemType = @import("xschem.zig").XSchemType;
-pub const sch = @import("schemify.zig");
-pub const Schemify = sch.Schemify;
-
-pub const netlist = @import("netlist.zig");
-pub const dev = @import("device.zig");
-pub const pdk_registry = &dev.global_registry;
-pub const PdkDeviceRegistry = dev.PdkDeviceRegistry;
-pub const SpiceDevice = dev.SpiceDevice;
-
-// ==============================================================================
-// Main Interface
-// ==============================================================================
+const WriteError = error{WriteFailed};
+const BackendError = error{UnsupportedOperation};
 
 pub const TransformTarget = union(enum) {
     instance_index: usize,
@@ -86,13 +38,13 @@ pub const TransformRequest = struct {
     op: TransformOp,
 };
 
-pub const ComponentPlacement = struct {
+/// Packed x/y pair passed to addComponent so callers need no intermediate struct.
+pub const ComponentPlacement = packed struct {
     x: i32,
     y: i32,
 };
 
-/// Comptime interface factory. Validates that `Backend` satisfies the required
-/// FileIO contract and returns a wrapper around it.
+/// Catch backend contract violations at compile time rather than at first use.
 pub fn FileIO(comptime Backend: type) type {
     comptime {
         if (!@hasDecl(Backend, "readFile"))
@@ -105,73 +57,65 @@ pub fn FileIO(comptime Backend: type) type {
         alloc: std.mem.Allocator,
         path: []const u8,
         aux_path: ?[]const u8,
-        logger: log.Logger,
+        logger: ?*log.Logger = null,
 
-        const Self = @This();
-
-        pub fn init(alloc: std.mem.Allocator, path: []const u8, aux_path: ?[]const u8) Self {
+        /// Bind a filesystem path and allocator; no I/O yet.
+        pub fn init(alloc: std.mem.Allocator, path: []const u8, aux_path: ?[]const u8) @This() {
             return .{
                 .alloc = alloc,
                 .path = path,
                 .aux_path = aux_path,
-                .logger = log.Logger.init(alloc, .info),
             };
         }
 
-        pub fn deinit(self: *Self) void {
-            self.logger.deinit();
+        /// Poison the struct in debug builds so use-after-free is caught immediately.
+        pub fn deinit(self: *@This()) void {
+            self.* = undefined;
         }
 
-        pub fn readFile(self: *Self) !Backend {
+        /// Load and parse the bound path; caller owns the returned Backend.
+        pub fn readFile(self: *@This()) !Backend {
             const data = try Vfs.readAlloc(self.alloc, self.path);
             defer self.alloc.free(data);
-            return Backend.readFile(data, self.alloc, &self.logger);
+            return Backend.readFile(data, self.alloc, self.logger);
         }
 
-        pub fn writeFile(self: *Self, data: *Backend) ![]u8 {
-            return data.writeFile(self.alloc, &self.logger) orelse error.WriteFailed;
+        /// Serialise `data` to bytes; caller owns the returned slice.
+        pub fn writeFile(self: *@This(), data: *Backend) WriteError![]u8 {
+            return data.writeFile(self.alloc, self.logger) orelse error.WriteFailed;
         }
 
-        pub fn transform(self: *Self, data: *Backend, req: TransformRequest) !void {
-            if (comptime @hasDecl(Backend, "transformComponent")) {
-                try Backend.transformComponent(data, req, &self.logger);
-                return;
-            }
-            return error.UnsupportedOperation;
+        /// Apply a geometric transform; gracefully degrades if backend lacks support.
+        pub fn transform(self: *@This(), data: *Backend, req: TransformRequest) BackendError!void {
+            if (comptime !@hasDecl(Backend, "transformComponent")) return error.UnsupportedOperation;
+            Backend.transformComponent(data, req, self.logger) catch return error.UnsupportedOperation;
         }
 
-        pub fn addComponent(self: *Self, data: *Backend, comp: anytype, pos: ComponentPlacement) !void {
-            if (comptime @hasDecl(Backend, "addComponent")) {
-                try Backend.addComponent(data, comp, pos, &self.logger);
-                return;
-            }
-            return error.UnsupportedOperation;
+        /// Insert a component at `pos`; gracefully degrades if backend lacks support.
+        pub fn addComponent(self: *@This(), data: *Backend, comp: anytype, pos: ComponentPlacement) BackendError!void {
+            if (comptime !@hasDecl(Backend, "addComponent")) return error.UnsupportedOperation;
+            Backend.addComponent(data, comp, pos, self.logger) catch return error.UnsupportedOperation;
         }
 
-        pub fn removeComponent(self: *Self, data: *Backend, selector: anytype) !void {
-            if (comptime @hasDecl(Backend, "removeComponent")) {
-                try Backend.removeComponent(data, selector, &self.logger);
-                return;
-            }
-            return error.UnsupportedOperation;
+        /// Remove a component by selector; gracefully degrades if backend lacks support.
+        pub fn removeComponent(self: *@This(), data: *Backend, selector: anytype) BackendError!void {
+            if (comptime !@hasDecl(Backend, "removeComponent")) return error.UnsupportedOperation;
+            Backend.removeComponent(data, selector, self.logger) catch return error.UnsupportedOperation;
         }
 
-        pub fn checkDangling(self: *Self, data: *Backend) !bool {
-            if (comptime @hasDecl(Backend, "checkDangling")) {
-                return Backend.checkDangling(data, &self.logger);
-            }
-            _ = .{ self, data };
-            return error.UnsupportedOperation;
+        /// Return true if the schematic has wires/pins with no net connection.
+        pub fn checkDangling(self: *@This(), data: *Backend) BackendError!bool {
+            if (comptime !@hasDecl(Backend, "checkDangling")) return error.UnsupportedOperation;
+            return Backend.checkDangling(data, self.logger) catch error.UnsupportedOperation;
         }
     };
 }
 
-// =======================================================
-// Usable Interface, allow conversions must be allowed!
-// Plugins, are allowed to extend the backward support to other programs and convert them to Schemify
-// =======================================================
+pub const XSchemIO = FileIO(@import("XSchem.zig").XSchem);
+pub const SchemifyIO = FileIO(@import("Schemify.zig").Schemify);
 
-// Backward-compatible aliases. These are type aliases over the same generic
-// architecture (not separate backend-specific implementations).
-pub const XSchemIO = FileIO(XSchem);
-pub const SchemifyIO = FileIO(Schemify);
+test "Expose struct size for FileIO" {
+    const print = std.debug.print;
+    print("XSchemIO:            {d}B\n", .{@sizeOf(XSchemIO)});
+    print("SchemifyIO:          {d}B\n", .{@sizeOf(SchemifyIO)});
+}

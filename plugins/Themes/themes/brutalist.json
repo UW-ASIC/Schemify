@@ -1,0 +1,20 @@
+{
+  "name": "Brutalist",
+  "dark": true,
+  "corner_radius": 0,
+  "border_width": 3.0,
+  "wire_width": 3.0,
+  "grid_dot_size": 1.5,
+  "canvas_bg": [0, 0, 0],
+  "grid_dot": [80, 80, 80, 180],
+  "wire": [255, 255, 0],
+  "wire_selected": [255, 0, 0],
+  "wire_endpoint": [0, 255, 0],
+  "instance_body": [30, 30, 30],
+  "instance_pin": [255, 255, 0],
+  "symbol_line": [255, 255, 255],
+  "wire_preview": [0, 255, 0, 200],
+  "sidebar_bg": [15, 15, 15],
+  "bottombar_bg": [15, 15, 15],
+  "tab_shape": 0
+}

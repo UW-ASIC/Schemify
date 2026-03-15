@@ -22,3 +22,8 @@
 	path = deps/Xyce/Trilinos
 	url = https://github.com/trilinos/Trilinos.git
 	shallow = true
+
+[submodule "deps/Xyce/Trilinos"]
+	path = examples/Matrix-Vector-Multiplier
+	url = https://github.com/UWASIC/Matrix-Vector-Multiplier.git
+	shallow = true

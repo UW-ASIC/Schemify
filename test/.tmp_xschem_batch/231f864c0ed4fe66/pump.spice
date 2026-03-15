@@ -1,4 +1,0 @@
-** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/pump.sch
-.subckt pump USC ING
-*.PININFO USC:B ING:I
-.ends

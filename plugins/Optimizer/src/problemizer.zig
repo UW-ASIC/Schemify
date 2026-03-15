@@ -4,46 +4,7 @@
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-
-// ============================================================================
-// OPTIMIZER BACKEND INTERFACE (comptime checked)
-// ============================================================================
-
-/// Any optimizer backend must satisfy this interface.
-/// Checked at comptime when instantiating CircuitOptimizer.
-pub fn OptimizerInterface(comptime Backend: type) type {
-    return struct {
-        // Required type definitions
-        pub const has_observation = @hasDecl(Backend, "Observation");
-        pub const has_candidate = @hasDecl(Backend, "Candidate");
-        pub const has_config = @hasDecl(Backend, "Config");
-
-        // Required functions
-        pub const has_init = @hasDecl(Backend, "init");
-        pub const has_deinit = @hasDecl(Backend, "deinit");
-        pub const has_add_observation = @hasDecl(Backend, "addObservation");
-        pub const has_suggest = @hasDecl(Backend, "suggest");
-        pub const has_best = @hasDecl(Backend, "best");
-
-        pub fn validate() void {
-            if (!has_observation) @compileError("Backend missing type: Observation");
-            if (!has_candidate) @compileError("Backend missing type: Candidate");
-            if (!has_config) @compileError("Backend missing type: Config");
-            if (!has_init) @compileError("Backend missing fn: init");
-            if (!has_deinit) @compileError("Backend missing fn: deinit");
-            if (!has_add_observation) @compileError("Backend missing fn: addObservation");
-            if (!has_suggest) @compileError("Backend missing fn: suggest");
-            if (!has_best) @compileError("Backend missing fn: best");
-
-            // Validate function signatures
-            const suggest_info = @typeInfo(@TypeOf(Backend.suggest));
-            if (suggest_info != .@"fn") @compileError("suggest must be a function");
-
-            const add_obs_info = @typeInfo(@TypeOf(Backend.addObservation));
-            if (add_obs_info != .@"fn") @compileError("addObservation must be a function");
-        }
-    };
-}
+const backend = @import("backend/backend.zig");
 
 /// A single tunable parameter within a component
 pub const Primitive = struct {
@@ -375,66 +336,53 @@ pub const Problem = struct {
 // ============================================================================
 
 pub fn CircuitOptimizer(comptime Backend: type) type {
-    // Validate backend at comptime
-    comptime {
-        OptimizerInterface(Backend).validate();
-    }
+    comptime backend.validateBackend(Backend);
 
     return struct {
         const Self = @This();
 
         problem: *Problem,
-        backend: Backend,
-        observations: std.ArrayList(Observation),
+        be: Backend,
+        observations: std.MultiArrayList(Observation),
         allocator: Allocator,
         iteration: usize,
 
         pub fn init(allocator: Allocator, problem: *Problem, backend_config: Backend.Config) !Self {
-            const backend = try Backend.init(allocator, backend_config);
             return .{
-                .problem = problem,
-                .backend = backend,
-                .observations = std.ArrayList(Observation).init(allocator),
-                .allocator = allocator,
-                .iteration = 0,
+                .problem      = problem,
+                .be           = try Backend.init(allocator, backend_config),
+                .observations = .{},
+                .allocator    = allocator,
+                .iteration    = 0,
             };
         }
 
         pub fn deinit(self: *Self) void {
-            self.backend.deinit();
-            self.observations.deinit();
+            self.be.deinit();
+            self.observations.deinit(self.allocator);
         }
 
         /// Run one optimization iteration
         pub fn step(self: *Self) !Observation {
-            // Get next candidate from backend
-            const candidate = try self.backend.suggest();
+            var candidates: [1][]f64 = undefined;
+            _ = try self.be.suggest(1, &candidates);
 
-            // Apply parameters to problem
-            self.problem.applyParameters(candidate.parameters);
+            self.problem.applyParameters(candidates[0]);
 
-            // Evaluate (STUB - calls testbenches)
-            const obs = try self.evaluate(candidate.parameters);
-
-            // Feed back to optimizer
-            try self.backend.addObservation(obs);
-            try self.observations.append(obs);
+            const obs = try self.evaluate(candidates[0]);
+            try self.be.addObservation(obs.parameters, obs.objectives, obs.constraints, obs.valid);
+            try self.observations.append(self.allocator, obs);
 
             self.iteration += 1;
             return obs;
         }
 
-        /// Evaluate all testbenches at current parameter values
-        fn evaluate(self: *Self, params: []const f64) !Observation {
-            _ = self;
-            _ = params;
-            // STUB: Run testbenches and collect measurements
-            @panic("evaluate() not implemented - implement testbench runner");
+        fn evaluate(_: *Self, _: []const f64) !Observation {
+            @panic("evaluate() not implemented — implement testbench runner");
         }
 
-        /// Get best feasible observation found so far
-        pub fn best(self: *Self) ?Observation {
-            return self.backend.best();
+        pub fn best(self: *Self) ?struct { params: []const f64, objectives: []const f64 } {
+            return self.be.best();
         }
     };
 }
@@ -508,24 +456,24 @@ pub fn example() !void {
 
     // Define components manually (or load via CircuitLoader)
     var m1_primitives = [_]Primitive{
-        .{ .name = "W", .kind = .transistor_width, .min = 120e-9, .max = 10e-6, .value = 1e-6, .unit = "m", .step = 10e-9 },
-        .{ .name = "L", .kind = .transistor_length, .min = 60e-9, .max = 1e-6, .value = 100e-9, .unit = "m", .step = 10e-9 },
-        .{ .name = "nf", .kind = .transistor_fingers, .min = 1, .max = 20, .value = 1, .unit = "", .step = 1 },
+        .{ .name = "W",  .min = 120e-9, .max = 10e-6,  .value = 1e-6,    .unit = "m", .step = 10e-9 },
+        .{ .name = "L",  .min = 60e-9,  .max = 1e-6,   .value = 100e-9,  .unit = "m", .step = 10e-9 },
+        .{ .name = "nf", .min = 1,      .max = 20,     .value = 1,       .unit = "",  .step = 1 },
     };
 
     var m2_primitives = [_]Primitive{
-        .{ .name = "W", .kind = .transistor_width, .min = 120e-9, .max = 10e-6, .value = 1e-6, .unit = "m", .step = 10e-9 },
-        .{ .name = "L", .kind = .transistor_length, .min = 60e-9, .max = 1e-6, .value = 100e-9, .unit = "m", .step = 10e-9 },
+        .{ .name = "W", .min = 120e-9, .max = 10e-6, .value = 1e-6,   .unit = "m", .step = 10e-9 },
+        .{ .name = "L", .min = 60e-9,  .max = 1e-6,  .value = 100e-9, .unit = "m", .step = 10e-9 },
     };
 
     var r_load_primitives = [_]Primitive{
-        .{ .name = "R", .kind = .resistor_value, .min = 100, .max = 100e3, .value = 10e3, .unit = "Ω" },
+        .{ .name = "R", .min = 100, .max = 100e3, .value = 10e3, .unit = "Ω" },
     };
 
     var components = [_]Component{
-        .{ .path = "lib/nmos.scs", .instance = "M1", .primitives = &m1_primitives, .kind = "nmos" },
-        .{ .path = "lib/pmos.scs", .instance = "M2", .primitives = &m2_primitives, .kind = "pmos" },
-        .{ .path = "lib/res.scs", .instance = "R_load", .primitives = &r_load_primitives, .kind = "resistor" },
+        .{ .path = "lib/nmos.scs", .instance = "M1",     .primitives = &m1_primitives,     .kind = "nmos" },
+        .{ .path = "lib/pmos.scs", .instance = "M2",     .primitives = &m2_primitives,     .kind = "pmos" },
+        .{ .path = "lib/res.scs",  .instance = "R_load", .primitives = &r_load_primitives, .kind = "resistor" },
     };
 
     // Define testbenches with specifications

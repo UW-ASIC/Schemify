@@ -257,7 +257,7 @@ pub fn addSpiceDeps(b: *Build, compile: *Build.Step.Compile, config: SpiceConfig
         // Library path: libngspice.so
         const ng_lib = config.ngspice_lib_path orelse (config.ngspice_src ++ "/src/.libs");
         ngspice_mod.addLibraryPath(.{ .cwd_relative = ng_lib });
-        ngspice_mod.linkSystemLibrary("ngspice", .{ .preferred_link_mode = .static });
+        ngspice_mod.linkSystemLibrary("ngspice", .{ .preferred_link_mode = .dynamic });
         ngspice_mod.link_libc = true;
 
         compile.addRPath(.{ .cwd_relative = ng_lib });
@@ -286,7 +286,7 @@ pub fn addSpiceDeps(b: *Build, compile: *Build.Step.Compile, config: SpiceConfig
 
         // Library path for libxyce.so
         xyce_mod.addLibraryPath(.{ .cwd_relative = xyce_lib });
-        xyce_mod.linkSystemLibrary("xyce", .{ .preferred_link_mode = .static });
+        xyce_mod.linkSystemLibrary("xyce", .{ .preferred_link_mode = .dynamic });
         xyce_mod.link_libcpp = true;
         xyce_mod.link_libc = true;
 

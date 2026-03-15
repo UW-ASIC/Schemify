@@ -1,24 +1,48 @@
-# C / C++ Plugin
+# Writing a C Plugin
 
-The recommended pattern is to keep the Schemify-facing plugin ABI in Zig
-(a thin wrapper that draws dvui widgets and calls into the host) while
-delegating all heavy lifting — signal processing, SPICE parsing, simulation
-engines, hardware interfaces — to a C or C++ library.
+Schemify ships a header-only C99 SDK (`tools/sdk/schemify_plugin.h`) so you can
+write plugins entirely in C with no Zig source required.  The same header also
+works for C++ (see `docs/plugins/cpp.md`).  Both native (`.so`) and WASM targets
+are supported — the header works identically for both.
 
-## Layout
+## 1. Prerequisites
+
+No extra toolchain is needed.  The SDK build helper uses `zig cc` under the
+hood, so Zig (0.14+) is the only dependency.
+
+## 2. Project layout
 
 ```
 my-c-plugin/
   build.zig
   build.zig.zon
-  plugin.toml
   src/
-    main.zig          ← Zig plugin entry, draws UI
-    engine.h          ← C API header
-    engine.c          ← C implementation
+    main.c
 ```
 
-## `build.zig`
+## 3. `build.zig.zon`
+
+```zig
+.{
+    .name    = .my_c_plugin,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.14.0",
+    .fingerprint = 0x<random_hex>,
+    .dependencies = .{
+        // Inside the monorepo:
+        .schemify_sdk = .{ .path = "../../.." },
+
+        // Standalone project — replace with URL (see section 7):
+        // .schemify_sdk = .{
+        //     .url  = "https://github.com/UWASIC/Schemify/archive/refs/tags/v1.0.0.tar.gz",
+        //     .hash = "...",
+        // },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+}
+```
+
+## 4. `build.zig`
 
 ```zig
 const std    = @import("std");
@@ -30,152 +54,187 @@ pub fn build(b: *std.Build) void {
     const ctx     = helper.setup(b, sdk_dep);
 
     if (!ctx.is_web) {
-        const lib = helper.addNativePluginLibrary(b, ctx, "MyCPlugin", "src/main.zig");
-
-        // Compile engine.c and link it into the same shared library
-        lib.addCSourceFile(.{
-            .file  = b.path("src/engine.c"),
-            .flags = &.{ "-std=c11", "-O2" },
-        });
-        lib.addIncludePath(b.path("src"));
-        lib.linkLibC();
-
+        const lib = helper.addCPlugin(b, ctx, sdk_dep, "MyCPlugin", "src/main.c");
         b.installArtifact(lib);
-        helper.addNativeAutoInstallRunStep(b, "MyCPlugin", sdk_dep, "MyCPlugin");
+        helper.addNativeAutoInstallRunStep(b, "MyCPlugin", sdk_dep, "my-c-plugin");
+    }
+
+    if (ctx.is_web) {
+        helper.addCWasmPlugin(b, sdk_dep, "MyCPlugin", "src/main.c");
+        helper.addWasmAutoServeStep(b, sdk_dep, "MyCPlugin", "my-c-plugin");
     }
 }
 ```
 
-For C++ replace `"-std=c11"` with `"-std=c++17"` and call `lib.linkLibCpp()`
-instead of (or in addition to) `lib.linkLibC()`.
+`addCPlugin` automatically:
 
-## `src/engine.h`
+- Compiles your source with `-std=c11 -fvisibility=default`
+- Adds `tools/sdk/` to the include path so `#include "schemify_plugin.h"` works
+- Links libc
 
-```c
-#pragma once
-#include <stddef.h>
+| Build command | Result |
+|---------------|--------|
+| `zig build` | `zig-out/lib/libMyCPlugin.so` |
+| `zig build run` | installs + launches Schemify |
+| `zig build -Dbackend=web` | `zig-out/plugins/MyCPlugin.wasm` |
+| `zig build run -Dbackend=web` | builds + serves at `localhost:8080` |
 
-// Run the engine and return a null-terminated result string.
-// Caller must free() the returned pointer.
-char* engine_run(const char* input, size_t len);
-void  engine_free(char* result);
-```
-
-## `src/engine.c`
+## 5. `src/main.c`
 
 ```c
-#include "engine.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
+/* my-c-plugin — minimal Schemify C plugin (ABI v6) */
 
-char* engine_run(const char* input, size_t len) {
-    // ... heavy computation ...
-    char* out = malloc(64);
-    snprintf(out, 64, "processed %zu bytes", len);
-    return out;
-}
+#include "schemify_plugin.h"
 
-void engine_free(char* result) { free(result); }
-```
+static size_t my_process(
+    const uint8_t* in_ptr,  size_t in_len,
+    uint8_t*       out_ptr, size_t out_cap)
+{
+    SpReader r = sp_reader_init(in_ptr, in_len);
+    SpWriter w = sp_writer_init(out_ptr, out_cap);
+    SpMsg msg;
 
-## `src/main.zig` — calling C from Zig
+    while (sp_reader_next(&r, &msg)) {
+        switch (msg.tag) {
+        case SP_TAG_LOAD:
+            sp_write_register_panel(&w,
+                "my-plugin", 9,          /* id       */
+                "My Plugin", 9,          /* title    */
+                "myplugin",  8,          /* vim_cmd  */
+                SP_LAYOUT_OVERLAY,       /* layout   */
+                'm');                    /* keybind  */
+            sp_write_set_status(&w, "My C plugin loaded!", 19);
+            break;
 
-```zig
-const Plugin = @import("PluginIF");
-const dvui   = @import("dvui");
-const c      = @cImport(@cInclude("engine.h"));
+        case SP_TAG_DRAW_PANEL:
+            sp_write_ui_label(&w, "Hello from C!",  13, 0);
+            sp_write_ui_label(&w, "Built with the C SDK.", 21, 1);
+            break;
 
-export const schemify_plugin: Plugin.Descriptor = .{
-    .abi_version = Plugin.ABI_VERSION,
-    .name        = "my-c-plugin",
-    .version_str = "0.1.0",
-    .set_ctx     = Plugin.setCtx,
-    .on_load     = &onLoad,
-    .on_unload   = &onUnload,
-    .on_tick     = null,
-};
-
-fn onLoad() callconv(.c) void {
-    Plugin.setStatus("my-c-plugin loaded");
-    _ = Plugin.registerOverlay(&.{
-        .name     = "my-c-plugin",
-        .keybind  = 'c',
-        .draw_fn  = &drawPanel,
-    });
-}
-
-fn onUnload() callconv(.c) void {}
-
-fn drawPanel() callconv(.c) void {
-    _ = dvui.label(@src(), "C engine result:", .{});
-
-    const input = "hello";
-    const raw = c.engine_run(input.ptr, input.len);
-    if (raw) |ptr| {
-        defer c.engine_free(ptr);
-        const result = std.mem.span(ptr);
-        _ = dvui.label(@src(), result, .{});
+        default:
+            break;
+        }
     }
+
+    return sp_writer_overflow(&w) ? (size_t)-1 : w.pos;
 }
 
-const std = @import("std");
+SCHEMIFY_PLUGIN("MyCPlugin", "0.1.0", my_process)
 ```
 
-## Linking an existing system library
+The `SCHEMIFY_PLUGIN(name, version, process_fn)` macro exports the
+`schemify_plugin` descriptor symbol that the host loads.
 
-For a library already installed on the system (e.g. `libfftw3`):
+## 6. Complete working example
+
+The repo ships a ready-to-build example at `plugins/examples/c-hello/`:
+
+```
+plugins/examples/c-hello/
+  build.zig
+  build.zig.zon
+  src/
+    main.c
+```
+
+```bash
+cd plugins/examples/c-hello
+zig build run            # install + launch
+zig build run -Dbackend=web  # WASM build + serve
+```
+
+## 7. LSP / IDE setup
+
+`clangd` needs to know the include path for `schemify_plugin.h`.  The SDK
+build helper writes a `compile_flags.txt` into `src/` the first time you run
+`zig build`.  Run it once before opening your editor:
+
+```bash
+zig build
+# src/compile_flags.txt now contains: -I../../../tools/sdk
+# (adjusted to point at the actual SDK location)
+```
+
+After that, `clangd` resolves `schemify_plugin.h` automatically in VS Code,
+Neovim, and any other LSP-capable editor.
+
+## 8. Standalone git project
+
+For a plugin in its own repository, replace the `.path` entry in
+`build.zig.zon` with a URL dependency:
 
 ```zig
+.schemify_sdk = .{
+    .url  = "https://github.com/UWASIC/Schemify/archive/refs/tags/v1.0.0.tar.gz",
+    .hash = "...",
+},
+```
+
+Run `zig fetch --save=schemify_sdk <url>` to populate the hash automatically.
+The `build.zig` is unchanged.
+
+## 9. SDK API reference
+
+`tools/sdk/schemify_plugin.h` is the complete C API.  Key types:
+
+### `SpReader` / `SpWriter`
+
+All communication with the host goes through a pair of byte buffers.
+
+```c
+SpReader r = sp_reader_init(in_ptr, in_len);
+SpWriter w = sp_writer_init(out_ptr, out_cap);
+SpMsg msg;
+while (sp_reader_next(&r, &msg)) { /* dispatch on msg.tag */ }
+return sp_writer_overflow(&w) ? (size_t)-1 : w.pos;
+```
+
+### Incoming message tags
+
+| Tag constant | When the host sends it |
+|---|---|
+| `SP_TAG_LOAD` | Plugin loaded for the first time |
+| `SP_TAG_UNLOAD` | Plugin about to be unloaded |
+| `SP_TAG_TICK` | Every frame; `msg.tick.dt` holds delta-time in seconds |
+| `SP_TAG_DRAW_PANEL` | Host is drawing your panel; emit UI commands |
+| `SP_TAG_BUTTON_CLICKED` | A button widget was clicked; `msg.button.widget_id` |
+| `SP_TAG_SLIDER_CHANGED` | A slider moved; `msg.slider.widget_id`, `.val` |
+| `SP_TAG_TEXT_CHANGED` | A text input changed |
+| `SP_TAG_CHECKBOX_CHANGED` | A checkbox toggled |
+| `SP_TAG_COMMAND` | A registered keybind or command was triggered |
+
+### Output helpers
+
+| Function | Description |
+|---|---|
+| `sp_write_register_panel(&w, id, id_len, title, title_len, vim_cmd, vim_cmd_len, layout, keybind)` | Register a panel |
+| `sp_write_set_status(&w, msg, len)` | Set status bar text |
+| `sp_write_ui_label(&w, text, len, widget_id)` | Render a label |
+| `sp_write_ui_button(&w, text, len, widget_id)` | Render a button |
+| `sp_write_ui_separator(&w, widget_id)` | Horizontal rule |
+| `sp_write_ui_slider(&w, val, min, max, widget_id)` | Float slider |
+| `sp_write_ui_checkbox(&w, checked, text, len, widget_id)` | Checkbox |
+| `sp_write_ui_progress(&w, fraction, widget_id)` | Progress bar |
+| `sp_write_log(&w, level, tag, tag_len, msg, msg_len)` | Structured log |
+
+### Layout constants
+
+| Constant | Position |
+|----------|----------|
+| `SP_LAYOUT_OVERLAY` | Floating overlay |
+| `SP_LAYOUT_LEFT_SIDEBAR` | Left panel |
+| `SP_LAYOUT_RIGHT_SIDEBAR` | Right panel |
+| `SP_LAYOUT_BOTTOM_BAR` | Bottom bar |
+
+## Linking an existing C library
+
+Use `addCPlugin` then attach additional sources and link flags in `build.zig`:
+
+```zig
+const lib = helper.addCPlugin(b, ctx, sdk_dep, "MyCPlugin", "src/main.c");
+lib.addCSourceFile(.{ .file = b.path("src/engine.c"), .flags = &.{"-O2"} });
+lib.addIncludePath(b.path("include"));
 lib.linkSystemLibrary("fftw3");
 lib.linkLibC();
+b.installArtifact(lib);
 ```
-
-Zig will pass `-lfftw3` to the linker and resolve it through the system
-library paths.
-
-## Linking a prebuilt static library
-
-If you ship a prebuilt `.a` alongside your plugin:
-
-```zig
-lib.addObjectFile(b.path("lib/libengine.a"));
-lib.addIncludePath(b.path("include"));
-lib.linkLibC();
-```
-
-## WASM note
-
-C code compiles to WASM without changes as long as it avoids OS syscalls.
-Replace any `open()` / `fopen()` with `Plugin.Vfs` calls in the Zig wrapper.
-The build helper's `addWasmPlugin` uses `wasm32-freestanding` so `libc` is
-not available; use `lib.linkLibC()` only for the native step.
-
-```zig
-if (!ctx.is_web) {
-    const lib = helper.addNativePluginLibrary(b, ctx, "MyCPlugin", "src/main.zig");
-    lib.addCSourceFile(.{ .file = b.path("src/engine.c"), .flags = &.{"-std=c11"} });
-    lib.linkLibC();
-    b.installArtifact(lib);
-}
-if (ctx.is_web) {
-    // WASM variant: provide a Zig-only fallback or stub for the C engine
-    helper.addWasmPlugin(b, ctx, "MyCPlugin", "src/main_wasm.zig");
-}
-```
-
-## Rust via C FFI
-
-Build a Rust static library with `crate-type = ["staticlib"]`, then link it
-the same way as a prebuilt `.a`:
-
-```zig
-// build.zig (after running `cargo build --release` separately)
-lib.addObjectFile(b.path("../my-rust-lib/target/release/libmy_rust_lib.a"));
-lib.addIncludePath(b.path("../my-rust-lib/include"));
-lib.linkLibC();
-lib.linkLibCpp(); // Rust's stdlib requires C++ runtime on most platforms
-```
-
-Alternatively, use `b.addSystemCommand` to run `cargo build` as a build step
-before linking.
