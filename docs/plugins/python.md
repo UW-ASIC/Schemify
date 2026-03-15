@@ -1,252 +1,284 @@
-# Python Plugin
+# Writing a Python Plugin
 
-Python is useful for plugins that need rich libraries — NumPy, PyTorch,
-SciPy, NetworkX — while Zig handles the Schemify UI panel and the ABI
-boundary.  The two patterns below cover most use cases.
+Python plugins are pure `.py` files — no compilation, no Zig wrapper. The
+`schemify` SDK package handles the binary message protocol between your script
+and the Schemify host. Subclass `schemify.Plugin`, override the lifecycle
+methods, and expose a `schemify_process` function.
 
-## Pattern A — subprocess (simple, no libpython)
+Python plugins run natively only. WASM is not supported.
 
-Zig calls a Python script as a child process via `std.process.Child`.
-The script reads from `stdin` or a temp file and writes results to `stdout`.
-No linking to `libpython` required; any Python installation on the system works.
+## 1. Prerequisites
 
-### `build.zig` (excerpt)
+- Python 3.10 or later
+- The `schemify` SDK package on `PYTHONPATH` (see section 5)
+- `pip` for dependency management
+- `pylsp` or `pyright` for IDE support (optional)
 
-```zig
-const lib = helper.addNativePluginLibrary(b, ctx, "MyPyPlugin", "src/main.zig");
-lib.linkLibC();
-b.installArtifact(lib);
+## 2. Quick start
 
-// Install Python sources alongside the .so
-helper.addInstallFiles(b, .lib, &.{
-    "src/worker.py",
-    "plugin.toml",
-});
-
-helper.addNativeAutoInstallRunStep(b, "MyPyPlugin", sdk_dep, "MyPyPlugin");
-```
-
-### `src/main.zig`
-
-```zig
-const Plugin = @import("PluginIF");
-const dvui   = @import("dvui");
-const std    = @import("std");
-
-export const schemify_plugin: Plugin.Descriptor = .{
-    .abi_version = Plugin.ABI_VERSION,
-    .name        = "my-py-plugin",
-    .version_str = "0.1.0",
-    .set_ctx     = Plugin.setCtx,
-    .on_load     = &onLoad,
-    .on_unload   = &onUnload,
-    .on_tick     = null,
-};
-
-fn onLoad() callconv(.c) void {
-    Plugin.setStatus("my-py-plugin loaded");
-    _ = Plugin.registerPanel(&.{
-        .id      = "py-panel",
-        .title   = "Py Panel",
-        .vim_cmd = "py-panel",
-        .layout  = .right_sidebar,
-        .keybind = 'p',
-        .draw_fn = &drawPanel,
-    });
-}
-fn onUnload() callconv(.c) void {}
-
-fn drawPanel() callconv(.c) void {
-    var alloc = Plugin.allocator();
-
-    if (dvui.button(@src(), "Run Python", .{})) {
-        runPython(alloc) catch |err| {
-            Plugin.logErr("py-panel", @errorName(err));
-        };
-    }
-}
-
-fn runPython(alloc: std.mem.Allocator) !void {
-    // Find the script next to the installed .so
-    var dir_buf: [512]u8 = undefined;
-    const project = Plugin.getProjectDir(&dir_buf);
-    const script  = try std.fmt.allocPrint(alloc,
-        "{s}/../.config/Schemify/MyPyPlugin/worker.py", .{project});
-    defer alloc.free(script);
-
-    var result = try std.process.Child.run(.{
-        .allocator = alloc,
-        .argv      = &.{ "python3", script, "--input", "data" },
-    });
-    defer alloc.free(result.stdout);
-    defer alloc.free(result.stderr);
-
-    Plugin.setStatus(result.stdout);
-}
-```
-
-### `src/worker.py`
+Create `plugin.py`:
 
 ```python
-#!/usr/bin/env python3
-import sys
-import argparse
+import schemify
 
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--input")
-    args = p.parse_args()
-    # ... do work with numpy, scipy, etc. ...
-    print(f"processed: {args.input}", end="")
+class MyPlugin(schemify.Plugin):
+    def on_load(self, w: schemify.Writer):
+        w.register_panel('my-panel', 'My Panel', 'mypanel', schemify.LAYOUT_OVERLAY, 0)
+        w.set_status('My plugin loaded')
 
-if __name__ == "__main__":
-    main()
+    def on_draw(self, panel_id: int, w: schemify.Writer):
+        w.label('Hello from Python!', id=0)
+        w.button('Click me', id=1)
+
+    def on_tick(self, dt: float, w: schemify.Writer):
+        pass
+
+    def on_event(self, msg: dict, w: schemify.Writer):
+        if msg['tag'] == schemify.TAG_BUTTON_CLICKED and msg['widget_id'] == 1:
+            w.set_status('Clicked!')
+
+_plugin = MyPlugin()
+
+def schemify_process(in_bytes: bytes) -> bytes:
+    return schemify.run_plugin(_plugin, in_bytes)
 ```
 
----
+Deploy manually:
 
-## Pattern B — embedded libpython (used by Circuit Visionary, GmID Visualizer)
+```bash
+SCRIPTS="$HOME/.config/Schemify/SchemifyPython/scripts/my-plugin"
+mkdir -p "$SCRIPTS"
+cp plugin.py "$SCRIPTS/"
+```
 
-Link `libpython3` directly into the plugin's `.so`.  The Python interpreter
-runs in the same process as Schemify and communicates through the Python C API.
-This eliminates process-spawn overhead and allows passing large objects
-(e.g. NumPy arrays) without serialisation.
+Launch Schemify; the script is loaded on startup.
 
-### `build.zig` (excerpt)
+## 3. File structure
+
+A minimal plugin is a single `.py` file. A plugin with a build step looks like:
+
+```
+my-python-plugin/
+  plugin.py
+  requirements.txt     # optional pip dependencies
+  build.zig            # optional; deploys via `zig build run`
+  build.zig.zon        # optional; needed only if using zig build
+```
+
+## 4. `build.zig` for deployment
+
+Add `build.zig` to deploy the plugin automatically with `zig build run`.
+
+**`build.zig.zon`**
 
 ```zig
-const lib = helper.addNativePluginLibrary(b, ctx, "MyPyPlugin", "src/main.zig");
-
-// Locate Python headers via `python3-config --includes`
-const py_include = pyIncludePath(b) orelse "/usr/include/python3";
-lib.addIncludePath(.{ .cwd_relative = py_include });
-lib.linkSystemLibrary("python3");
-lib.linkLibC();
-if (ctx.target.result.os.tag == .linux) lib.linkSystemLibrary("dl");
-
-b.installArtifact(lib);
-helper.addInstallFiles(b, .lib, &.{
-    "src/worker.py",
-    "plugin.toml",
-});
-helper.addNativeAutoInstallRunStep(b, "MyPyPlugin", sdk_dep, "MyPyPlugin");
-
-// ...
-
-fn pyIncludePath(b: *std.Build) ?[]const u8 {
-    const result = std.process.Child.run(.{
-        .allocator = b.allocator,
-        .argv      = &.{ "python3-config", "--includes" },
-    }) catch return null;
-    const out = std.mem.trim(u8, result.stdout, " \n\r\t");
-    var it = std.mem.splitScalar(u8, out, ' ');
-    while (it.next()) |tok| {
-        if (std.mem.startsWith(u8, tok, "-I")) return b.dupe(tok[2..]);
-    }
-    return null;
+.{
+    .name    = .my_python_plugin,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.14.0",
+    .fingerprint = 0x<random_hex>,
+    .dependencies = .{
+        .schemify_sdk = .{ .path = "../../.." },
+        // Standalone project: replace with .url + .hash (see section 6)
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "plugin.py" },
 }
 ```
 
-### `src/python_bridge.zig`
+**`build.zig`**
 
 ```zig
-const std = @import("std");
-const c   = @cImport({
-    @cDefine("PY_SSIZE_T_CLEAN", "1");
-    @cInclude("Python.h");
-});
+const std    = @import("std");
+const sdk    = @import("schemify_sdk");
+const helper = sdk.build_plugin_helper;
 
-pub fn init() !void {
-    c.Py_Initialize();
-}
-
-pub fn deinit() void {
-    c.Py_Finalize();
-}
-
-/// Call `worker.run(data)` and return the result string. Caller owns memory.
-pub fn runWorker(alloc: std.mem.Allocator, data: []const u8) ![]u8 {
-    const module_name = c.PyUnicode_DecodeFSDefault("worker");
-    defer c.Py_DecRef(module_name);
-
-    const module = c.PyImport_Import(module_name) orelse return error.ImportFailed;
-    defer c.Py_DecRef(module);
-
-    const func = c.PyObject_GetAttrString(module, "run") orelse return error.AttrFailed;
-    defer c.Py_DecRef(func);
-
-    const arg = c.PyUnicode_FromStringAndSize(data.ptr, @intCast(data.len));
-    defer c.Py_DecRef(arg);
-
-    const result = c.PyObject_CallOneArg(func, arg) orelse return error.CallFailed;
-    defer c.Py_DecRef(result);
-
-    const raw = c.PyUnicode_AsUTF8(result) orelse return error.EncodeFailed;
-    return alloc.dupe(u8, std.mem.span(raw));
+pub fn build(b: *std.Build) void {
+    const sdk_dep = b.dependency("schemify_sdk", .{});
+    helper.addPythonPlugin(
+        b,
+        "my-python-plugin",   // plugin directory name under scripts/
+        sdk_dep,
+        &.{"plugin.py"},      // source files to copy
+        null,                 // pass "requirements.txt" to run pip install
+        "my-python-plugin",   // label shown in build output
+    );
 }
 ```
 
-### `src/worker.py`
+```bash
+zig build run   # runs pip install (if requirements given), copies files, launches Schemify
+```
+
+`addPythonPlugin` copies the listed files to
+`~/.config/Schemify/SchemifyPython/scripts/<plugin_dir_name>/` and, if a
+`requirements` file is provided, runs `pip install -r <requirements>` first.
+
+## 5. LSP setup
+
+Add the SDK bindings directory to `PYTHONPATH` so `pylsp` or `pyright` resolves
+imports:
+
+```bash
+export PYTHONPATH="/path/to/Schemify/tools/sdk/bindings/python:$PYTHONPATH"
+```
+
+For VS Code, add to `.vscode/settings.json`:
+
+```json
+{
+  "python.analysis.extraPaths": [
+    "/path/to/Schemify/tools/sdk/bindings/python"
+  ]
+}
+```
+
+No special language server configuration is required beyond setting the path.
+
+## 6. Standalone git project
+
+For a plugin in its own repository, replace the `.path` entry in
+`build.zig.zon` with a URL dependency:
+
+```zig
+.schemify_sdk = .{
+    .url  = "https://github.com/UWASIC/Schemify/archive/refs/tags/v1.0.0.tar.gz",
+    .hash = "...",
+},
+```
+
+Run `zig fetch --save=schemify_sdk <url>` to populate the hash. You can also
+skip `build.zig` entirely and deploy the script manually (section 2).
+
+## 7. API reference
+
+The SDK lives at `tools/sdk/bindings/python/schemify/__init__.py`.
+
+### `Plugin` base class
 
 ```python
-def run(data: str) -> str:
-    # Use any Python library here
-    import json
-    return json.dumps({"echo": data, "len": len(data)})
+class Plugin:
+    def on_load(self, w: Writer) -> None: ...
+    def on_unload(self, w: Writer) -> None: ...
+    def on_tick(self, dt: float, w: Writer) -> None: ...
+    def on_draw(self, panel_id: int, w: Writer) -> None: ...
+    def on_event(self, msg: dict, w: Writer) -> None: ...
 ```
 
-### `src/main.zig` (using the bridge)
+### `Writer` methods
 
-```zig
-const Plugin = @import("PluginIF");
-const dvui   = @import("dvui");
-const py     = @import("python_bridge.zig");
-const std    = @import("std");
+#### Plugin lifecycle and host commands
 
-fn onLoad() callconv(.c) void {
-    py.init() catch {
-        Plugin.logErr("py-plugin", "Python init failed");
-        return;
-    };
-    // Tell Python where to find worker.py (next to the installed .so)
-    // ...
-}
+| Method | Description |
+|---|---|
+| `register_panel(id, title, vim_cmd, layout, keybind)` | Register a panel |
+| `set_status(text)` | Set status bar text |
+| `log(level, tag, msg)` | Structured log message |
+| `log_info(tag, msg)` | Shorthand for `log(LOG_INFO, ...)` |
+| `log_warn(tag, msg)` | Shorthand for `log(LOG_WARN, ...)` |
+| `log_err(tag, msg)` | Shorthand for `log(LOG_ERR, ...)` |
+| `push_command(tag, payload)` | Send a named command to the host |
+| `set_state(key, val)` | Persist a string value in host state |
+| `get_state(key)` | Request a state value (arrives as `TAG_STATE_RESPONSE`) |
+| `set_config(plugin_id, key, val)` | Write a config entry |
+| `get_config(plugin_id, key)` | Read a config entry (arrives as `TAG_CONFIG_RESPONSE`) |
+| `request_refresh()` | Ask for an immediate redraw |
+| `register_keybind(key, mods, cmd_tag)` | Register a global keybind |
+| `place_device(sym, name, x, y)` | Place a schematic device |
+| `add_wire(x0, y0, x1, y1)` | Add a wire segment |
+| `set_instance_prop(idx, key, val)` | Set a property on an instance |
+| `query_instances()` | Request all instances (arrive as `TAG_INSTANCE_DATA`) |
+| `query_nets()` | Request all nets (arrive as `TAG_NET_DATA`) |
 
-fn onUnload() callconv(.c) void {
-    py.deinit();
-}
+#### UI widgets
 
-fn drawPanel() callconv(.c) void {
-    var alloc = Plugin.allocator();
-    const result = py.runWorker(alloc, "test input") catch "error";
-    defer alloc.free(result);
-    _ = dvui.label(@src(), result, .{});
-}
+| Method | Description |
+|---|---|
+| `label(text, id)` | Text label |
+| `button(text, id)` | Button |
+| `separator(id)` | Horizontal rule |
+| `begin_row(id)` / `end_row(id)` | Horizontal layout group |
+| `slider(val, min, max, id)` | Float slider |
+| `checkbox(val, text, id)` | Labeled checkbox |
+| `progress(fraction, id)` | Progress bar (0.0–1.0) |
+| `plot(title, xs, ys, id)` | Line plot |
+| `image(pixels, w, h, id)` | Raw RGBA image |
+| `collapsible_start(label, open, id)` / `collapsible_end(id)` | Collapsible section |
+
+### Layout constants
+
+```python
+schemify.LAYOUT_OVERLAY        # 0
+schemify.LAYOUT_LEFT_SIDEBAR   # 1
+schemify.LAYOUT_RIGHT_SIDEBAR  # 2
+schemify.LAYOUT_BOTTOM_BAR     # 3
 ```
 
-## Installing Python dependencies
+### Incoming message tags
 
-Ship a `requirements.txt` alongside the plugin:
+Used in `msg['tag']` inside `on_event`:
+
+```python
+from schemify import (
+    # Host → plugin lifecycle
+    TAG_LOAD, TAG_UNLOAD, TAG_TICK, TAG_DRAW_PANEL,
+    # Widget interactions
+    TAG_BUTTON_CLICKED, TAG_SLIDER_CHANGED,
+    TAG_TEXT_CHANGED, TAG_CHECKBOX_CHANGED,
+    # Host responses and events
+    TAG_COMMAND, TAG_STATE_RESPONSE, TAG_CONFIG_RESPONSE,
+    TAG_SCHEMATIC_CHANGED, TAG_SELECTION_CHANGED,
+    TAG_SCHEMATIC_SNAPSHOT,
+    # Schematic data responses
+    TAG_INSTANCE_DATA, TAG_INSTANCE_PROP, TAG_NET_DATA,
+)
+```
+
+## 8. Using scientific libraries
+
+Because Python plugins run in a regular CPython process, you can import any
+library directly — no IPC or subprocess needed.
+
+```python
+import schemify
+import numpy as np
+import scipy.signal as sig
+
+class AnalysisPlugin(schemify.Plugin):
+    def on_load(self, w: schemify.Writer):
+        w.register_panel('analysis', 'Signal Analysis', 'sig',
+                         schemify.LAYOUT_RIGHT_SIDEBAR, 0)
+
+    def on_draw(self, panel_id: int, w: schemify.Writer):
+        xs = np.linspace(0, 2 * np.pi, 256)
+        ys = np.sin(xs)
+        w.plot('Sine wave', xs.tolist(), ys.tolist(), id=0)
+
+_plugin = AnalysisPlugin()
+
+def schemify_process(in_bytes: bytes) -> bytes:
+    return schemify.run_plugin(_plugin, in_bytes)
+```
+
+Declare dependencies in `requirements.txt`:
 
 ```
 numpy>=1.24
 scipy>=1.11
+torch>=2.0
 ```
 
-During development install them with:
+Pass the filename to `addPythonPlugin` to have `zig build` install them
+automatically:
 
-```bash
-pip install -r requirements.txt
+```zig
+helper.addPythonPlugin(b, "analysis", sdk_dep,
+    &.{"plugin.py"},
+    "requirements.txt",
+    "analysis");
 ```
 
-For distribution, document that users must run `pip install` or provide a
-`setup.sh` script.
+## 9. WASM
 
-## WASM note
-
-`libpython` is a large native library and does not compile to WASM cleanly.
-For web builds, either:
-
-- Provide a Zig-only stub that skips Python (`if (ctx.is_web)`)
-- Use Pyodide loaded separately by the JavaScript host page, then communicate
-  via the VFS (write inputs, read outputs)
+Python plugins are not supported on the WASM target. The WASM backend loads
+compiled `.wasm` modules only. Use Zig, C, or Rust if you need a plugin that
+runs in the browser.

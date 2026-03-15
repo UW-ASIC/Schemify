@@ -45,18 +45,16 @@ through `extern "host"` imports that `plugin_host.js` provides:
 ### Example: read a project file
 
 ```zig
-fn drawPanel() callconv(.c) void {
-    var alloc = Plugin.allocator();
-
-    // Works on both native and WASM without any conditional compilation
+// Inside schemify_process, during a draw_panel message:
+.draw_panel => {
+    var alloc = std.heap.wasm_allocator; // or any allocator
     const data = Plugin.Vfs.readAlloc(alloc, "config.toml") catch |err| {
-        Plugin.logWarn("my-plugin", @errorName(err));
+        w.log(.warn, "my-plugin", @errorName(err));
         return;
     };
     defer alloc.free(data);
-
-    _ = dvui.label(@src(), data, .{});
-}
+    w.label(data, 1);
+},
 ```
 
 ### Example: enumerate PDK files
@@ -101,8 +99,8 @@ available to WASM plugins without a server.
 WASM plugins run on `wasm32-freestanding` — there is no C standard library.
 In practice:
 
-- **No `std.os` syscalls** — use `Plugin.Vfs` for files, `Plugin.allocator()` for memory
-- **No threads** — WASM is single-threaded; `on_tick(dt)` is the event loop
+- **No `std.os` syscalls** — use `Plugin.Vfs` for files; use `std.heap.wasm_allocator` for memory
+- **No threads** — WASM is single-threaded; the `.tick` message is the event loop
 - **No `@cImport`** — C headers that pull in OS types will fail to compile
 
 ### Splitting native and web source
@@ -128,41 +126,28 @@ if (ctx.is_web) {
 }
 ```
 
-## The host import contract
+## WASM host contract
 
-For reference, here are all `extern "host"` functions that `plugin_host.js`
-provides to WASM plugins.  You should never call them directly — use the
-module-level API in `PluginIF` and `Vfs` instead.
+WASM plugins use the same binary message-passing protocol as native plugins —
+no `extern "host"` function imports needed.  The host calls the exported
+`schemify_process` entry point, passing a message batch in and collecting
+responses out.  `plugin_host.js` decodes the response messages and updates the
+DOM accordingly.
 
-### Control
+The only host-provided import is the Vfs layer, which the `Plugin.Vfs` API
+wraps automatically:
 
-| Import | Description |
-|--------|-------------|
-| `set_status(ptr, len)` | Update status bar |
-| `log_msg(level, tag_ptr, tag_len, msg_ptr, msg_len)` | Structured log |
-| `register_panel(id, title, vim, layout, keybind, draw_fn_idx)` | Register panel |
-| `project_dir_len() → i32` | Byte count of project directory path |
-| `project_dir_copy(dest, dest_len)` | Copy path into WASM memory |
-| `active_schematic_len() → i32` | `-1` if none open |
-| `active_schematic_copy(dest, dest_len)` | Copy name into WASM memory |
-| `request_refresh()` | Queue a UI redraw |
-
-### VFS
-
-| Import | Description |
-|--------|-------------|
-| `vfs_file_len(path, len) → i32` | File size, `-1` = not found |
-| `vfs_file_read(path, plen, dest, dlen) → i32` | Read file into buffer |
-| `vfs_file_write(path, plen, src, slen) → i32` | Write buffer to file |
-| `vfs_file_delete(path, len) → i32` | Delete file |
-| `vfs_dir_make(path, len) → i32` | Create directory |
-| `vfs_dir_list_len(path, len) → i32` | Byte count of NUL-separated listing |
-| `vfs_dir_list_read(path, plen, dest, dlen) → i32` | Fill listing buffer |
+| JS-side VFS hook | Used by |
+|-----------------|---------|
+| `vfs_file_read` / `vfs_file_write` | `Vfs.readAlloc` / `Vfs.writeAll` |
+| `vfs_file_delete` | `Vfs.delete` |
+| `vfs_dir_make` | `Vfs.makePath` |
+| `vfs_dir_list_read` | `Vfs.listDir` |
 
 ## Debugging WASM plugins
 
-Open browser DevTools → **Console**.  `Plugin.logInfo` / `logWarn` / `logErr`
-output there.  `Plugin.setStatus` updates the status bar visible in the canvas.
+Open browser DevTools → **Console**.  `w.log(.info / .warn / .err, ...)` messages
+appear there.  `w.setStatus(msg)` updates the status bar visible in the canvas.
 
 For crashes or traps, enable DWARF debug info:
 

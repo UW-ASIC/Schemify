@@ -283,3 +283,257 @@ fn pyIncludePath(b: *std.Build) ?[]const u8 {
     }
     return null;
 }
+
+/// Create a native C plugin dynamic library (ABI v6, header-only SDK).
+///
+/// Compiles `c_src` (a path relative to the plugin repo root) against
+/// `schemify_plugin.h` (header-only, no shim file required).
+/// The include path is resolved through `sdk_dep` so the plugin's own repo
+/// does not need any copies of the SDK files.
+///
+/// Usage:
+///   const lib = helper.addCPlugin(b, ctx, sdk_dep, "CHello", "src/main.c");
+///   b.installArtifact(lib);
+pub fn addCPlugin(
+    b:       *std.Build,
+    ctx:     PluginContext,
+    sdk_dep: *std.Build.Dependency,
+    name:    []const u8,
+    c_src:   []const u8,
+) *std.Build.Step.Compile {
+    const lib = b.addLibrary(.{
+        .name    = name,
+        .linkage = .dynamic,
+        .root_module = b.createModule(.{
+            .target   = ctx.target,
+            .optimize = ctx.optimize,
+        }),
+    });
+    // Plugin source
+    lib.addCSourceFile(.{
+        .file  = b.path(c_src),
+        .flags = &.{ "-std=c11", "-fvisibility=default" },
+    });
+    // Expose schemify_plugin.h (header-only, no shim needed in ABI v6)
+    lib.addIncludePath(sdk_dep.path("tools/sdk"));
+    lib.linkLibC();
+    // Generate compile_flags.txt next to the source file so clangd picks up
+    // the include path without a separate hand-written file in the repo.
+    writeCompileFlags(b, c_src, sdk_dep, &.{});
+    return lib;
+}
+
+/// Create a native C++ plugin dynamic library (ABI v6, header-only SDK).
+///
+/// Same as `addCPlugin` but compiles `cpp_src` as C++17 and links libstdc++.
+///
+/// Usage:
+///   const lib = helper.addCppPlugin(b, ctx, sdk_dep, "CppHello", "src/main.cpp");
+///   b.installArtifact(lib);
+pub fn addCppPlugin(
+    b:       *std.Build,
+    ctx:     PluginContext,
+    sdk_dep: *std.Build.Dependency,
+    name:    []const u8,
+    cpp_src: []const u8,
+) *std.Build.Step.Compile {
+    const lib = b.addLibrary(.{
+        .name    = name,
+        .linkage = .dynamic,
+        .root_module = b.createModule(.{
+            .target   = ctx.target,
+            .optimize = ctx.optimize,
+        }),
+    });
+    // Plugin source (C++)
+    lib.addCSourceFile(.{
+        .file  = b.path(cpp_src),
+        .flags = &.{ "-std=c++17", "-fvisibility=default" },
+    });
+    // Expose schemify_plugin.h (header-only, no shim needed in ABI v6)
+    lib.addIncludePath(sdk_dep.path("tools/sdk"));
+    lib.linkLibC();
+    lib.linkLibCpp();
+    // Generate compile_flags.txt next to the source file for clangd.
+    writeCompileFlags(b, cpp_src, sdk_dep, &.{"-std=c++17"});
+    return lib;
+}
+
+/// Write `compile_flags.txt` alongside `src_file` so clangd resolves the
+/// SDK headers without a hand-written file committed to the plugin repo.
+/// The file is (re)generated every time `zig build` runs.
+fn writeCompileFlags(
+    b:           *std.Build,
+    src_file:    []const u8,
+    sdk_dep:     *std.Build.Dependency,
+    extra_flags: []const []const u8,
+) void {
+    const src_dir = std.fs.path.dirname(src_file) orelse ".";
+    const sdk_inc = sdk_dep.path("tools/sdk").getPath(b);
+
+    // Build: printf '%s\n' '-Ipath' > dir/compile_flags.txt
+    //     && printf '%s\n' '-extra' >> dir/compile_flags.txt ...
+    var cmd = std.ArrayList(u8){};
+    std.fmt.format(cmd.writer(b.allocator),
+        "printf '%s\\n' '-I{s}' > \"{s}/compile_flags.txt\"",
+        .{ sdk_inc, src_dir }) catch unreachable;
+    for (extra_flags) |f| {
+        std.fmt.format(cmd.writer(b.allocator),
+            " && printf '%s\\n' '{s}' >> \"{s}/compile_flags.txt\"",
+            .{ f, src_dir }) catch unreachable;
+    }
+
+    const gen = b.addSystemCommand(&.{ "sh", "-c", b.dupe(cmd.items) });
+    b.getInstallStep().dependOn(&gen.step);
+}
+
+/// Compile a C plugin to WASM using Emscripten (`emcc`).
+///
+/// Output: `zig-out/plugins/<name>.wasm`
+/// Exported symbols: `schemify_process`, `schemify_plugin`
+pub fn addCWasmPlugin(
+    b:       *std.Build,
+    sdk_dep: *std.Build.Dependency,
+    name:    []const u8,
+    c_src:   []const u8,
+) void {
+    const out_path = b.fmt("zig-out/plugins/{s}.wasm", .{name});
+    const sdk_inc  = sdk_dep.path("tools/sdk").getPath(b);
+    const emcc = b.addSystemCommand(&.{
+        "emcc",
+        b.path(c_src).getPath(b),
+        b.fmt("-I{s}", .{sdk_inc}),
+        "-o", out_path,
+        "-std=c11",
+        "-O2",
+        "--no-entry",
+        "-s", "STANDALONE_WASM=1",
+        "-s", "EXPORTED_FUNCTIONS=[\"_schemify_process\",\"_schemify_plugin\"]",
+        "-s", "ERROR_ON_UNDEFINED_SYMBOLS=0",
+    });
+    b.getInstallStep().dependOn(&emcc.step);
+}
+
+/// Compile a C++ plugin to WASM using Emscripten (`em++`).
+///
+/// Output: `zig-out/plugins/<name>.wasm`
+/// Exported symbols: `schemify_process`, `schemify_plugin`
+pub fn addCppWasmPlugin(
+    b:       *std.Build,
+    sdk_dep: *std.Build.Dependency,
+    name:    []const u8,
+    cpp_src: []const u8,
+) void {
+    const out_path = b.fmt("zig-out/plugins/{s}.wasm", .{name});
+    const sdk_inc  = sdk_dep.path("tools/sdk").getPath(b);
+    const empp = b.addSystemCommand(&.{
+        "em++",
+        b.path(cpp_src).getPath(b),
+        b.fmt("-I{s}", .{sdk_inc}),
+        "-o", out_path,
+        "-std=c++17",
+        "-O2",
+        "--no-entry",
+        "-s", "STANDALONE_WASM=1",
+        "-s", "EXPORTED_FUNCTIONS=[\"_schemify_process\",\"_schemify_plugin\"]",
+        "-s", "ERROR_ON_UNDEFINED_SYMBOLS=0",
+    });
+    b.getInstallStep().dependOn(&empp.step);
+}
+
+/// Register a `zig build run-rust` step that invokes `cargo build --release`
+/// and copies the resulting shared library into `zig-out/lib/`.
+///
+/// `cargo_dir`    — path to the Cargo workspace root (contains Cargo.toml).
+/// `install_name` — bare name used for the .so, e.g. "my_plugin" produces
+///                  `zig-out/lib/libmy_plugin.so`.
+pub fn addRustPlugin(
+    b:            *std.Build,
+    cargo_dir:    []const u8,
+    install_name: []const u8,
+) void {
+    const cargo_build = b.addSystemCommand(&.{
+        "cargo", "build", "--release", "--manifest-path",
+        b.fmt("{s}/Cargo.toml", .{cargo_dir}),
+    });
+
+    // Try libNAME.so (Linux) then NAME.so as fallback.
+    const copy = b.addSystemCommand(&.{
+        "sh", "-c",
+        b.fmt(
+            "mkdir -p zig-out/lib && " ++
+            "cp \"{s}/target/release/lib{s}.so\" \"zig-out/lib/lib{s}.so\" 2>/dev/null || " ++
+            "cp \"{s}/target/release/{s}.so\"    \"zig-out/lib/lib{s}.so\" 2>/dev/null || true",
+            .{ cargo_dir, install_name, install_name,
+               cargo_dir, install_name, install_name },
+        ),
+    });
+    copy.step.dependOn(&cargo_build.step);
+    b.getInstallStep().dependOn(&copy.step);
+}
+
+/// Register a `zig build` step that invokes TinyGo to build a native shared library.
+///
+/// `go_dir`       — directory containing go.mod (relative to plugin root).
+/// `install_name` — bare library name, e.g. "go_hello" → `zig-out/lib/libgo_hello.so`.
+pub fn addGoPlugin(
+    b:            *std.Build,
+    go_dir:       []const u8,
+    install_name: []const u8,
+) void {
+    const tinygo_build = b.addSystemCommand(&.{
+        "sh", "-c",
+        b.fmt(
+            "set -e\n" ++
+            "mkdir -p zig-out/lib\n" ++
+            "cd \"{s}\"\n" ++
+            "tinygo build -o \"$(cd .. && pwd)/zig-out/lib/lib{s}.so\" " ++
+            "-buildmode=c-shared -target=linux/amd64 .\n",
+            .{ go_dir, install_name },
+        ),
+    });
+    b.getInstallStep().dependOn(&tinygo_build.step);
+}
+
+/// Deploy a Python plugin to the SchemifyPython scripts directory.
+///
+/// Copies all files in `py_files` to
+///   `~/.config/Schemify/SchemifyPython/scripts/<plugin_dir_name>/`
+/// If `requirements` is non-null, runs `pip install -r <requirements>` first.
+pub fn addPythonPlugin(
+    b:               *std.Build,
+    plugin_dir_name: []const u8,
+    sdk_dep:         *std.Build.Dependency,
+    py_files:        []const []const u8,
+    requirements:    ?[]const u8,
+    log_label:       []const u8,
+) void {
+    const run_step = b.step("run", "Deploy Python plugin and launch Schemify");
+
+    // Build the shell script piecewise using b.fmt and string concatenation.
+    var script: []const u8 = "set -e\n";
+    if (requirements) |req| {
+        script = b.fmt("{s}pip install -r \"{s}\" --quiet\n", .{ script, req });
+    }
+    script = b.fmt(
+        "{s}SCRIPTS=\"$HOME/.config/Schemify/SchemifyPython/scripts/{s}\"\n" ++
+        "mkdir -p \"$SCRIPTS\"\n",
+        .{ script, plugin_dir_name },
+    );
+    for (py_files) |f| {
+        script = b.fmt("{s}cp \"{s}\" \"$SCRIPTS/\"\n", .{ script, f });
+    }
+    script = b.fmt("{s}echo \"[{s}] Installed to $SCRIPTS\"\n", .{ script, log_label });
+
+    const deploy = b.addSystemCommand(&.{ "sh", "-c", script });
+    b.getInstallStep().dependOn(&deploy.step);
+    run_step.dependOn(b.getInstallStep());
+
+    const schemify_root = sdk_dep.path(".").getPath(b);
+    const run_schemify = b.addSystemCommand(&.{
+        "sh", "-c",
+        b.fmt("cd \"{s}\" && zig build run\n", .{schemify_root}),
+    });
+    run_schemify.step.dependOn(b.getInstallStep());
+    run_step.dependOn(&run_schemify.step);
+}

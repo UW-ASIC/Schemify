@@ -1,9 +1,0 @@
-CHN v1 resistor_divider
-[schematic]
-N 0 0 200 0 VDD
-N 200 100 200 200
-N 200 300 0 300 GND
-C devices/vsource 0 0 0 0 vsource {name=V1 value=3.3}
-C devices/res 200 0 0 0 resistor {name=R1 value=10k}
-C devices/res 200 200 0 0 resistor {name=R2 value=10k}
-[end]

@@ -1,20 +1,13 @@
-//! EasyPDKLoader — Schemify native plugin.
+//! EasyPDKLoader — Schemify native plugin (ABI v6).
 //!
-//! On load, scans standard paths for installed PDK variants (sky130, sg13g2,
+//! Scans standard paths for installed PDK variants (sky130, sg13g2,
 //! gf180mcu, asap7) and registers a right-sidebar panel.
 //!
-//! The panel exposes:
-//!   - Status of each known PDK variant (installed / not installed).
-//!   - [Clone] button: runs `volare enable <variant>` to download it.
-//!   - [Convert] button: converts libs.tech/xschem/ symbols to CHN files.
-//!   - [Versions] button: fetches available remote commits via `volare ls-remote`
-//!     and lets the user pick one; selection is persisted across restarts.
-//!
-//! Pure Zig, no C or Python runtime dependency at plugin load time.
-//! Cloning and version listing require `volare` in PATH (`pip install volare`).
+//! Uses the Framework comptime layer — no manual ABI switch or widget ID math.
 
 const std    = @import("std");
-const Plugin = @import("PluginIF");
+const P      = @import("PluginIF");
+const F      = P.Framework;
 const volare = @import("volare.zig");
 
 const Allocator = std.mem.Allocator;
@@ -26,9 +19,7 @@ const MAX_PDKS  = 8;
 const MAX_NAME  = 64;
 const MAX_PATH  = 512;
 const MAX_VER   = 64;
-/// Max remote versions shown per PDK.
 const MAX_RVERS = 32;
-/// Max bytes per remote version string.
 const RVER_LEN  = 80;
 
 // ── Slot state ────────────────────────────────────────────────────────────── //
@@ -36,10 +27,8 @@ const RVER_LEN  = 80;
 const SlotState = enum(u2) { missing, found, converting, converted };
 
 const PdkSlot = struct {
-    // ── identity ──
     name:     [MAX_NAME]u8 = [_]u8{0} ** MAX_NAME,
     name_len: u8           = 0,
-    // ── local install info ──
     root:     [MAX_PATH]u8 = [_]u8{0} ** MAX_PATH,
     root_len: u16          = 0,
     version:  [MAX_VER]u8  = [_]u8{0} ** MAX_VER,
@@ -47,53 +36,71 @@ const PdkSlot = struct {
     chn_count:  u32        = 0,
     has_xschem: bool       = false,
     state:      SlotState  = .missing,
-    // ── remote versions ──
     rvers:      [MAX_RVERS][RVER_LEN]u8 = undefined,
     rver_lens:  [MAX_RVERS]u8           = [_]u8{0} ** MAX_RVERS,
     rver_count: u8                      = 0,
     rvers_loaded: bool                  = false,
     show_rvers:   bool                  = false,
-    // ── selected (persisted) version ──
     sel_ver:    [RVER_LEN]u8 = [_]u8{0} ** RVER_LEN,
     sel_ver_len: u8          = 0,
 
-    fn nameSlice(self: *const PdkSlot) []const u8 { return self.name[0..self.name_len]; }
-    fn rootSlice(self: *const PdkSlot) []const u8 { return self.root[0..self.root_len]; }
-    fn verSlice (self: *const PdkSlot) []const u8 { return self.version[0..self.ver_len]; }
-    fn selVerSlice(self: *const PdkSlot) []const u8 { return self.sel_ver[0..self.sel_ver_len]; }
-    fn rverAt(self: *const PdkSlot, i: usize) []const u8 { return self.rvers[i][0..self.rver_lens[i]]; }
+    fn nameSlice(s: *const PdkSlot) []const u8 { return s.name[0..s.name_len]; }
+    fn rootSlice(s: *const PdkSlot) []const u8 { return s.root[0..s.root_len]; }
+    fn verSlice (s: *const PdkSlot) []const u8 { return s.version[0..s.ver_len]; }
+    fn selVerSlice(s: *const PdkSlot) []const u8 { return s.sel_ver[0..s.sel_ver_len]; }
+    fn rverAt(s: *const PdkSlot, i: usize) []const u8 { return s.rvers[i][0..s.rver_lens[i]]; }
 };
 
-var g_slots: [MAX_PDKS]PdkSlot = [_]PdkSlot{.{}} ** MAX_PDKS;
-var g_uid: u32 = 0;
+// ── Plugin state ──────────────────────────────────────────────────────────── //
 
-fn uid() u32 { g_uid += 1; return g_uid; }
+const State = struct {
+    slots: [MAX_PDKS]PdkSlot = [_]PdkSlot{.{}} ** MAX_PDKS,
+};
+
+var state = State{};
+
+// ── Widget ID layout (per slot, slot index i) ─────────────────────────────── //
+//   Base = i * 100
+//   Base+0..2  : name label, state badge, row end
+//   Base+10..12: version labels, row end
+//   Base+20..23: action row + Clone/Convert/Versions buttons
+//   Base+50+..  : version item rows/buttons
+//   Base+80    : Reload list button
+// Global (outside slot range, use high IDs):
+//   9000 : Refresh button
+//   9001 : Title label
+//   9002 : Title separator
+
+const WID_REFRESH   = 9000;
+const WID_TITLE     = 9001;
+const WID_TITLE_SEP = 9002;
+
+fn wid(slot: usize, offset: u32) u32 { return @intCast(slot * 100 + offset); }
 
 // ── Discovery ─────────────────────────────────────────────────────────────── //
 
-fn scanIntoSlots(a: Allocator) void {
-    for (&g_slots) |*s| {
-        // Preserve version list and selection across rescans.
-        const rvers      = s.rvers;
-        const rver_lens  = s.rver_lens;
-        const rver_count = s.rver_count;
+fn scanIntoSlots(slots: *[MAX_PDKS]PdkSlot, a: Allocator) void {
+    for (slots) |*s| {
+        const rvers        = s.rvers;
+        const rver_lens    = s.rver_lens;
+        const rver_count   = s.rver_count;
         const rvers_loaded = s.rvers_loaded;
-        const show_rvers = s.show_rvers;
-        const sel_ver    = s.sel_ver;
-        const sel_ver_len = s.sel_ver_len;
+        const show_rvers   = s.show_rvers;
+        const sel_ver      = s.sel_ver;
+        const sel_ver_len  = s.sel_ver_len;
         s.* = .{};
-        s.rvers       = rvers;
-        s.rver_lens   = rver_lens;
-        s.rver_count  = rver_count;
+        s.rvers        = rvers;
+        s.rver_lens    = rver_lens;
+        s.rver_count   = rver_count;
         s.rvers_loaded = rvers_loaded;
-        s.show_rvers  = show_rvers;
-        s.sel_ver     = sel_ver;
-        s.sel_ver_len = sel_ver_len;
+        s.show_rvers   = show_rvers;
+        s.sel_ver      = sel_ver;
+        s.sel_ver_len  = sel_ver_len;
     }
 
     for (volare.KNOWN_VARIANTS, 0..) |v, i| {
         if (i >= MAX_PDKS) break;
-        const s = &g_slots[i];
+        const s = &slots[i];
         const nn = @min(v.len, MAX_NAME - 1);
         @memcpy(s.name[0..nn], v[0..nn]);
         s.name_len = @intCast(nn);
@@ -106,12 +113,12 @@ fn scanIntoSlots(a: Allocator) void {
     for (found.items) |pv| {
         const idx = variantIndex(pv.name) orelse continue;
         if (idx >= MAX_PDKS) continue;
-        storeVariant(&g_slots[idx], pv);
+        storeVariant(&slots[idx], pv);
     }
 }
 
-fn loadPersistedSelections(a: Allocator) void {
-    for (&g_slots, 0..) |*s, i| {
+fn loadPersistedSelections(slots: *[MAX_PDKS]PdkSlot, a: Allocator) void {
+    for (slots, 0..) |*s, i| {
         if (i >= volare.KNOWN_VARIANTS.len) break;
         const sel = volare.loadSelectedVersion(a, s.nameSlice()) orelse continue;
         defer a.free(sel);
@@ -141,148 +148,161 @@ fn variantIndex(name: []const u8) ?usize {
     return null;
 }
 
-// ── Lifecycle ─────────────────────────────────────────────────────────────── //
-
-fn onLoad() callconv(.c) void {
-    const a = Plugin.allocator();
-    scanIntoSlots(a);
-    loadPersistedSelections(a);
-    registerPanel();
-}
-
-fn onUnload() callconv(.c) void {
-    for (&g_slots) |*s| s.* = .{};
-}
-
-fn registerPanel() void {
-    const def: Plugin.PanelDef = .{
-        .id      = "pdk-loader",
-        .title   = "PDK Loader",
-        .vim_cmd = "pdk",
-        .layout  = .right_sidebar,
-        .keybind = 'P',
-        .draw_fn = &drawPanel,
-    };
-    _ = Plugin.registerPanel(&def);
-}
-
 // ── Panel draw ────────────────────────────────────────────────────────────── //
 
-fn lbl(ctx: *const Plugin.UiCtx, comptime text: []const u8) void {
-    ctx.label(text.ptr, text.len, uid());
-}
+fn drawPanel(s: *State, w: *P.Writer) void {
+    w.label("PDK Loader", WID_TITLE);
+    w.separator(WID_TITLE_SEP);
 
-fn drawPanel(ctx: *const Plugin.UiCtx) callconv(.c) void {
-    g_uid = 0;
-    const a = Plugin.allocator();
-
-    lbl(ctx, "PDK Loader");
-    ctx.separator(uid());
-
-    for (&g_slots, 0..) |*s, i| {
+    for (&s.slots, 0..) |*slot, i| {
         if (i >= volare.KNOWN_VARIANTS.len) break;
-        drawSlot(ctx, a, s);
-        ctx.separator(uid());
+        drawSlot(w, slot, i);
+        w.separator(@intCast(wid(i, 99)));
     }
 
-    if (ctx.button("Refresh".ptr, "Refresh".len, uid())) {
-        scanIntoSlots(a);
-        Plugin.requestRefresh();
-    }
+    w.button("Refresh", WID_REFRESH);
 }
 
-fn drawSlot(ctx: *const Plugin.UiCtx, a: Allocator, s: *PdkSlot) void {
+fn drawSlot(w: *P.Writer, s: *PdkSlot, slot: usize) void {
     const name = s.nameSlice();
 
-    // Row 1: name + state badge
-    ctx.begin_row(uid());
-    ctx.label(name.ptr, name.len, uid());
+    w.beginRow(wid(slot, 2));
+    w.label(name, wid(slot, 0));
     switch (s.state) {
-        .missing    => lbl(ctx, "[not found]"),
-        .found      => lbl(ctx, "[found]"),
-        .converting => lbl(ctx, "[converting...]"),
+        .missing    => w.label("[not found]",     wid(slot, 1)),
+        .found      => w.label("[found]",         wid(slot, 1)),
+        .converting => w.label("[converting...]", wid(slot, 1)),
         .converted  => {
             var buf: [32]u8 = undefined;
             const badge = std.fmt.bufPrint(&buf, "[{d} CHN]", .{s.chn_count}) catch "[done]";
-            ctx.label(badge.ptr, badge.len, uid());
+            w.label(badge, wid(slot, 1));
         },
     }
-    ctx.end_row(uid());
+    w.endRow(wid(slot, 2));
 
-    // Row 2: installed version + selected pinned version
     {
         const ver = s.verSlice();
         const sel = s.selVerSlice();
         if (ver.len > 0 or sel.len > 0) {
-            ctx.begin_row(uid());
-            if (ver.len > 0) ctx.label(ver.ptr, ver.len, uid());
+            w.beginRow(wid(slot, 12));
+            if (ver.len > 0) w.label(ver, wid(slot, 10));
             if (sel.len > 0) {
                 var buf: [RVER_LEN + 8]u8 = undefined;
                 const pinned = std.fmt.bufPrint(&buf, "pin:{s}", .{sel}) catch sel;
-                ctx.label(pinned.ptr, pinned.len, uid());
+                w.label(pinned, wid(slot, 11));
             }
-            ctx.end_row(uid());
+            w.endRow(wid(slot, 12));
         }
     }
 
-    // Row 3: action buttons
-    ctx.begin_row(uid());
-    if (s.state == .missing) drawCloneButton(ctx, a, s);
+    w.beginRow(wid(slot, 20));
+    if (s.state == .missing) w.button("Clone", wid(slot, 21));
     if (s.has_xschem and (s.state == .found or s.state == .converted)) {
-        drawConvertButton(ctx, a, s);
+        w.button("Convert", wid(slot, 22));
     }
-    drawVersionsToggle(ctx, a, s);
-    ctx.end_row(uid());
+    const ver_label = if (s.show_rvers) "Versions-" else "Versions+";
+    w.button(ver_label, wid(slot, 23));
+    w.endRow(wid(slot, 20));
 
-    // Version list (expanded)
-    if (s.show_rvers) drawVersionList(ctx, a, s);
+    if (s.show_rvers) drawVersionList(w, s, slot);
 }
 
-fn drawCloneButton(ctx: *const Plugin.UiCtx, a: Allocator, s: *PdkSlot) void {
-    if (ctx.button("Clone".ptr, "Clone".len, uid())) {
-        volare.clone(a, s.nameSlice()) catch |err| {
+fn drawVersionList(w: *P.Writer, s: *PdkSlot, slot: usize) void {
+    if (s.rver_count == 0) {
+        w.label("  (no versions — volare ls-remote returned nothing)", wid(slot, 49));
+        return;
+    }
+    for (0..s.rver_count) |i| {
+        const ver = s.rverAt(i);
+        const is_sel = std.mem.eql(u8, ver, s.selVerSlice());
+        w.beginRow(wid(slot, @intCast(50 + i * 2)));
+        if (is_sel) {
+            var buf: [RVER_LEN + 4]u8 = undefined;
+            const marked = std.fmt.bufPrint(&buf, "> {s}", .{ver}) catch ver;
+            w.label(marked, wid(slot, @intCast(50 + i * 2)));
+        } else {
+            w.label(ver, wid(slot, @intCast(50 + i * 2)));
+            w.button("Use", wid(slot, @intCast(50 + i * 2 + 1)));
+        }
+        w.endRow(wid(slot, @intCast(50 + i * 2)));
+    }
+    w.button("Reload list", wid(slot, 80));
+}
+
+// ── Button routing ────────────────────────────────────────────────────────── //
+
+fn onButton(s: *State, widget_id: u32, w: *P.Writer) void {
+    const a = std.heap.page_allocator;
+
+    if (widget_id == WID_REFRESH) {
+        scanIntoSlots(&s.slots, a);
+        w.requestRefresh();
+        return;
+    }
+
+    const slot: usize = widget_id / 100;
+    const offset: u32 = widget_id % 100;
+
+    if (slot >= MAX_PDKS or slot >= volare.KNOWN_VARIANTS.len) return;
+    const sv = &s.slots[slot];
+
+    if (offset == 21) {
+        volare.clone(a, sv.nameSlice()) catch |err| {
             var buf: [128]u8 = undefined;
             const msg = std.fmt.bufPrint(&buf, "Clone failed: {}", .{err}) catch "Clone failed";
-            Plugin.setStatus(msg);
+            w.setStatus(msg);
             return;
         };
-        scanIntoSlots(a);
-        Plugin.requestRefresh();
+        scanIntoSlots(&s.slots, a);
+        w.requestRefresh();
+        return;
+    }
+
+    if (offset == 22) {
+        const out_dir = volare.chnOutDir(a, sv.nameSlice()) orelse {
+            w.setStatus("Convert: cannot determine output directory");
+            return;
+        };
+        defer a.free(out_dir);
+        sv.state = .converting;
+        const pv = volare.PdkVariant{
+            .name = sv.nameSlice(), .root = sv.rootSlice(),
+            .version = null, .spice_lib = null, .has_xschem = sv.has_xschem,
+        };
+        const n = volare.convertToSchemify(a, pv, out_dir) catch 0;
+        sv.chn_count = n;
+        sv.state = .converted;
+        var buf: [128]u8 = undefined;
+        const msg = std.fmt.bufPrint(&buf, "Converted {d} files to {s}", .{ n, out_dir }) catch "Converted";
+        w.setStatus(msg);
+        w.requestRefresh();
+        return;
+    }
+
+    if (offset == 23) {
+        sv.show_rvers = !sv.show_rvers;
+        if (sv.show_rvers and !sv.rvers_loaded) fetchRemoteVersions(a, sv, w);
+        w.requestRefresh();
+        return;
+    }
+
+    if (offset == 80) {
+        sv.rvers_loaded = false;
+        fetchRemoteVersions(a, sv, w);
+        w.requestRefresh();
+        return;
+    }
+
+    if (offset >= 51 and offset < 80 and offset % 2 == 1) {
+        const ver_idx = (offset - 51) / 2;
+        if (ver_idx < sv.rver_count) {
+            applyVersion(a, &s.slots, sv, sv.rverAt(ver_idx), w);
+        }
+        return;
     }
 }
 
-fn drawConvertButton(ctx: *const Plugin.UiCtx, a: Allocator, s: *PdkSlot) void {
-    if (!ctx.button("Convert".ptr, "Convert".len, uid())) return;
-    const out_dir = volare.chnOutDir(a, s.nameSlice()) orelse {
-        Plugin.setStatus("Convert: cannot determine output directory");
-        return;
-    };
-    defer a.free(out_dir);
-    s.state = .converting;
-    const pv = volare.PdkVariant{
-        .name = s.nameSlice(), .root = s.rootSlice(),
-        .version = null, .spice_lib = null, .has_xschem = s.has_xschem,
-    };
-    const n = volare.convertToSchemify(a, pv, out_dir) catch 0;
-    s.chn_count = n;
-    s.state = .converted;
-    var buf: [128]u8 = undefined;
-    const msg = std.fmt.bufPrint(&buf, "Converted {d} files to {s}", .{ n, out_dir }) catch "Converted";
-    Plugin.setStatus(msg);
-    Plugin.requestRefresh();
-}
-
-// ── Version list ──────────────────────────────────────────────────────────── //
-
-fn drawVersionsToggle(ctx: *const Plugin.UiCtx, a: Allocator, s: *PdkSlot) void {
-    const label_str = if (s.show_rvers) "Versions-" else "Versions+";
-    if (!ctx.button(label_str.ptr, label_str.len, uid())) return;
-
-    s.show_rvers = !s.show_rvers;
-    if (s.show_rvers and !s.rvers_loaded) fetchRemoteVersions(a, s);
-}
-
-fn fetchRemoteVersions(a: Allocator, s: *PdkSlot) void {
+fn fetchRemoteVersions(a: Allocator, s: *PdkSlot, w: *P.Writer) void {
     s.rver_count = 0;
     s.rvers_loaded = true;
 
@@ -301,89 +321,70 @@ fn fetchRemoteVersions(a: Allocator, s: *PdkSlot) void {
     }
     s.rver_count = @intCast(count);
 
-    if (count == 0) Plugin.setStatus("No remote versions found (is volare installed?)");
+    if (count == 0) w.setStatus("No remote versions found (is volare installed?)");
 }
 
-fn drawVersionList(ctx: *const Plugin.UiCtx, a: Allocator, s: *PdkSlot) void {
-    if (s.rver_count == 0) {
-        lbl(ctx, "  (no versions — volare ls-remote returned nothing)");
-        return;
-    }
-
-    for (0..s.rver_count) |i| {
-        const ver = s.rverAt(i);
-        const is_sel = std.mem.eql(u8, ver, s.selVerSlice());
-
-        ctx.begin_row(uid());
-
-        // Version label — mark the currently pinned one
-        if (is_sel) {
-            var buf: [RVER_LEN + 4]u8 = undefined;
-            const marked = std.fmt.bufPrint(&buf, "> {s}", .{ver}) catch ver;
-            ctx.label(marked.ptr, marked.len, uid());
-        } else {
-            ctx.label(ver.ptr, ver.len, uid());
-        }
-
-        // "Use" button — sets selection and persists
-        if (!is_sel and ctx.button("Use".ptr, "Use".len, uid())) {
-            applyVersion(a, s, ver);
-        }
-
-        ctx.end_row(uid());
-    }
-
-    // "Refresh list" button
-    if (ctx.button("Reload list".ptr, "Reload list".len, uid())) {
-        s.rvers_loaded = false;
-        fetchRemoteVersions(a, s);
-        Plugin.requestRefresh();
-    }
-}
-
-fn applyVersion(a: Allocator, s: *PdkSlot, ver: []const u8) void {
-    // Persist selection
+fn applyVersion(a: Allocator, slots: *[MAX_PDKS]PdkSlot, s: *PdkSlot, ver: []const u8, w: *P.Writer) void {
     volare.saveSelectedVersion(a, s.nameSlice(), ver) catch |err| {
         var buf: [128]u8 = undefined;
         const msg = std.fmt.bufPrint(&buf, "Save version failed: {}", .{err}) catch "Save failed";
-        Plugin.setStatus(msg);
+        w.setStatus(msg);
         return;
     };
 
-    // Store in slot
     const n = @min(ver.len, RVER_LEN - 1);
     @memcpy(s.sel_ver[0..n], ver[0..n]);
     s.sel_ver_len = @intCast(n);
 
-    // Attempt to enable the selected version via volare
     const family = volare.pdkFamily(s.nameSlice());
     const argv = [_][]const u8{ "volare", "enable", "--pdk-family", family, ver };
     var child = std.process.Child.init(&argv, a);
     child.stdout_behavior = .Ignore;
     child.stderr_behavior = .Ignore;
     child.spawn() catch {
-        Plugin.setStatus("Version saved (volare not in PATH — enable manually)");
-        Plugin.requestRefresh();
+        w.setStatus("Version saved (volare not in PATH — enable manually)");
+        w.requestRefresh();
         return;
     };
     _ = child.wait() catch {};
 
-    scanIntoSlots(a);
+    scanIntoSlots(slots, a);
     var buf: [128]u8 = undefined;
     const msg = std.fmt.bufPrint(&buf, "Enabled {s} @ {s}", .{ s.nameSlice(), ver }) catch "Enabled";
-    Plugin.setStatus(msg);
-    Plugin.requestRefresh();
+    w.setStatus(msg);
+    w.requestRefresh();
 }
 
-// ── Plugin descriptor ─────────────────────────────────────────────────────── //
+// ── on_load hook ──────────────────────────────────────────────────────────── //
 
-export const schemify_plugin: Plugin.Descriptor = .{
-    .abi_version = Plugin.ABI_VERSION,
-    .name        = "EasyPDKLoader",
-    .version_str = "0.3.0",
-    .set_ctx     = Plugin.setCtx,
-    .on_load     = &onLoad,
-    .on_unload   = &onUnload,
-    .on_tick     = null,
-    .on_command  = null,
-};
+fn onLoad(s: *State, _: *P.Writer) void {
+    const a = std.heap.page_allocator;
+    scanIntoSlots(&s.slots, a);
+    loadPersistedSelections(&s.slots, a);
+}
+
+fn onUnload(s: *State, _: *P.Writer) void {
+    for (&s.slots) |*sv| sv.* = .{};
+}
+
+// ── Plugin definition ─────────────────────────────────────────────────────── //
+
+const MyPlugin = F.define(State, &state, .{
+    .name    = "EasyPDKLoader",
+    .version = "0.3.0",
+    .panels  = &.{
+        F.PanelSpec{
+            .id      = "pdk-loader",
+            .title   = "PDK Loader",
+            .vim_cmd = "pdk",
+            .layout  = .right_sidebar,
+            .keybind = 'P',
+            .draw_fn   = F.wrapDrawFn(State, drawPanel),
+            .on_button = F.wrapOnButton(State, onButton),
+        },
+    },
+    .on_load   = F.wrapWriterHook(State, onLoad),
+    .on_unload = F.wrapWriterHook(State, onUnload),
+});
+
+comptime { MyPlugin.export_plugin(); }

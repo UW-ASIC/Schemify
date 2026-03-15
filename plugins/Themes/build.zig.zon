@@ -1,0 +1,10 @@
+.{
+    .name = .Themes,
+    .version = "0.1.0",
+    .fingerprint = 0xc3e17a2f84d50b19,
+    .minimum_zig_version = "0.14.0",
+    .dependencies = .{
+        .schemify_sdk = .{ .path = "../.." },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "plugin.toml", "src", "themes" },
+}

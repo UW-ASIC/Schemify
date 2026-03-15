@@ -14,7 +14,7 @@ directory inside the Schemify monorepo.
 ### `plugin.toml` — the canonical metadata file
 
 Place a `plugin.toml` next to your `build.zig`.  This is the single source of
-truth used both by the in-repo registry generator (`tools/gen_registry.py`) and
+truth used both by the in-repo registry generator (`tools/scripts/gen_registry.py`) and
 by the GitHub CI workflow that builds and publishes your plugin.
 
 ```toml
@@ -82,24 +82,36 @@ minimum skeleton is:
 
 ```zig
 // src/main.zig
-const std    = @import("std");
 const Plugin = @import("PluginIF");
+const std    = @import("std");
 
-export fn schemify_plugin(host: *const Plugin.VTable) callconv(.c) bool {
-    _ = host.register_panel(host.state, &.{
-        .id       = "my_plugin",
-        .title    = "My Plugin",
-        .vim_cmd  = "myplugin",
-        .layout   = .overlay,
-        .keybind  = 0,
-        .draw_fn  = drawPanel,
-    });
-    return true;
+export fn schemify_process(
+    in_ptr: [*]const u8, in_len: usize,
+    out_ptr: [*]u8,      out_cap: usize,
+) usize {
+    var r = Plugin.Reader.init(in_ptr[0..in_len]);
+    var w = Plugin.Writer.init(out_ptr[0..out_cap]);
+    while (r.next()) |msg| {
+        switch (msg) {
+            .load => {
+                w.registerPanel(.{
+                    .id = "my-plugin", .title = "My Plugin",
+                    .vim_cmd = "myplugin", .layout = .overlay, .keybind = 0,
+                });
+                w.setStatus("My Plugin loaded");
+            },
+            .draw_panel => w.label("Hello from My Plugin!", 0),
+            else => {},
+        }
+    }
+    return if (w.overflow()) std.math.maxInt(usize) else w.pos;
 }
 
-fn drawPanel(ctx: *const Plugin.UiCtx) callconv(.c) void {
-    ctx.label("Hello from My Plugin!", 20, 1);
-}
+export const schemify_plugin: Plugin.Descriptor = .{
+    .name        = "my-plugin",
+    .version_str = "0.1.0",
+    .process     = schemify_process,
+};
 ```
 
 ---
@@ -217,15 +229,7 @@ for a complete reference.
 
 ---
 
-## 6 — ABI compatibility
-
-Your plugin **must** be compiled against the same `PluginIF.ABI_VERSION` as the
-running Schemify binary.  The host checks this on load and refuses plugins with
-a mismatched version.
-
-| Schemify release | `ABI_VERSION` |
-|---|---|
-| ≥ 0.3 | `3` |
+## 6 — SDK dependency
 
 To depend on the Schemify SDK from an external repo, add it to your
 `build.zig.zon`:

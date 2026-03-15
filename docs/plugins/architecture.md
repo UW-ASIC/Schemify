@@ -2,99 +2,191 @@
 
 ## The ABI boundary
 
-Plugins communicate with the host through a single `extern struct` exported
-as the symbol `schemify_plugin`.  Using `extern struct` means the layout is
-defined by the C ABI — not Zig's internal layout — so every language that
-can call into C can implement a plugin.
+Plugins communicate with the host through a single `extern struct` exported as
+the symbol `schemify_plugin`.  Using `extern struct` means the layout is defined
+by the C ABI — not Zig's internal layout — so every language that can produce a
+C-compatible shared library or WASM module can implement a plugin.
 
 ```zig
 // src/PluginIF.zig (abridged)
-pub const ABI_VERSION: u32 = 2;
+pub const ProcessFn = *const fn (
+    in_ptr: [*]const u8,
+    in_len: usize,
+    out_ptr: [*]u8,
+    out_cap: usize,
+) callconv(.c) usize;
 
 pub const Descriptor = extern struct {
-    abi_version: u32,         // must equal ABI_VERSION
     name:        [*:0]const u8,
     version_str: [*:0]const u8,
-    set_ctx:     SetCtxFn,    // always Plugin.setCtx
-    on_load:     OnLoadFn,
-    on_unload:   OnUnloadFn,
-    on_tick:     ?OnTickFn,   // null if the plugin has no per-frame work
+    process:     ProcessFn,
 };
 ```
 
-The runtime (`src/plugins/runtime.zig`) does `dlopen` → `dlsym("schemify_plugin")`
-→ checks `abi_version` → calls `set_ctx` + `on_load`.  If the version does not
-match, the library is closed and a warning is logged.
+Every plugin must export a `Descriptor` constant named `schemify_plugin` and
+implement a single `process` function.  There are no other required exports.
 
-## Native target: VTable + Ctx
+## Message-passing protocol
 
-On native builds the host passes a `*Ctx` to the plugin before every lifecycle
-call via `set_ctx`.  `Ctx` wraps a `*VTable` — a pointer to a single
-comptime-constant table of function pointers that lives inside the host binary.
+All communication between the host and a plugin goes through `process`.  The
+host packs one or more messages into the input buffer and calls `process`; the
+plugin reads those messages, acts on them, and writes response messages into the
+output buffer.
 
-```
-Plugin .so              Host binary
-  │                        │
-  │  _g_ctx ────────────►  Ctx { _vtable ──────► VTable { set_status, log, … }
-  │                               _state ──────► AppState { … }
-  │                        }
-```
-
-Plugins never allocate or write to `VTable` or `Ctx`.  They call the
-module-level wrappers (`Plugin.setStatus(…)`) which look up `_g_ctx` and
-dispatch through the vtable.
-
-## WASM target: extern "host" imports
-
-On WASM builds there is no `Ctx` and no vtable.  Instead `PluginIF.zig`
-declares `extern "host"` function imports which the JavaScript `plugin_host.js`
-provides when instantiating the `.wasm` module:
+### Wire format
 
 ```
-plugin.wasm                 plugin_host.js
-  │                              │
-  │── set_status(ptr, len) ─────►│  reads str from WASM memory, forwards to UI
-  │── register_panel(…) ────────►│  registers panel with the WASM app state
-  │── vfs_file_read(…) ─────────►│  reads from in-memory VFS Map
+[u8 tag][u16 payload_sz LE][payload_sz bytes]
 ```
 
-Zig's `comptime is_wasm` guards every call site so the compiler emits either
-the vtable path or the extern-import path — never both.  A single plugin
-source file therefore works on both targets with no `#ifdef`s.
+- **tag** — identifies the message type (see `Tag` enum in `src/PluginIF.zig`)
+- **payload_sz** — length of the payload in bytes, little-endian u16
+- **payload** — message-specific bytes
 
-## Filesystem: Vfs
+Payload encoding conventions:
 
-Both targets expose an identical Zig API through `Plugin.Vfs` (defined in
-`src/core/Vfs.zig`):
+| Type        | Encoding                              |
+|-------------|---------------------------------------|
+| string      | `[u16 len LE][len bytes]` (UTF-8, no null terminator) |
+| f32 array   | `[u32 count LE][count × 4 bytes LE]`  |
+| u8 array    | `[u32 count LE][count bytes]`         |
+| scalar ints | little-endian, width matches type     |
 
-- **Native** — thin wrappers around `std.fs.cwd()`
-- **WASM** — calls `host.vfs_file_*` / `host.vfs_dir_*` extern imports;
-  the JS host holds an in-memory `Map<string, Uint8Array>` that can optionally
-  be backed by IndexedDB / OPFS.
+### Buffer overflow and retry
 
-See [FileIO & VFS](./wasm#vfs) for usage patterns.
+`process` returns the number of bytes written to `out_ptr`.  If the output
+buffer was too small to hold all response messages, the plugin must write
+nothing and return `std.math.maxInt(usize)`.  The host will double the buffer
+and call `process` again with the same input.
+
+### Reader / Writer helpers
+
+`src/PluginIF.zig` ships a `Reader` and a `Writer` that handle all encoding and
+decoding, so plugins do not need to manipulate the wire format directly:
+
+```zig
+var r = Plugin.Reader.init(in_ptr[0..in_len]);
+var w = Plugin.Writer.init(out_ptr[0..out_cap]);
+
+while (r.next()) |msg| {
+    switch (msg) { ... }
+}
+
+return if (w.overflow()) std.math.maxInt(usize) else w.pos;
+```
+
+`Reader.next()` skips unknown tags and tags from the wrong direction
+transparently, so plugins are forward-compatible with new host message types.
+
+## Host → plugin messages
+
+The host drives the plugin lifecycle and delivers events by sending messages
+in the input buffer:
+
+| Tag                  | When sent                                              |
+|----------------------|--------------------------------------------------------|
+| `load`               | Once, when the plugin is first loaded                  |
+| `unload`             | Once, before the plugin is closed                      |
+| `tick`               | Every frame; payload includes `dt: f32`                |
+| `draw_panel`         | Each frame a registered panel is visible               |
+| `button_clicked`     | User clicked a button the plugin rendered              |
+| `slider_changed`     | User moved a slider                                    |
+| `text_changed`       | User edited a text field                               |
+| `checkbox_changed`   | User toggled a checkbox                                |
+| `command`            | A keybind or external trigger fired a plugin command   |
+| `state_response`     | Reply to a previous `get_state` request                |
+| `config_response`    | Reply to a previous `get_config` request               |
+| `schematic_changed`  | The active schematic was modified                      |
+| `selection_changed`  | The selected instance changed                          |
+| `schematic_snapshot` | Summary counts for instances, wires, nets              |
+| `instance_data`      | Per-instance data from a `query_instances` request     |
+| `instance_prop`      | A property of one instance                            |
+| `net_data`           | A net name/index from a `query_nets` request           |
+
+## Plugin → host messages
+
+The plugin writes response messages using `Writer` methods.  Most can be sent
+during any `process` call; UI widget messages are only meaningful during
+`draw_panel`.
+
+**Lifecycle and commands**
+
+| Writer method       | Effect                                             |
+|---------------------|----------------------------------------------------|
+| `registerPanel`     | Register a panel (id, title, vim cmd, layout)      |
+| `setStatus`         | Set the host status bar text                       |
+| `log`               | Emit a log entry with level, tag, and message      |
+| `pushCommand`       | Push a command into the host command queue         |
+| `requestRefresh`    | Ask the host to repaint on the next frame          |
+| `registerKeybind`   | Bind a key+mods combination to a command tag       |
+| `setState`          | Persist a key/value in plugin state storage        |
+| `getState`          | Request a state value (arrives as `state_response`) |
+| `setConfig`         | Write a TOML-backed config value                   |
+| `getConfig`         | Request a config value (arrives as `config_response`) |
+
+**Schematic mutations**
+
+| Writer method       | Effect                                             |
+|---------------------|----------------------------------------------------|
+| `placeDevice`       | Place a device symbol in the active schematic      |
+| `addWire`           | Add a wire segment                                 |
+| `setInstanceProp`   | Set a property on a schematic instance             |
+| `queryInstances`    | Request all instance data (replies via `instance_data`) |
+| `queryNets`         | Request all net data (replies via `net_data`)      |
+
+## Runtime lifecycle
+
+`src/plugins/runtime.zig` manages native plugins:
+
+1. `dlopen` the `.so`
+2. `dlsym("schemify_plugin")` to get the `Descriptor`
+3. Call `process` with a `load` message
+4. Call `process` with a `tick` message every frame
+5. Call `process` with a `draw_panel` message each frame a panel is visible
+6. Call `process` with an `unload` message before `dlclose`
+
+The same binary protocol runs on WASM.  The WASM host (`src/web/plugin_host.js`)
+calls the exported `schemify_process` function with the same wire-format buffers.
+No `extern "host"` imports are required; the protocol is identical on both
+targets.
 
 ## Panel rendering
 
-Plugins draw their UI by registering a **draw callback** with `registerPanel`.
-The callback is called by the host during its dvui rendering pass — inside
-`dvui.Window.begin()` / `dvui.Window.end()`, so all dvui widgets are
-available.
+Panels are declared by writing a `register_panel` message during the `load`
+call.  Each frame the panel is visible the host sends a `draw_panel` message.
+The plugin responds by writing a sequence of UI widget messages — `ui_label`,
+`ui_button`, `ui_slider`, etc. — which the host interprets and renders in order.
 
 ```zig
-fn drawPanel() callconv(.c) void {
-    // dvui widgets are available here
-    var lbl = dvui.label(@src(), "Hello from my plugin!", .{});
-    _ = lbl;
-}
+.draw_panel => |ev| {
+    _ = ev;
+    w.label("Threshold", 0);
+    w.slider(threshold, 0.0, 1.0, 1);
+    w.button("Apply", 2);
+},
 ```
 
-The callback has `callconv(.c)` so it is callable through the vtable on native
-and through WASM table indirection on web.
+Widget `id` values are chosen by the plugin.  When the user interacts with a
+widget, the host sends a corresponding event (`button_clicked`, `slider_changed`,
+etc.) carrying the same `panel_id` and `widget_id`.
 
-## Memory
+Available UI widgets: `label`, `button`, `separator`, `beginRow`/`endRow`,
+`slider`, `checkbox`, `progress`, `plot`, `image`,
+`collapsibleStart`/`collapsibleEnd`.
 
-`Plugin.allocator()` returns the host's allocator on native (`std.mem.Allocator`
-backed by the VTable `host_alloc` / `host_realloc` / `host_free` calls) and
-`std.heap.wasm_allocator` on WASM.  You do not need to create your own arena
-for general allocations.
+## Filesystem: Vfs
+
+Both native and WASM targets expose a platform-agnostic filesystem API through
+`Plugin.Vfs` (`src/core/Vfs.zig`):
+
+- **Native** — thin wrappers around `std.fs.cwd()`
+- **WASM** — backed by an in-memory store in the JS host that can optionally
+  persist to IndexedDB / OPFS
+
+```zig
+const data = try Plugin.Vfs.readAlloc(alloc, "config.toml");
+try Plugin.Vfs.writeAll("output.sch", data);
+try Plugin.Vfs.makePath("my-plugin/cache");
+```
+
+See [FileIO & VFS](./wasm#vfs) for usage patterns.

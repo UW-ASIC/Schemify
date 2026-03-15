@@ -1,9 +1,0 @@
-** sch_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/tb_symbol_include.sch
-.subckt tb_symbol_include XY[7] XY[6] XY[5] XY[4] xvss XVCC XC XB XA[9] XA[8] XA[7] XZ
-*.PININFO XY[7:4]:O xvss:I XVCC:I XC:I XB:I XA[9:7]:I XZ:O
-x2 XZ XY[7] XY[6] XY[5] XY[4] XVCC xvss XA[9] XA[8] XA[7] XB XC SYMBOL_include
-.ends
-
-* expanding   symbol:  SYMBOL_include.sym # of pins=7
-** sym_path: /nix/store/qriw4afhakn3sqg2al06kdyr745hx86w-xschem-3.4.7/share/doc/xschem/examples/SYMBOL_include.sym
-.include symbol_include.cir

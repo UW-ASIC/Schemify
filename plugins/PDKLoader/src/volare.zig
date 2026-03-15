@@ -224,11 +224,145 @@ pub fn clone(a: Allocator, variant: []const u8) CloneError!void {
     return CloneError.CloneFailed;
 }
 
+// ── Two-pass XSchem → CHN classifier ────────────────────────────────────── //
+
+/// Per-stem presence flags for pass 1 of convertToSchemify.
+const StemInfo = packed struct { has_sch: bool = false, has_sym: bool = false };
+const StemHashMap = std.StringHashMapUnmanaged(StemInfo);
+
+/// Map a device type string (from XSchem props) to a (kind, prefix) pair.
+fn deviceKindFromType(type_str: []const u8) struct { kind: []const u8, prefix: u8 } {
+    if (std.mem.eql(u8, type_str, "nfet")      or
+        std.mem.eql(u8, type_str, "pfet")      or
+        std.mem.eql(u8, type_str, "nmos")      or
+        std.mem.eql(u8, type_str, "pmos"))      return .{ .kind = "mosfet",    .prefix = 'M' };
+    if (std.mem.eql(u8, type_str, "npn")       or
+        std.mem.eql(u8, type_str, "pnp"))       return .{ .kind = "bjt",       .prefix = 'Q' };
+    if (std.mem.eql(u8, type_str, "diode"))     return .{ .kind = "diode",     .prefix = 'D' };
+    if (std.mem.eql(u8, type_str, "resistor")  or
+        std.mem.eql(u8, type_str, "res"))       return .{ .kind = "resistor",  .prefix = 'R' };
+    if (std.mem.eql(u8, type_str, "capacitor") or
+        std.mem.eql(u8, type_str, "cap"))       return .{ .kind = "capacitor", .prefix = 'C' };
+    if (std.mem.eql(u8, type_str, "inductor")  or
+        std.mem.eql(u8, type_str, "ind"))       return .{ .kind = "inductor",  .prefix = 'L' };
+    if (std.mem.eql(u8, type_str, "subcircuit") or
+        std.mem.eql(u8, type_str, "subckt"))    return .{ .kind = "subckt",    .prefix = 'X' };
+    return .{ .kind = "unknown", .prefix = 'X' };
+}
+
+/// Write registry.dat to `out_dir` for all .sym files found under `xschem_dir`.
+/// Returns the number of registry entries written.
+fn writeRegistryDat(
+    a: Allocator,
+    xschem_dir: []const u8,
+    out_dir: []const u8,
+    stem_map: *StemHashMap,
+) !u32 {
+    var reg_dir = std.fs.openDirAbsolute(xschem_dir, .{ .iterate = true }) catch return 0;
+    defer reg_dir.close();
+
+    var reg_walk = try reg_dir.walk(a);
+    defer reg_walk.deinit();
+
+    var buf = std.ArrayListUnmanaged(u8){};
+    defer buf.deinit(a);
+
+    var reg_count: u32 = 0;
+
+    while (try reg_walk.next()) |entry| {
+        if (entry.kind != .file) continue;
+        if (!std.mem.endsWith(u8, entry.basename, ".sym")) continue;
+
+        // stem key = entry.path minus last 4 chars (".sym")
+        const stem_key = entry.path[0 .. entry.path.len - 4];
+        const info = stem_map.get(stem_key) orelse StemInfo{};
+
+        // cell_name = basename without ".sym"
+        const cell_name = entry.basename[0 .. entry.basename.len - 4];
+
+        // library = dirname of entry.path (relative inside xschem dir)
+        const library = if (std.fs.path.dirname(entry.path)) |d| d else ".";
+
+        // tier
+        const tier: []const u8 = if (info.has_sch and info.has_sym) "comp" else "prim";
+
+        // sym_path = absolute path to output .chn_sym file
+        const sym_out_name = try std.fmt.allocPrint(a, "{s}.chn_sym", .{cell_name});
+        defer a.free(sym_out_name);
+        const sym_path = try std.fs.path.join(a, &.{ out_dir, sym_out_name });
+        defer a.free(sym_path);
+
+        // parse the .sym file to extract pins and type prop
+        const in_path = try std.fs.path.join(a, &.{ xschem_dir, entry.path });
+        defer a.free(in_path);
+
+        const data = std.fs.cwd().readFileAlloc(a, in_path, 4 * 1024 * 1024) catch {
+            // skip unparseable files
+            continue;
+        };
+        defer a.free(data);
+
+        var xs = XSchem.readFile(data, a, null);
+        defer xs.deinit();
+
+        // build pin_order string
+        var pin_buf = std.ArrayListUnmanaged(u8){};
+        defer pin_buf.deinit(a);
+        const pin_names = xs.pins.slice().items(.name);
+        for (pin_names, 0..) |pname, pi| {
+            if (pi > 0) try pin_buf.append(a, ' ');
+            try pin_buf.appendSlice(a, pname);
+        }
+        const pin_order: []const u8 = pin_buf.items;
+
+        // extract device type from props
+        var type_str: []const u8 = "";
+        for (xs.props.items) |prop| {
+            if (std.mem.eql(u8, prop.key, "type")) {
+                type_str = prop.value;
+                break;
+            }
+        }
+        const kp = deviceKindFromType(type_str);
+
+        // write registry line
+        const w = buf.writer(a);
+        if (info.has_sch and info.has_sym) {
+            // "comp" tier: append sch_path too
+            const sch_out_name = try std.fmt.allocPrint(a, "{s}.chn", .{cell_name});
+            defer a.free(sch_out_name);
+            const sch_path = try std.fs.path.join(a, &.{ out_dir, sch_out_name });
+            defer a.free(sch_path);
+            try w.print("{s}|{s}|{s}|{s}|{c}|{s}|{s}|{s}\n", .{
+                tier, cell_name, library, kp.kind, kp.prefix, pin_order, sym_path, sch_path,
+            });
+        } else {
+            try w.print("{s}|{s}|{s}|{s}|{c}|{s}|{s}\n", .{
+                tier, cell_name, library, kp.kind, kp.prefix, pin_order, sym_path,
+            });
+        }
+        reg_count += 1;
+    }
+
+    if (reg_count > 0) {
+        const reg_path = try std.fs.path.join(a, &.{ out_dir, "registry.dat" });
+        defer a.free(reg_path);
+        std.fs.cwd().writeFile(.{ .sub_path = reg_path, .data = buf.items }) catch {};
+    }
+
+    return reg_count;
+}
+
 /// Convert all XSchem symbols/schematics in a variant's libs.tech/xschem/
 /// directory to CHN format and write them to `out_dir`.
 ///
-/// `.sch` files become `.chn`, `.sym` files become `.chn_sym`.
+/// Classification (two-pass):
+///   - `.sch` + matching `.sym` (same stem) → component → `.chn`
+///   - `.sch` alone (no matching `.sym`)    → testbench → `.chn_tb`
+///   - `.sym` (always)                      → primitive/symbol → `.chn_sym`
+///
 /// Creates `out_dir` if it does not exist.
+/// Also writes `<out_dir>/registry.dat` with one line per symbol.
 /// Returns the number of files successfully converted.
 pub fn convertToSchemify(a: Allocator, variant: PdkVariant, out_dir: []const u8) !u32 {
     const xschem_path = xschemDir(a, variant.root) orelse return 0;
@@ -236,18 +370,62 @@ pub fn convertToSchemify(a: Allocator, variant: PdkVariant, out_dir: []const u8)
 
     std.fs.cwd().makePath(out_dir) catch |e| return e;
 
-    var dir = std.fs.openDirAbsolute(xschem_path, .{ .iterate = true }) catch return 0;
-    defer dir.close();
+    // ── Pass 1: collect stems ─────────────────────────────────────────────── //
+    var stem_map: StemHashMap = .{};
 
-    var walker = try dir.walk(a);
-    defer walker.deinit();
+    {
+        var dir1 = std.fs.openDirAbsolute(xschem_path, .{ .iterate = true }) catch return 0;
+        defer dir1.close();
+        var walker1 = try dir1.walk(a);
+        defer walker1.deinit();
+
+        while (try walker1.next()) |entry| {
+            if (entry.kind != .file) continue;
+            const is_sch = std.mem.endsWith(u8, entry.basename, ".sch");
+            const is_sym = std.mem.endsWith(u8, entry.basename, ".sym");
+            if (!is_sch and !is_sym) continue;
+
+            // stem key = entry.path minus last 4 chars (".sch" / ".sym")
+            const stem_raw = entry.path[0 .. entry.path.len - 4];
+
+            const gop = try stem_map.getOrPut(a, stem_raw);
+            if (!gop.found_existing) {
+                // dupe the key so it survives after the walk iteration
+                gop.key_ptr.* = try a.dupe(u8, stem_raw);
+                gop.value_ptr.* = .{};
+            }
+            if (is_sch) gop.value_ptr.has_sch = true;
+            if (is_sym) gop.value_ptr.has_sym = true;
+        }
+    }
+
+    defer {
+        var it = stem_map.keyIterator();
+        while (it.next()) |k| a.free(k.*);
+        stem_map.deinit(a);
+    }
+
+    // ── Pass 2: convert with correct extensions ───────────────────────────── //
+    var dir2 = std.fs.openDirAbsolute(xschem_path, .{ .iterate = true }) catch return 0;
+    defer dir2.close();
+    var walker2 = try dir2.walk(a);
+    defer walker2.deinit();
 
     var count: u32 = 0;
-    while (try walker.next()) |entry| {
+    while (try walker2.next()) |entry| {
         if (entry.kind != .file) continue;
         const is_sch = std.mem.endsWith(u8, entry.basename, ".sch");
         const is_sym = std.mem.endsWith(u8, entry.basename, ".sym");
         if (!is_sch and !is_sym) continue;
+
+        const stem_key = entry.path[0 .. entry.path.len - 4];
+        const info = stem_map.get(stem_key) orelse StemInfo{};
+
+        // Determine output extension
+        const ext: []const u8 = if (is_sch)
+            (if (info.has_sym) ".chn" else ".chn_tb")
+        else
+            ".chn_sym";
 
         const in_path = try std.fs.path.join(a, &.{ xschem_path, entry.path });
         defer a.free(in_path);
@@ -264,7 +442,6 @@ pub fn convertToSchemify(a: Allocator, variant: PdkVariant, out_dir: []const u8)
         const out_data = sch.writeFile(a, null) orelse continue;
         defer a.free(out_data);
 
-        const ext = if (is_sch) ".chn" else ".chn_sym";
         const stem_len = entry.basename.len - 4; // ".sch" or ".sym"
         const out_name = try std.fmt.allocPrint(a, "{s}{s}", .{ entry.basename[0..stem_len], ext });
         defer a.free(out_name);
@@ -275,6 +452,10 @@ pub fn convertToSchemify(a: Allocator, variant: PdkVariant, out_dir: []const u8)
         std.fs.cwd().writeFile(.{ .sub_path = out_path, .data = out_data }) catch continue;
         count += 1;
     }
+
+    // ── Registry ──────────────────────────────────────────────────────────── //
+    _ = writeRegistryDat(a, xschem_path, out_dir, &stem_map) catch {};
+
     return count;
 }
 

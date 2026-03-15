@@ -1,5 +1,0 @@
-.title resistor_divider
-V1 VDD GND 3.3
-R1 VDD _n0 10k
-R2 _n0 GND 10k
-.end

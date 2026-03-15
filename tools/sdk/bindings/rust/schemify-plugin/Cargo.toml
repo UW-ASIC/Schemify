@@ -1,0 +1,8 @@
+[package]
+name = "schemify-plugin"
+version = "0.6.0"
+edition = "2021"
+description = "Rust bindings for the Schemify plugin SDK (ABI v6)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
