@@ -7,7 +7,7 @@
         // DVUI - General-purpose Zig GUI toolkit (fetched from GitHub)
         .dvui = .{
             .url = "https://github.com/david-vanderson/dvui/archive/refs/heads/main.tar.gz",
-            .hash = "dvui-0.4.0-dev-AQFJmaQl2wDj-nR5BEX6yrkNF_HPN4JMK2FfhASDB-fD",
+            .hash = "dvui-0.4.0-dev-AQFJmf-A3gCWYqYVQjenwJbQLtLAYAr2EnNWhbEdHI5O",
         },
     },
 
