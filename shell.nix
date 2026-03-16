@@ -61,6 +61,8 @@ pkgs.mkShell {
     pkgs.libxinerama
     pkgs.libxrender
     pkgs.libxfixes
+    pkgs.mesa
+    pkgs.libGL
     # ── NGSpice build-from-source deps ───────────────────────────
     pkgs.pkg-config
     pkgs.autoconf
@@ -80,6 +82,7 @@ pkgs.mkShell {
     pkgs.blas
   ];
   LD_LIBRARY_PATH = lib.makeLibraryPath [
+    pkgs.mesa
     pkgs.stdenv.cc.cc.lib # libstdc++.so — needed by Python C extensions and Zig C++ interop
     pkgs.libGL
     pkgs.libx11
@@ -97,6 +100,11 @@ pkgs.mkShell {
   shellHook = ''
     export NIX_CFLAGS_COMPILE="$(printf '%s' "$NIX_CFLAGS_COMPILE" | sed -E 's@(^| )-idirafter /usr/include( |$)@ @g' | tr -s ' ')"
     export NIX_LDFLAGS="$(printf '%s' "$NIX_LDFLAGS" | sed -E 's@(^| )-L/usr/lib( |$)@ @g; s@(^| )-L/usr/lib32( |$)@ @g' | tr -s ' ')"
+
+    # Software GL via nix Mesa (needed on WSL)
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export LIBGL_DRIVERS_PATH=${pkgs.mesa}/lib/dri
+    export LD_LIBRARY_PATH=${pkgs.mesa}/lib:$LD_LIBRARY_PATH
 
     echo "Zig $(zig version), ZLS $(zls --version)"
     echo "Python $(python3 --version | cut -d' ' -f2)"
