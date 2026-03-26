@@ -32,12 +32,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Any XSchem .sym file parses with K-block properties (type, format, template) extracted correctly
   4. Instance properties with brace escaping, backslash sequences, and quoted values round-trip through parse without data loss
   5. Each pipeline stage file is under 400 lines, uses arena allocators, and contains no OOP method chains or Backend/Runtime unions
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 - [x] 01-01-PLAN.md -- XSchem DOD types, Schematic container, and PropertyTokenizer
 - [ ] 01-02-PLAN.md -- XSchem .sch/.sym reader with tag-dispatch parsing
-- [ ] 01-03-PLAN.md -- Tcl subset evaluator (tokenizer, expression parser, evaluator, commands)
+- [x] 01-03-PLAN.md -- Tcl subset evaluator (tokenizer, expression parser, evaluator, commands)
 - [ ] 01-04-PLAN.md -- XSchemRC parser using Tcl evaluator, build.zig wiring, integration tests
 
 ### Phase 2: Dependency Discovery
@@ -114,7 +114,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Parser Foundation | 0/4 | Planning complete | - |
+| 1. Parser Foundation | 1/4 | In Progress|  |
 | 2. Dependency Discovery | 0/? | Not started | - |
 | 3. Core Translation | 0/? | Not started | - |
 | 4. Symbol Resolution and Geometry | 0/? | Not started | - |
