@@ -38,7 +38,7 @@ Plans:
 - [x] 01-01-PLAN.md -- XSchem DOD types, Schematic container, and PropertyTokenizer
 - [x] 01-02-PLAN.md -- XSchem .sch/.sym reader with tag-dispatch parsing
 - [x] 01-03-PLAN.md -- Tcl subset evaluator (tokenizer, expression parser, evaluator, commands)
-- [ ] 01-04-PLAN.md -- XSchemRC parser using Tcl evaluator, build.zig wiring, integration tests
+- [x] 01-04-PLAN.md -- XSchemRC parser using Tcl evaluator, build.zig wiring, integration tests
 
 ### Phase 2: Dependency Discovery
 **Goal**: Given a root schematic and resolved search paths, the complete set of reachable files is discovered, classified, and ordered for conversion
