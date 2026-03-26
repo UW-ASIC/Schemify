@@ -20,11 +20,16 @@ fn expectProp(result: anytype, idx: usize, expected_key: []const u8, expected_va
     try testing.expectEqualStrings(expected_value, result[idx].value);
 }
 
+// All parseProps tests use an ArenaAllocator backed by testing.allocator.
+// This matches the real usage pattern (arena-per-stage) and avoids leak
+// detection noise from individual string allocations.
+
 // ── Test 1: bare value ───────────────────────────────────────────────────
 
 test "bare value name=R1" {
-    const result = try parseProps(testing.allocator, "name=R1");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "name=R1");
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "name", "R1");
 }
@@ -32,8 +37,9 @@ test "bare value name=R1" {
 // ── Test 2: quoted value ─────────────────────────────────────────────────
 
 test "quoted value value=\"1k\"" {
-    const result = try parseProps(testing.allocator, "value=\"1k\"");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "value=\"1k\"");
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "value", "1k");
 }
@@ -41,8 +47,9 @@ test "quoted value value=\"1k\"" {
 // ── Test 3: brace-escaped value ──────────────────────────────────────────
 
 test "brace-escaped value=\\{hello\\}" {
-    const result = try parseProps(testing.allocator, "value=\\{hello\\}");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "value=\\{hello\\}");
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "value", "{hello}");
 }
@@ -50,8 +57,9 @@ test "brace-escaped value=\\{hello\\}" {
 // ── Test 4: backslash-escaped quote in quoted value ──────────────────────
 
 test "backslash-escaped quote value=\"line1\\\"line2\"" {
-    const result = try parseProps(testing.allocator, "value=\"line1\\\"line2\"");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "value=\"line1\\\"line2\"");
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "value", "line1\"line2");
 }
@@ -59,8 +67,9 @@ test "backslash-escaped quote value=\"line1\\\"line2\"" {
 // ── Test 5: single-quoted value (no escape processing) ───────────────────
 
 test "single-quoted value='raw\\nstuff'" {
-    const result = try parseProps(testing.allocator, "value='raw\\nstuff'");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "value='raw\\nstuff'");
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "value", "raw\\nstuff");
 }
@@ -68,16 +77,18 @@ test "single-quoted value='raw\\nstuff'" {
 // ── Test 6: empty braces ─────────────────────────────────────────────────
 
 test "empty braces {}" {
-    const result = try parseProps(testing.allocator, "{}");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "{}");
     try testing.expectEqual(@as(u16, 0), result.count);
 }
 
 // ── Test 7: multiple props ───────────────────────────────────────────────
 
 test "multiple props name=R1 value=1k model=res" {
-    const result = try parseProps(testing.allocator, "name=R1 value=1k model=res");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "name=R1 value=1k model=res");
     try testing.expectEqual(@as(u16, 3), result.count);
     try expectProp(result.props, 0, "name", "R1");
     try expectProp(result.props, 1, "value", "1k");
@@ -87,9 +98,10 @@ test "multiple props name=R1 value=1k model=res" {
 // ── Test 8: multi-line quoted value with embedded newline ────────────────
 
 test "multi-line quoted value with embedded newline" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
     const input = "value=\"line1\nline2\"";
-    const result = try parseProps(testing.allocator, input);
-    defer testing.allocator.free(result.props);
+    const result = try parseProps(arena.allocator(), input);
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "value", "line1\nline2");
 }
@@ -97,8 +109,9 @@ test "multi-line quoted value with embedded newline" {
 // ── Test 9: space in quoted value ────────────────────────────────────────
 
 test "space in quoted value lab=\"net name\"" {
-    const result = try parseProps(testing.allocator, "lab=\"net name\"");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "lab=\"net name\"");
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "lab", "net name");
 }
@@ -106,8 +119,9 @@ test "space in quoted value lab=\"net name\"" {
 // ── Test 10: backslash-brace mixed ───────────────────────────────────────
 
 test "backslash-brace mixed value=test\\{inner\\}end" {
-    const result = try parseProps(testing.allocator, "value=test\\{inner\\}end");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "value=test\\{inner\\}end");
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "value", "test{inner}end");
 }
@@ -115,14 +129,16 @@ test "backslash-brace mixed value=test\\{inner\\}end" {
 // ── Additional edge cases ────────────────────────────────────────────────
 
 test "empty input" {
-    const result = try parseProps(testing.allocator, "");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "");
     try testing.expectEqual(@as(u16, 0), result.count);
 }
 
 test "whitespace only" {
-    const result = try parseProps(testing.allocator, "   \t  ");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "   \t  ");
     try testing.expectEqual(@as(u16, 0), result.count);
 }
 
@@ -138,8 +154,9 @@ test "PropertyTokenizer bare iteration" {
 }
 
 test "backslash-backslash in quoted value" {
-    const result = try parseProps(testing.allocator, "value=\"path\\\\dir\"");
-    defer testing.allocator.free(result.props);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const result = try parseProps(arena.allocator(), "value=\"path\\\\dir\"");
     try testing.expectEqual(@as(u16, 1), result.count);
     try expectProp(result.props, 0, "value", "path\\dir");
 }
