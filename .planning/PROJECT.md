@@ -12,13 +12,12 @@ EasyImport is a Schemify plugin + CLI tool that converts XSchem projects into Sc
 
 ### Validated
 
-- ✓ XSchem `.sch`/`.sym` text format parser (DOD struct-of-arrays) — existing XSchem.zig
-- ✓ `xschemrc` Tcl-subset parser with variable expansion — existing XSchemRC.zig
+- ✓ XSchem `.sch`/`.sym` text format parser (DOD struct-of-arrays) — Validated in Phase 1
+- ✓ `xschemrc` Tcl-subset parser with variable expansion — Validated in Phase 1
+- ✓ Full Tcl expression evaluator for xschemrc (variable substitution, `[file dirname]`, `$env()`, nested expressions) — Validated in Phase 1
 - ✓ Schemify core data model (`Schemify.zig`, `Types.zig`) — existing core
 
 ### Active
-
-- [ ] Full Tcl expression evaluator for xschemrc (variable substitution, `[file dirname]`, `$env()`, nested expressions)
 - [ ] Dependency tree builder — parse project, find all referenced `.sch`/`.sym`, determine conversion order (leaves first)
 - [ ] File classification: `.sch` + `.sym` pair → `.chn`, `.sch` alone → `.chn_tb`, `.sym` alone → `.chn_prim`
 - [ ] XSchem → Schemify IR translation (instances, wires, pins, properties, shapes)
@@ -85,4 +84,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after initialization*
+*Last updated: 2026-03-26 after Phase 1 completion*
