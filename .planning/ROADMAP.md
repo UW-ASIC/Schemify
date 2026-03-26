@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- XSchem DOD types, Schematic container, and PropertyTokenizer
-- [ ] 01-02-PLAN.md -- XSchem .sch/.sym reader with tag-dispatch parsing
+- [x] 01-02-PLAN.md -- XSchem .sch/.sym reader with tag-dispatch parsing
 - [x] 01-03-PLAN.md -- Tcl subset evaluator (tokenizer, expression parser, evaluator, commands)
 - [ ] 01-04-PLAN.md -- XSchemRC parser using Tcl evaluator, build.zig wiring, integration tests
 
