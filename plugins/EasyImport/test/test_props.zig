@@ -5,9 +5,9 @@
 
 const std = @import("std");
 const testing = std.testing;
-const props_mod = @import("props");
-const PropertyTokenizer = props_mod.PropertyTokenizer;
-const parseProps = props_mod.parseProps;
+const xschem = @import("xschem");
+const PropertyTokenizer = xschem.PropertyTokenizer;
+const parseProps = xschem.parseProps;
 
 // ── Test helpers ─────────────────────────────────────────────────────────
 
