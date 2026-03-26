@@ -289,11 +289,14 @@ pub const Evaluator = struct {
             } else {
                 const start = i;
                 var brace_depth: usize = 0;
+                var bracket_depth: usize = 0;
                 while (i < src.len) {
                     if (src[i] == '{') { brace_depth += 1; i += 1; continue; }
                     if (src[i] == '}' and brace_depth > 0) { brace_depth -= 1; i += 1; continue; }
+                    if (src[i] == '[') { bracket_depth += 1; i += 1; continue; }
+                    if (src[i] == ']' and bracket_depth > 0) { bracket_depth -= 1; i += 1; continue; }
                     if (src[i] == '\\' and i + 1 < src.len) { i += 2; continue; }
-                    if ((src[i] == ' ' or src[i] == '\t') and brace_depth == 0) break;
+                    if ((src[i] == ' ' or src[i] == '\t') and brace_depth == 0 and bracket_depth == 0) break;
                     i += 1;
                 }
                 buf[count.*] = try self.substitute(src[start..i]);
