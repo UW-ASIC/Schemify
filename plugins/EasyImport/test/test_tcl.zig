@@ -1,5 +1,5 @@
 const std = @import("std");
-const tcl_mod = @import("../src/TCL/root.zig");
+const tcl_mod = @import("tcl");
 
 test "set variable and retrieve" {
     var tcl = tcl_mod.Tcl.init(std.testing.allocator);

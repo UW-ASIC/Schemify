@@ -32,6 +32,12 @@ const props = @import("props.zig");
 pub const PropertyTokenizer = props.PropertyTokenizer;
 pub const parseProps = props.parseProps;
 
+// ── Re-exports from reader.zig ─────────────────────────────────────────
+
+const reader = @import("reader.zig");
+
+pub const parse = reader.parse;
+
 // ── MultiArrayList alias ─────────────────────────────────────────────────
 
 fn MAL(comptime T: type) type {
