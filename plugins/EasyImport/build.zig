@@ -18,6 +18,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // xschemrc.zig needs to @import("tcl") -- wire TCL into the XSchem module
+    xschem_mod.addImport("tcl", tcl_mod);
+
     const test_step = b.step("test", "Run all tests");
 
     // Test: reader
@@ -51,6 +54,19 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         });
+        t.root_module.addImport("tcl", tcl_mod);
+        const run = b.addRunArtifact(t);
+        test_step.dependOn(&run.step);
+    }
+
+    // Test: xschemrc
+    {
+        const t = b.addTest(.{
+            .root_source_file = b.path("test/test_xschemrc.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        t.root_module.addImport("xschem", xschem_mod);
         t.root_module.addImport("tcl", tcl_mod);
         const run = b.addRunArtifact(t);
         test_step.dependOn(&run.step);

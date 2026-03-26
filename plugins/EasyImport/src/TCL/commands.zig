@@ -121,7 +121,7 @@ pub fn readSourceFile(path: []const u8, allocator: std.mem.Allocator) ?[]const u
 }
 
 fn isDirExists(path: []const u8) bool {
-    const dir = std.fs.cwd().openDir(path, .{}) catch return false;
+    var dir = std.fs.cwd().openDir(path, .{}) catch return false;
     dir.close();
     return true;
 }

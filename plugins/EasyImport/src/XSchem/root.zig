@@ -38,6 +38,13 @@ const reader = @import("reader.zig");
 
 pub const parse = reader.parse;
 
+// ── Re-exports from xschemrc.zig ────────────────────────────────────────
+
+const xschemrc = @import("xschemrc.zig");
+
+pub const RcResult = xschemrc.RcResult;
+pub const parseRc = xschemrc.parseRc;
+
 // ── MultiArrayList alias ─────────────────────────────────────────────────
 
 fn MAL(comptime T: type) type {
