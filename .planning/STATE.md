@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: DOD Refactor + Plugin Ecosystem
-current_plan: 14-01 complete
+current_plan: 01-02 complete
 status: executing
-stopped_at: Completed 14-01-PLAN.md (plugin doc restructure)
-last_updated: "2026-03-27T22:09:19.159Z"
+stopped_at: Completed 01-02-PLAN.md (SparseSet, RingBuffer, Pool)
+last_updated: "2026-03-27T22:15:26Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 18
@@ -18,14 +18,17 @@ progress:
 
 ## Current Position
 
-Phase: 14 (doc-infrastructure-quick-start) — EXECUTING
-Plan: 1 of 2 complete
-Status: Executing Phase 14 Wave 2
+Phase: 01 (foundation-data-structures) — EXECUTING
+Plan: 2 of 3 complete
+Status: Executing Phase 01
 Last activity: 2026-03-27
 
 ## Progress
 
-[                    ] 0/18 phases
+[=============       ] 2/3 plans (Phase 01)
+
+**Current Plan:** 01-02 complete
+**Total Plans in Phase:** 3
 
 ### Workstream A: DOD Refactor
 
@@ -55,6 +58,9 @@ Last activity: 2026-03-27
 - [Phase 01-01]: Generation starts at 1 so Handle.invalid (gen=0) never matches live slot
 - [Phase 01-01]: Free list sentinel is maxInt(u20) with ?u20 free_head
 - [Phase 01-01]: SecondaryMap stale handle test uses reinsert pattern for generation mismatch
+- [Phase 01-02]: SparseSet uses ArrayListUnmanaged for dense/sparse (matches SlotMap convention)
+- [Phase 01-02]: RingBuffer and Pool are comptime-sized with no Allocator (fixed capacity inline arrays)
+- [Phase 01-02]: Pool intrusive free list via @ptrCast between *T and *FreeNode with comptime @sizeOf guard
 - [Phase 08-01]: Matched parse.zig reference implementation pattern for applyJson consistency
 - [Phase 08-01]: utility_mod exported in PluginContext for external plugin access
 - [Phase 14]: Kept overview/architecture/api at plugins/ root (shared files, per D-02)
@@ -70,10 +76,11 @@ None
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 01 | 01 | 6min | 2 | 1 |
+| 01 | 02 | 4min | 3 | 3 |
 | 08 | 01 | 3min | 2 | 2 |
 | 14 | 01 | 3min | 2 | 12 |
 
 ## Session
 
-- **Last session:** 2026-03-27T22:09:19.157Z
-- **Stopped at:** Completed 14-01-PLAN.md (plugin doc restructure)
+- **Last session:** 2026-03-27T22:15:26Z
+- **Stopped at:** Completed 01-02-PLAN.md (SparseSet, RingBuffer, Pool)
