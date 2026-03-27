@@ -54,7 +54,7 @@ v3.0 transforms Schemify from a working-but-organically-grown EDA editor into a 
 **Plans:** 3 plans
 Plans:
 - [ ] 01-01-PLAN.md — Dense SlotMap with generational Handle and SecondaryMap companion
-- [ ] 01-02-PLAN.md — SparseSet, RingBuffer, and Pool allocator
+- [x] 01-02-PLAN.md — SparseSet, RingBuffer, and Pool allocator
 - [ ] 01-03-PLAN.md — SmallVec, PerfectHash (gperf + CHD), lib.zig wiring, build.zig test entry
 **Success Criteria**:
   1. SlotMap passes generational handle validation (insert, remove, get-after-remove returns null)
