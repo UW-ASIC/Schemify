@@ -2,32 +2,32 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: milestone
-current_plan: Not started
+current_plan: 3
 status: executing
-stopped_at: Completed 01-02-PLAN.md (SparseSet, RingBuffer, Pool)
-last_updated: "2026-03-27T22:28:30.630Z"
+stopped_at: Completed 01-03-PLAN.md (SmallVec, PerfectHash, lib.zig wiring)
+last_updated: "2026-03-27T22:38:18.691Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 18
   completed_phases: 2
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 15
-Plan: 1 of 3
+Phase: 01 (foundation-data-structures) — EXECUTING
+Plan: 3 of 3
 Status: Executing Phase 01
 Last activity: 2026-03-27
 
 ## Progress
 
-[=============       ] 2/3 plans (Phase 01)
+[====================] 3/3 plans (Phase 01)
 
-**Current Plan:** Not started
+**Current Plan:** 3
 **Total Plans in Phase:** 3
 
 ### Workstream A: DOD Refactor
@@ -66,6 +66,10 @@ Last activity: 2026-03-27
 - [Phase 14]: Kept overview/architecture/api at plugins/ root (shared files, per D-02)
 - [Phase 14]: Quick Start as first item in Creating Plugins sidebar (per D-05)
 - [Phase 14]: API Reference moved into Plugins section (not standalone Reference section)
+- [Phase 14]: Note Pad plugin using buttons+checkboxinstead of text_input (does not exist in ABI v6)
+- [Phase 01]: SmallVec uses flat fields (heap_ptr/heap_cap/len) over tagged union for simplicity
+- [Phase 01]: PerfectHash stores parallel keys array for unknown-key rejection (no false positives)
+- [Phase 01]: ChdHash uses fixed seeds and n/4 buckets with greedy largest-first processing
 
 ## Blockers
 
@@ -79,8 +83,10 @@ None
 | 01 | 02 | 4min | 3 | 3 |
 | 08 | 01 | 3min | 2 | 2 |
 | 14 | 01 | 3min | 2 | 12 |
+| 14 | 02 | 3min | 1 | 1 |
+| 01 | 03 | 9min | 3 | 4 |
 
 ## Session
 
-- **Last session:** 2026-03-27T22:15:26Z
-- **Stopped at:** Completed 01-02-PLAN.md (SparseSet, RingBuffer, Pool)
+- **Last session:** 2026-03-27T22:38:18.688Z
+- **Stopped at:** Completed 01-03-PLAN.md (SmallVec, PerfectHash, lib.zig wiring)

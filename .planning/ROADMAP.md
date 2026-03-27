@@ -20,7 +20,7 @@ v3.0 transforms Schemify from a working-but-organically-grown EDA editor into a 
 
 ### Workstream A: DOD Refactor
 
-- [ ] **Phase 1: Foundation Data Structures** - Build SlotMap, SparseSet, RingBuffer, Pool, SmallVec, PerfectHash in utility/ (~720 LOC, 6 new files)
+- [x] **Phase 1: Foundation Data Structures** - Build SlotMap, SparseSet, RingBuffer, Pool, SmallVec, PerfectHash in utility/ (~720 LOC, 6 new files)
 - [ ] **Phase 2: Core Data Model** - Replace MultiArrayList with SlotMap for instances/wires, introduce generational Handles, extract NetResolver.zig (Schemify.zig 1392→400 LOC)
 - [ ] **Phase 3: State & Queue Refactor** - CommandQueue→RingBuffer O(1), Selection→SparseSet O(1), History→RingBuffer, hot/cold layout validation
 - [ ] **Phase 4: PluginIF Protocol Expansion** - ~20 new tags: lifecycle hooks, event subscriptions, command interception, custom rendering, context menu, status bar widgets
@@ -53,9 +53,9 @@ v3.0 transforms Schemify from a working-but-organically-grown EDA editor into a 
 **Requirements**: DS-01 through DS-06
 **Plans:** 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Dense SlotMap with generational Handle and SecondaryMap companion
+- [x] 01-01-PLAN.md — Dense SlotMap with generational Handle and SecondaryMap companion
 - [x] 01-02-PLAN.md — SparseSet, RingBuffer, and Pool allocator
-- [ ] 01-03-PLAN.md — SmallVec, PerfectHash (gperf + CHD), lib.zig wiring, build.zig test entry
+- [x] 01-03-PLAN.md — SmallVec, PerfectHash (gperf + CHD), lib.zig wiring, build.zig test entry
 **Success Criteria**:
   1. SlotMap passes generational handle validation (insert, remove, get-after-remove returns null)
   2. SparseSet isEmpty/count/clear are O(1), iteration is O(k) for k selected items
@@ -268,7 +268,7 @@ Phases 1, 8, 14 can start in parallel. Within each workstream, phases execute se
 
 | Phase | Status | Completed |
 |-------|--------|-----------|
-| 1. Foundation Data Structures | Planned (3 plans, 2 waves) | - |
+| 1. Foundation Data Structures | Complete (3/3 plans) | 2026-03-27 |
 | 2. Core Data Model | Not started | - |
 | 3. State & Queue Refactor | Not started | - |
 | 4. PluginIF Protocol Expansion | Not started | - |
