@@ -87,7 +87,7 @@
 ### Documentation (DOC)
 
 - [ ] **DOC-01**: docs/plugins/creating/ and docs/plugins/using/ directories with VitePress sidebar
-- [ ] **DOC-02**: Quick start guide: 5-minute plugin in Zig, C, Rust, Python, Go
+- [x] **DOC-02**: Quick start guide: 5-minute plugin in Zig, C, Rust, Python, Go
 - [ ] **DOC-03**: Architecture doc: message lifecycle, event dispatch, memory model, Framework
 - [ ] **DOC-04**: API reference: every tag, payload format, SDK function names, cross-language matrix
 - [ ] **DOC-05**: Widget reference: all 12 widget types with code samples in all languages
@@ -172,7 +172,7 @@
 | PFIX-16 | 13 | Pending |
 | PFIX-17 | 13 | Pending |
 | DOC-01 | 14 | Pending |
-| DOC-02 | 14 | Pending |
+| DOC-02 | 14 | Complete |
 | DOC-03 | 15 | Pending |
 | DOC-04 | 15 | Pending |
 | DOC-05 | 16 | Pending |
