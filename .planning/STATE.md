@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: milestone
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 14-02-PLAN.md (Quick Start Guide)
-last_updated: "2026-03-27T22:24:43.160Z"
+stopped_at: Completed 01-03-PLAN.md (SmallVec, PerfectHash, lib.zig wiring)
+last_updated: "2026-03-27T22:38:18.691Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 18
   completed_phases: 0
   total_plans: 0
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -19,7 +19,7 @@ progress:
 ## Current Position
 
 Phase: 01 (foundation-data-structures) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-03-27
 
@@ -27,7 +27,7 @@ Last activity: 2026-03-27
 
 [=============       ] 2/3 plans (Phase 01)
 
-**Current Plan:** 2
+**Current Plan:** 3
 **Total Plans in Phase:** 3
 
 ### Workstream A: DOD Refactor
@@ -67,6 +67,9 @@ Last activity: 2026-03-27
 - [Phase 14]: Quick Start as first item in Creating Plugins sidebar (per D-05)
 - [Phase 14]: API Reference moved into Plugins section (not standalone Reference section)
 - [Phase 14]: Note Pad plugin using buttons+checkboxes instead of text_input (does not exist in ABI v6)
+- [Phase 01]: SmallVec uses flat fields (heap_ptr/heap_cap/len) over tagged union for simplicity
+- [Phase 01]: PerfectHash stores parallel keys array for unknown-key rejection (no false positives)
+- [Phase 01]: ChdHash uses fixed seeds and n/4 buckets with greedy largest-first processing
 
 ## Blockers
 
@@ -81,8 +84,9 @@ None
 | 08 | 01 | 3min | 2 | 2 |
 | 14 | 01 | 3min | 2 | 12 |
 | Phase 14 P02 | 3min | 1 tasks | 1 files |
+| Phase 01 P03 | 9min | 3 tasks | 4 files |
 
 ## Session
 
-- **Last session:** 2026-03-27T22:24:43.158Z
-- **Stopped at:** Completed 14-02-PLAN.md (Quick Start Guide)
+- **Last session:** 2026-03-27T22:38:18.688Z
+- **Stopped at:** Completed 01-03-PLAN.md (SmallVec, PerfectHash, lib.zig wiring)
