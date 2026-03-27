@@ -6,10 +6,12 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const st = @import("state");
+const plugin_runtime = @import("runtime");
 
 const AppState = st.AppState;
 const PluginPanel = st.PluginPanel;
 const PluginPanelLayout = st.PluginPanelLayout;
+const Runtime = plugin_runtime.Runtime;
 
 const sidebar_min_width: f32 = 220;
 const sidebar_padding: f32 = 8;
@@ -17,6 +19,12 @@ const bottom_bar_min_height: f32 = 150;
 const bottom_bar_padding: f32 = 8;
 const overlay_min_width: f32 = 360;
 const overlay_min_height: f32 = 220;
+
+/// Maximum row nesting depth (begin_row / end_row).
+const MAX_ROW_NESTING: usize = 8;
+
+/// Maximum tracked collapsible sections per panel.
+const MAX_COLLAPSIBLES: usize = 32;
 
 // ── Public draw entry points ──────────────────────────────────────────────── //
 
@@ -37,7 +45,7 @@ pub fn drawSidebar(app: *AppState, layout: PluginPanelLayout) void {
             .expand = .vertical,
         });
         defer box.deinit();
-        drawPanelBody(panel);
+        drawPanelBody(panel, app);
     }
 }
 
@@ -71,7 +79,7 @@ pub fn drawBottomBar(app: *AppState) void {
         if (!panel.visible or panel.layout != .bottom_bar) continue;
         var section = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
         defer section.deinit();
-        drawPanelBody(panel);
+        drawPanelBody(panel, app);
     }
 }
 
@@ -88,7 +96,7 @@ pub fn drawOverlays(app: *AppState) void {
         defer fwin.deinit();
 
         fwin.dragAreaSet(dvui.windowHeader(panel.title, "", &panel.visible));
-        drawPanelBody(panel.*);
+        drawPanelBody(panel.*, app);
     }
 }
 
@@ -115,9 +123,135 @@ pub fn tryHandleVim(app: *AppState, name: []const u8) bool {
 
 // ── Private rendering ─────────────────────────────────────────────────────── //
 
-fn drawPanelBody(panel: PluginPanel) void {
-    // TODO: When plugin runtime is wired in, render ParsedWidget lists here.
-    // For now, show a placeholder label with the panel title.
+/// Render all widgets for a single plugin panel.
+///
+/// Reads the ParsedWidget list from the runtime via the opaque pointer stored
+/// in AppState.  Each widget type maps to a dvui call.  Interactive widgets
+/// (button, slider, checkbox) dispatch events back through the runtime so the
+/// plugin sees them on the next tick.
+fn drawPanelBody(panel: PluginPanel, app: *AppState) void {
+    // Title (always shown, highlight style).
     dvui.labelNoFmt(@src(), panel.title, .{}, .{ .style = .highlight });
-    dvui.labelNoFmt(@src(), "(plugin panel — connect runtime to render widgets)", .{}, .{ .id_extra = 1 });
+
+    // Obtain runtime pointer -- graceful null check per UI-SPEC.
+    const rt_ptr = app.plugin_runtime_ptr orelse {
+        dvui.labelNoFmt(@src(), "(awaiting plugin response)", .{}, .{ .id_extra = @as(usize, 0xFFFF) });
+        return;
+    };
+    const rt: *Runtime = @ptrCast(@alignCast(rt_ptr));
+
+    // Fetch the widget list for this panel.
+    const wl = rt.getPanelWidgetList(panel.panel_id);
+    const len = wl.len;
+    if (len == 0) {
+        dvui.labelNoFmt(@src(), "(awaiting plugin response)", .{}, .{ .id_extra = @as(usize, 0xFFFE) });
+        return;
+    }
+
+    const tags = wl.items(.tag);
+    const widget_ids = wl.items(.widget_id);
+    const strs = wl.items(.str);
+    const vals = wl.items(.val);
+    const mins = wl.items(.min);
+    const maxs = wl.items(.max);
+    const opens = wl.items(.open);
+
+    // Row layout stack (begin_row / end_row nesting).
+    var row_boxes: [MAX_ROW_NESTING]dvui.BoxWidget = undefined;
+    var row_depth: usize = 0;
+
+    // Collapsible section state tracking.
+    var collapsed: [MAX_COLLAPSIBLES]bool = .{true} ** MAX_COLLAPSIBLES;
+    var collapse_idx: usize = 0;
+    var skip_depth: usize = 0;
+
+    for (0..len) |i| {
+        const tag = tags[i];
+        const wid = widget_ids[i];
+        const str = strs[i];
+        const val = vals[i];
+        const mn = mins[i];
+        const mx = maxs[i];
+
+        // If inside a collapsed section, only track nesting depth.
+        if (skip_depth > 0) {
+            if (tag == .collapsible_start) {
+                skip_depth += 1;
+            } else if (tag == .collapsible_end) {
+                skip_depth -= 1;
+            }
+            continue;
+        }
+
+        switch (tag) {
+            .label => {
+                dvui.labelNoFmt(@src(), str, .{}, .{ .id_extra = i });
+            },
+            .button => {
+                if (dvui.button(@src(), str, .{}, .{ .id_extra = i })) {
+                    rt.dispatchButtonClicked(panel.panel_id, wid);
+                }
+            },
+            .separator => {
+                _ = dvui.separator(@src(), .{ .id_extra = i });
+            },
+            .begin_row => {
+                if (row_depth < MAX_ROW_NESTING) {
+                    row_boxes[row_depth] = dvui.box(@src(), .{ .dir = .horizontal }, .{ .id_extra = i });
+                    row_depth += 1;
+                }
+            },
+            .end_row => {
+                if (row_depth > 0) {
+                    row_depth -= 1;
+                    row_boxes[row_depth].deinit();
+                }
+            },
+            .slider => {
+                // dvui slider works on a 0-1 fraction; convert from plugin's min/max range.
+                const range = mx - mn;
+                var fraction: f32 = if (range > 0) std.math.clamp((val - mn) / range, 0, 1) else 0;
+                if (dvui.slider(@src(), .{ .fraction = &fraction }, .{ .id_extra = i })) {
+                    const new_val = mn + fraction * range;
+                    rt.dispatchSliderChanged(panel.panel_id, wid, new_val);
+                }
+            },
+            .checkbox => {
+                var checked: bool = val != 0;
+                if (dvui.checkbox(@src(), &checked, str, .{ .id_extra = i })) {
+                    rt.dispatchCheckboxChanged(panel.panel_id, wid, checked);
+                }
+            },
+            .progress => {
+                dvui.progress(@src(), .{ .percent = val }, .{ .id_extra = i });
+            },
+            .collapsible_start => {
+                const cidx = collapse_idx;
+                collapse_idx += 1;
+                // Default to open if the plugin requested it.
+                if (opens[i] and cidx < MAX_COLLAPSIBLES) {
+                    collapsed[cidx] = false;
+                }
+                // Render toggle button as a highlight-styled button.
+                if (dvui.button(@src(), str, .{}, .{ .id_extra = i, .style = .highlight })) {
+                    if (cidx < MAX_COLLAPSIBLES) {
+                        collapsed[cidx] = !collapsed[cidx];
+                    }
+                }
+                // If collapsed, skip content until matching collapsible_end.
+                if (cidx < MAX_COLLAPSIBLES and collapsed[cidx]) {
+                    skip_depth = 1;
+                }
+            },
+            .collapsible_end => {
+                // Nothing to do when not skipping.
+            },
+        }
+    }
+
+    // Auto-close any unclosed row boxes.
+    while (row_depth > 0) {
+        row_depth -= 1;
+        row_boxes[row_depth].deinit();
+    }
 }
