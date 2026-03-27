@@ -1,47 +1,41 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
+milestone: v3.0
+milestone_name: DOD Refactor + Plugin Ecosystem
+current_plan: 01-01 complete
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-03-26T19:32:12.273Z"
-last_activity: 2026-03-26
+stopped_at: Completed 01-01-PLAN.md (SlotMap)
+last_updated: "2026-03-27T21:56:22Z"
+last_activity: 2026-03-27
 progress:
-  total_phases: 7
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 18
+  completed_phases: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 2
-Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-03-26
+Phase: 01 (foundation-data-structures)
+Plan: 1 of 3 complete
+Status: Executing Phase 01
+Last activity: 2026-03-27
 
 ## Progress
 
-[====                ] 1/4 plans (Phase 1)
+[==                  ] 1/3 plans (Phase 01)
 
-**Current Plan:** Not started
-**Total Plans in Phase:** 4
+**Current Plan:** 01-01 complete
+**Total Plans in Phase:** 3
 
 ## Decisions
 
-- Free functions over enum methods for DOD compliance (ARCH-04)
-- PropertyTokenizer returns raw slices; parseProps handles arena duplication
-- ArenaAllocator in tests matches arena-per-stage usage pattern
-- [Phase 01]: Free functions over enum methods for DOD compliance (ARCH-04)
-- [Phase 01]: PropertyTokenizer returns raw slices; parseProps handles arena duplication and escape processing
-- [Phase 01]: Inline test fixtures instead of @embedFile for Zig 0.14 module boundary compat
-- [Phase 01]: build.zig created for EasyImport: named modules (xschem, tcl) for cross-boundary test imports
-- [Phase 01]: G-block parsing extracts type/format/template with file_type=.symbol for old XSchem format compat
-- [Phase 01]: Tcl-eval-first xschemrc parsing: evaluate entire file through Tcl evaluator, read resolved variables
-- [Phase 01]: Inline test fixtures for Zig 0.14 module boundary compat; test_all.zig umbrella for single build step
+- [Phase 01-01]: Dense parallel array variant for SecondaryMap (simpler, fits 250 LOC budget)
+- [Phase 01-01]: Generation starts at 1 so Handle.invalid (gen=0) never matches live slot
+- [Phase 01-01]: Free list sentinel is maxInt(u20) with ?u20 free_head
+- [Phase 01-01]: SecondaryMap stale handle test uses reinsert pattern for generation mismatch
 
 ## Blockers
 
@@ -51,12 +45,9 @@ None
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
-| 01 | 01 | 5min | 2 | 4 |
-| Phase 01 P01 | 5min | 2 tasks | 4 files |
-| Phase 01 P02 | 10min | 1 tasks | 6 files |
-| Phase 01 P04 | 6min | 2 tasks | 10 files |
+| 01 | 01 | 6min | 2 | 1 |
 
 ## Session
 
-- **Last session:** 2026-03-26T19:26:02.979Z
-- **Stopped at:** Completed 01-04-PLAN.md
+- **Last session:** 2026-03-27T21:56:22Z
+- **Stopped at:** Completed 01-01-PLAN.md
