@@ -6,8 +6,10 @@ const build_options = @import("build_options");
 const state_mod = @import("state");
 const command = @import("commands");
 const dvui = @import("dvui");
-const gui = @import("gui/Gui.zig");
-const cli = @import("cli");
+const gui = @import("gui/lib.zig");
+const builtin = @import("builtin");
+const is_wasm = builtin.cpu.arch.isWasm();
+const cli = if (is_wasm) struct {} else @import("cli");
 const plugin_runtime = @import("runtime");
 
 // ── Process-lifetime state ────────────────────────────────────────────────────
@@ -19,12 +21,15 @@ var project_dir: []const u8 = ".";
 // ── dvui callbacks ────────────────────────────────────────────────────────────
 
 fn getConfig() dvui.App.StartOptions {
-    // Runs before the window opens. CLI commands exit here; otherwise capture
-    // the project dir so appInit can use it (no user-data param in the API).
-    if (comptime build_options.has_cli) {
+    if (comptime !is_wasm) {
+        // 1) Read config from Config.toml
+        project_dir = if (std.os.argv.len > 1) std.mem.span(std.os.argv[1]) else ".";
+
+        // 2) cli dispatch and dont return screen IF --headless is passed in
         if (cli.dispatch()) std.process.exit(0);
     }
-    project_dir = if (std.os.argv.len > 1) std.mem.span(std.os.argv[1]) else ".";
+
+    // 3) only return if not headless
     return .{
         .size = .{ .w = 1280, .h = 800 },
         .title = "Schemify",
@@ -35,31 +40,40 @@ fn getConfig() dvui.App.StartOptions {
 
 fn appInit(win: *dvui.Window) !void {
     _ = win;
-    app = try state_mod.AppState.init(project_dir);
+
+    // gui
+    app = state_mod.AppState.init(project_dir);
+    try app.loadConfig();
     app.initLogger();
-    try app.newFile("untitled.comp");
+
+    // plugins
     plugins = plugin_runtime.Runtime.init(app.allocator());
     plugins.loadStartup(&app);
 }
 
 fn appDeinit() void {
+    @import("gui/FileExplorer.zig").reset();
     plugins.deinit(&app);
     app.deinit();
 }
 
 fn appFrame() !dvui.App.Result {
+    // handle the commands per frame
     while (app.queue.pop()) |c| {
         command.dispatch(c, &app) catch |err| {
             app.setStatusErr("Command failed");
             app.log.err("CMD", "dispatch {s} failed: {}", .{ @tagName(c), err });
         };
     }
+
+    // pass-through to plugins so they can render
     if (app.plugin_refresh_requested) {
         app.plugin_refresh_requested = false;
         plugins.refresh(&app);
     }
     plugins.tick(&app, dvui.secondsSinceLastFrame());
-    try gui.frame(&app, &plugins);
+    try gui.frame(&app);
+
     return .ok;
 }
 

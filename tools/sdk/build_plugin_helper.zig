@@ -23,16 +23,17 @@ const std = @import("std");
 pub const Backend = enum { native, web };
 
 pub const PluginContext = struct {
-    backend:   Backend,
-    is_web:    bool,
-    optimize:  std.builtin.OptimizeMode,
-    target:    std.Build.ResolvedTarget,
-    dvui_mod:  *std.Build.Module,
-    core_mod:  *std.Build.Module,
-    plugin_if: *std.Build.Module,
+    backend:     Backend,
+    is_web:      bool,
+    optimize:    std.builtin.OptimizeMode,
+    target:      std.Build.ResolvedTarget,
+    dvui_mod:    *std.Build.Module,
+    utility_mod: *std.Build.Module,
+    core_mod:    *std.Build.Module,
+    plugin_if:   *std.Build.Module,
     /// Convenience module that re-exports `PluginIF` and `core`.
     /// Added to every plugin artifact as the `"sdk"` named import.
-    sdk_mod:   *std.Build.Module,
+    sdk_mod:     *std.Build.Module,
 };
 
 /// Set up a plugin build context.
@@ -66,11 +67,17 @@ pub fn setup(b: *std.Build, sdk_dep: *std.Build.Dependency) PluginContext {
     else
         dvui_dep.module("dvui_raylib");
 
-    const core_mod = b.createModule(.{
-        .root_source_file = sdk_dep.path("src/core/FileIO.zig"),
+    const utility_mod = b.createModule(.{
+        .root_source_file = sdk_dep.path("src/utility/lib.zig"),
         .target   = target,
         .optimize = optimize,
     });
+    const core_mod = b.createModule(.{
+        .root_source_file = sdk_dep.path("src/core/Schemify.zig"),
+        .target   = target,
+        .optimize = optimize,
+    });
+    core_mod.addImport("utility", utility_mod);
     const plugin_if = b.createModule(.{
         .root_source_file = sdk_dep.path("src/PluginIF.zig"),
         .target   = target,
@@ -78,6 +85,7 @@ pub fn setup(b: *std.Build, sdk_dep: *std.Build.Dependency) PluginContext {
     });
     plugin_if.addImport("dvui", dvui_mod);
     plugin_if.addImport("core", core_mod);
+    plugin_if.addImport("utility", utility_mod);
 
     const sdk_mod = b.createModule(.{
         .root_source_file = sdk_dep.path("tools/sdk/root.zig"),
@@ -88,14 +96,15 @@ pub fn setup(b: *std.Build, sdk_dep: *std.Build.Dependency) PluginContext {
     sdk_mod.addImport("core",     core_mod);
 
     return .{
-        .backend   = backend,
-        .is_web    = is_web,
-        .optimize  = optimize,
-        .target    = target,
-        .dvui_mod  = dvui_mod,
-        .core_mod  = core_mod,
-        .plugin_if = plugin_if,
-        .sdk_mod   = sdk_mod,
+        .backend     = backend,
+        .is_web      = is_web,
+        .optimize    = optimize,
+        .target      = target,
+        .dvui_mod    = dvui_mod,
+        .utility_mod = utility_mod,
+        .core_mod    = core_mod,
+        .plugin_if   = plugin_if,
+        .sdk_mod     = sdk_mod,
     };
 }
 

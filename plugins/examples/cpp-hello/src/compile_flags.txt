@@ -1,2 +1,0 @@
--I/home/omare/Documents/UWASIC/Schemify/tools/sdk
--std=c++17

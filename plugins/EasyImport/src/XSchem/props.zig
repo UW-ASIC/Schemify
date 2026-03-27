@@ -157,7 +157,7 @@ pub fn parseProps(arena: std.mem.Allocator, source: []const u8) !struct { props:
         effective = std.mem.trim(u8, effective[1 .. effective.len - 1], " \t\r\n");
     }
 
-    var prop_list = std.ArrayList(Prop).init(arena);
+    var prop_list: std.ArrayListUnmanaged(Prop) = .{};
 
     var tok = PropertyTokenizer.init(effective);
     while (tok.next()) |token| {
@@ -168,10 +168,10 @@ pub fn parseProps(arena: std.mem.Allocator, source: []const u8) !struct { props:
         else
             // Double-quoted or bare: process escapes
             try unescapeValue(arena, token.value);
-        try prop_list.append(.{ .key = key, .value = value });
+        try prop_list.append(arena, .{ .key = key, .value = value });
     }
 
-    const props = try prop_list.toOwnedSlice();
+    const props = try prop_list.toOwnedSlice(arena);
     const count: u16 = @intCast(props.len);
     return .{ .props = props, .count = count };
 }
@@ -188,26 +188,26 @@ fn unescapeValue(arena: std.mem.Allocator, raw: []const u8) ![]const u8 {
         return arena.dupe(u8, raw);
     }
 
-    var buf = std.ArrayList(u8).init(arena);
+    var buf: std.ArrayListUnmanaged(u8) = .{};
     var i: usize = 0;
     while (i < raw.len) {
         if (raw[i] == '\\' and i + 1 < raw.len) {
             const next_ch = raw[i + 1];
             switch (next_ch) {
                 '{', '}', '"', '\\' => {
-                    try buf.append(next_ch);
+                    try buf.append(arena, next_ch);
                     i += 2;
                 },
                 else => {
-                    try buf.append(raw[i]);
+                    try buf.append(arena, raw[i]);
                     i += 1;
                 },
             }
         } else {
-            try buf.append(raw[i]);
+            try buf.append(arena, raw[i]);
             i += 1;
         }
     }
 
-    return buf.toOwnedSlice();
+    return buf.toOwnedSlice(arena);
 }

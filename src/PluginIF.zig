@@ -1,82 +1,19 @@
 //! Plugin Interface — ABI v6 (message-passing protocol).
-//!
-//! ## Writing a plugin (single source, compiles to .so AND .wasm)
-//!
-//!   const Plugin = @import("PluginIF");
-//!
-//!   var threshold: f32 = 0.5;
-//!
-//!   export fn schemify_process(
-//!       in_ptr: [*]const u8, in_len: usize,
-//!       out_ptr: [*]u8,      out_cap: usize,
-//!   ) usize {
-//!       var r = Plugin.Reader.init(in_ptr[0..in_len]);
-//!       var w = Plugin.Writer.init(out_ptr[0..out_cap]);
-//!
-//!       while (r.next()) |msg| {
-//!           switch (msg) {
-//!               .load => {
-//!                   w.registerPanel(.{
-//!                       .id = "mypanel", .title = "My Panel", .vim_cmd = "mp",
-//!                       .layout = .overlay, .keybind = 0,
-//!                   });
-//!                   w.setStatus("my-plugin loaded");
-//!               },
-//!               .tick => {},
-//!               .unload => {},
-//!               .draw_panel => |ev| {
-//!                   _ = ev;
-//!                   w.label("Hello from my-plugin", 0);
-//!                   w.slider(threshold, 0, 1, 1);
-//!               },
-//!               .slider_changed => |ev| {
-//!                   if (ev.widget_id == 1) threshold = ev.val;
-//!               },
-//!               else => {},
-//!           }
-//!       }
-//!
-//!       return if (w.overflow()) std.math.maxInt(usize) else w.pos;
-//!   }
-//!
-//!   export const schemify_plugin: Plugin.Descriptor = .{
-//!       .name        = "my-plugin",
-//!       .version_str = "0.1.0",
-//!       .process     = schemify_process,
-//!   };
-//!
-//! ## Wire format
-//!
-//!   [u8 tag][u16 payload_sz LE][payload_sz bytes]
-//!
-//! Strings in payloads: [u16 len][N bytes] (UTF-8, no null terminator).
-//! f32 arrays:          [u32 count][count * 4 bytes LE].
-//! u8 arrays:           [u32 count][count bytes].
-//!
-//! Vfs is always available and abstracts the filesystem for both targets.
 
 const std = @import("std");
 
-// -- Vfs re-export -----------------------------------------------------------
+const utility = @import("utility");
+pub const Vfs = utility.Vfs;
+pub const platform = utility.platform;
 
-/// Platform-agnostic filesystem -- works on native and WASM.
-///
-///   const data = try Plugin.Vfs.readAlloc(alloc, "config.toml");
-///   try Plugin.Vfs.writeAll("output.sch", data);
-///   try Plugin.Vfs.makePath("my-plugin/cache");
-pub const Vfs = @import("core").Vfs;
-
-/// Symbol the runtime looks up in each .so / each WASM export table.
 pub const EXPORT_SYMBOL: [*:0]const u8 = "schemify_plugin";
-
-// -- Wire-format constants ----------------------------------------------------
 
 /// Byte size of the fixed message header: [u8 tag][u16 payload_sz LE].
 pub const HEADER_SZ: usize = 3;
 /// Byte size of a wire-format u16 field (panel_id, string length prefix, etc.).
-pub const U16_SZ: usize = 2;
+pub const U16_SZ: u16 = 2;
 /// Byte size of a wire-format u32/i32/f32 field.
-pub const U32_SZ: usize = 4;
+pub const U32_SZ: u16 = 4;
 
 // -- Panel types --------------------------------------------------------------
 
@@ -87,11 +24,6 @@ pub const PanelLayout = enum(u8) {
     right_sidebar = 2,
     bottom_bar = 3,
 };
-
-/// Backward-compatible alias for PanelLayout.
-pub const Layout = PanelLayout;
-
-// -- Log level ----------------------------------------------------------------
 
 pub const LogLevel = enum(u8) { info = 0, warn = 1, err = 2 };
 
@@ -133,9 +65,6 @@ pub const Descriptor = extern struct {
     version_str: [*:0]const u8,
     process: ProcessFn,
 };
-
-/// Backward-compatible alias.
-pub const PluginDescriptor = Descriptor;
 
 // -- Message tag enum ---------------------------------------------------------
 
@@ -215,7 +144,7 @@ const host_to_plugin_tag = blk: {
 
 pub const InMsg = union(Tag) {
     // host->plugin -- real payloads
-    load: void,
+    load: struct { project_dir: []const u8 },
     unload: void,
     tick: struct { dt: f32 },
     draw_panel: struct { panel_id: u16 },
@@ -283,13 +212,13 @@ pub const Reader = struct {
         while (true) {
             if (self.pos + HEADER_SZ > self.buf.len) return null;
 
-            const tag_byte   = self.buf[self.pos];
+            const tag_byte = self.buf[self.pos];
             const payload_sz = std.mem.readInt(u16, self.buf[self.pos + 1 ..][0..2], .little);
             self.pos += HEADER_SZ;
 
             if (self.pos + payload_sz > self.buf.len) return null;
 
-            const payload  = self.buf[self.pos .. self.pos + payload_sz];
+            const payload = self.buf[self.pos .. self.pos + payload_sz];
             const tag_enum = std.meta.intToEnum(Tag, tag_byte) catch {
                 self.pos += payload_sz;
                 continue;
@@ -326,7 +255,7 @@ fn readStr(payload: []const u8, pos: *usize) ?[]const u8 {
 inline fn readPanelWidget(payload: []const u8) ?struct { panel_id: u16, widget_id: u32 } {
     if (payload.len < U16_SZ + U32_SZ) return null;
     return .{
-        .panel_id  = std.mem.readInt(u16, payload[0..2], .little),
+        .panel_id = std.mem.readInt(u16, payload[0..2], .little),
         .widget_id = std.mem.readInt(u32, payload[2..6], .little),
     };
 }
@@ -336,8 +265,11 @@ fn parsePayload(tag: Tag, payload: []const u8) ?InMsg {
     var p: usize = 0;
 
     switch (tag) {
-        .load              => return .{ .load = {} },
-        .unload            => return .{ .unload = {} },
+        .load => {
+            const dir = readStr(payload, &p) orelse "";
+            return .{ .load = .{ .project_dir = dir } };
+        },
+        .unload => return .{ .unload = {} },
         .schematic_changed => return .{ .schematic_changed = {} },
 
         .tick => {
@@ -357,7 +289,7 @@ fn parsePayload(tag: Tag, payload: []const u8) ?InMsg {
 
         .slider_changed => {
             if (payload.len < U16_SZ + U32_SZ + U32_SZ) return null;
-            const pw  = readPanelWidget(payload).?; // length already checked above
+            const pw = readPanelWidget(payload).?; // length already checked above
             const val: f32 = @bitCast(std.mem.readInt(u32, payload[6..10], .little));
             return .{ .slider_changed = .{ .panel_id = pw.panel_id, .widget_id = pw.widget_id, .val = val } };
         },
@@ -374,14 +306,14 @@ fn parsePayload(tag: Tag, payload: []const u8) ?InMsg {
             if (payload.len < U16_SZ + U32_SZ + 1) return null;
             const pw = readPanelWidget(payload).?; // length already checked above
             return .{ .checkbox_changed = .{
-                .panel_id  = pw.panel_id,
+                .panel_id = pw.panel_id,
                 .widget_id = pw.widget_id,
-                .val       = payload[U16_SZ + U32_SZ],
+                .val = payload[U16_SZ + U32_SZ],
             } };
         },
 
         .command => {
-            const tag_str    = readStr(payload, &p) orelse return null;
+            const tag_str = readStr(payload, &p) orelse return null;
             const cmd_payload = readStr(payload, &p) orelse return null;
             return .{ .command = .{ .tag = tag_str, .payload = cmd_payload } };
         },
@@ -391,7 +323,7 @@ fn parsePayload(tag: Tag, payload: []const u8) ?InMsg {
             const key = readStr(payload, &p) orelse return null;
             const val = readStr(payload, &p) orelse return null;
             return switch (tag) {
-                .state_response  => .{ .state_response  = .{ .key = key, .val = val } },
+                .state_response => .{ .state_response = .{ .key = key, .val = val } },
                 .config_response => .{ .config_response = .{ .key = key, .val = val } },
                 else => unreachable,
             };
@@ -408,8 +340,8 @@ fn parsePayload(tag: Tag, payload: []const u8) ?InMsg {
             if (payload.len < U32_SZ * 3) return null;
             return .{ .schematic_snapshot = .{
                 .instance_count = std.mem.readInt(u32, payload[0..4], .little),
-                .wire_count     = std.mem.readInt(u32, payload[4..8], .little),
-                .net_count      = std.mem.readInt(u32, payload[8..12], .little),
+                .wire_count = std.mem.readInt(u32, payload[4..8], .little),
+                .net_count = std.mem.readInt(u32, payload[8..12], .little),
             } };
         },
 
@@ -417,7 +349,7 @@ fn parsePayload(tag: Tag, payload: []const u8) ?InMsg {
             if (payload.len < U32_SZ) return null;
             const idx = std.mem.readInt(u32, payload[0..4], .little);
             p = U32_SZ;
-            const name   = readStr(payload, &p) orelse return null;
+            const name = readStr(payload, &p) orelse return null;
             const symbol = readStr(payload, &p) orelse return null;
             return .{ .instance_data = .{ .idx = idx, .name = name, .symbol = symbol } };
         },
@@ -433,14 +365,14 @@ fn parsePayload(tag: Tag, payload: []const u8) ?InMsg {
 
         .net_data => {
             if (payload.len < U32_SZ) return null;
-            const idx  = std.mem.readInt(u32, payload[0..4], .little);
+            const idx = std.mem.readInt(u32, payload[0..4], .little);
             p = U32_SZ;
             const name = readStr(payload, &p) orelse return null;
             return .{ .net_data = .{ .idx = idx, .name = name } };
         },
 
         .file_response => {
-            const path  = readStr(payload, &p) orelse return null;
+            const path = readStr(payload, &p) orelse return null;
             if (p + U32_SZ > payload.len) return null;
             const count = std.mem.readInt(u32, payload[p..][0..4], .little);
             p += U32_SZ;
@@ -547,10 +479,10 @@ pub const Writer = struct {
     /// Register a panel with the host.
     /// payload = str(id) + str(title) + str(vim_cmd) + u8(layout) + u8(keybind)
     pub fn registerPanel(self: *Writer, def: PanelDef) void {
-        const id_len    = strLen(def.id);
+        const id_len = strLen(def.id);
         const title_len = strLen(def.title);
-        const vim_len   = strLen(def.vim_cmd);
-        const sz: u16   = @intCast(U16_SZ + id_len + U16_SZ + title_len + U16_SZ + vim_len + 1 + 1);
+        const vim_len = strLen(def.vim_cmd);
+        const sz: u16 = @intCast(U16_SZ + id_len + U16_SZ + title_len + U16_SZ + vim_len + 1 + 1);
         self.writeHeader(.register_panel, sz);
         self.writeStrN(def.id, id_len);
         self.writeStrN(def.title, title_len);
@@ -615,11 +547,17 @@ pub const Writer = struct {
     // -- Zero-arg commands (header only, no payload) --------------------------
 
     /// Request the host to repaint on the next frame.
-    pub fn requestRefresh(self: *Writer) void { self.writeHeader(.request_refresh, 0); }
+    pub fn requestRefresh(self: *Writer) void {
+        self.writeHeader(.request_refresh, 0);
+    }
     /// Request instance data; replies arrive as instance_data messages next tick.
-    pub fn queryInstances(self: *Writer) void { self.writeHeader(.query_instances, 0); }
+    pub fn queryInstances(self: *Writer) void {
+        self.writeHeader(.query_instances, 0);
+    }
     /// Request net data; replies arrive as net_data messages next tick.
-    pub fn queryNets(self: *Writer) void { self.writeHeader(.query_nets, 0); }
+    pub fn queryNets(self: *Writer) void {
+        self.writeHeader(.query_nets, 0);
+    }
 
     // -- Log message ----------------------------------------------------------
 
@@ -708,9 +646,12 @@ pub const Writer = struct {
     /// Write bytes to a file on the host filesystem.
     /// payload = str(path) + u8arr(data)
     pub fn fileWrite(self: *Writer, path: []const u8, data: []const u8) void {
-        const pl     = strLen(path);
+        const pl = strLen(path);
         const raw_sz: usize = U16_SZ + pl + U32_SZ + data.len;
-        if (raw_sz > std.math.maxInt(u16)) { self.overflowed = true; return; }
+        if (raw_sz > std.math.maxInt(u16)) {
+            self.overflowed = true;
+            return;
+        }
         self.writeHeader(.file_write, @intCast(raw_sz));
         self.writeStrN(path, pl);
         self.writeU8Arr(data);
@@ -787,9 +728,12 @@ pub const Writer = struct {
 
     /// 2D line chart. payload = str(title) + f32arr(xs) + f32arr(ys) + u32(id)
     pub fn plot(self: *Writer, title: []const u8, xs: []const f32, ys: []const f32, id: u32) void {
-        const tl     = strLen(title);
+        const tl = strLen(title);
         const raw_sz: usize = U16_SZ + tl + U32_SZ + xs.len * U32_SZ + U32_SZ + ys.len * U32_SZ + U32_SZ;
-        if (raw_sz > std.math.maxInt(u16)) { self.overflowed = true; return; }
+        if (raw_sz > std.math.maxInt(u16)) {
+            self.overflowed = true;
+            return;
+        }
         self.writeHeader(.ui_plot, @intCast(raw_sz));
         self.writeStrN(title, tl);
         self.writeF32Arr(xs);
@@ -800,7 +744,10 @@ pub const Writer = struct {
     /// Render a bitmap image (RGBA8). payload = u32(w) + u32(h) + u8arr(pixels) + u32(id)
     pub fn image(self: *Writer, pixels: []const u8, w: u32, h: u32, id: u32) void {
         const raw_sz: usize = U32_SZ + U32_SZ + U32_SZ + pixels.len + U32_SZ;
-        if (raw_sz > std.math.maxInt(u16)) { self.overflowed = true; return; }
+        if (raw_sz > std.math.maxInt(u16)) {
+            self.overflowed = true;
+            return;
+        }
         self.writeHeader(.ui_image, @intCast(raw_sz));
         self.writeU32Le(w);
         self.writeU32Le(h);
@@ -876,21 +823,21 @@ pub const Framework = struct {
         },
         /// Clickable button with a handler fn(*State) void.
         button: struct {
-            label:   [:0]const u8,
+            label: [:0]const u8,
             handler: *const fn (*anyopaque) void,
         },
         /// Static label (text known at comptime).
         label: struct { text: [:0]const u8 },
         /// Dynamic label: std.fmt.bufPrint(fmt, .{@field(state, field)}).
         label_fmt: struct {
-            fmt:   [:0]const u8,
+            fmt: [:0]const u8,
             /// Field name in the State struct.
             field: [:0]const u8,
         },
         /// Checkbox bound to a bool field; optional change handler.
         checkbox: struct {
-            label:   [:0]const u8,
-            field:   [:0]const u8,
+            label: [:0]const u8,
+            field: [:0]const u8,
             handler: ?*const fn (*anyopaque, bool) void = null,
         },
         /// Horizontal separator rule (no event).
@@ -904,14 +851,18 @@ pub const Framework = struct {
     /// Wrap a typed handler `fn(*S) void` into a type-erased `fn(*anyopaque) void`.
     fn wrapHandler(comptime S: type, comptime h: fn (*S) void) *const fn (*anyopaque) void {
         return &struct {
-            fn call(p: *anyopaque) void { h(@alignCast(@ptrCast(p))); }
+            fn call(p: *anyopaque) void {
+                h(@alignCast(@ptrCast(p)));
+            }
         }.call;
     }
 
     /// Wrap a typed checkbox handler `fn(*S, bool) void` into type-erased form.
     fn wrapCheckboxHandler(comptime S: type, comptime h: fn (*S, bool) void) *const fn (*anyopaque, bool) void {
         return &struct {
-            fn call(p: *anyopaque, v: bool) void { h(@alignCast(@ptrCast(p)), v); }
+            fn call(p: *anyopaque, v: bool) void {
+                h(@alignCast(@ptrCast(p)), v);
+            }
         }.call;
     }
 
@@ -919,7 +870,9 @@ pub const Framework = struct {
     /// Used for draw_fn, on_load, and on_unload-with-writer hooks.
     pub fn wrapWriterHook(comptime S: type, comptime h: fn (*S, *Writer) void) *const fn (*anyopaque, *Writer) void {
         return &struct {
-            fn call(p: *anyopaque, w: *Writer) void { h(@alignCast(@ptrCast(p)), w); }
+            fn call(p: *anyopaque, w: *Writer) void {
+                h(@alignCast(@ptrCast(p)), w);
+            }
         }.call;
     }
 
@@ -935,14 +888,18 @@ pub const Framework = struct {
     /// Wrap a typed on_button hook `fn(*S, u32, *Writer) void`.
     pub fn wrapOnButton(comptime S: type, comptime h: fn (*S, u32, *Writer) void) *const fn (*anyopaque, u32, *Writer) void {
         return &struct {
-            fn call(p: *anyopaque, wid: u32, w: *Writer) void { h(@alignCast(@ptrCast(p)), wid, w); }
+            fn call(p: *anyopaque, wid: u32, w: *Writer) void {
+                h(@alignCast(@ptrCast(p)), wid, w);
+            }
         }.call;
     }
 
     /// Wrap a typed on_tick hook `fn(*S, f32) void`.
     pub fn wrapTickHook(comptime S: type, comptime h: fn (*S, f32) void) *const fn (*anyopaque, f32) void {
         return &struct {
-            fn call(p: *anyopaque, dt: f32) void { h(@alignCast(@ptrCast(p)), dt); }
+            fn call(p: *anyopaque, dt: f32) void {
+                h(@alignCast(@ptrCast(p)), dt);
+            }
         }.call;
     }
 
@@ -992,16 +949,16 @@ pub const Framework = struct {
     // -- Panel descriptor -----------------------------------------------------
 
     pub const PanelSpec = struct {
-        id:      [:0]const u8,
-        title:   [:0]const u8,
+        id: [:0]const u8,
+        title: [:0]const u8,
         vim_cmd: [:0]const u8,
-        layout:  PanelLayout,
+        layout: PanelLayout,
         keybind: u8,
         widgets: []const WidgetSpec = &.{},
         /// If set, called instead of the static widget list for draw_panel.
-        draw_fn:   ?*const fn (*anyopaque, *Writer) void = null,
+        draw_fn: ?*const fn (*anyopaque, *Writer) void = null,
         /// Optional hook called on .load (after registerPanel).
-        on_load:   ?*const fn (*anyopaque, *Writer) void = null,
+        on_load: ?*const fn (*anyopaque, *Writer) void = null,
         /// Optional hook called on .unload.
         on_unload: ?*const fn (*anyopaque) void = null,
         /// Optional catch-all for button_clicked not matched by static widgets.
@@ -1009,29 +966,28 @@ pub const Framework = struct {
     };
 
     pub fn panel(
-        comptime id:      [:0]const u8,
-        comptime title:   [:0]const u8,
+        comptime id: [:0]const u8,
+        comptime title: [:0]const u8,
         comptime vim_cmd: [:0]const u8,
-        comptime layout:  PanelLayout,
+        comptime layout: PanelLayout,
         comptime keybind: u8,
         comptime widgets: []const WidgetSpec,
     ) PanelSpec {
-        return .{ .id = id, .title = title, .vim_cmd = vim_cmd,
-                   .layout = layout, .keybind = keybind, .widgets = widgets };
+        return .{ .id = id, .title = title, .vim_cmd = vim_cmd, .layout = layout, .keybind = keybind, .widgets = widgets };
     }
 
     // -- Plugin descriptor ----------------------------------------------------
 
     pub const PluginSpec = struct {
-        name:    [:0]const u8,
+        name: [:0]const u8,
         version: [:0]const u8,
-        panels:  []const PanelSpec,
+        panels: []const PanelSpec,
         /// Optional hook called on .load (before per-panel on_load hooks).
-        on_load:    ?*const fn (*anyopaque, *Writer) void = null,
+        on_load: ?*const fn (*anyopaque, *Writer) void = null,
         /// Optional hook called on .unload.
-        on_unload:  ?*const fn (*anyopaque, *Writer) void = null,
+        on_unload: ?*const fn (*anyopaque, *Writer) void = null,
         /// Optional hook called on .tick.
-        on_tick:    ?*const fn (*anyopaque, f32) void = null,
+        on_tick: ?*const fn (*anyopaque, f32) void = null,
         /// Optional hook called on .command.
         on_command: ?*const fn (*anyopaque, []const u8, []const u8, *Writer) void = null,
     };
@@ -1048,8 +1004,8 @@ pub const Framework = struct {
             const g_state_ptr: *anyopaque = state_ptr;
 
             pub fn process(
-                in_ptr:  [*]const u8,
-                in_len:  usize,
+                in_ptr: [*]const u8,
+                in_len: usize,
                 out_ptr: [*]u8,
                 out_cap: usize,
             ) callconv(.c) usize {
@@ -1057,14 +1013,13 @@ pub const Framework = struct {
                 var w = Writer.init(out_ptr[0..out_cap]);
 
                 while (r.next()) |msg| switch (msg) {
-
                     .load => {
                         inline for (spec.panels) |p| {
                             w.registerPanel(.{
-                                .id      = p.id,
-                                .title   = p.title,
+                                .id = p.id,
+                                .title = p.title,
                                 .vim_cmd = p.vim_cmd,
-                                .layout  = p.layout,
+                                .layout = p.layout,
                                 .keybind = p.keybind,
                             });
                             if (p.on_load) |h| h(g_state_ptr, &w);
@@ -1096,16 +1051,16 @@ pub const Framework = struct {
                                                 w.label(s.label, wid);
                                                 w.slider(@field(state_ptr.*, s.field), s.min, s.max, wid + 128);
                                             },
-                                            .button    => |b|  w.button(b.label, wid),
-                                            .label     => |l|  w.label(l.text, wid),
+                                            .button => |b| w.button(b.label, wid),
+                                            .label => |l| w.label(l.text, wid),
                                             .label_fmt => |lf| {
                                                 var buf: [256]u8 = undefined;
                                                 const text = std.fmt.bufPrint(&buf, lf.fmt, .{@field(state_ptr.*, lf.field)}) catch lf.fmt;
                                                 w.label(text, wid);
                                             },
-                                            .checkbox  => |cb| w.checkbox(@field(state_ptr.*, cb.field), cb.label, wid),
+                                            .checkbox => |cb| w.checkbox(@field(state_ptr.*, cb.field), cb.label, wid),
                                             .separator => w.separator(wid),
-                                            .progress  => |pr| w.progress(@field(state_ptr.*, pr.field), wid),
+                                            .progress => |pr| w.progress(@field(state_ptr.*, pr.field), wid),
                                         }
                                     }
                                 }
@@ -1170,14 +1125,14 @@ pub const Framework = struct {
             /// Module-level descriptor; `@export` needs a stable address.
             const descriptor: Descriptor = .{
                 .abi_version = ABI_VERSION,
-                .name        = spec.name.ptr,
+                .name = spec.name.ptr,
                 .version_str = spec.version.ptr,
-                .process     = &process,
+                .process = &process,
             };
 
             pub fn export_plugin() void {
-                @export(&process,    .{ .name = "schemify_process", .linkage = .strong });
-                @export(&descriptor, .{ .name = "schemify_plugin",  .linkage = .strong });
+                @export(&process, .{ .name = "schemify_process", .linkage = .strong });
+                @export(&descriptor, .{ .name = "schemify_plugin", .linkage = .strong });
             }
         };
     }

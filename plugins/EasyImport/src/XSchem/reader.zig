@@ -9,19 +9,18 @@
 const std = @import("std");
 const types = @import("types.zig");
 const props_mod = @import("props.zig");
-const root = @import("root.zig");
 
-const Schematic = root.Schematic;
+const XSchemFiles = types.XSchemFiles;
 const ParseError = types.ParseError;
 
-/// Parse an XSchem .sch or .sym file from raw bytes into a Schematic.
-/// All allocations go into the Schematic's arena.
-pub fn parse(backing: std.mem.Allocator, data: []const u8) ParseError!Schematic {
-    var schem = Schematic.init(backing);
+/// Parse an XSchem .sch or .sym file from raw bytes into an XSchemFiles.
+/// All allocations go into the XSchemFiles arena.
+pub fn parse(backing: std.mem.Allocator, data: []const u8) ParseError!XSchemFiles {
+    var schem = XSchemFiles.init(backing);
     errdefer schem.deinit();
     const arena = schem.arena.allocator();
     var brace_depth: i32 = 0;
-    var accum = std.ArrayList(u8).init(arena);
+    var accum: std.ArrayListUnmanaged(u8) = .{};
     var pending_tag: u8 = 0;
 
     var iter = std.mem.splitScalar(u8, data, '\n');
@@ -29,8 +28,8 @@ pub fn parse(backing: std.mem.Allocator, data: []const u8) ParseError!Schematic 
         const line = trimCr(raw_line);
         // Multi-line continuation: accumulate until braces balance.
         if (brace_depth > 0) {
-            accum.appendSlice(line) catch return error.MalformedComponent;
-            accum.append('\n') catch return error.MalformedComponent;
+            accum.appendSlice(arena, line) catch return error.MalformedComponent;
+            accum.append(arena, '\n') catch return error.MalformedComponent;
             brace_depth += countBraces(line);
             if (brace_depth <= 0) {
                 brace_depth = 0;
@@ -42,6 +41,11 @@ pub fn parse(backing: std.mem.Allocator, data: []const u8) ParseError!Schematic 
                     'C' => parseComponent(arena, full, &schem) catch return error.MalformedComponent,
                     'T' => parseText(arena, full, &schem) catch return error.MalformedText,
                     'N' => parseWire(arena, full, &schem) catch return error.MalformedWire,
+                    'B' => try parseRect(arena, full, &schem),
+                    'L' => try parseLineShape(arena, full, &schem),
+                    'A' => try parseArc(arena, full, &schem),
+                    'P' => {}, // Polygons deferred
+                    'F' => {},
                     else => return error.UnknownElementTag,
                 }
                 accum.clearRetainingCapacity();
@@ -56,8 +60,8 @@ pub fn parse(backing: std.mem.Allocator, data: []const u8) ParseError!Schematic 
             brace_depth = braces;
             pending_tag = line[0];
             accum.clearRetainingCapacity();
-            accum.appendSlice(line) catch return error.MalformedComponent;
-            accum.append('\n') catch return error.MalformedComponent;
+            accum.appendSlice(arena, line) catch return error.MalformedComponent;
+            accum.append(arena, '\n') catch return error.MalformedComponent;
             continue;
         }
         try dispatchLine(arena, line, &schem);
@@ -67,7 +71,7 @@ pub fn parse(backing: std.mem.Allocator, data: []const u8) ParseError!Schematic 
 
 // ── Line dispatch ───────────────────────────────────────────────────────
 
-fn dispatchLine(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) ParseError!void {
+fn dispatchLine(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) ParseError!void {
     if (line.len == 0) return;
     switch (line[0]) {
         'v', 'V', 'S', 'E', '*', 'F' => {},
@@ -87,7 +91,7 @@ fn dispatchLine(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) P
 // ── Element parsers ─────────────────────────────────────────────────────
 
 /// Parse L: `L layer x0 y0 x1 y1 {attrs}`
-fn parseLineShape(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) ParseError!void {
+fn parseLineShape(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) ParseError!void {
     var tok = tokenize(line);
     _ = tok.next(); // skip 'L'
     const layer = parseI32(tok.next()) orelse return error.MalformedLine;
@@ -100,7 +104,7 @@ fn parseLineShape(arena: std.mem.Allocator, line: []const u8, schem: *Schematic)
 }
 
 /// Parse B: `B layer x0 y0 x1 y1 {attrs}` -- layer 5 = pin
-fn parseRect(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) ParseError!void {
+fn parseRect(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) ParseError!void {
     var tok = tokenize(line);
     _ = tok.next();
     const layer = parseI32(tok.next()) orelse return error.MalformedRect;
@@ -135,7 +139,7 @@ fn parseRect(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) Pars
 }
 
 /// Parse A: `A layer cx cy radius start sweep {attrs}`
-fn parseArc(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) ParseError!void {
+fn parseArc(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) ParseError!void {
     var tok = tokenize(line);
     _ = tok.next();
     const layer = parseI32(tok.next()) orelse return error.MalformedArc;
@@ -151,7 +155,7 @@ fn parseArc(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) Parse
 }
 
 /// Parse T: `T {content} x y rot mirror hsize vsize {attrs}`
-fn parseText(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) ParseError!void {
+fn parseText(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) ParseError!void {
     const after_t = if (line.len > 2) line[2..] else return error.MalformedText;
     const cs = std.mem.indexOfScalar(u8, after_t, '{') orelse return error.MalformedText;
     const ce = findMatchingBrace(after_t, cs) orelse return error.MalformedText;
@@ -180,7 +184,7 @@ fn parseText(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) Pars
 }
 
 /// Parse N: `N x0 y0 x1 y1 {attrs}` -- extracts lab= as net_name
-fn parseWire(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) ParseError!void {
+fn parseWire(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) ParseError!void {
     var tok = tokenize(line);
     _ = tok.next();
     const x0 = parseF64(tok.next()) orelse return error.MalformedWire;
@@ -202,7 +206,7 @@ fn parseWire(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) Pars
 }
 
 /// Parse C: `C {symbol} x y rot flip {attrs}` -- props indexed via prop_start/count
-fn parseComponent(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) ParseError!void {
+fn parseComponent(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) ParseError!void {
     const after_c = if (line.len > 2) line[2..] else return error.MalformedComponent;
     const ss = std.mem.indexOfScalar(u8, after_c, '{') orelse return error.MalformedComponent;
     const se = std.mem.indexOfScalar(u8, after_c[ss + 1 ..], '}') orelse return error.MalformedComponent;
@@ -234,14 +238,14 @@ fn parseComponent(arena: std.mem.Allocator, line: []const u8, schem: *Schematic)
 }
 
 /// Parse G block (old format) -- may contain type/format/template.
-fn parseGBlock(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) !void {
+fn parseGBlock(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) !void {
     const content = extractBraceContent(line);
     if (content.len == 0) return;
     parseSymbolProperties(arena, content, schem);
 }
 
 /// Parse K block -- sets file_type=.symbol, extracts type/format/template/extra.
-fn parseKBlock(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) !void {
+fn parseKBlock(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) !void {
     const content = extractBraceContent(line);
     if (content.len == 0) return;
     schem.file_type = .symbol;
@@ -249,7 +253,7 @@ fn parseKBlock(arena: std.mem.Allocator, line: []const u8, schem: *Schematic) !v
 }
 
 /// Extract type, format, template, extra from a symbol property block.
-fn parseSymbolProperties(arena: std.mem.Allocator, content: []const u8, schem: *Schematic) void {
+fn parseSymbolProperties(arena: std.mem.Allocator, content: []const u8, schem: *XSchemFiles) void {
     var ptok = props_mod.PropertyTokenizer.init(content);
     while (ptok.next()) |prop| {
         if (std.mem.eql(u8, prop.key, "type")) {

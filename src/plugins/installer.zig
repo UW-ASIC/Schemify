@@ -27,6 +27,9 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const utility = @import("utility");
+const Vfs = utility.Vfs;
+const platform = utility.platform;
 
 // ── Error sets ────────────────────────────────────────────────────────────── //
 
@@ -114,7 +117,8 @@ pub const Installer = struct {
 
         const dest_dir: []u8 = switch (opts.target) {
             .native => blk: {
-                const home = std.posix.getenv("HOME") orelse return error.NoHomeDir;
+                const home = platform.getEnvVar(allocator, "HOME") catch return error.NoHomeDir;
+                defer allocator.free(home);
                 break :blk std.fs.path.join(allocator, &.{ home, ".config", "Schemify", name }) catch
                     return error.OutOfMemory;
             },
@@ -122,7 +126,7 @@ pub const Installer = struct {
         };
         defer allocator.free(dest_dir);
 
-        std.fs.cwd().makePath(dest_dir) catch return error.InvalidUrl;
+        Vfs.makePath(dest_dir) catch return error.InvalidUrl;
 
         const body = try fetchUrl(allocator, resolved);
         defer allocator.free(body);
@@ -130,7 +134,7 @@ pub const Installer = struct {
         const out_path = std.fs.path.join(allocator, &.{ dest_dir, filename }) catch return error.OutOfMemory;
         errdefer allocator.free(out_path);
 
-        std.fs.cwd().writeFile(.{ .sub_path = out_path, .data = body }) catch return error.InvalidUrl;
+        Vfs.writeAll(out_path, body) catch return error.InvalidUrl;
 
         if (opts.target == .web) {
             updateWebManifest(allocator, dest_dir, filename) catch return error.InvalidUrl;
@@ -206,7 +210,7 @@ pub const Installer = struct {
         }
 
         // Parse existing manifest if present; silently ignore missing/corrupt file.
-        if (std.fs.cwd().readFileAlloc(allocator, manifest_path, 1 * 1024 * 1024)) |existing| {
+        if (Vfs.readAlloc(allocator, manifest_path)) |existing| {
             defer allocator.free(existing);
             // Inline: scan JSON array for quoted filename strings.
             if (std.mem.indexOf(u8, existing, "\"plugins\"")) |arr_start| {
@@ -243,7 +247,7 @@ pub const Installer = struct {
         }
         try w.writeAll("\n  ]\n}\n");
 
-        try std.fs.cwd().writeFile(.{ .sub_path = manifest_path, .data = out.items });
+        try Vfs.writeAll(manifest_path, out.items);
     }
 
     // ── Private: HTTP fetch ───────────────────────────────────────────────── //

@@ -1,343 +1,399 @@
-# Domain Pitfalls: XSchem-to-Schemify Converter
+# Domain Pitfalls: GUI Layer Refactoring in Zig Immediate-Mode Application
 
-**Domain:** EDA schematic format converter (XSchem -> Schemify .chn)
-**Researched:** 2026-03-26
-**Sources:** Old impl.zig (2713 lines), XSchem official docs, Schemify core types, PROJECT.md
+**Domain:** Refactoring GUI layer of Zig EDA schematic editor (dvui immediate-mode, DOD, comptime dispatch)
+**Researched:** 2026-03-27
+**Sources:** Direct codebase analysis of 24 GUI files (3,521 LOC), state.zig (495 LOC), 14 command files (1,911 LOC), Zig 0.15 module system, dvui widget identity model
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause wrong netlists, silent data corruption, or architectural rewrites.
+Mistakes that cause rendering breakage, build failures, or require reverting an entire phase.
 
-### Pitfall 1: The God-File Problem (2713-line impl.zig)
+### Pitfall 1: dvui @src() Widget Identity Breakage When Moving Code Between Files
 
-**What goes wrong:** The old impl.zig grew to 2713 lines with 5 "sections" that are actually tightly coupled phases sharing mutable state. Functions like `loadCompanionPins` (310 lines) and `xschemToSchemify` (270 lines) became impenetrable because every bug fix touched multiple sections and added special-case branches.
+**What goes wrong:** dvui uses `@src()` (Zig's source location builtin) to generate stable widget IDs. Every `dvui.box(@src(), ...)`, `dvui.button(@src(), ...)`, `dvui.floatingWindow(@src(), ...)` call uses the file path + line number as its identity. When you move a widget call from one file to another (e.g., extracting `drawSchematic` from Renderer.zig into a new SchematicView.zig), every widget in that function gets a NEW identity. dvui interprets this as "old widgets disappeared, new widgets appeared."
 
-**Why it happens:** The conversion pipeline has real coupling between stages (e.g., pin ordering depends on format strings, which depend on symbol data, which depends on search path resolution). Developers respond by putting everything in one file "because it all talks to each other."
-
-**Consequences:** Every XSchem edge case (bus pins, extra= ports, TCL generators, spice_sym_def reordering) adds 20-50 lines of interleaved logic. The file becomes unmaintainable and new bugs are introduced by fixes to adjacent code.
-
-**Warning signs:**
-- Any single file exceeding 500 lines
-- Functions with more than 3 levels of nesting
-- Multiple `var` declarations scattered through a function (mutable state accumulation)
-- Comments like "Bug A fix", "Bug B fix", "Bug C fix" in loadCompanionPins (lines 1667-1909)
-
-**Prevention:**
-- Each pipeline stage is its own file with a clear input struct and output struct
-- No stage mutates Schemify directly; instead, stages return typed intermediate results
-- Pipeline composition happens in a single orchestrator function (under 100 lines) that chains: parse -> classify -> translate -> resolve_symbols -> write
-- Maximum file length: 400 lines. If approaching 400, split by responsibility.
-
-**Detection:** `wc -l *.zig` in CI. Any file over 400 lines triggers review.
-
-**Which phase should address it:** Phase 1 (Architecture). Define the pipeline stages and their data contracts before writing any conversion logic.
-
-**Old code anti-patterns to avoid:**
-```
-// BAD: impl.zig Section 3 mutates sify in-place across 5 nested functions
-loadSymbolData(sify, dirs, sym, alloc);  // mutates sify.sym_data, sify.props, sify.pins
-mergeTemplateDefaults(sify, alloc);       // mutates sify.props again
-loadCompanionPins(sa, alloc, sym, sify);  // replaces sify.pins entirely
-
-// GOOD: each stage returns new data, orchestrator assembles
-const sym_data = resolveSymbols(instances, search_dirs, alloc);
-const merged_props = mergeDefaults(instances, sym_data, alloc);
-const pins = extractPins(sym_path, sym_data, alloc);
-// Then build final Schemify from all resolved data
-```
-
----
-
-### Pitfall 2: Pin Ordering is the #1 Source of Wrong Netlists
-
-**What goes wrong:** XSchem has at least 5 different pin ordering mechanisms that interact in subtle ways. Getting the order wrong produces a SPICE netlist where pin A's net is connected to pin B's terminal. The circuit simulates but gives completely wrong results with no obvious error message.
-
-**Why it happens:** XSchem's pin ordering rules are underdocumented and evolved over 20+ years:
-1. **B-box declaration order** -- pins from `P` lines in .sym, in file order
-2. **sim_pinnumber** -- explicit numeric ordering attribute on each pin
-3. **format string @@PIN order** -- when format uses `@@D @@G @@S @@B` instead of `@pinlist`
-4. **spice_sym_def .subckt order** -- when spice_sym_def references an external .subckt, pin order comes from that definition
-5. **@pinlist creation order** -- pins in the order they were created in the symbol editor
-6. **.sch ipin/opin/iopin C-instance order** -- for .sch references, internal port positions
-
-The old code has 3 separate sort functions: `sortPinsByNameOrder`, `sortPinsByNameOrderInsensitive`, and format-order walking in `loadCompanionPins`. Each was added to fix a specific test case. This ad-hoc approach means new XSchem files can still trigger wrong ordering.
-
-**Consequences:** Silent wrong netlist. The SPICE simulation runs but produces garbage because, e.g., MOSFET drain and source are swapped.
-
-**Warning signs:**
-- Netlist roundtrip test fails: XSchem netlist != Schemify netlist
-- More than one "sort pins" function existing
-- Pin ordering logic split across multiple functions
-
-**Prevention:**
-- Single `PinOrderResolver` module that encodes the full priority chain:
-  1. Check if spice_sym_def exists -> parse .subckt header for pin order
-  2. Check if format has explicit @@PIN tokens -> use format-string walk order
-  3. Check if sim_pinnumber attributes exist on all pins -> sort by sim_pinnumber
-  4. Fallback: B-box declaration order (file order)
-- This module is tested independently with known-good XSchem .sym files
-- Every priority override is a documented, tested code path -- not a "fixup" added later
-
-**Detection:** Netlist roundtrip test (XSchem netlist vs Schemify netlist from converted project) catches this immediately. This test must run on every change.
-
-**Which phase should address it:** Phase 3 (Symbol resolution and pin extraction). Pin ordering must be correct before any netlist testing is possible.
-
-**Old code anti-patterns to avoid:**
-```
-// BAD: Multiple sort functions, each fixing one case
-sortPinsByNameOrder(sa, tmp_alloc, &pins, sym_pin_order.items);        // line 1346
-sortPinsByNameOrderInsensitive(sa, tmp_alloc, &pins, spice_pin_order); // line 1563
-// Plus 120 lines of format-string walking in loadCompanionPins
-
-// GOOD: Single function, clear priority chain
-const ordered_pins = PinOrderResolver.resolve(.{
-    .bbox_pins = bbox_pins,
-    .format_str = format_str,
-    .spice_sym_def = spice_sym_def,
-    .sim_pinnumbers = sim_pinnumbers,
-});
-```
-
----
-
-### Pitfall 3: The Backend/Runtime Union Abstraction Trap
-
-**What goes wrong:** The old code builds a `Runtime` tagged union dispatching between `XSchem.Backend` and `Virtuoso.Backend`, with comptime-checked interface conformance. This creates the illusion of polymorphism but adds indirection, makes debugging harder, and couples the XSchem implementation to an interface contract designed for a backend that doesn't exist yet (Virtuoso).
-
-**Why it happens:** Developers anticipate future backends and design for extensibility upfront. In the EDA domain, there are many schematic formats (KiCad, Cadence, Altium), so it "feels right" to abstract.
+**Why it happens:** Refactoring by definition changes source locations. dvui's immediate-mode state persistence (scroll positions, open/close state, drag rects, animation states) is keyed on `@src()`. The framework provides `id_extra` for disambiguation within loops, but the base identity always includes the source file and line.
 
 **Consequences:**
-- Every XSchem-specific function signature must satisfy the Backend interface (e.g., `convertFiles` takes generic `search_dirs` even though Virtuoso wouldn't have XSchem-style search paths)
-- The Runtime union adds a `switch(self.*) { inline else => |*b| b.foo() }` dispatch at every call site -- 8 such dispatches in lib.zig/mod.zig
-- The Virtuoso variant is `error.BackendNotImplemented` everywhere -- dead code that still constrains the API
+- Floating windows (Marketplace, FileExplorer, LibraryBrowser, all Dialogs) snap back to their default `win_rect` position because `dvui.floatingWindow(@src(), .{.rect = &win_rect})` now has a new `@src()` identity, so dvui creates a fresh window instead of recognizing the existing one.
+- Scroll positions in scrollAreas reset to top.
+- Any `dvui.dataGet()`/`dvui.dataSet()` persisted state is lost for moved widgets.
+- For the Schemify codebase: the Renderer.zig canvas box (line 52), all 6 floating windows, and all 3 dialog scroll areas would be affected.
 
 **Warning signs:**
-- Any union variant that returns `error.NotImplemented`
-- `comptime` interface checks that enforce methods across backends when only one backend is being built
-- More than 2 levels of indirection between entry point and actual logic
+- After a refactoring commit, floating windows jump to default positions
+- Scroll areas unexpectedly reset
+- Widgets "flicker" for one frame (old destroyed, new created)
 
 **Prevention:**
-- Build XSchem conversion as a direct, standalone module. No trait, no union, no Backend struct.
-- Entry point: `pub fn convert(project_dir, alloc) !ConvertResult`
-- If Cadence Virtuoso support is added later, it gets its own module with its own entry point. The plugin can dispatch at the top level with a simple if/else.
-- Follow YAGNI: the rewrite scope explicitly states "XSchem-only for v1"
+- **Do NOT extract dvui widget code into new files unless necessary.** Reorganize by extracting non-dvui logic (data processing, classification, coordinate math) into pure functions in separate files, while keeping the actual `dvui.xyz(@src(), ...)` calls in their original files.
+- When a widget call MUST move: pass the `win_rect` as a pointer from the caller (already done for FloatingWindow component), ensuring the persistent rect survives the identity change. The window will jump once but then persist at its new identity.
+- If splitting Renderer.zig: keep the top-level `dvui.box(@src(), ...)` canvas in the original file. Extract the drawing helper functions (drawSchematic, drawSymbolView, drawWirePreview) which do NOT use `@src()` for identity -- they only call `dvui.clip()`, `dvui.Path.stroke()`, and `dvui.labelNoFmt()` with explicit `id_extra`.
+- Test by opening a floating window, repositioning it, then verifying it stays in position after the refactored code runs.
 
-**Detection:** Code review. If you see `union(SomeEnum)` with methods, ask "do we have 2+ real implementations today?"
+**Detection:** Manual test: open Marketplace, drag it to a corner, close/reopen -- does it remember position? If not, `@src()` identity changed.
 
-**Which phase should address it:** Phase 1 (Architecture). The module boundary decision must be made before any code is written.
-
-**Old code anti-patterns to avoid:**
-```
-// BAD (lib.zig): Runtime union with dispatch
-pub const Runtime = union(BackendKind) {
-    xschem: XS.Backend,
-    virtuoso: Virtuoso.Backend,
-    pub fn convertProject(self: *const Runtime, ...) !?ConvertResult {
-        return switch (self.*) {
-            .xschem => |*b| b.convertProject(...),
-            .virtuoso => |_| error.BackendNotImplemented,  // dead code
-        };
-    }
-};
-
-// GOOD: Direct function, no indirection
-pub fn convertProject(project_dir: []const u8, alloc: Allocator) !ConvertResult {
-    // ... direct XSchem conversion logic
-}
-```
+**Which phase should address it:** Every phase that touches dvui code. This is a constant constraint, not a one-time fix. Phases splitting Renderer.zig or Dialog files must be especially careful.
 
 ---
 
-### Pitfall 4: XSchem Net Naming from Wire Labels vs Label Instances
+### Pitfall 2: Dual Viewport Types Create Split-Brain During State Consolidation
 
-**What goes wrong:** XSchem wires can have a `lab=` attribute (display annotation from the GUI) AND there can be `lab_pin.sym` / `ipin.sym` / `opin.sym` / `iopin.sym` instances that define authoritative net names. A naive converter uses wire `lab=` attributes for net naming, which causes disconnected wire segments with the same display label to appear as one net, or worse, overrides the true connectivity.
+**What goes wrong:** The codebase has TWO separate `Viewport` types that represent overlapping concerns:
 
-**Why it happens:** When `show_pin_net_names` is enabled in XSchem, the GUI writes `lab=VDD` onto wires touching VDD pins. This is a display convenience, not a connectivity declaration. But it looks like a net name in the parsed data.
+1. `state.zig:Viewport` -- logical viewport: `pan: [2]f32`, `zoom: f32`, plus `zoomIn()`/`zoomOut()`/`zoomReset()` methods. This is what commands mutate.
+2. `gui/Renderer.zig:Viewport` -- screen-space viewport: `cx: f32`, `cy: f32`, `scale: f32`, `pan: [2]f32`, `bounds: dvui.Rect.Physical`. This is computed per-frame from the dvui canvas rect and the logical viewport.
 
-**Consequences:** Nets that should be separate get merged (false short), or nets that should be named VDD get an auto-generated name. Both produce wrong simulation results.
+Additionally, `Renderer` struct itself stores `zoom: f32` and `pan: [2]f32` as fields -- a THIRD copy of viewport state. The `Renderer.draw()` method computes the screen-space Viewport from its own `self.zoom`/`self.pan` plus the dvui canvas dimensions, ignoring `app.view.zoom`/`app.view.pan` from AppState.
+
+Meanwhile, `commands/View.zig` mutates `state.view.zoom` and `state.view.pan` (the AppState viewport). But Renderer reads from `self.zoom` and `self.pan` (its own copy). These two are NOT synchronized.
+
+**Why it happens:** The Renderer was written as a self-contained widget with its own state. View commands were written to mutate AppState. Nobody wired them together.
+
+**Consequences:**
+- `zoomIn`/`zoomOut`/`zoomReset` commands appear to do nothing because they mutate `app.view` but Renderer reads `self.zoom`
+- `zoomFitAll` in View.zig sets `state.view.zoom` and `state.view.pan` but Renderer ignores these
+- Arrow key panning in lib.zig mutates `app.view.pan` but Renderer reads `self.pan`
+- The mouse wheel zoom and middle-click drag in Renderer.handleInput() correctly update `self.zoom`/`self.pan` -- these are the ONLY zoom/pan operations that actually work
 
 **Warning signs:**
-- Wires with `lab=` attributes being used for `net_name` in the Schemify wire
-- Netlists showing unexpected net merging
+- Keyboard zoom commands don't change the view
+- `zoomFitAll` has no visible effect
+- Pan via arrow keys doesn't move the canvas
 
 **Prevention:**
-- Strip `net_name` from ALL physical wires during translation (the old code correctly does this at line 133-137)
-- Net names come ONLY from label instances: `vdd.sym`, `gnd.sym`, `lab_pin.sym`, `ipin.sym`, `opin.sym`, `iopin.sym`
-- For each label instance, create a zero-length wire at the instance position with the authoritative net name
-- Let `resolveNets()` (union-find on wire endpoints) handle the rest
-- Document this rule prominently: "wire lab= is DISPLAY ONLY, label instances are AUTHORITATIVE"
+- Eliminate the Renderer's own `zoom` and `pan` fields. The Renderer should read `app.view.zoom` and `app.view.pan` directly.
+- Mouse wheel zoom in `handleInput()` should mutate `app.view.zoom` and `app.view.pan` (via AppState pointer).
+- The screen-space `Renderer.Viewport` should remain as a computed per-frame value (it depends on dvui canvas rect which changes every frame). Rename it to `ScreenViewport` or `CanvasTransform` to avoid confusion with `state.Viewport`.
+- Do this BEFORE splitting Renderer.zig. If you split first, you propagate the bug into multiple files.
 
-**Detection:** Test case: schematic with `show_pin_net_names` enabled. Verify converted netlist matches XSchem netlist exactly.
+**Detection:** Type `f` (zoom fit) after opening a schematic. If the view doesn't change, the dual-viewport bug is active.
 
-**Which phase should address it:** Phase 2 (XSchem -> Schemify translation). This is a core data translation decision.
+**Which phase should address it:** Phase 1 or 2 (state consolidation). Must be fixed before Renderer.zig decomposition.
 
 ---
 
-### Pitfall 5: The `extra=` Pin Filtering Problem
+### Pitfall 3: Module-Level State Vars Are Invisible to AppState Serialization and Testing
 
-**What goes wrong:** XSchem's `extra=` property in a symbol's K block lists tokens that should be treated as additional pins on the .subckt interface. But NOT every token in `extra=` is a real pin -- some are template variables (like `prefix`, `modeln`, `modelp`) that happen to be listed there for parameter passing purposes. Treating them as pins adds bogus ports to the .subckt header.
+**What goes wrong:** 26 module-level `var` declarations across 7 GUI files store persistent UI state outside of AppState:
 
-**Why it happens:** The `extra=` attribute was designed for power pin inheritance (hidden VDD/VSS connections). But XSchem also uses it for parameter passing in some symbol styles. The only way to distinguish real pins from template variables is to check whether the token appears as `@TOKEN` (single-@, property substitution) in the format string, which means it is used in the SPICE line and therefore must be a port.
+| File | Module-level vars | What they store |
+|------|------------------|-----------------|
+| `lib.zig` | `renderer_state: Renderer` | zoom, pan, drag state, wire_start, snap, grid |
+| `FileExplorer.zig` | `sections`, `files`, `selected_section`, `selected_file`, `scanned`, `preview_name`, `win_rect` | File browser state, heap-allocated lists |
+| `LibraryBrowser.zig` | `win_rect`, `search_buf`, `selected_idx`, `scanned` | Library browser state |
+| `Marketplace.zig` | `win_rect` | Window position |
+| `Dialogs/FindDialog.zig` | `is_open`, `query_buf`, `query_len`, `result_count`, `win_rect` | Find dialog state |
+| `Dialogs/PropsDialog.zig` | `is_open`, `view_only`, `inst_idx`, `win_rect` | Props dialog state |
+| `Dialogs/KeybindsDialog.zig` | `open`, `win_rect` | Keybinds dialog state |
 
-**Consequences:** Extra bogus pins in .subckt header cause LVS failures and simulation mismatches.
+**Why it happens:** In immediate-mode GUI, it is natural to store transient UI state at module scope because the draw function is called every frame with no object context. dvui encourages this pattern. But it becomes a problem when:
+1. You want to save/restore workspace layout (all `win_rect` values)
+2. You want to reset GUI state (must call `reset()` on every module individually)
+3. You want to test GUI logic (module-level vars persist across test cases)
+4. You want multiple windows/instances (impossible with module-level state)
+
+**Consequences:**
+- `AppState.deinit()` cannot clean up `FileExplorer` heap allocations (they use `page_allocator` at module level, leaked)
+- `main.zig:appDeinit()` already has a band-aid: `@import("gui/FileExplorer.zig").reset()` -- this is exactly the kind of manual cleanup that module-level state forces
+- Workspace save/restore is impossible without reading from 7 different module-level vars
+- Testing any dialog in isolation requires knowing to reset its module-level vars
 
 **Warning signs:**
-- .subckt header contains tokens like `prefix` or `modeln` as ports
-- Old code has 3 separate "Bug A/B/C fix" comments around extra= handling (lines 1667, 1701, 1904)
+- `@import("somemodule.zig").reset()` calls in deinit -- each is a module-level state leak
+- `page_allocator` used at module level (FileExplorer.zig line 36) -- this memory is never freed to the GPA, so leak detection can't find it
+- `pub var open: bool` (KeybindsDialog.zig line 20) -- mutable pub state that lib.zig mutates directly
 
 **Prevention:**
-- Single predicate function: `isExtraTokenAPin(token, format_string) bool`
-- Returns true only if the token appears as `@TOKEN` (single-@, not `@@`) in the format string
-- Apply this filter consistently in ONE place, not scattered across multiple functions
-- Test with sky130 symbols that use extra= for power pins (e.g., `sky130_fd_sc_hd__inv_1.sym`)
+- Move ALL persistent GUI state into `AppState.GuiState` in state.zig. Group by feature:
+  ```zig
+  pub const GuiState = struct {
+      // ... existing fields ...
+      file_explorer: FileExplorerState = .{},
+      library_browser: LibraryBrowserState = .{},
+      find_dialog: FindDialogState = .{},
+      props_dialog: PropsDialogState = .{},
+      keybinds_dialog_open: bool = false,
+      // win_rects for all floating windows
+      win_rects: WindowRects = .{},
+  };
+  ```
+- Each GUI draw function receives `*AppState` and reads/writes its state through `app.gui.*`.
+- Exception: truly transient per-frame state (loop counters, temporary buffers for `bufPrint`) stays local. The test: "would this value matter if I saved and restored the workspace?" If yes, it goes in AppState.
+- FileExplorer's heap-allocated `sections` and `files` lists should use `app.allocator()` instead of `page_allocator`, so they are covered by the GPA leak detector.
 
-**Detection:** Compare .subckt headers between XSchem and converted netlists.
+**Detection:** Run `zig build` with the GPA leak detector enabled. Module-level `page_allocator` usage won't show leaks (page_allocator doesn't track), but any `ArenaAllocator` or `GeneralPurposeAllocator` at module level will.
 
-**Which phase should address it:** Phase 3 (Symbol resolution). The extra= filtering is part of pin extraction.
+**Which phase should address it:** Phase 2 (state consolidation). This is the core deliverable of the GUI cleanup -- it must happen before any structural refactoring of the files themselves.
+
+---
+
+### Pitfall 4: Renderer.zig Decomposition Breaks Coordinate Transform Coupling
+
+**What goes wrong:** Renderer.zig (844 lines) contains tightly coupled systems that share coordinate transforms and constants:
+
+1. **Input handling** (`handleInput`, `handleClick`) -- uses `p2w`, `p2w_raw` for mouse-to-world conversion
+2. **Grid drawing** (`drawGrid`, `drawOrigin`) -- uses `w2p` for world-to-pixel, shares `snap_size`
+3. **Schematic drawing** (`drawSchematic`, `drawSymbolView`) -- uses `w2p` for every element
+4. **Wire preview** (`drawWirePreview`) -- uses `w2p`
+5. **Symbol lookup** (`lookupPrim`, `kindToName`, `drawPrimEntry`, `drawGenericBox`) -- uses `applyRotFlip` and `w2p`
+6. **Primitive stroke helpers** (`strokeLine`, `strokeDot`, `strokeCircle`, `strokeArc`, `strokeRectOutline`) -- pure dvui wrappers
+
+The `w2p`, `p2w`, `p2w_raw`, and `applyRotFlip` functions are the glue. If you naively split Renderer.zig into GridRenderer.zig, SchematicRenderer.zig, SymbolRenderer.zig etc., each needs access to these transforms AND to the `Viewport` struct AND to the palette.
+
+**Why it happens:** Renderers naturally share coordinate systems. The transforms are simple (5-line functions) but they thread through everything.
+
+**Consequences:**
+- Extracting files forces either: (a) duplicating transform functions in each file, or (b) creating a shared `transforms.zig` module that all renderer files import
+- Option (a) violates DRY and drifts over time
+- Option (b) works but adds import complexity and can create circular dependencies if the Viewport struct is defined in one of the renderer files
+
+**Warning signs:**
+- Multiple files with identical `w2p`/`p2w` functions
+- Viewport struct defined in renderer but needed by commands (View.zig already has its own `BBox` and coordinate helpers)
+
+**Prevention:**
+- Extract coordinate transforms (`w2p`, `p2w`, `p2w_raw`, `applyRotFlip`) and the screen-space Viewport struct into a dedicated `gui/Transforms.zig` module FIRST, before any other Renderer.zig decomposition.
+- Similarly extract stroke helpers (`strokeLine`, `strokeDot`, `strokeCircle`, etc.) into `gui/Draw.zig` -- these are pure dvui wrappers with no state.
+- Then the remaining Renderer.zig functions become thin orchestrators importing from Transforms.zig and Draw.zig.
+- The `lookupPrim`/`kindToName` symbol resolution (lines 500-594) is pure data logic with no dvui dependency -- extract to `core/` or a shared location, since it maps `DeviceKind` -> primitives names.
+
+**Detection:** After splitting, `zig build` fails if imports are wrong. But correctness must be verified visually: render a schematic, verify all elements appear at correct positions.
+
+**Which phase should address it:** The phase that decomposes Renderer.zig. Extract transforms first, stroke helpers second, then split by drawing concern.
+
+---
+
+### Pitfall 5: View.zig dvui Import Creates Cross-Layer Contamination
+
+**What goes wrong:** `commands/View.zig` imports `dvui` directly (line 5) and calls `dvui.themeSet()` in the `toggle_colorscheme` handler (line 44-48). This violates the GUI->state->core layering because commands should be pure state mutations, not GUI framework calls. The dvui import also means the commands module has a build-time dependency on dvui, which prevents the command system from being tested without a GUI context.
+
+**Why it happens:** Setting the dvui theme is a side effect that feels natural in the "toggle dark mode" command. The developer needed the theme to change immediately, and `dvui.themeSet()` is the only way to do it.
+
+**Consequences:**
+- The `commands` module cannot be compiled or tested without dvui as a dependency
+- If dvui's theme API changes, command code breaks
+- The pattern invites other commands to import dvui ("View does it, so I can too")
+- `dvui.themeSet()` during command dispatch (not during frame rendering) may violate dvui's expected call timing
+
+**Warning signs:**
+- `@import("dvui")` in any file under `src/commands/`
+- Any command handler calling a rendering framework function
+- Command unit tests requiring a GUI context
+
+**Prevention:**
+- Replace the direct `dvui.themeSet()` call with a flag: `state.cmd_flags.dark_mode` is already set by the command. Move the `dvui.themeSet()` call to the GUI layer (lib.zig or Actions.zig), where it reads `cmd_flags.dark_mode` each frame and applies the theme.
+- Pattern: command sets flag -> GUI layer reads flag -> GUI layer calls dvui
+- The fullscreen toggle already follows this pattern correctly: it only sets `state.cmd_flags.fullscreen` without calling any raylib/dvui function.
+- After removing the dvui import from View.zig, verify that `zig build` still passes for the commands module in isolation.
+
+**Detection:** `grep -r '@import("dvui")' src/commands/` -- should return zero results after the fix.
+
+**Which phase should address it:** Early phase (dead code + violation cleanup). This is a surgical fix: remove 2 lines of dvui calls, add 3 lines in the GUI layer.
 
 ---
 
 ## Moderate Pitfalls
 
-### Pitfall 6: Tcl Expression Evaluation in xschemrc
+### Pitfall 6: Renderer.zig Imports core Directly, Bypassing State
 
-**What goes wrong:** Real-world xschemrc files use Tcl constructs beyond simple `set VAR value`: `[file dirname [info script]]`, `$env(HOME)`, conditional `if {[file isdir ...]}` blocks, and `expr` for math. A naive string-substitution parser handles only the simple cases and silently returns wrong paths for everything else.
+**What goes wrong:** Renderer.zig line 5: `const core = @import("core");` and then uses `core.Schemify`, `core.DeviceKind`, `core.primitives` directly. The PROJECT.md rule is "GUI never imports core directly -- all access through state." But the Renderer needs the Schemify struct to read DOD arrays (wires, instances, etc.) and needs DeviceKind for symbol lookup.
 
-**Why it happens:** xschemrc is a full Tcl script. The sky130 xschemrc uses `[file dirname [file normalize [info script]]]` to compute its own directory, conditional PDK_ROOT detection with fallback chains, and `append XSCHEM_LIBRARY_PATH` with colon separators.
+**Why it happens:** The Renderer draws FROM the Schemify data model. It needs the struct layout to call `.items(.x0)`, `.items(.y0)` etc. on MultiArrayLists. Re-exporting every field through state would be verbose and fragile.
+
+**Consequences:**
+- If core types change (e.g., Schemify adds a field), GUI code breaks directly
+- The GUI becomes coupled to core's internal data layout
+- But: the alternative (re-exporting everything through state) creates a massive boilerplate layer
 
 **Prevention:**
-- The old XSchemRC.zig parser handles basic `set` and `$var` expansion. Verify it handles:
-  - `[file dirname ...]` and `[file normalize ...]` (path operations)
-  - `$env(VAR)` (environment variable access)
-  - `append VAR :value` (string append with separators)
-  - `if {[file isdir ...]} { set ... }` (conditional blocks)
-- If it doesn't handle all of these, implement them. They appear in every real xschemrc.
-- Test with the actual sky130 xschemrc from xschem_sky130 repository
+- Accept a pragmatic exception: read-only access to core types through state re-exports is acceptable. state.zig already does this: `pub const Instance = core.Instance; pub const Wire = core.Wire;`
+- Add re-exports for the types Renderer actually needs: `pub const Schemify = core.Schemify; pub const DeviceKind = core.DeviceKind;`
+- The Renderer then imports `state` and uses `st.Schemify`, `st.DeviceKind` etc.
+- The key restriction is: GUI must not call mutating methods on core types. Read-only access to DOD arrays for rendering is acceptable.
+- `primitives` (the comptime lookup table for symbol drawing data) is trickier -- it is a large comptime dataset. Re-export `pub const primitives = core.primitives;` from state.zig.
 
-**Detection:** Parse the sky130 xschemrc and verify all lib_paths resolve to real directories.
+**Detection:** `grep -r '@import("core")' src/gui/` -- should return zero after the fix. All access goes through `@import("state")`.
 
-**Which phase should address it:** Phase 1 or early Phase 2. Incorrect search paths cause all subsequent symbol resolution to fail.
+**Which phase should address it:** Same phase as state consolidation. Add re-exports to state.zig, then update Renderer.zig imports.
 
 ---
 
-### Pitfall 7: TCL Generator Symbols (.tcl scripts)
+### Pitfall 7: FileExplorer Uses page_allocator at Module Level, Creating Untracked Memory
 
-**What goes wrong:** XSchem supports symbols defined by Tcl scripts (e.g., `sky130_tests/res.tcl(@value\\)`). The script generates a .sym definition dynamically based on instance parameters. Without executing the script, the converter cannot know the symbol's pins or format string.
+**What goes wrong:** `FileExplorer.zig` line 36: `const gpa = std.heap.page_allocator;`. It then uses this to allocate `sections` and `files` list entries (line 298-306). `page_allocator` is the OS-level allocator that allocates whole pages. It has no leak detection, no tracking, and no integration with Schemify's `GeneralPurposeAllocator`.
 
-**Why it happens:** Some PDKs use parametric symbol generators for device variants.
+**Why it happens:** The file explorer was written as a standalone module that doesn't receive an allocator from the caller. Using `page_allocator` avoids the need to thread an allocator through.
+
+**Consequences:**
+- Memory allocated by FileExplorer is invisible to the GPA leak detector
+- `AppState.deinit()` does not free FileExplorer memory -- `main.zig:appDeinit()` has a manual `@import("gui/FileExplorer.zig").reset()` call as a band-aid
+- If `reset()` is not called (e.g., crash path, test cleanup), pages are leaked to the OS
+- The pattern encourages other GUI modules to use their own allocators, fragmenting memory management
 
 **Prevention:**
-- The old code (lines 487-613) shells out to `tclsh` to execute generator scripts. This is the correct approach but creates a runtime dependency.
-- Treat this as an optional capability: if `tclsh` is available, execute generators; otherwise, classify as `.annotation` (non-electrical) and log a warning
-- Do NOT block the entire conversion on a missing tclsh -- convert everything else first
-- This is a later-phase concern; basic conversion works without it
+- FileExplorer.draw() already receives `*AppState`. Use `app.allocator()` instead of the module-level `page_allocator`.
+- Move `sections` and `files` lists into `AppState.GuiState` so they are managed by AppState lifecycle.
+- Remove the module-level `const gpa = std.heap.page_allocator;` entirely.
+- Remove the `@import("gui/FileExplorer.zig").reset()` call from `main.zig:appDeinit()` -- AppState.deinit() handles cleanup.
 
-**Detection:** Check if any instances reference `.tcl(` symbols. Log count of unresolved generators.
+**Detection:** After the fix, run with the GPA leak detector. Any leaks from FileExplorer will now be caught.
 
-**Which phase should address it:** Phase 4 or later. This is an edge case that can be deferred.
+**Which phase should address it:** Phase 2 (state consolidation). Part of moving module-level state into AppState.
 
 ---
 
-### Pitfall 8: Flat Output Directory Collisions
+### Pitfall 8: Renderer.handleInput Mutates Self-State That Should Be AppState
 
-**What goes wrong:** The old code writes ALL converted .chn files into a single `.temp_schemify/` directory. If two different XSchem libraries have a symbol with the same filename (e.g., `inv.sym` in both the project directory and a PDK library), the second write silently overwrites the first.
+**What goes wrong:** `Renderer.handleInput()` (line 93-183) processes mouse and keyboard events and mutates `self.*` fields:
+- `self.dragging`, `self.drag_last` -- drag state
+- `self.space_held` -- spacebar pan modifier
+- `self.last_click_time`, `self.last_click_pos` -- double-click detection
+- `self.zoom`, `self.pan` -- viewport (covered by Pitfall 2)
 
-**Why it happens:** Using `std.fs.path.basename()` to derive output filenames loses directory structure information.
+Additionally, `lib.zig:handleInput()` (line 89-90) directly mutates `renderer_state.space_held` and `renderer_state.dragging` from outside the Renderer. This means input state is split between two handlers in two files, with cross-mutation.
+
+**Why it happens:** The Renderer was designed as a self-contained widget. Then the global input handler needed to intercept spacebar for pan mode, creating the cross-mutation.
+
+**Consequences:**
+- `space_held` is mutated from two places: inside Renderer.handleInput() AND from lib.zig's handleInput()
+- If Renderer is split into multiple files, it is unclear which file "owns" the drag state
+- Input state cannot be inspected or reset from AppState
 
 **Prevention:**
-- Preserve relative directory structure in output. If the source is at `<lib_dir>/digital/inv.sym`, write to `.temp_schemify/digital/inv.chn_prim`
-- Use the full relative path from the project root (or library root) as the output path
-- Config.toml can use `**/*.chn` glob patterns as specified in the requirements
+- Move transient input state (dragging, drag_last, space_held, last_click_time, last_click_pos) into `AppState.GuiState` as an `InputState` sub-struct.
+- Remove the cross-file mutation: lib.zig should set `app.gui.input.space_held` and Renderer should read it, not have its own copy.
+- Keep the event processing logic in Renderer (it needs dvui events and canvas coordinates), but have it mutate AppState instead of self.
 
-**Detection:** Test with a project that has same-named symbols in different directories.
-
-**Which phase should address it:** Phase 4 (Project conversion pipeline). This is a file-output concern, not a data translation concern.
+**Which phase should address it:** Phase 2 (state consolidation). Do this together with the Viewport unification (Pitfall 2).
 
 ---
 
-### Pitfall 9: Memory Allocation Strategy Mismatch
+### Pitfall 9: lib.zig handleInput and Renderer.handleInput Both Process dvui Events, Causing Double-Handling
 
-**What goes wrong:** The old code mixes two allocators (`alloc` and `sa = sify.alloc()` / arena allocator `ra`) throughout functions, making ownership unclear. Some data is allocated on temporary allocators and then referenced from long-lived structures. Other data is duplicated unnecessarily when it could share an arena.
+**What goes wrong:** dvui events are processed by TWO separate handlers each frame:
+1. `lib.zig:handleInput()` -- catches spacebar, dispatches keybinds, enters command mode
+2. `Renderer.handleInput()` -- catches spacebar (again), processes mouse events on canvas
 
-**Why it happens:** Zig's explicit allocation requires careful ownership tracking. The old code evolved iteratively, and each fix added allocations without a clear ownership model.
+Both iterate `dvui.events()` and check `ev.handled`. The spacebar is handled by BOTH: lib.zig sets `renderer_state.space_held` (line 89), and Renderer.handleInput also checks for space (line 101-103). The `ev.handled = true` in one prevents the other from processing it... but only if the ordering is right.
 
-**Warning signs in old code:**
-- Functions taking both `alloc` and `sa` (or `tmp_alloc`) parameters
-- `defer alloc.free(x)` followed later by `sa.dupe(u8, x)` -- double allocation for the same data
-- `resolved_sym_owned` flag tracking whether a pointer needs freeing (line 67-84 of mod.zig)
+**Why it happens:** The lib.zig handler was added to centralize keybind dispatch. The Renderer handler existed first for canvas-specific input. Neither was refactored to defer to the other.
+
+**Consequences:**
+- Event handling order matters: lib.zig's `handleInput(app)` runs BEFORE `renderer_state.draw(app)` (which calls Renderer.handleInput). So lib.zig gets first crack at events.
+- If lib.zig marks spacebar as handled (line 91: `ev.handled = true`), Renderer never sees it. But Renderer also has spacebar handling for its own `self.space_held`.
+- The current code works by accident: lib.zig sets `renderer_state.space_held` directly, so Renderer doesn't need to see the event.
+- During refactoring, if input handling is restructured, this fragile ordering could break.
 
 **Prevention:**
-- Each pipeline stage uses ONE arena allocator for all its output. The arena is owned by the stage's result struct.
-- Temporary allocations within a stage use a scratch `ArenaAllocator` that is freed at stage end.
-- No mixing of allocator ownership within a function. Clear rule: input data is borrowed (const slices), output data is owned by the result arena.
-- DOD pattern: result structs own their arena; `deinit()` frees everything.
+- Unify input handling into ONE location. Options:
+  - (a) lib.zig handles ALL key events and produces an `InputResult` that Renderer reads (preferred: GUI layer is the entry point)
+  - (b) Renderer handles all canvas-area events, lib.zig handles only global shortcuts that don't overlap
+- The key principle: each event should be processed by exactly ONE handler. Use `ev.handled` consistently.
+- Move spacebar tracking to AppState (see Pitfall 8) so both handlers read the same state without cross-mutation.
 
-**Which phase should address it:** Phase 1 (Architecture). Define the allocator ownership model before writing code.
+**Which phase should address it:** The phase that restructures input handling. Can be deferred to after state consolidation.
 
 ---
 
-### Pitfall 10: type=label Symbols as Net Labels (Post-hoc Fixup)
+### Pitfall 10: KeybindsDialog.zig Uses pub var Crossed by lib.zig
 
-**What goes wrong:** XSchem allows any symbol with `type=label` in its K block to act as a net label (same role as `lab_pin.sym`). During initial translation, these are classified as `.unknown` and become components. Only AFTER symbol data is loaded (a later pipeline stage) can we discover they are labels and retroactively add zero-length wires for net resolution.
+**What goes wrong:** `Dialogs/KeybindsDialog.zig` exports `pub var open: bool = false;`. `lib.zig` mutates this directly at line 71-72:
+```zig
+keybinds_dlg.open = keybinds_dlg.open or app.gui.keybinds_open;
+app.gui.keybinds_open = false;
+```
 
-The old code handles this in a "post-pass" (lines 694-721 of impl.zig) that re-scans all instances after symbol loading. This violates the pipeline model and creates a temporal coupling between stages.
+This creates a two-step synchronization: commands set `app.gui.keybinds_open = true`, then lib.zig copies it to `keybinds_dlg.open` and clears the flag. This is fragile choreography.
+
+**Why it happens:** The keybind command can't directly set the dialog's module-level var (it doesn't import the dialog module). So it sets a flag in AppState, and lib.zig bridges the gap.
+
+**Consequences:**
+- The dialog's open state exists in TWO places: `app.gui.keybinds_open` and `keybinds_dlg.open`
+- If lib.zig forgets to synchronize (e.g., code is reordered), the dialog never opens from keyboard
+- Other dialogs (FindDialog, PropsDialog) have their own `is_open` module-level vars with the same pattern risk
 
 **Prevention:**
-- Make a two-phase classification:
-  1. **Initial classification** by symbol filename (map.zig handles known symbols)
-  2. **Refined classification** after symbol data is loaded (checks `type=` attribute from sym K block)
-- The refined classification should produce a complete classification result before any Schemify IR is built
-- This means: parse all .sym files first, classify all instances, THEN build the Schemify IR
+- Move ALL dialog open states into `AppState.GuiState`:
+  ```zig
+  pub const GuiState = struct {
+      keybinds_open: bool = false,
+      find_open: bool = false,
+      props_open: bool = false,
+      props_view_only: bool = false,
+      props_inst_idx: usize = 0,
+  };
+  ```
+- Each dialog's `draw()` function reads `app.gui.keybinds_open` directly. No module-level `pub var`.
+- No synchronization step in lib.zig.
 
-**Which phase should address it:** Phase 2-3 (Translation + Symbol resolution). The pipeline order matters.
+**Which phase should address it:** Phase 2 (state consolidation). Part of the module-level var migration.
 
 ---
 
 ## Minor Pitfalls
 
-### Pitfall 11: Backslash Escaping in XSchem Paths and Values
+### Pitfall 11: classifyFile Duplicated in Renderer.zig and TabBar.zig
 
-**What goes wrong:** XSchem uses `\\` in symbol paths (e.g., `sky130_fd_sc_hd\\__inv_1.sym`) and `\{` / `\}` in property values. Forgetting to unescape produces wrong file paths and wrong property values.
+**What goes wrong:** The `classifyFile(origin: st.Origin) FileType` function is duplicated verbatim in `Renderer.zig` (line 210-219) and `Bars/TabBar.zig` (line 22-31). Both define their own `FileType` enum. If one is updated but not the other, file classification diverges.
 
-**Prevention:** Unescape functions exist in the old code (`unescapeBraces`, the `clean_sym_buf` loop). Consolidate into a single `unescape(input) -> output` utility. Apply it once at parse time, not scattered through translation.
+**Prevention:** Extract `classifyFile` into state.zig or a shared utility. The `FileType` enum and the classification function are pure data logic with no GUI dependency.
 
-**Which phase should address it:** Phase 2. Part of the translation layer.
-
----
-
-### Pitfall 12: Conversion Triggering During draw_panel
-
-**What goes wrong:** The old plugin code (line 2631-2634) triggers the full project conversion inside `draw_panel` on the first render. This blocks the UI thread for the entire conversion duration (potentially seconds for large projects).
-
-**Prevention:** Conversion should be triggered by an explicit button click, not by first render. The draw_panel handler should only render current state. If background conversion is needed, use the ABI v6 message queue to defer work.
-
-**Which phase should address it:** Phase 5 (Plugin UI). This is the last phase.
+**Which phase should address it:** Phase 2 or 3. Quick fix -- move the function, update imports.
 
 ---
 
-### Pitfall 13: Property Key/Value Field Name Mismatch
+### Pitfall 12: lookupPrim / kindToName in Renderer.zig Are Core Logic in GUI
 
-**What goes wrong:** XSchem's parsed `Prop` struct uses `.key` and `.value`, while Schemify's `Prop` struct uses `.key` and `.val`. The old code has two separate lookup functions (`findPropValue` vs `findSifyPropValue`) and it's easy to use the wrong one, causing silent failures where a property lookup returns null because the wrong field is accessed.
+**What goes wrong:** `lookupPrim()` (lines 500-546) and `kindToName()` (lines 550-594) in Renderer.zig are pure data mapping functions. They map `DeviceKind` enum values to primitive symbol names and look up drawing data. They have zero dvui dependency. But they live in the GUI layer, violating the layering rule.
 
-**Prevention:** Use a single prop-lookup utility that is generic over the struct type, or normalize property structs at the boundary between XSchem data and Schemify data.
+**Prevention:** Move `lookupPrim` and `kindToName` to `core/Devices.zig` or a new `core/SymbolLookup.zig`. The Renderer then calls `core.lookupPrim()` (or through state re-exports). This also makes the lookup testable without a GUI context.
 
-**Which phase should address it:** Phase 2. Part of the translation layer data model.
+**Which phase should address it:** The phase that decomposes Renderer.zig. Extract before splitting drawing code.
 
 ---
 
-### Pitfall 14: XSchem System Library Path Discovery
+### Pitfall 13: Build Must Pass After Each Individual Change
 
-**What goes wrong:** The old code (mod.zig lines 156-248) probes for XSchem's share directory by spawning `sh -c "command -v xschem"`, parsing the output, walking up the directory tree, and falling back to `/usr/share/xschem`. This is brittle, slow (subprocess spawn), and fails in Nix/Guix environments where XSchem is in a non-standard prefix.
+**What goes wrong:** Zig's module system is strict about unused imports, missing symbols, and type mismatches. Unlike languages with incremental compilation, Zig compiles everything at once. A refactoring sequence like "move type A, then update all references, then move type B" can leave the build broken between steps if the intermediate state has dangling references.
+
+**Why it happens:** Zig does not have `#ifdef` or conditional compilation that can bridge intermediate states. Every `@import` must resolve. Every referenced symbol must exist.
 
 **Prevention:**
-- Check `$XSCHEM_SHAREDIR` environment variable first (XSchem sets this when installed correctly)
-- Check common paths: `/usr/share/xschem`, `/usr/local/share/xschem`, `$HOME/.nix-profile/share/xschem`
-- Never spawn a subprocess for path discovery. If the share dir can't be found, warn and continue without system symbols.
-- System symbols are a fallback; project/PDK symbols are primary.
+- **Add before remove:** When moving a type or function, first add a re-export (`pub const Foo = @import("new_location.zig").Foo;`) in the OLD location. Verify build passes. Then update callers. Then remove the re-export.
+- **One logical change per build check:** Do not batch multiple moves into one step. Move one type, `zig build`, move the next.
+- **Use `pub usingnamespace` sparingly:** It can bridge transitions but makes dependencies invisible. Prefer explicit re-exports.
+- **Build between EVERY file save** during refactoring. This is the single most important discipline.
 
-**Which phase should address it:** Phase 1 or Phase 2. Search path resolution is foundational.
+**Which phase should address it:** All phases. This is a process constraint, not a code fix.
+
+---
+
+### Pitfall 14: Removing core Imports from GUI Breaks Type Access for DOD Slices
+
+**What goes wrong:** The Renderer accesses DOD MultiArrayList slices like `sch.wires.items(.x0)`. The `sch` variable is of type `*const core.Schemify`. If you remove the `core` import from Renderer and replace it with state re-exports, you need `st.Schemify` to be the EXACT same type (not a wrapper, not a subset). Any re-export that changes the type (e.g., wrapping in a read-only interface) breaks all `.items()` calls.
+
+**Prevention:**
+- Re-exports must be type aliases, not wrappers: `pub const Schemify = core.Schemify;` in state.zig
+- Do NOT create an abstraction layer between GUI and the DOD data. The whole point of DOD is direct, cache-friendly access to arrays. An abstraction layer negates the performance benefit.
+- The layering rule "GUI accesses core only through state" means type re-exports, not runtime indirection.
+
+**Which phase should address it:** Phase 2 (state consolidation). When adding re-exports, verify Renderer.zig compiles with `@import("state")` instead of `@import("core")`.
+
+---
+
+### Pitfall 15: Dead Input/ Stubs Can Break Build If Other Files Import Them
+
+**What goes wrong:** `Input/Handler.zig` (5 lines), `Input/KeyboardInputHandler.zig` (5 lines), `Input/MouseInputHandler.zig` (42 lines) are dead stubs. They exist but are not imported by anything. Deleting them is safe -- unless a build.zig module declaration or test file references them.
+
+**Prevention:**
+- Before deleting: `grep -r "Input/" src/` and `grep -r "Input/" build.zig` to verify nothing imports them.
+- Delete all three files in one commit.
+- Run `zig build` immediately.
+
+**Which phase should address it:** Phase 1 (dead code removal). This is the easiest win.
 
 ---
 
@@ -345,22 +401,48 @@ The old code handles this in a "post-pass" (lines 694-721 of impl.zig) that re-s
 
 | Phase Topic | Likely Pitfall | Mitigation |
 |---|---|---|
-| Pipeline architecture | God-file accumulation (#1), Backend abstraction trap (#3) | Define stage boundaries and data contracts in Phase 1. No file over 400 lines. No polymorphism for single backend. |
-| XSchem parsing | Already works (keep old XSchem.zig + XSchemRC.zig) | Clean up to match DOD style but do not rewrite. The parsers are proven. |
-| Translation (XSchem -> Schemify) | Wire label vs label instance confusion (#4), backslash escaping (#11), property field mismatch (#13) | Strip wire lab=, label instances are authoritative. Single unescape utility. Normalize Prop structs at boundary. |
-| Symbol resolution | Pin ordering (#2), extra= filtering (#5), type=label post-hoc fixup (#10) | Single PinOrderResolver with priority chain. Single isExtraTokenAPin predicate. Two-phase classification. |
-| Project conversion | Tcl evaluation (#6), flat directory collisions (#8), memory allocation (#9) | Test with real sky130 xschemrc. Preserve directory structure. One arena per stage. |
-| Plugin UI | Blocking conversion on draw (#12) | Conversion on button click only. |
-| Testing / validation | All silent netlist errors | Netlist roundtrip test (XSchem vs Schemify) must run on every change. |
+| Dead code removal (Input/ stubs, unused imports) | Build break if something references them (#15) | Grep before delete. One commit per deletion group. `zig build` after each. |
+| State consolidation (module vars -> AppState) | Dual Viewport (#2), module-level state (#3), input state split (#8), dialog open state (#10), FileExplorer allocator (#7) | Move state in order: Viewport first (fixes commands), then dialog open states, then win_rects, then FileExplorer heap data. Build between each. |
+| View.zig dvui removal | Cross-layer contamination (#5) | Set flag in command, apply theme in GUI layer. Two-line fix + three-line addition. |
+| Renderer.zig core import removal | Type access for DOD slices (#14), core logic in GUI (#12) | Add type re-exports to state.zig first. Move lookupPrim/kindToName to core. Then update Renderer imports. |
+| Renderer.zig decomposition | Coordinate transform coupling (#4), @src() identity (#1) | Extract transforms.zig first. Keep top-level dvui.box in Renderer.zig. Extract drawing helpers (no @src() dependency). |
+| Input handler unification | Double event handling (#9) | Unify to one handler per event type. Test spacebar pan, keyboard zoom, mouse drag all still work. |
+| Widget extraction to Components/ | @src() identity breakage (#1) | Only extract parameterized components (like FloatingWindow). Never move raw dvui.widget(@src()) calls. |
+
+## Integration Pitfalls
+
+### Ordering Dependencies Between Fixes
+
+Some pitfalls must be fixed in a specific order:
+
+1. **Viewport unification (#2) BEFORE Renderer decomposition (#4)** -- otherwise you propagate the split-brain into multiple files
+2. **State consolidation (#3) BEFORE file splitting** -- otherwise each new file creates its own module-level vars
+3. **Core import removal (#6, #14) BEFORE GUI file restructuring** -- otherwise new files re-introduce core imports
+4. **View.zig dvui fix (#5) can be done independently** -- no dependencies on other fixes
+5. **Dead code removal (#15) should be FIRST** -- reduces noise, zero risk
+
+### The "Build-Break Chain" Anti-Pattern
+
+The most dangerous anti-pattern during this refactoring:
+
+1. Move `Viewport` from Renderer to AppState (breaks Renderer)
+2. Start fixing Renderer references (build still broken)
+3. While fixing, also start moving dialog state (more breakage)
+4. Get confused about what's broken because of step 2 vs step 3
+5. Revert everything
+
+**Prevention:** ONE logical change. `zig build`. Green. THEN the next change. Never have more than one change in flight.
 
 ## Sources
 
-- Old impl.zig: `/home/omare/Documents/UWASIC/Schemify/plugins/EasyImport/.cache/src_old/XSchem/impl.zig` (2713 lines, direct analysis)
-- Old mod.zig: `/home/omare/Documents/UWASIC/Schemify/plugins/EasyImport/.cache/src_old/XSchem/mod.zig`
-- Old lib.zig: `/home/omare/Documents/UWASIC/Schemify/plugins/EasyImport/.cache/src_old/lib.zig`
-- Schemify core: `/home/omare/Documents/UWASIC/Schemify/src/core/Schemify.zig`
-- [XSchem Symbol Property Syntax](https://xschem.sourceforge.io/stefan/xschem_man/symbol_property_syntax.html) -- format strings, extra=, type= attribute
-- [XSchem Properties](https://xschem.sourceforge.io/stefan/xschem_man/xschem_properties.html) -- pin ordering, sim_pinnumber
-- [XSchem Netlisting](https://xschem.sourceforge.io/stefan/xschem_man/netlisting.html) -- @pinlist, @@PIN, spice_sym_def
-- [xschem_sky130 xschemrc](https://github.com/StefanSchippers/xschem_sky130/blob/main/xschemrc) -- real-world Tcl complexity
-- [XSchem Tutorial: Use Existing Subckt](https://xschem.sourceforge.io/stefan/xschem_man/tutorial_use_existing_subckt.html) -- spice_sym_def and pin ordering
+- Direct analysis of all files in `src/gui/` (24 files, 3,521 lines)
+- Direct analysis of `src/state.zig` (495 lines)
+- Direct analysis of `src/commands/View.zig` (239 lines) -- dvui import on line 5
+- Direct analysis of `src/commands/Dispatch.zig` (191 lines) -- comptime dispatch architecture
+- Direct analysis of `src/gui/Renderer.zig` (844 lines) -- dual Viewport, core import, coordinate transforms
+- Direct analysis of `src/main.zig` (91 lines) -- frame loop, FileExplorer.reset() band-aid
+- [dvui GitHub repository](https://github.com/david-vanderson/dvui) -- @src() widget identity model
+- [dvui DeepWiki - Getting Started](https://deepwiki.com/david-vanderson/dvui/2-getting-started) -- widget identity and state persistence
+- [Zig Documentation](https://ziglang.org/documentation/master/) -- module system, @import semantics
+- [Immediate Mode GUI Programming](https://eliasnaur.com/blog/immediate-mode-gui-programming) -- state management patterns in IMGUI
+- [Statefulness in GUIs](https://samsartor.com/guis-1/) -- global state pitfalls in immediate mode

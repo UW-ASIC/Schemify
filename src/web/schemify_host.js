@@ -15,6 +15,8 @@
 // All pointer/length arguments are i32 offsets into the WASM linear memory.
 // `SchemifyHost.setMemory(instance.exports.memory)` must be called after
 // the WASM module is instantiated.
+//
+// Requires: vfs.js (window.SchemifyVFS) loaded first.
 
 window.SchemifyHost = (() => {
   const enc = new TextEncoder();
@@ -30,9 +32,8 @@ window.SchemifyHost = (() => {
     return n;
   }
 
-  // ── In-memory VFS ─────────────────────────────────────────────────────── //
-  // Files are stored as Uint8Array values keyed by path string.
-  const vfs = new Map();
+  // ── VFS backed by SchemifyVFS (OPFS-persistent) ────────────────────── //
+  const vfs = window.SchemifyVFS.files;
 
   // ── Pending HTTP requests ─────────────────────────────────────────────── //
   // req_id → { status: 'pending'|'done'|'error', data?: Uint8Array }
@@ -57,11 +58,14 @@ window.SchemifyHost = (() => {
     vfs_file_write(path_ptr, path_len, src, slen) {
       const path = readStr(path_ptr, path_len);
       vfs.set(path, new Uint8Array(mem.buffer, src, slen).slice());
+      window.SchemifyVFS.markDirty(path);
       return 0;
     },
 
     vfs_file_delete(path_ptr, path_len) {
-      vfs.delete(readStr(path_ptr, path_len));
+      const path = readStr(path_ptr, path_len);
+      vfs.delete(path);
+      window.SchemifyVFS.markDirty(path);
       return 0;
     },
 
@@ -134,7 +138,5 @@ window.SchemifyHost = (() => {
     imports,
     /** Must be called with instance.exports.memory after WASM instantiation. */
     setMemory(memory) { mem = memory; },
-    /** Expose vfs map so the page can pre-populate files (e.g. PDK data). */
-    get vfs() { return vfs; },
   };
 })();

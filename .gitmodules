@@ -1,10 +1,10 @@
-[submodule "test/examples/xschem_sky130"]
-	path = test/examples/xschem_sky130
+[submodule "plugins/XSchemDropIN/examples/xschem_sky130"]
+	path = plugins/XSchemDropIN/examples/xschem_sky130
 	url = https://github.com/StefanSchippers/xschem_sky130
 	shallow = true
 
-[submodule "test/examples/sky130_schematics"]
-	path = test/examples/sky130_schematics
+[submodule "plugins/XSchemDropIN/examples/sky130_schematics"]
+	path = plugins/XSchemDropIN/examples/sky130_schematics
 	url = https://github.com/sifferman/sky130_schematics
 	shallow = true
 
@@ -21,9 +21,4 @@
 [submodule "deps/Xyce/Trilinos"]
 	path = deps/Xyce/Trilinos
 	url = https://github.com/trilinos/Trilinos.git
-	shallow = true
-
-[submodule "deps/Xyce/Trilinos"]
-	path = examples/Matrix-Vector-Multiplier
-	url = https://github.com/UWASIC/Matrix-Vector-Multiplier.git
 	shallow = true

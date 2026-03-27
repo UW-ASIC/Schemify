@@ -57,7 +57,7 @@ Five-stage batch pipeline with explicit dependency resolution before conversion.
 1. **XSchemRC** (XSchemRC.zig + TCL.zig) -- Parse xschemrc, expand Tcl variables, extract search paths and PDK root
 2. **XSchem** (XSchem.zig) -- Parse .sch/.sym text into DOD struct-of-arrays
 3. **DepTree** (DepTree.zig, NEW) -- Discover all reachable files, build dependency DAG, classify nodes, produce topological order
-4. **Translator** (Translator.zig, NEW) -- Convert one XSchem struct into one Schemify IR. Includes device classification, property filtering, companion .sym merge, pin extraction
+4. **Translator** (Translator.zig, NEW) -- Convert one XSchem struct into one Schemify schematic via FileIO builder functions. Creates a new FileIO(.schemify) and builds step-by-step, ensuring no XSchem quirks leak through. Includes device classification, property filtering, companion .sym merge, pin extraction
 5. **ProjectConverter** (ProjectConverter.zig, NEW) -- Orchestrate: config parse -> discovery -> PDK convert -> project convert -> Config.toml gen
 6. **PluginEntry** (plugin.zig, NEW) -- ABI v6 wrapper, GUI panel, CLI entry point
 7. **map.zig** (existing) -- Comptime bidirectional map between symbol filenames and DeviceKind
@@ -95,7 +95,7 @@ Based on research, suggested phase structure:
 ### Phase 3: Single-File Translation (Translator)
 
 **Rationale:** With parsers working and dependency order known, the core conversion logic can be built. This is the highest-risk phase because pin ordering and property mapping must be exactly correct. Dedicate a full phase to get this right.
-**Delivers:** Translator.zig -- convert one XSchem struct to one Schemify struct. Includes instance classification, property filtering, companion .sym merge, pin extraction via PinOrderResolver.
+**Delivers:** Translator.zig -- convert one XSchem struct to one Schemify schematic via FileIO builder functions (creates FileIO(.schemify), builds step-by-step). Includes instance classification, property filtering, companion .sym merge, pin extraction via PinOrderResolver.
 **Addresses:** T5, T6, T7, T8, T9, T10, T19 (wire/instance/label/code-block/symbol/graphical translation)
 **Avoids:** Pitfall #2 (pin ordering -- single PinOrderResolver with priority chain), Pitfall #4 (wire label confusion), Pitfall #5 (extra= filtering), Pitfall #10 (type=label post-hoc fixup via two-phase classification), Pitfall #13 (property field mismatch)
 

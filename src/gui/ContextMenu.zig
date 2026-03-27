@@ -1,34 +1,36 @@
 //! Right-click context menu for instances, wires, and canvas.
 
 const dvui = @import("dvui");
-const AppState = @import("state").AppState;
-const actions = @import("Actions.zig");
+const st = @import("state");
 const command = @import("commands");
+const actions = @import("Actions.zig");
+
+const AppState = st.AppState;
 
 // ── Comptime menu definitions ─────────────────────────────────────────────── //
 
 const MenuItem = struct {
-    label:  []const u8,
-    cmd:    command.Command,
+    label: []const u8,
+    cmd: command.Command,
     status: []const u8,
 };
 
 const instance_items: []const MenuItem = &.{
-    .{ .label = "Properties [Q]", .cmd = .{ .immediate = .edit_properties   }, .status = "Edit properties" },
-    .{ .label = "Delete [Del]",   .cmd = .{ .undoable  = .delete_selected   }, .status = "Delete"          },
-    .{ .label = "Rotate CW [R]",  .cmd = .{ .undoable  = .rotate_cw         }, .status = "Rotate CW"       },
-    .{ .label = "Flip H [X]",     .cmd = .{ .undoable  = .flip_horizontal   }, .status = "Flip H"          },
-    .{ .label = "Move [M]",       .cmd = .{ .immediate = .move_interactive  }, .status = "Move"            },
-    .{ .label = "Descend [E]",    .cmd = .{ .immediate = .descend_schematic }, .status = "Descend"         },
+    .{ .label = "Properties [Q]", .cmd = .{ .immediate = .edit_properties }, .status = "Edit properties" },
+    .{ .label = "Delete [Del]", .cmd = .{ .undoable = .delete_selected }, .status = "Delete" },
+    .{ .label = "Rotate CW [R]", .cmd = .{ .undoable = .rotate_cw }, .status = "Rotate CW" },
+    .{ .label = "Flip H [X]", .cmd = .{ .undoable = .flip_horizontal }, .status = "Flip H" },
+    .{ .label = "Move [M]", .cmd = .{ .immediate = .move_interactive }, .status = "Move" },
+    .{ .label = "Descend [E]", .cmd = .{ .immediate = .descend_schematic }, .status = "Descend" },
 };
 
 const wire_items: []const MenuItem = &.{
-    .{ .label = "Delete [Del]",     .cmd = .{ .undoable  = .delete_selected  }, .status = "Delete"           },
+    .{ .label = "Delete [Del]", .cmd = .{ .undoable = .delete_selected }, .status = "Delete" },
     .{ .label = "Select Connected", .cmd = .{ .immediate = .select_connected }, .status = "Select connected" },
 };
 
 const canvas_items: []const MenuItem = &.{
-    .{ .label = "Paste [Ctrl+V]",      .cmd = .{ .immediate = .clipboard_paste     }, .status = "Paste"              },
+    .{ .label = "Paste [Ctrl+V]", .cmd = .{ .immediate = .clipboard_paste }, .status = "Paste" },
     .{ .label = "Insert from Library", .cmd = .{ .immediate = .insert_from_library }, .status = "Insert from library" },
 };
 
@@ -66,10 +68,4 @@ fn drawItems(app: *AppState, items: []const MenuItem) void {
             app.gui.ctx_menu.open = false;
         }
     }
-}
-
-test "Expose struct size for context_menu" {
-    const print = @import("std").debug.print;
-    const CtxMenu = @import("state").CtxMenu;
-    print("CtxMenu: {d}B\n", .{@sizeOf(CtxMenu)});
 }
