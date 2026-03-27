@@ -55,7 +55,7 @@ Schemify is a cross-platform EDA schematic editor built in Zig with dvui (native
 - [ ] PluginIF protocol expanded with ~20 new lifecycle/event/interception tags
 - [ ] All GUI files under 400 LOC
 - [ ] All 6 existing plugins build and run end-to-end
-- [ ] Plugin documentation: 18 documents across creator and user audiences
+- [ ] Plugin documentation: 18 documents across creator and user audiences (Phase 14 complete: directory structure + quick start)
 - [ ] Commands layer has no GUI framework imports (dvui)
 - [ ] GUI never imports core directly — all access through state
 
@@ -102,4 +102,4 @@ Schemify is a cross-platform EDA schematic editor built in Zig with dvui (native
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-27 — Milestone v3.0 initialized*
+*Last updated: 2026-03-27 — Phase 14 (Doc Infrastructure & Quick Start) complete*
