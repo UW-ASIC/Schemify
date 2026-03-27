@@ -115,6 +115,50 @@ pub fn SlotMap(comptime T: type) type {
     };
 }
 
+/// Companion container keyed by the same Handle as a primary SlotMap.
+pub fn SecondaryMap(comptime T: type) type {
+    const Entry = struct { gen: u12, val: T };
+    return struct {
+        const Self = @This();
+        entries: std.ArrayListUnmanaged(?Entry) = .{},
+        allocator: Allocator,
+
+        pub fn init(allocator: Allocator) Self {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(self: *Self) void {
+            self.entries.deinit(self.allocator);
+            self.* = undefined;
+        }
+        pub fn set(self: *Self, handle: Handle, value: T) !void {
+            _ = self;
+            _ = handle;
+            _ = value;
+            // STUB
+        }
+        pub fn get(self: Self, handle: Handle) ?T {
+            _ = self;
+            _ = handle;
+            return null; // STUB
+        }
+        pub fn getPtr(self: *Self, handle: Handle) ?*T {
+            _ = self;
+            _ = handle;
+            return null; // STUB
+        }
+        pub fn remove(self: *Self, handle: Handle) ?T {
+            _ = self;
+            _ = handle;
+            return null; // STUB
+        }
+        pub fn contains(self: Self, handle: Handle) bool {
+            _ = self;
+            _ = handle;
+            return false; // STUB
+        }
+    };
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 const testing = std.testing;
@@ -228,4 +272,39 @@ test "count returns live elements" {
     try testing.expectEqual(@as(usize, 2), sm.count());
     _ = sm.remove(h);
     try testing.expectEqual(@as(usize, 1), sm.count());
+}
+
+test "SecondaryMap set+get roundtrip" {
+    var sm = SlotMap(f32).init(testing.allocator);
+    defer sm.deinit();
+    var sec = SecondaryMap(bool).init(testing.allocator);
+    defer sec.deinit();
+    const h = try sm.insert(1.0);
+    try sec.set(h, true);
+    try testing.expectEqual(@as(?bool, true), sec.get(h));
+    try testing.expect(sec.contains(h));
+}
+
+test "SecondaryMap rejects stale handle" {
+    var sm = SlotMap(u32).init(testing.allocator);
+    defer sm.deinit();
+    var sec = SecondaryMap(u8).init(testing.allocator);
+    defer sec.deinit();
+    const h = try sm.insert(1);
+    try sec.set(h, 42);
+    _ = sm.remove(h); // generation incremented
+    try testing.expectEqual(@as(?u8, null), sec.get(h));
+    try testing.expect(!sec.contains(h));
+}
+
+test "SecondaryMap remove" {
+    var sm = SlotMap(u32).init(testing.allocator);
+    defer sm.deinit();
+    var sec = SecondaryMap(u32).init(testing.allocator);
+    defer sec.deinit();
+    const h = try sm.insert(1);
+    try sec.set(h, 100);
+    const old = sec.remove(h);
+    try testing.expectEqual(@as(?u32, 100), old);
+    try testing.expectEqual(@as(?u32, null), sec.get(h));
 }
