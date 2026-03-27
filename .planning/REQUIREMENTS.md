@@ -65,7 +65,7 @@
 ### Plugin Runtime (PFIX)
 
 - [x] **PFIX-01**: build_plugin_helper.zig references correct core module (not deleted FileIO.zig)
-- [ ] **PFIX-02**: PluginPanels.drawPanelBody renders real widgets from runtime ParsedWidget lists
+- [x] **PFIX-02**: PluginPanels.drawPanelBody renders real widgets from runtime ParsedWidget lists
 - [x] **PFIX-03**: Theme.applyJson parses JSON and updates current_overrides (not a no-op)
 - [ ] **PFIX-04**: runtime.zig handles request_refresh, register_keybind, push_command output tags
 - [ ] **PFIX-05**: set_config key matches between runtime check and Themes plugin ("active_theme")
@@ -155,7 +155,7 @@
 | PERF-03 | 7 | Pending |
 | PERF-04 | 7 | Pending |
 | PFIX-01 | 8 | Complete (08-01) |
-| PFIX-02 | 8 | Pending |
+| PFIX-02 | 8 | Complete (08-03) |
 | PFIX-03 | 8 | Complete (08-01) |
 | PFIX-04 | 8 | Pending |
 | PFIX-05 | 8 | Pending |

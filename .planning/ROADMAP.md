@@ -133,8 +133,8 @@ Plans:
 **Plans:** 3 plans
 Plans:
 - [x] 08-01-PLAN.md — Fix build_plugin_helper.zig (FileIO.zig ref, utility module) + Theme.applyJson implementation
-- [ ] 08-02-PLAN.md — Runtime handler additions (request_refresh, register_keybind, push_command) + set_config key fix
-- [ ] 08-03-PLAN.md — PluginPanels.drawPanelBody widget rendering + runtime pointer wiring
+- [x] 08-02-PLAN.md — Runtime handler additions (request_refresh, register_keybind, push_command) + set_config key fix
+- [x] 08-03-PLAN.md — PluginPanels.drawPanelBody widget rendering + runtime pointer wiring
 **Success Criteria**:
   1. build_plugin_helper.zig compiles (FileIO.zig reference fixed)
   2. PluginPanels.drawPanelBody renders ParsedWidget lists from runtime
@@ -275,7 +275,7 @@ Phases 1, 8, 14 can start in parallel. Within each workstream, phases execute se
 | 5. Commands Refactor | Not started | - |
 | 6. GUI Refactor | Not started | - |
 | 7. Performance Pass | Not started | - |
-| 8. Runtime Foundation | In Progress (1/3 plans) | - |
+| 8. Runtime Foundation | Complete (3/3 plans) | 2026-03-27 |
 | 9. EasyImport Plugin | Not started | - |
 | 10. Themes Plugin | Not started | - |
 | 11. PDKLoader & Optimizer | Not started | - |
