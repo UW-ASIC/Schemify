@@ -11,8 +11,8 @@
 - [x] **DS-02**: SparseSet — O(1) add/remove/contains, O(k) dense iteration over k active elements
 - [x] **DS-03**: RingBuffer — O(1) push/pop, fixed capacity, no allocator needed, pushOverwrite for eviction
 - [x] **DS-04**: Pool allocator — O(1) fixed-size block alloc/free, zero fragmentation
-- [ ] **DS-05**: SmallVec — inline storage for ≤N elements, spills to heap when exceeded
-- [ ] **DS-06**: PerfectHash — comptime-generated zero-collision lookup for static key sets
+- [x] **DS-05**: SmallVec — inline storage for ≤N elements, spills to heap when exceeded
+- [x] **DS-06**: PerfectHash — comptime-generated zero-collision lookup for static key sets
 
 ### Core (CORE)
 
@@ -124,8 +124,8 @@
 | DS-02 | 1 | Complete (01-02) |
 | DS-03 | 1 | Complete (01-02) |
 | DS-04 | 1 | Complete (01-02) |
-| DS-05 | 1 | Pending |
-| DS-06 | 1 | Pending |
+| DS-05 | 1 | Complete |
+| DS-06 | 1 | Complete |
 | CORE-01 | 2 | Pending |
 | CORE-02 | 2 | Pending |
 | CORE-03 | 2 | Pending |
