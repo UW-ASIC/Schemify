@@ -2,7 +2,7 @@
 
 Schemify ships a header-only C99 SDK (`tools/sdk/schemify_plugin.h`) so you can
 write plugins entirely in C with no Zig source required.  The same header also
-works for C++ (see `docs/plugins/cpp.md`).  Both native (`.so`) and WASM targets
+works for C++ (see `docs/plugins/creating/cpp.md`).  Both native (`.so`) and WASM targets
 are supported — the header works identically for both.
 
 ## 1. Prerequisites
