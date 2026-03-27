@@ -39,7 +39,7 @@ v3.0 transforms Schemify from a working-but-organically-grown EDA editor into a 
 
 ### Workstream C: Plugin Documentation
 
-- [ ] **Phase 14: Doc Infrastructure & Quick Start** - Create docs/plugins/creating/ and using/ dirs, write 5-minute quick start for all 5 languages
+- [x] **Phase 14: Doc Infrastructure & Quick Start** - Create docs/plugins/creating/ and using/ dirs, write 5-minute quick start for all 5 languages (completed 2026-03-27)
 - [ ] **Phase 15: Architecture & API Reference** - Enhance architecture.md, expand API reference with all tags/SDKs/cross-language matrix
 - [ ] **Phase 16: Widgets & Advanced Topics** - UI widget reference with gallery, advanced topics (multi-panel, state, file I/O, command interception)
 - [ ] **Phase 17: Per-Language Guides & Distribution** - Enhance all 6 language guides, consolidate build & distribution doc
@@ -190,7 +190,7 @@ Plans:
 **Goal**: Documentation directory structure and entry-point guide
 **Depends on**: Nothing (can start immediately)
 **Requirements**: DOC-01, DOC-02
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 14-01-PLAN.md — Directory restructure, file moves, internal link fixes, sidebar config update
 - [x] 14-02-PLAN.md — Quick start guide with 5-language note-taker plugin using VitePress code-group tabs
