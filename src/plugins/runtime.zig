@@ -17,6 +17,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const pi = @import("PluginIF");
 const st = @import("state");
+const cmd = @import("commands");
 const Vfs = pi.Vfs;
 const theme_config = @import("theme_config");
 
@@ -415,7 +416,7 @@ pub const Runtime = struct {
                 _ = readStr(payload, &pp) orelse return; // plugin_id (unused here)
                 const key = readStr(payload, &pp) orelse return;
                 const val = readStr(payload, &pp) orelse return;
-                if (std.mem.eql(u8, key, "theme")) {
+                if (std.mem.eql(u8, key, "active_theme")) {
                     theme_config.applyJson(val);
                 }
             },
@@ -446,6 +447,37 @@ pub const Runtime = struct {
                 Vfs.writeAll(path, payload[pp .. pp + count]) catch |err| {
                     self.app.log.err("PLUGIN", "file_write({s}): {}", .{ path, err });
                 };
+            },
+            .request_refresh => {
+                // Zero-payload message. Writer.requestRefresh() sends tag + 0-length payload.
+                // Set the flag that main.zig checks each frame.
+                self.app.plugin_refresh_requested = true;
+            },
+            .register_keybind => {
+                // Payload: u8(key) + u8(mods) + str(cmd_tag)
+                if (payload.len < 2) return;
+                const key = payload[0];
+                const mods = payload[1];
+                var pp: usize = 2;
+                const cmd_tag = readStr(payload, &pp) orelse return;
+                self.app.gui.plugin_keybinds.append(self.alloc, .{
+                    .key = key,
+                    .mods = mods,
+                    .cmd_tag = cmd_tag,
+                }) catch {};
+            },
+            .push_command => {
+                // Payload: str(cmd_tag) + str(cmd_payload)
+                var pp: usize = 0;
+                const cmd_tag = readStr(payload, &pp) orelse return;
+                const cmd_payload = readStr(payload, &pp);
+                if (!isCommandAllowed(cmd_tag)) {
+                    self.app.log.err("PLUGIN", "push_command: blocked '{s}'", .{cmd_tag});
+                    return;
+                }
+                self.app.queue.push(self.alloc, .{
+                    .immediate = .{ .plugin_command = .{ .tag = cmd_tag, .payload = cmd_payload } },
+                }) catch {};
             },
             else => {},
         }
@@ -728,6 +760,28 @@ fn parseWidget(arena: std.mem.Allocator, tag: pi.Tag, payload: []const u8) ?Runt
         },
         else => return null,
     }
+}
+
+// -- Command whitelist --------------------------------------------------------
+
+/// Comptime whitelist of command tags that plugins are allowed to push (D-08).
+/// View commands are safe (read-only UI state). Selection commands are safe
+/// (operate on current state). Plugin management is safe.
+const allowed_plugin_commands = [_][]const u8{
+    "zoom_in",                "zoom_out",          "zoom_fit",        "zoom_reset",
+    "toggle_colorscheme",     "toggle_fill_rects",
+    "toggle_text_in_symbols", "toggle_symbol_details",
+    "toggle_crosshair",       "toggle_show_netlist",
+    "snap_halve",             "snap_double",
+    "select_all",             "select_none",
+    "plugins_refresh",
+};
+
+fn isCommandAllowed(cmd_tag: []const u8) bool {
+    inline for (allowed_plugin_commands) |c| {
+        if (std.mem.eql(u8, cmd_tag, c)) return true;
+    }
+    return false;
 }
 
 // -- Size test ----------------------------------------------------------------
