@@ -1,7 +1,8 @@
 //! Wire placement command handlers.
 
-const core = @import("core");
-const CT = core.CT;
+const st = @import("state");
+const Point = st.Point;
+const Wire = st.Wire;
 const Immediate = @import("command.zig").Immediate;
 
 pub const Error = error{OutOfMemory};
@@ -23,36 +24,39 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
             state.tool.active     = .select;
             state.setStatus("Wire canceled");
         },
-        .finish_wire => state.setStatus("Wire finished (stub)"),
+        .finish_wire => state.setStatus("Wire finished"),
 
         .toggle_wire_routing => {
             state.cmd_flags.wire_routing = !state.cmd_flags.wire_routing;
-            state.setStatus(if (state.cmd_flags.wire_routing) "Wire routing on (stub)" else "Wire routing off (stub)");
+            state.setStatus(if (state.cmd_flags.wire_routing) "Wire routing on" else "Wire routing off");
         },
         .toggle_orthogonal_routing => {
             state.cmd_flags.orthogonal_routing = !state.cmd_flags.orthogonal_routing;
-            state.setStatus(if (state.cmd_flags.orthogonal_routing) "Orthogonal routing on (stub)" else "Orthogonal routing off (stub)");
+            state.setStatus(if (state.cmd_flags.orthogonal_routing) "Orthogonal routing on" else "Orthogonal routing off");
         },
 
         .break_wires_at_connections => {
             const fio   = state.active() orelse return;
-            const sch   = fio.schematic();
+            const sch   = &fio.sch;
             const alloc = sch.alloc();
             var i: usize = 0;
-            while (i < sch.wires.items.len) {
-                const w        = sch.wires.items[i];
-                var split_pt: ?CT.Point = null;
-                outer: for (sch.wires.items, 0..) |other, j| {
+            while (i < sch.wires.len) {
+                const w = sch.wires.get(i);
+                const w_s: Point = .{ w.x0, w.y0 };
+                const w_e: Point = .{ w.x1, w.y1 };
+                var split_pt: ?Point = null;
+                outer: for (0..sch.wires.len) |j| {
                     if (i == j) continue;
-                    for ([_]CT.Point{ other.start, other.end }) |p| {
-                        if (ptEq(p, w.start) or ptEq(p, w.end)) continue;
+                    const other = sch.wires.get(j);
+                    for ([_]Point{ .{ other.x0, other.y0 }, .{ other.x1, other.y1 } }) |p| {
+                        if (ptEq(p, w_s) or ptEq(p, w_e)) continue;
                         // p must be collinear with w (cross product = 0) …
-                        const d  = w.end - w.start;
-                        const wv = p - w.start;
+                        const d: Point  = .{ w_e[0] - w_s[0], w_e[1] - w_s[1] };
+                        const wv: Point = .{ p[0] - w_s[0], p[1] - w_s[1] };
                         if (d[0] * wv[1] != d[1] * wv[0]) continue;
                         // … and strictly interior (not at an endpoint).
-                        if (isInterior(p[0], w.start[0], w.end[0]) or
-                            isInterior(p[1], w.start[1], w.end[1]))
+                        if (isInterior(p[0], w_s[0], w_e[0]) or
+                            isInterior(p[1], w_s[1], w_e[1]))
                         {
                             split_pt = p;
                             break :outer;
@@ -60,9 +64,9 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
                     }
                 }
                 if (split_pt) |sp| {
-                    _ = sch.wires.orderedRemove(i);
-                    try sch.wires.insert(alloc, i,     .{ .start = w.start, .end = sp,    .net_name = w.net_name });
-                    try sch.wires.insert(alloc, i + 1, .{ .start = sp,      .end = w.end, .net_name = w.net_name });
+                    sch.wires.orderedRemove(i);
+                    try sch.wires.insert(alloc, i,     .{ .x0 = w.x0, .y0 = w.y0, .x1 = sp[0], .y1 = sp[1], .net_name = w.net_name });
+                    try sch.wires.insert(alloc, i + 1, .{ .x0 = sp[0], .y0 = sp[1], .x1 = w.x1, .y1 = w.y1, .net_name = w.net_name });
                     i += 2;
                 } else i += 1;
             }
@@ -72,28 +76,32 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
 
         .join_collapse_wires => {
             const fio   = state.active() orelse return;
-            const sch   = fio.schematic();
+            const sch   = &fio.sch;
             const alloc = sch.alloc();
             var i: usize = 0;
-            while (i < sch.wires.items.len) {
-                const wa   = sch.wires.items[i];
-                const da   = wa.end - wa.start;
+            while (i < sch.wires.len) {
+                const wa = sch.wires.get(i);
+                const wa_s: Point = .{ wa.x0, wa.y0 };
+                const wa_e: Point = .{ wa.x1, wa.y1 };
+                const da: Point   = .{ wa_e[0] - wa_s[0], wa_e[1] - wa_s[1] };
                 var merged = false;
                 var j: usize = i + 1;
-                while (j < sch.wires.items.len) {
-                    const wb = sch.wires.items[j];
-                    const db = wb.end - wb.start;
+                while (j < sch.wires.len) {
+                    const wb = sch.wires.get(j);
+                    const wb_s: Point = .{ wb.x0, wb.y0 };
+                    const wb_e: Point = .{ wb.x1, wb.y1 };
+                    const db: Point   = .{ wb_e[0] - wb_s[0], wb_e[1] - wb_s[1] };
                     // Parallel direction vectors ↔ cross product = 0.
                     if (da[0] * db[1] == da[1] * db[0]) {
-                        const mw: ?CT.Wire =
-                            if      (ptEq(wa.end,   wb.start)) .{ .start = wa.start, .end = wb.end,   .net_name = wa.net_name }
-                            else if (ptEq(wa.start, wb.end  )) .{ .start = wb.start, .end = wa.end,   .net_name = wa.net_name }
-                            else if (ptEq(wa.start, wb.start)) .{ .start = wa.end,   .end = wb.end,   .net_name = wa.net_name }
-                            else if (ptEq(wa.end,   wb.end  )) .{ .start = wa.start, .end = wb.start, .net_name = wa.net_name }
+                        const mw: ?Wire =
+                            if      (ptEq(wa_e, wb_s)) .{ .x0 = wa.x0, .y0 = wa.y0, .x1 = wb.x1, .y1 = wb.y1, .net_name = wa.net_name }
+                            else if (ptEq(wa_s, wb_e)) .{ .x0 = wb.x0, .y0 = wb.y0, .x1 = wa.x1, .y1 = wa.y1, .net_name = wa.net_name }
+                            else if (ptEq(wa_s, wb_s)) .{ .x0 = wa.x1, .y0 = wa.y1, .x1 = wb.x1, .y1 = wb.y1, .net_name = wa.net_name }
+                            else if (ptEq(wa_e, wb_e)) .{ .x0 = wa.x0, .y0 = wa.y0, .x1 = wb.x0, .y1 = wb.y0, .net_name = wa.net_name }
                             else null;
                         if (mw) |m| {
-                            _ = sch.wires.orderedRemove(j);
-                            _ = sch.wires.orderedRemove(i);
+                            sch.wires.orderedRemove(j);
+                            sch.wires.orderedRemove(i);
                             try sch.wires.insert(alloc, i, m);
                             merged = true;
                             break;
@@ -107,11 +115,11 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
             state.setStatus("Wires joined");
         },
 
-        .start_line    => { state.tool.active = .line;    state.setStatus("Line draw mode (stub)"); },
-        .start_rect    => { state.tool.active = .rect;    state.setStatus("Rect draw mode (stub)"); },
-        .start_polygon => { state.tool.active = .polygon; state.setStatus("Polygon draw mode (stub)"); },
-        .start_arc     => { state.tool.active = .arc;     state.setStatus("Arc draw mode (stub)"); },
-        .start_circle  => { state.tool.active = .circle;  state.setStatus("Circle draw mode (stub)"); },
+        .start_line    => { state.tool.active = .line;    state.setStatus("Line draw mode"); },
+        .start_rect    => { state.tool.active = .rect;    state.setStatus("Rect draw mode"); },
+        .start_polygon => { state.tool.active = .polygon; state.setStatus("Polygon draw mode"); },
+        .start_arc     => { state.tool.active = .arc;     state.setStatus("Arc draw mode"); },
+        .start_circle  => { state.tool.active = .circle;  state.setStatus("Circle draw mode"); },
         else => unreachable,
     }
 }
@@ -119,7 +127,7 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
 // ── Private helpers ──────────────────────────────────────────────────────────
 
 /// Point equality via SIMD reduce.
-inline fn ptEq(a: CT.Point, b: CT.Point) bool { return @reduce(.And, a == b); }
+inline fn ptEq(a: Point, b: Point) bool { return a[0] == b[0] and a[1] == b[1]; }
 
 /// Returns true when `v` lies strictly between `a` and `b` (exclusive).
 inline fn isInterior(v: i32, a: i32, b: i32) bool {

@@ -144,3 +144,48 @@ pub const ParseError = error{
     InvalidNumber,
     UnexpectedEof,
 };
+
+// ── XSchemFiles container ────────────────────────────────────────────────
+
+fn MAL(comptime T: type) type {
+    return std.MultiArrayList(T);
+}
+
+/// Main XSchem DOD container. Owns all element memory through `arena`.
+/// Used as the parse target for .sch/.sym files; downstream translation
+/// reads from these arrays. No parsing logic lives here -- see reader.zig.
+pub const XSchemFiles = struct {
+    // Geometric element arrays (struct-of-arrays via MultiArrayList)
+    lines: MAL(Line) = .{},
+    rects: MAL(Rect) = .{},
+    arcs: MAL(Arc) = .{},
+    circles: MAL(Circle) = .{},
+    wires: MAL(Wire) = .{},
+    texts: MAL(Text) = .{},
+    pins: MAL(Pin) = .{},
+    instances: MAL(Instance) = .{},
+
+    // Flat property storage -- instances index into this via prop_start/prop_count
+    props: std.ArrayListUnmanaged(Prop) = .{},
+
+    // File metadata
+    name: []const u8 = "",
+    file_type: FileType = .schematic,
+
+    // K-block symbol properties (extracted during parse)
+    k_type: ?[]const u8 = null,
+    k_format: ?[]const u8 = null,
+    k_template: ?[]const u8 = null,
+    k_extra: ?[]const u8 = null,
+
+    // Arena-per-stage allocation -- single deinit tears down everything
+    arena: std.heap.ArenaAllocator,
+
+    pub fn init(backing: std.mem.Allocator) XSchemFiles {
+        return .{ .arena = std.heap.ArenaAllocator.init(backing) };
+    }
+
+    pub fn deinit(self: *XSchemFiles) void {
+        self.arena.deinit();
+    }
+};

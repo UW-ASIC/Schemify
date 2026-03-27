@@ -3,8 +3,9 @@
 //! not kept because full redo is not yet implemented.
 
 const std = @import("std");
-const core = @import("core");
-const CT   = core.CT;
+const st = @import("state");
+const Instance = st.Instance;
+const Wire = st.Wire;
 
 const cmd          = @import("command.zig");
 const Immediate    = cmd.Immediate;
@@ -21,7 +22,7 @@ pub const Error = error{OutOfMemory};
 // ── Inverse payload types ─────────────────────────────────────────────────────
 
 /// Full snapshot of deleted items; allocated on demand.
-pub const RestoreSnapshot = struct { instances: []CT.Instance, wires: []CT.Wire };
+pub const RestoreSnapshot = struct { instances: []Instance, wires: []Wire };
 /// How many items were appended by duplicate_selected; pop them to undo.
 pub const DeleteLastN     = struct { n: u32 };
 
@@ -78,7 +79,11 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
             const fio = state.active() orelse return;
             try applyInverse(inv, fio, state);
         },
-        .redo => state.setStatus("Redo not yet implemented"),
+        .redo => {
+            // TODO: implement redo — requires storing forward commands alongside
+            // inverses in History (currently only inverses are kept).
+            state.setStatus("Redo not yet implemented");
+        },
         else => unreachable,
     }
 }
@@ -110,7 +115,7 @@ fn applyInverse(inv: CommandInverse, fio: anytype, state: anytype) Error!void {
         },
 
         .delete_selected => |snap| {
-            const sch = fio.schematic();
+            const sch = &fio.sch;
             for (snap.instances) |inst| sch.instances.append(sch.alloc(), inst) catch {};
             for (snap.wires)     |w|    sch.wires.append(sch.alloc(), w)        catch {};
             fio.dirty = true;
@@ -118,9 +123,9 @@ fn applyInverse(inv: CommandInverse, fio: anytype, state: anytype) Error!void {
         },
 
         .duplicate_selected => |d| {
-            const sch = fio.schematic();
-            const n   = @min(d.n, sch.instances.items.len);
-            sch.instances.items.len -= n;
+            const sch = &fio.sch;
+            const n   = @min(d.n, sch.instances.len);
+            sch.instances.shrinkRetainingCapacity(sch.instances.len - n);
             fio.dirty = true;
             state.setStatus("Undo: removed duplicated objects");
         },

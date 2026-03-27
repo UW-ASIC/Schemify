@@ -73,12 +73,9 @@
         );
 
         # ── Runtime libraries (what the built executable needs) ────
+        # dvui uses raylib with X11/OpenGL backend (see build.zig)
         runtimeLibs = [
-          pkgs.SDL3 # dvui native backend
           pkgs.libGL
-          # X11 / Wayland bits SDL3 loads at runtime
-          pkgs.libxkbcommon
-          pkgs.wayland
           pkgs.libx11
           pkgs.libxcursor
           pkgs.libxrandr
@@ -87,9 +84,6 @@
           pkgs.libxinerama
           pkgs.libxrender
           pkgs.libxfixes
-          # Audio
-          pkgs.alsa-lib
-          pkgs.pulseaudio
         ];
       in
       {
@@ -117,6 +111,7 @@
             # from verilatorHarness.zig and synthesisHandler.zig).
             pkgs.verilator
             pkgs.yosys
+            pkgs.xschem
 
             # ── Docs toolchain ─────────────────────────────────────
             # bun: run `cd docs && bun install && bun run dev` to preview locally
@@ -156,7 +151,7 @@
             echo "Python $(python3 --version | cut -d' ' -f2)"
             echo "volare $(volare --version 2>&1 | head -1)"
             echo ""
-            echo "N1Schem Development Environment"
+            echo "Schemify Development Environment"
             echo "  zig build                - build native"
             echo "  zig build -Dbackend=web  - build WASM"
           '';
@@ -175,7 +170,7 @@
         #    schemify            # binary must be on PATH or invoked directly
         #
         packages.default = pkgs.buildFHSEnv {
-          name = "n1schem-env";
+          name = "schemify-env";
           targetPkgs =
             _:
             runtimeLibs
@@ -188,7 +183,7 @@
               # pkgs.ngspice
             ];
           runScript = "$SHELL";
-          meta.description = "Minimal runtime environment for the N1Schem binary";
+          meta.description = "Minimal runtime environment for the Schemify binary";
         };
       }
     );

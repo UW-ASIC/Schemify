@@ -2,6 +2,9 @@
 
 const std = @import("std");
 const core = @import("core");
+const st = @import("state");
+const utility = @import("utility");
+const Vfs = utility.Vfs;
 const Immediate = @import("command.zig").Immediate;
 
 pub const Error = error{
@@ -31,16 +34,18 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
             };
 
             const fio    = state.active() orelse return error.NoActiveDocument;
-            const sch_ct = fio.schematic();
+            const sch_ct = fio.sch;
             const alloc  = state.allocator();
 
             var s = core.Schemify.init(alloc);
             defer s.deinit();
             s.name = sch_ct.name;
 
-            for (sch_ct.instances.items) |inst| {
+            for (0..sch_ct.instances.len) |idx| {
+                const inst = sch_ct.instances.get(idx);
                 const prop_start: u32 = @intCast(s.props.items.len);
-                for (inst.props.items) |p| {
+                const src_props = sch_ct.props.items[inst.prop_start..][0..inst.prop_count];
+                for (src_props) |p| {
                     s.props.append(s.alloc(), .{
                         .key = s.alloc().dupe(u8, p.key) catch p.key,
                         .val = s.alloc().dupe(u8, p.val) catch p.val,
@@ -49,30 +54,30 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
                 s.instances.append(s.alloc(), .{
                     .name       = s.alloc().dupe(u8, inst.name)   catch inst.name,
                     .symbol     = s.alloc().dupe(u8, inst.symbol) catch inst.symbol,
-                    .x          = inst.pos[0], .y = inst.pos[1],
-                    .rot        = inst.xform.rot, .flip = inst.xform.flip,
+                    .x          = inst.x, .y = inst.y,
+                    .rot        = inst.rot, .flip = inst.flip,
                     .kind       = .unknown,
                     .prop_start = prop_start,
                     .prop_count = @intCast(s.props.items.len - prop_start),
                     .conn_start = 0, .conn_count = 0,
                 }) catch {};
             }
-            for (sch_ct.wires.items) |wire| {
+            for (0..sch_ct.wires.len) |idx| {
+                const wire = sch_ct.wires.get(idx);
                 s.wires.append(s.alloc(), .{
-                    .x0 = wire.start[0], .y0 = wire.start[1],
-                    .x1 = wire.end[0],   .y1 = wire.end[1],
+                    .x0 = wire.x0, .y0 = wire.y0,
+                    .x1 = wire.x1, .y1 = wire.y1,
                     .net_name = if (wire.net_name) |n| s.alloc().dupe(u8, n) catch null else null,
                 }) catch {};
             }
 
-            var unf = try core.netlist.UniversalNetlistForm.fromSchemify(alloc, &s);
-            defer unf.deinit();
-            const spice = try unf.generateSpice(alloc, core.pdk);
+            s.resolveNets();
+            const spice = try s.emitSpice(alloc, .ngspice, core.pdk, .sim);
             defer alloc.free(spice);
 
             var sp_path_buf: [1024]u8 = undefined;
             const sp_path = std.fmt.bufPrint(&sp_path_buf, "{s}/{s}.sp", .{ state.project_dir, sch_ct.name }) catch sch_ct.name;
-            core.Vfs.writeAll(sp_path, spice) catch |err|
+            Vfs.writeAll(sp_path, spice) catch |err|
                 state.log.err("CMD", "failed to write netlist to {s}: {}", .{ sp_path, err });
 
             if (spice.len > state.last_netlist.len) {
@@ -93,7 +98,7 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
 
         .toggle_flat_netlist => {
             state.cmd_flags.flat_netlist = !state.cmd_flags.flat_netlist;
-            state.setStatus(if (state.cmd_flags.flat_netlist) "Flat netlist on (stub)" else "Flat netlist off (stub)");
+            state.setStatus(if (state.cmd_flags.flat_netlist) "Flat netlist on" else "Flat netlist off");
         },
         else => unreachable,
     }

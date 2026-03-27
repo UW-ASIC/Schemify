@@ -164,7 +164,7 @@ fn extractLibPaths(
     const val = raw orelse return try aa.alloc([]const u8, 0);
     if (val.len == 0) return try aa.alloc([]const u8, 0);
 
-    var paths = std.ArrayList([]const u8).init(aa);
+    var paths: std.ArrayListUnmanaged([]const u8) = .{};
 
     var iter = std.mem.splitScalar(u8, val, ':');
     while (iter.next()) |segment| {
@@ -177,8 +177,8 @@ fn extractLibPaths(
         else
             try aa.dupe(u8, trimmed);
 
-        try paths.append(resolved);
+        try paths.append(aa, resolved);
     }
 
-    return try paths.toOwnedSlice();
+    return try paths.toOwnedSlice(aa);
 }

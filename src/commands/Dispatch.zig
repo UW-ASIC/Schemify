@@ -136,6 +136,7 @@ pub fn dispatch(c: Command, state: anytype) DispatchError!void {
             .make_schematic_from_symbol,
             .make_schem_and_sym,
             .insert_from_library,
+            .open_file_explorer,
             => try hierarchy.handle(imm, state),
 
             // ── Netlist ───────────────────────────────────────────────────────

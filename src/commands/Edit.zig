@@ -1,8 +1,10 @@
 //! Edit command handlers (transforms, delete, nudge, align, payloads).
 
 const std = @import("std");
-const core = @import("core");
-const CT = core.CT;
+const st = @import("state");
+const Point = st.Point;
+const Instance = st.Instance;
+const Wire = st.Wire;
 const cmd = @import("command.zig");
 const Immediate = cmd.Immediate;
 const Undoable  = cmd.Undoable;
@@ -15,24 +17,37 @@ pub fn handleImmediate(imm: Immediate, state: anytype) Error!void {
     switch (imm) {
         .align_to_grid => {
             const fio  = state.active() orelse return;
-            const sch  = fio.schematic();
+            const sch  = &fio.sch;
             const snap = state.tool.snap_size;
             var changed = false;
-            for (sch.instances.items, 0..) |*inst, i| {
+            const xs = sch.instances.items(.x);
+            const ys = sch.instances.items(.y);
+            for (0..sch.instances.len) |i| {
                 if (!selInst(state, i)) continue;
                 // Round both axes in one vector operation.
-                const fpos: @Vector(2, f32) = .{ @floatFromInt(inst.pos[0]), @floatFromInt(inst.pos[1]) };
+                const fpos: @Vector(2, f32) = .{ @floatFromInt(xs[i]), @floatFromInt(ys[i]) };
                 const sv:   @Vector(2, f32) = @splat(snap);
                 const rounded = @round(fpos / sv) * sv;
-                inst.pos = .{ @intFromFloat(rounded[0]), @intFromFloat(rounded[1]) };
+                xs[i] = @intFromFloat(rounded[0]);
+                ys[i] = @intFromFloat(rounded[1]);
                 changed = true;
             }
             if (changed) { fio.dirty = true; state.setStatus("Aligned to grid"); }
             else state.setStatus("Nothing selected to align");
         },
-        .move_interactive         => { state.tool.active = .move; state.setStatus("Move interactive (stub)"); },
-        .move_interactive_stretch => { state.tool.active = .move; state.setStatus("Move interactive stretch (stub)"); },
-        .move_interactive_insert  => { state.tool.active = .move; state.setStatus("Move interactive insert wires (stub)"); },
+        .move_interactive => { state.tool.active = .move; state.setStatus("Move interactive"); },
+        .move_interactive_stretch => {
+            // TODO: stretch mode — move selected instances while keeping connected
+            // wires attached (rubber-band). Currently behaves the same as plain move.
+            state.tool.active = .move;
+            state.setStatus("Move interactive stretch");
+        },
+        .move_interactive_insert => {
+            // TODO: insert mode — move selected instances and auto-insert wire
+            // segments to maintain connectivity. Currently behaves like plain move.
+            state.tool.active = .move;
+            state.setStatus("Move interactive insert wires");
+        },
         .escape_mode => {
             state.tool.wire_start = null;
             state.tool.active = .select;
@@ -61,30 +76,30 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
         // ── Delete selected ───────────────────────────────────────────────────
         .delete_selected => {
             const fio   = state.active() orelse return;
-            const sch   = fio.schematic();
+            const sch   = &fio.sch;
             const alloc = state.allocator();
 
             // Count first so we allocate exactly.
             var si: usize = 0;
             var sw: usize = 0;
-            for (0..sch.instances.items.len) |i| if (selInst(state, i)) { si += 1; };
-            for (0..sch.wires.items.len)     |i| if (selWire(state, i)) { sw += 1; };
+            for (0..sch.instances.len) |i| if (selInst(state, i)) { si += 1; };
+            for (0..sch.wires.len)     |i| if (selWire(state, i)) { sw += 1; };
 
-            const snap_inst = alloc.alloc(CT.Instance, si) catch try alloc.alloc(CT.Instance, 0);
-            const snap_wire = alloc.alloc(CT.Wire,     sw) catch try alloc.alloc(CT.Wire,     0);
+            const snap_inst = alloc.alloc(Instance, si) catch try alloc.alloc(Instance, 0);
+            const snap_wire = alloc.alloc(Wire,     sw) catch try alloc.alloc(Wire,     0);
             si = 0; sw = 0;
-            for (sch.instances.items, 0..) |inst, i| {
-                if (selInst(state, i) and si < snap_inst.len) { snap_inst[si] = inst; si += 1; }
+            for (0..sch.instances.len) |i| {
+                if (selInst(state, i) and si < snap_inst.len) { snap_inst[si] = sch.instances.get(i); si += 1; }
             }
-            for (sch.wires.items, 0..) |wire, i| {
-                if (selWire(state, i) and sw < snap_wire.len) { snap_wire[sw] = wire; sw += 1; }
+            for (0..sch.wires.len) |i| {
+                if (selWire(state, i) and sw < snap_wire.len) { snap_wire[sw] = sch.wires.get(i); sw += 1; }
             }
 
             // Remove in reverse index order to keep indices stable.
-            var wi = sch.wires.items.len;
-            while (wi > 0) { wi -= 1; if (selWire(state, wi)) _ = sch.wires.orderedRemove(wi); }
-            var ii = sch.instances.items.len;
-            while (ii > 0) { ii -= 1; if (selInst(state, ii)) _ = sch.instances.orderedRemove(ii); }
+            var wi = sch.wires.len;
+            while (wi > 0) { wi -= 1; if (selWire(state, wi)) sch.wires.orderedRemove(wi); }
+            var ii = sch.instances.len;
+            while (ii > 0) { ii -= 1; if (selInst(state, ii)) sch.instances.orderedRemove(ii); }
 
             state.selection.clear();
             fio.dirty = true;
@@ -94,18 +109,18 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
         // ── Duplicate selected ────────────────────────────────────────────────
         .duplicate_selected => {
             const fio        = state.active() orelse return;
-            const sch        = fio.schematic();
+            const sch        = &fio.sch;
             const sa         = sch.alloc();
-            const before_len = sch.instances.items.len;
-            const offset: CT.Point = .{ 20, 20 };
+            const before_len = sch.instances.len;
             for (0..before_len) |i| {
                 if (!selInst(state, i)) continue;
-                var copy  = sch.instances.items[i];
-                copy.pos  = copy.pos + offset;
+                var copy = sch.instances.get(i);
+                copy.x += 20;
+                copy.y += 20;
                 sch.instances.append(sa, copy) catch continue;
             }
             fio.dirty = true;
-            state.history.push(state.allocator(), .{ .duplicate_selected = .{ .n = @intCast(sch.instances.items.len - before_len) } });
+            state.history.push(state.allocator(), .{ .duplicate_selected = .{ .n = @intCast(sch.instances.len - before_len) } });
         },
 
         // ── Place / delete / move device ──────────────────────────────────────
@@ -117,12 +132,12 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
 
         .delete_device => |p| {
             const fio = state.active() orelse return;
-            const sch = fio.schematic();
+            const sch = &fio.sch;
             const idx: usize = p.idx;
-            if (idx >= sch.instances.items.len) return;
-            const inst = sch.instances.items[idx];
+            if (idx >= sch.instances.len) return;
+            const inst = sch.instances.get(idx);
             state.history.push(state.allocator(), .{ .delete_device = .{
-                .sym_path = inst.symbol, .name = inst.name, .pos = inst.pos,
+                .sym_path = inst.symbol, .name = inst.name, .pos = .{ inst.x, inst.y },
             } });
             _ = fio.deleteInstanceAt(idx);
         },
@@ -131,7 +146,7 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
             const fio = state.active() orelse return;
             _ = fio.moveInstanceBy(@as(usize, p.idx), p.delta[0], p.delta[1]);
             // Negate delta here so applyInverse can use it directly.
-            state.history.push(state.allocator(), .{ .move_device = .{ .idx = p.idx, .delta = -p.delta } });
+            state.history.push(state.allocator(), .{ .move_device = .{ .idx = p.idx, .delta = .{ -p.delta[0], -p.delta[1] } } });
         },
 
         .set_prop => |p| {
@@ -144,17 +159,17 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
         .add_wire => |p| {
             const fio = state.active() orelse return;
             try fio.addWireSeg(p.start, p.end, null);
-            const new_idx = fio.schematic().wires.items.len - 1;
+            const new_idx = fio.sch.wires.len - 1;
             state.history.push(state.allocator(), .{ .add_wire = .{ .idx = @intCast(new_idx) } });
         },
 
         .delete_wire => |p| {
             const fio = state.active() orelse return;
-            const sch = fio.schematic();
+            const sch = &fio.sch;
             const idx: usize = p.idx;
-            if (idx >= sch.wires.items.len) return;
-            const wire = sch.wires.items[idx];
-            state.history.push(state.allocator(), .{ .delete_wire = .{ .start = wire.start, .end = wire.end } });
+            if (idx >= sch.wires.len) return;
+            const wire = sch.wires.get(idx);
+            state.history.push(state.allocator(), .{ .delete_wire = .{ .start = .{ wire.x0, wire.y0 }, .end = .{ wire.x1, wire.y1 } } });
             _ = fio.deleteWireAt(idx);
         },
 
@@ -174,23 +189,25 @@ inline fn selWire(state: anytype, i: usize) bool {
 
 // ── Per-instance transform functions ─────────────────────────────────────────
 
-fn xformRotCw(inst:  *CT.Instance) void { inst.xform.rot = (inst.xform.rot + 1) & 0b11; }
-fn xformRotCcw(inst: *CT.Instance) void { inst.xform.rot = (inst.xform.rot + 3) & 0b11; }
-fn xformFlipH(inst:  *CT.Instance) void { inst.xform.flip = !inst.xform.flip; }
-fn xformFlipV(inst:  *CT.Instance) void { inst.xform.flip = !inst.xform.flip; inst.xform.rot = (inst.xform.rot + 2) & 0b11; }
-fn nudgeLeft(inst:   *CT.Instance) void { inst.pos[0] -= 10; }
-fn nudgeRight(inst:  *CT.Instance) void { inst.pos[0] += 10; }
-fn nudgeUp(inst:     *CT.Instance) void { inst.pos[1] -= 10; }
-fn nudgeDown(inst:   *CT.Instance) void { inst.pos[1] += 10; }
+fn xformRotCw(inst:  *Instance) void { inst.rot = inst.rot +% 1; }
+fn xformRotCcw(inst: *Instance) void { inst.rot = inst.rot +% 3; }
+fn xformFlipH(inst:  *Instance) void { inst.flip = !inst.flip; }
+fn xformFlipV(inst:  *Instance) void { inst.flip = !inst.flip; inst.rot = inst.rot +% 2; }
+fn nudgeLeft(inst:   *Instance) void { inst.x -= 10; }
+fn nudgeRight(inst:  *Instance) void { inst.x += 10; }
+fn nudgeUp(inst:     *Instance) void { inst.y -= 10; }
+fn nudgeDown(inst:   *Instance) void { inst.y += 10; }
 
 /// Apply `xform` to every selected instance and mark the document dirty if anything changed.
-fn applyToSelected(state: anytype, xform: fn (*CT.Instance) void) void {
+fn applyToSelected(state: anytype, xform: fn (*Instance) void) void {
     const fio = state.active() orelse return;
-    const sch = fio.schematic();
+    const sch = &fio.sch;
     var changed = false;
-    for (sch.instances.items, 0..) |*inst, i| {
+    for (0..sch.instances.len) |i| {
         if (!selInst(state, i)) continue;
-        xform(inst);
+        var inst = sch.instances.get(i);
+        xform(&inst);
+        sch.instances.set(i, inst);
         changed = true;
     }
     if (changed) fio.dirty = true;

@@ -136,9 +136,9 @@ pub const Evaluator = struct {
         if (args.len < 2) return error.InvalidArgCount;
         const existing = self.getVar(args[0]) orelse "";
         const aa = self.arena.allocator();
-        var parts = std.ArrayList([]const u8).init(aa);
-        if (existing.len > 0) parts.append(existing) catch return error.OutOfMemory;
-        for (args[1..]) |a| parts.append(a) catch return error.OutOfMemory;
+        var parts: std.ArrayListUnmanaged([]const u8) = .{};
+        if (existing.len > 0) parts.append(aa, existing) catch return error.OutOfMemory;
+        for (args[1..]) |a| parts.append(aa, a) catch return error.OutOfMemory;
         const joined = std.mem.join(aa, " ", parts.items) catch return error.OutOfMemory;
         try self.setVar(args[0], joined);
         return joined;
@@ -309,13 +309,13 @@ pub const Evaluator = struct {
         // Fast path: no substitution chars
         if (std.mem.indexOfAny(u8, src, "$[\\") == null) return src;
         const aa = self.arena.allocator();
-        var out = std.ArrayList(u8).init(aa);
+        var out: std.ArrayListUnmanaged(u8) = .{};
         var i: usize = 0;
         while (i < src.len) {
             if (src[i] == '\\' and i + 1 < src.len) {
                 const n = src[i + 1];
                 const ch: u8 = switch (n) { 'n' => '\n', 't' => '\t', else => n };
-                out.append(ch) catch return error.OutOfMemory;
+                out.append(aa, ch) catch return error.OutOfMemory;
                 i += 2; continue;
             }
             if (src[i] == '$') {
@@ -325,14 +325,14 @@ pub const Evaluator = struct {
                     const ns = i;
                     while (i < src.len and src[i] != '}') i += 1;
                     const val = self.getVar(src[ns..i]) orelse return error.UndefinedVariable;
-                    out.appendSlice(val) catch return error.OutOfMemory;
+                    out.appendSlice(aa, val) catch return error.OutOfMemory;
                     if (i < src.len) i += 1;
                 } else if (i < src.len and src[i] == ':' and i + 1 < src.len and src[i + 1] == ':') {
                     i += 2;
                     const ns = i - 2;
                     while (i < src.len and (std.ascii.isAlphanumeric(src[i]) or src[i] == '_' or src[i] == ':')) i += 1;
                     const val = self.getVar(src[ns..i]) orelse return error.UndefinedVariable;
-                    out.appendSlice(val) catch return error.OutOfMemory;
+                    out.appendSlice(aa, val) catch return error.OutOfMemory;
                 } else {
                     const ns = i;
                     while (i < src.len and (std.ascii.isAlphanumeric(src[i]) or src[i] == '_')) i += 1;
@@ -342,11 +342,11 @@ pub const Evaluator = struct {
                         const es = i;
                         while (i < src.len and src[i] != ')') i += 1;
                         const env_val = std.posix.getenv(src[es..i]) orelse return error.UndefinedVariable;
-                        out.appendSlice(env_val) catch return error.OutOfMemory;
+                        out.appendSlice(aa, env_val) catch return error.OutOfMemory;
                         if (i < src.len) i += 1;
                     } else {
                         const val = self.getVar(name) orelse return error.UndefinedVariable;
-                        out.appendSlice(val) catch return error.OutOfMemory;
+                        out.appendSlice(aa, val) catch return error.OutOfMemory;
                     }
                 }
                 continue;
@@ -355,10 +355,10 @@ pub const Evaluator = struct {
                 const end = commands.findMatchingBracket(src, i) catch return error.Unbalanced;
                 const inner = src[i + 1 .. end];
                 const result = try self.evalScript(inner);
-                out.appendSlice(result) catch return error.OutOfMemory;
+                out.appendSlice(aa, result) catch return error.OutOfMemory;
                 i = end + 1; continue;
             }
-            out.append(src[i]) catch return error.OutOfMemory;
+            out.append(aa, src[i]) catch return error.OutOfMemory;
             i += 1;
         }
         return out.items;

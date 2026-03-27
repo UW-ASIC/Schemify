@@ -17,6 +17,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const pi = @import("PluginIF");
 const st = @import("state");
+const Vfs = pi.Vfs;
 const theme_config = @import("theme_config");
 
 const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
@@ -125,10 +126,10 @@ pub const Runtime = struct {
         widget_id: u32,
         // Cold: only read when tag matches.
         str: []const u8 = &.{}, // label/button text, checkbox label, collapsible label
-        val: f32 = 0,            // slider value, progress fraction, checkbox bool (0/1)
-        min: f32 = 0,            // slider min
-        max: f32 = 1,            // slider max
-        open: bool = false,      // collapsible initial state
+        val: f32 = 0, // slider value, progress fraction, checkbox bool (0/1)
+        min: f32 = 0, // slider min
+        max: f32 = 1, // slider max
+        open: bool = false, // collapsible initial state
     };
 
     /// An input event queued from GUI interaction to be sent on the next tick.
@@ -168,13 +169,13 @@ pub const Runtime = struct {
     }
 
     pub fn loadStartup(self: *Self, app: *st.AppState) void {
-        if (is_wasm) return;
+        if (comptime is_wasm) return;
         self.app = app;
         self.scanAndLoad();
     }
 
     pub fn tick(self: *Self, app: *st.AppState, dt: f32) void {
-        if (is_wasm) return;
+        if (comptime is_wasm) return;
         self.app = app;
         // Each plugin sees the same event snapshot for the frame; drain only after
         // all plugins have processed so none is starved.
@@ -199,32 +200,39 @@ pub const Runtime = struct {
 
     pub fn dispatchButtonClicked(self: *Runtime, panel_id: u16, widget_id: u32) void {
         self.pending_events.append(.{
-            .tag = .button_clicked, .panel_id = panel_id, .widget_id = widget_id,
+            .tag = .button_clicked,
+            .panel_id = panel_id,
+            .widget_id = widget_id,
         });
     }
 
     pub fn dispatchSliderChanged(self: *Runtime, panel_id: u16, widget_id: u32, val: f32) void {
         self.pending_events.append(.{
-            .tag = .slider_changed, .panel_id = panel_id, .widget_id = widget_id, .val_f32 = val,
+            .tag = .slider_changed,
+            .panel_id = panel_id,
+            .widget_id = widget_id,
+            .val_f32 = val,
         });
     }
 
     pub fn dispatchCheckboxChanged(self: *Runtime, panel_id: u16, widget_id: u32, val: bool) void {
         self.pending_events.append(.{
-            .tag = .checkbox_changed, .panel_id = panel_id, .widget_id = widget_id,
+            .tag = .checkbox_changed,
+            .panel_id = panel_id,
+            .widget_id = widget_id,
             .val_u8 = if (val) 1 else 0,
         });
     }
 
     pub fn refresh(self: *Self, app: *st.AppState) void {
-        if (is_wasm) return;
+        if (comptime is_wasm) return;
         self.app = app;
         self.unloadAll();
         self.scanAndLoad();
     }
 
     pub fn deinit(self: *Self, app: *st.AppState) void {
-        if (is_wasm) return;
+        if (comptime is_wasm) return;
         self.app = app;
         self.unloadAll();
         self.plugins.deinit(self.alloc);
@@ -248,10 +256,10 @@ pub const Runtime = struct {
         }
         for (self.pending_events.slice()) |ev| {
             needed += switch (ev.tag) {
-                .button_clicked   => @as(usize, pi.HEADER_SZ + pi.U16_SZ + pi.U32_SZ),
-                .slider_changed   => @as(usize, pi.HEADER_SZ + pi.U16_SZ + pi.U32_SZ + pi.U32_SZ),
+                .button_clicked => @as(usize, pi.HEADER_SZ + pi.U16_SZ + pi.U32_SZ),
+                .slider_changed => @as(usize, pi.HEADER_SZ + pi.U16_SZ + pi.U32_SZ + pi.U32_SZ),
                 .checkbox_changed => @as(usize, pi.HEADER_SZ + pi.U16_SZ + pi.U32_SZ + 1),
-                else              => @as(usize, 0),
+                else => @as(usize, 0),
             };
         }
 
@@ -367,11 +375,12 @@ pub const Runtime = struct {
         switch (tag) {
             .register_panel => {
                 var pp: usize = 0;
-                const id      = readStr(payload, &pp) orelse return;
-                const title   = readStr(payload, &pp) orelse return;
+                const id = readStr(payload, &pp) orelse return;
+                const title = readStr(payload, &pp) orelse return;
                 const vim_cmd = readStr(payload, &pp) orelse return;
                 if (pp + 2 > payload.len) return;
-                const layout_byte = payload[pp]; pp += 1;
+                const layout_byte = payload[pp];
+                pp += 1;
                 const keybind = payload[pp];
                 const layout: st.PluginPanelLayout = switch (layout_byte) {
                     1 => .left_sidebar,
@@ -395,9 +404,9 @@ pub const Runtime = struct {
             },
             .register_command => {
                 var pp: usize = 0;
-                const id           = readStr(payload, &pp) orelse return;
+                const id = readStr(payload, &pp) orelse return;
                 const display_name = readStr(payload, &pp) orelse return;
-                const description  = readStr(payload, &pp) orelse return;
+                const description = readStr(payload, &pp) orelse return;
                 _ = self.app.registerPluginCommand(id, display_name, description);
             },
             .set_config => {
@@ -414,12 +423,7 @@ pub const Runtime = struct {
                 var pp: usize = 0;
                 const path = readStr(payload, &pp) orelse return;
                 // Always queue a response, even empty, so the plugin isn't left waiting.
-                const file = std.fs.openFileAbsolute(path, .{}) catch {
-                    queueFileResponse(self.alloc, p, path, &.{});
-                    return;
-                };
-                defer file.close();
-                const data = file.readToEndAlloc(self.alloc, 64 * 1024 * 1024) catch {
+                const data = Vfs.readAlloc(self.alloc, path) catch {
                     queueFileResponse(self.alloc, p, path, &.{});
                     return;
                 };
@@ -439,13 +443,8 @@ pub const Runtime = struct {
                 const count = std.mem.readInt(u32, payload[pp..][0..4], .little);
                 pp += 4;
                 if (pp + count > payload.len) return;
-                const file = std.fs.createFileAbsolute(path, .{ .truncate = true }) catch |err| {
+                Vfs.writeAll(path, payload[pp .. pp + count]) catch |err| {
                     self.app.log.err("PLUGIN", "file_write({s}): {}", .{ path, err });
-                    return;
-                };
-                defer file.close();
-                file.writeAll(payload[pp .. pp + count]) catch |err| {
-                    self.app.log.err("PLUGIN", "file_write write({s}): {}", .{ path, err });
                 };
             },
             else => {},
@@ -453,47 +452,52 @@ pub const Runtime = struct {
     }
 
     fn scanAndLoad(self: *Self) void {
-        const home = std.posix.getenv("HOME") orelse return;
+        const home = pi.platform.getEnvVar(self.alloc, "HOME") catch return;
+        defer self.alloc.free(home);
 
-        var cfg_buf: [std.fs.max_path_bytes]u8 = undefined;
+        var cfg_buf: [4096]u8 = undefined;
         const cfg_dir = std.fmt.bufPrint(
-            &cfg_buf, "{s}/.config/Schemify", .{home},
+            &cfg_buf,
+            "{s}/.config/Schemify",
+            .{home},
         ) catch return;
 
-        var root = std.fs.openDirAbsolute(cfg_dir, .{ .iterate = true }) catch return;
-        defer root.close();
+        const listing = Vfs.listDir(self.alloc, cfg_dir) catch return;
+        defer listing.deinit(self.alloc);
 
-        var it = root.iterate();
-        while (it.next() catch null) |entry| {
-            if (entry.kind != .directory) continue;
-
-            var plugin_buf: [std.fs.max_path_bytes]u8 = undefined;
+        for (listing.entries) |entry_name| {
+            var plugin_buf: [4096]u8 = undefined;
             const plugin_dir = std.fmt.bufPrint(
-                &plugin_buf, "{s}/{s}", .{ cfg_dir, entry.name },
+                &plugin_buf,
+                "{s}/{s}",
+                .{ cfg_dir, entry_name },
             ) catch continue;
 
             self.loadSoFromDir(plugin_dir);
 
-            var lib_buf: [std.fs.max_path_bytes]u8 = undefined;
+            var lib_buf: [4096]u8 = undefined;
             const lib_dir = std.fmt.bufPrint(
-                &lib_buf, "{s}/lib", .{plugin_dir},
+                &lib_buf,
+                "{s}/lib",
+                .{plugin_dir},
             ) catch continue;
             self.loadSoFromDir(lib_dir);
         }
     }
 
     fn loadSoFromDir(self: *Self, dir_path: []const u8) void {
-        var dir = std.fs.openDirAbsolute(dir_path, .{ .iterate = true }) catch return;
-        defer dir.close();
+        if (comptime is_wasm) return;
+        const listing = Vfs.listDir(self.alloc, dir_path) catch return;
+        defer listing.deinit(self.alloc);
 
-        var it = dir.iterate();
-        while (it.next() catch null) |file| {
-            if (file.kind != .file and file.kind != .sym_link) continue;
-            if (!std.mem.endsWith(u8, file.name, ".so")) continue;
+        for (listing.entries) |file_name| {
+            if (!std.mem.endsWith(u8, file_name, ".so")) continue;
 
-            var so_buf: [std.fs.max_path_bytes]u8 = undefined;
+            var so_buf: [4096]u8 = undefined;
             const so_path = std.fmt.bufPrint(
-                &so_buf, "{s}/{s}", .{ dir_path, file.name },
+                &so_buf,
+                "{s}/{s}",
+                .{ dir_path, file_name },
             ) catch continue;
             self.loadOne(so_path);
         }
@@ -519,10 +523,19 @@ pub const Runtime = struct {
             return;
         }
 
-        const load_msg: [pi.HEADER_SZ]u8 = .{ @intFromEnum(pi.Tag.load), 0, 0 };
+        // Build load message: [tag][u16 payload_sz][u16 dir_len][dir_bytes]
+        const dir = self.app.project_dir;
+        const dir_len: u16 = @intCast(@min(dir.len, std.math.maxInt(u16)));
+        var load_buf: [pi.HEADER_SZ + pi.U16_SZ + 4096]u8 = undefined;
+        load_buf[0] = @intFromEnum(pi.Tag.load);
+        std.mem.writeInt(u16, load_buf[1..3], pi.U16_SZ + dir_len, .little);
+        std.mem.writeInt(u16, load_buf[3..5], dir_len, .little);
+        @memcpy(load_buf[5 .. 5 + dir_len], dir[0..dir_len]);
+        const load_msg = load_buf[0 .. pi.HEADER_SZ + pi.U16_SZ + @as(usize, dir_len)];
+
         var p: LoadedPlugin = .{ .lib = lib, .desc = desc, .buf = &.{}, .pending_responses = .{} };
 
-        if (callPluginProcess(&p, &load_msg, self.alloc)) |out| {
+        if (callPluginProcess(&p, load_msg, self.alloc)) |out| {
             defer self.alloc.free(out);
             parseOutMsgs(out, self, &p);
         } else |_| {}
@@ -572,7 +585,7 @@ fn iterOutMsgs(
 ) void {
     var opos: usize = 0;
     while (opos + pi.HEADER_SZ <= out.len) {
-        const tag_byte   = out[opos];
+        const tag_byte = out[opos];
         const payload_sz = std.mem.readInt(u16, out[opos + 1 ..][0..2], .little);
         opos += pi.HEADER_SZ;
         if (opos + payload_sz > out.len) break;
@@ -661,35 +674,33 @@ fn parseWidget(arena: std.mem.Allocator, tag: pi.Tag, payload: []const u8) ?Runt
             const text = readStr(payload, &p) orelse return null;
             if (p + 4 > payload.len) return null;
             const id = std.mem.readInt(u32, payload[p..][0..4], .little);
-            return .{ .tag = .label, .widget_id = id,
-                       .str = arena.dupe(u8, text) catch return null };
+            return .{ .tag = .label, .widget_id = id, .str = arena.dupe(u8, text) catch return null };
         },
         .ui_button => {
             const text = readStr(payload, &p) orelse return null;
             if (p + 4 > payload.len) return null;
             const id = std.mem.readInt(u32, payload[p..][0..4], .little);
-            return .{ .tag = .button, .widget_id = id,
-                       .str = arena.dupe(u8, text) catch return null };
+            return .{ .tag = .button, .widget_id = id, .str = arena.dupe(u8, text) catch return null };
         },
         // Id-only widgets share the same decode path.
         .ui_separator, .ui_begin_row, .ui_end_row, .ui_collapsible_end => {
             if (payload.len < 4) return null;
-            const id  = std.mem.readInt(u32, payload[0..4], .little);
+            const id = std.mem.readInt(u32, payload[0..4], .little);
             const wt: Runtime.WidgetTag = switch (tag) {
-                .ui_separator       => .separator,
-                .ui_begin_row       => .begin_row,
-                .ui_end_row         => .end_row,
+                .ui_separator => .separator,
+                .ui_begin_row => .begin_row,
+                .ui_end_row => .end_row,
                 .ui_collapsible_end => .collapsible_end,
-                else                => unreachable,
+                else => unreachable,
             };
             return .{ .tag = wt, .widget_id = id };
         },
         .ui_slider => {
             if (payload.len < 16) return null;
             const val = @as(f32, @bitCast(std.mem.readInt(u32, payload[0..4], .little)));
-            const mn  = @as(f32, @bitCast(std.mem.readInt(u32, payload[4..8], .little)));
-            const mx  = @as(f32, @bitCast(std.mem.readInt(u32, payload[8..12], .little)));
-            const id  = std.mem.readInt(u32, payload[12..16], .little);
+            const mn = @as(f32, @bitCast(std.mem.readInt(u32, payload[4..8], .little)));
+            const mx = @as(f32, @bitCast(std.mem.readInt(u32, payload[8..12], .little)));
+            const id = std.mem.readInt(u32, payload[12..16], .little);
             return .{ .tag = .slider, .widget_id = id, .val = val, .min = mn, .max = mx };
         },
         .ui_checkbox => {
@@ -699,13 +710,12 @@ fn parseWidget(arena: std.mem.Allocator, tag: pi.Tag, payload: []const u8) ?Runt
             const text = readStr(payload, &p) orelse return null;
             if (p + 4 > payload.len) return null;
             const id = std.mem.readInt(u32, payload[p..][0..4], .little);
-            return .{ .tag = .checkbox, .widget_id = id, .val = checked,
-                       .str = arena.dupe(u8, text) catch return null };
+            return .{ .tag = .checkbox, .widget_id = id, .val = checked, .str = arena.dupe(u8, text) catch return null };
         },
         .ui_progress => {
             if (payload.len < 8) return null;
             const frac = @as(f32, @bitCast(std.mem.readInt(u32, payload[0..4], .little)));
-            const id   = std.mem.readInt(u32, payload[4..8], .little);
+            const id = std.mem.readInt(u32, payload[4..8], .little);
             return .{ .tag = .progress, .widget_id = id, .val = frac };
         },
         .ui_collapsible_start => {
@@ -714,8 +724,7 @@ fn parseWidget(arena: std.mem.Allocator, tag: pi.Tag, payload: []const u8) ?Runt
             const open = payload[p] != 0;
             p += 1;
             const id = std.mem.readInt(u32, payload[p..][0..4], .little);
-            return .{ .tag = .collapsible_start, .widget_id = id, .open = open,
-                       .str = arena.dupe(u8, lbl) catch return null };
+            return .{ .tag = .collapsible_start, .widget_id = id, .open = open, .str = arena.dupe(u8, lbl) catch return null };
         },
         else => return null,
     }
