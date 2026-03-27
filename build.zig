@@ -34,6 +34,7 @@ const module_defs = [_]Def{
 // Run individually: zig build test_<name>  |  Run all: zig build test
 const test_defs = [_]Def{
     .{ "core", "test/core/test_core.zig", &.{"core"} },
+    .{ "utility", "src/utility/lib.zig", &.{} },
 };
 
 // ── web-specific ───────────────────────────────────────────────────────────────
