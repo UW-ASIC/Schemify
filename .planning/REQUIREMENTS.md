@@ -8,9 +8,9 @@
 ### Data Structures (DS)
 
 - [ ] **DS-01**: SlotMap with generational handles — O(1) insert/remove/lookup, ABA-safe, dense iteration
-- [ ] **DS-02**: SparseSet — O(1) add/remove/contains, O(k) dense iteration over k active elements
-- [ ] **DS-03**: RingBuffer — O(1) push/pop, fixed capacity, no allocator needed, pushOverwrite for eviction
-- [ ] **DS-04**: Pool allocator — O(1) fixed-size block alloc/free, zero fragmentation
+- [x] **DS-02**: SparseSet — O(1) add/remove/contains, O(k) dense iteration over k active elements
+- [x] **DS-03**: RingBuffer — O(1) push/pop, fixed capacity, no allocator needed, pushOverwrite for eviction
+- [x] **DS-04**: Pool allocator — O(1) fixed-size block alloc/free, zero fragmentation
 - [ ] **DS-05**: SmallVec — inline storage for ≤N elements, spills to heap when exceeded
 - [ ] **DS-06**: PerfectHash — comptime-generated zero-collision lookup for static key sets
 
@@ -121,9 +121,9 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DS-01 | 1 | Pending |
-| DS-02 | 1 | Pending |
-| DS-03 | 1 | Pending |
-| DS-04 | 1 | Pending |
+| DS-02 | 1 | Complete (01-02) |
+| DS-03 | 1 | Complete (01-02) |
+| DS-04 | 1 | Complete (01-02) |
 | DS-05 | 1 | Pending |
 | DS-06 | 1 | Pending |
 | CORE-01 | 2 | Pending |
