@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: DOD Refactor + Plugin Ecosystem
-current_plan: 01-01 complete
+current_plan: 08-01 complete
 status: executing
-stopped_at: Completed 01-01-PLAN.md (SlotMap)
-last_updated: "2026-03-27T21:56:22Z"
+stopped_at: Completed 08-01-PLAN.md (SDK build fix + Theme.applyJson)
+last_updated: "2026-03-27T22:03:29Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 18
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -58,6 +58,8 @@ Last activity: 2026-03-27
 - [Phase 01-01]: Generation starts at 1 so Handle.invalid (gen=0) never matches live slot
 - [Phase 01-01]: Free list sentinel is maxInt(u20) with ?u20 free_head
 - [Phase 01-01]: SecondaryMap stale handle test uses reinsert pattern for generation mismatch
+- [Phase 08-01]: Matched parse.zig reference implementation pattern for applyJson consistency
+- [Phase 08-01]: utility_mod exported in PluginContext for external plugin access
 
 ## Blockers
 
@@ -68,8 +70,9 @@ None
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 01 | 01 | 6min | 2 | 1 |
+| 08 | 01 | 3min | 2 | 2 |
 
 ## Session
 
-- **Last session:** 2026-03-27T21:56:22Z
-- **Stopped at:** Completed 01-01-PLAN.md
+- **Last session:** 2026-03-27T22:03:29Z
+- **Stopped at:** Completed 08-01-PLAN.md (SDK build fix + Theme.applyJson)
