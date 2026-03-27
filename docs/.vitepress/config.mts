@@ -47,22 +47,27 @@ export default defineConfig({
         items: [
           { text: 'Overview',            link: '/plugins/overview' },
           { text: 'Architecture',        link: '/plugins/architecture' },
-          { text: 'Installing Plugins',  link: '/plugins/installing' },
-        ],
-      },
-      {
-        text: 'Writing Plugins',
-        items: [
-          { text: 'Zig plugin',          link: '/plugins/zig' },
-          { text: 'C / C++ plugin',      link: '/plugins/c' },
-          { text: 'Python plugin',       link: '/plugins/python' },
-          { text: 'WASM / Web plugin',   link: '/plugins/wasm' },
-        ],
-      },
-      {
-        text: 'Reference',
-        items: [
           { text: 'API Reference',       link: '/plugins/api' },
+        ],
+      },
+      {
+        text: 'Creating Plugins',
+        items: [
+          { text: 'Quick Start',         link: '/plugins/creating/quick-start' },
+          { text: 'Zig Plugin',          link: '/plugins/creating/zig' },
+          { text: 'C Plugin',            link: '/plugins/creating/c' },
+          { text: 'C++ Plugin',          link: '/plugins/creating/cpp' },
+          { text: 'Rust Plugin',         link: '/plugins/creating/rust' },
+          { text: 'Go Plugin',           link: '/plugins/creating/go' },
+          { text: 'Python Plugin',       link: '/plugins/creating/python' },
+          { text: 'WASM / Web Plugin',   link: '/plugins/creating/wasm' },
+          { text: 'Publishing',          link: '/plugins/creating/publishing' },
+        ],
+      },
+      {
+        text: 'Using Plugins',
+        items: [
+          { text: 'Installing Plugins',  link: '/plugins/using/installing' },
         ],
       },
       {

@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: DOD Refactor + Plugin Ecosystem
-current_plan: 08-01 complete
+current_plan: 14-01 complete
 status: executing
-stopped_at: Completed 08-01-PLAN.md (SDK build fix + Theme.applyJson)
-last_updated: "2026-03-27T22:03:29Z"
+stopped_at: Completed 14-01-PLAN.md (plugin doc restructure)
+last_updated: "2026-03-27T22:09:19.159Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 18
@@ -18,17 +18,14 @@ progress:
 
 ## Current Position
 
-Phase: 01 (foundation-data-structures) — EXECUTING
-Plan: 1 of 3 complete
-Status: Executing Phase 01
+Phase: 14 (doc-infrastructure-quick-start) — EXECUTING
+Plan: 1 of 2 complete
+Status: Executing Phase 14 Wave 2
 Last activity: 2026-03-27
 
 ## Progress
 
-[==                  ] 1/3 plans (Phase 01)
-
-**Current Plan:** 01-01 complete
-**Total Plans in Phase:** 3
+[                    ] 0/18 phases
 
 ### Workstream A: DOD Refactor
 
@@ -60,6 +57,9 @@ Last activity: 2026-03-27
 - [Phase 01-01]: SecondaryMap stale handle test uses reinsert pattern for generation mismatch
 - [Phase 08-01]: Matched parse.zig reference implementation pattern for applyJson consistency
 - [Phase 08-01]: utility_mod exported in PluginContext for external plugin access
+- [Phase 14]: Kept overview/architecture/api at plugins/ root (shared files, per D-02)
+- [Phase 14]: Quick Start as first item in Creating Plugins sidebar (per D-05)
+- [Phase 14]: API Reference moved into Plugins section (not standalone Reference section)
 
 ## Blockers
 
@@ -71,8 +71,9 @@ None
 |-------|------|----------|-------|-------|
 | 01 | 01 | 6min | 2 | 1 |
 | 08 | 01 | 3min | 2 | 2 |
+| 14 | 01 | 3min | 2 | 12 |
 
 ## Session
 
-- **Last session:** 2026-03-27T22:03:29Z
-- **Stopped at:** Completed 08-01-PLAN.md (SDK build fix + Theme.applyJson)
+- **Last session:** 2026-03-27T22:09:19.157Z
+- **Stopped at:** Completed 14-01-PLAN.md (plugin doc restructure)

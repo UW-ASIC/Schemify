@@ -76,11 +76,11 @@ package managers and the Schemify plugin registry.
 Launch Schemify; loaded plugins appear in the log output:
 
 ```
-[info] [runtime] loaded plugin "MyPlugin" v0.1.0 (ABI 2)
+[info] [runtime] loaded plugin "MyPlugin" v0.1.0 (ABI 6)
 ```
 
 If the ABI version does not match, the library is skipped:
 
 ```
-[warn] [runtime] skipping MyPlugin: ABI version mismatch (got 1, expected 2)
+[warn] [runtime] skipping MyPlugin: ABI version mismatch (got 5, expected 6)
 ```

@@ -242,12 +242,12 @@ Run `zig fetch --save=schemify_sdk <url>` to populate the hash automatically.
 `tools/sdk/schemify_plugin.h` is the complete C/C++ API (used unchanged from
 C++).  Key types:
 
-- `SpReader` / `SpWriter` — buffer-based message IO (see `docs/plugins/c.md`
+- `SpReader` / `SpWriter` — buffer-based message IO (see `docs/plugins/creating/c.md`
   for the full table of tags and output helpers)
 - `SpMsg` — union discriminated by `.tag`; variant fields for each message type
 - `SCHEMIFY_PLUGIN(name, version, process_fn)` — exports the descriptor symbol
 
-The C API reference in `docs/plugins/c.md` applies directly to C++ plugins.
+The C API reference in `docs/plugins/creating/c.md` applies directly to C++ plugins.
 See also `docs/plugins/api.md` for the binary message protocol.
 
 ## Linking a C++ library
