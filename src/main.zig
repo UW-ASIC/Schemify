@@ -49,6 +49,7 @@ fn appInit(win: *dvui.Window) !void {
     // plugins
     plugins = plugin_runtime.Runtime.init(app.allocator());
     plugins.loadStartup(&app);
+    app.plugin_runtime_ptr = @ptrCast(&plugins);
 }
 
 fn appDeinit() void {
