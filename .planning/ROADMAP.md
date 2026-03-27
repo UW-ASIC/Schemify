@@ -193,7 +193,7 @@ Plans:
 **Plans:** 2 plans
 Plans:
 - [x] 14-01-PLAN.md — Directory restructure, file moves, internal link fixes, sidebar config update
-- [ ] 14-02-PLAN.md — Quick start guide with 5-language note-taker plugin using VitePress code-group tabs
+- [x] 14-02-PLAN.md — Quick start guide with 5-language note-taker plugin using VitePress code-group tabs
 **Success Criteria**:
   1. docs/plugins/creating/ and docs/plugins/using/ directories exist
   2. Quick start guide shows working 5-minute plugin in all 5 languages
@@ -281,7 +281,7 @@ Phases 1, 8, 14 can start in parallel. Within each workstream, phases execute se
 | 11. PDKLoader & Optimizer | Not started | - |
 | 12. Python Plugins | Not started | - |
 | 13. WASM Plugins | Not started | - |
-| 14. Doc Infrastructure & Quick Start | In Progress (1/2 plans complete) | - |
+| 14. Doc Infrastructure & Quick Start | Complete (2/2 plans) | 2026-03-27 |
 | 15. Architecture & API Reference | Not started | - |
 | 16. Widgets & Advanced Topics | Not started | - |
 | 17. Per-Language Guides & Distribution | Not started | - |
