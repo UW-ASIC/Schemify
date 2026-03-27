@@ -47,11 +47,10 @@ with a doubled buffer.
 | Language | Mechanism |
 |----------|-----------|
 | **Zig** | Write the plugin entirely in Zig |
-| **C / C++** | Call via `@cImport` / `addCSourceFile` in build.zig |
+| **C / C++** | `schemify_plugin.h` header + `addCPlugin` / `addCppPlugin` |
 | **Rust** | `schemify-plugin` crate; `export_plugin!` macro |
 | **Python** | Pure `.py` files; `addPythonPlugin` deploys them |
 | **TinyGo** | `schemify` package; `RunPlugin` entry point |
-| **C / C++** | `schemify_plugin.h` header + `addCPlugin` / `addCppPlugin` |
 
 The plugin ABI boundary is a plain C `extern struct`, so any language that
 can emit C-compatible shared-library exports works.
