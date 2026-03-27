@@ -51,27 +51,53 @@ pub fn SlotMap(comptime T: type) type {
         }
 
         pub fn insert(self: *Self, value: T) !Handle {
-            _ = self;
-            _ = value;
-            return Handle.invalid; // STUB -- will fail tests
+            const slot_idx: u20 = if (self.free_head) |fi| blk: {
+                const nxt = self.slots.items[fi].dense_idx_or_next;
+                self.free_head = if (nxt == std.math.maxInt(u20)) null else nxt;
+                break :blk fi;
+            } else blk: {
+                const idx: u20 = @intCast(self.slots.items.len);
+                try self.slots.append(self.allocator, .{ .dense_idx_or_next = undefined, .generation = 1 });
+                break :blk idx;
+            };
+
+            const dense_idx: u20 = @intCast(self.dense.items.len);
+            try self.dense.append(self.allocator, value);
+            try self.meta.append(self.allocator, .{ .slot_index = slot_idx });
+
+            self.slots.items[slot_idx].dense_idx_or_next = dense_idx;
+            return .{ .index = slot_idx, .generation = self.slots.items[slot_idx].generation };
         }
 
         pub fn remove(self: *Self, handle: Handle) ?T {
-            _ = self;
-            _ = handle;
-            return null; // STUB
+            if (!self.isValid(handle)) return null;
+            const slot = &self.slots.items[handle.index];
+            const dense_idx = slot.dense_idx_or_next;
+            const last_dense: u20 = @intCast(self.dense.items.len - 1);
+            const removed = self.dense.items[dense_idx];
+
+            if (dense_idx != last_dense) {
+                self.dense.items[dense_idx] = self.dense.items[last_dense];
+                self.meta.items[dense_idx] = self.meta.items[last_dense];
+                self.slots.items[self.meta.items[dense_idx].slot_index].dense_idx_or_next = dense_idx;
+            }
+            self.dense.items.len -= 1;
+            self.meta.items.len -= 1;
+
+            slot.generation +%= 1;
+            slot.dense_idx_or_next = if (self.free_head) |fh| fh else std.math.maxInt(u20);
+            self.free_head = handle.index;
+            return removed;
         }
 
         pub fn get(self: Self, handle: Handle) ?T {
-            _ = self;
-            _ = handle;
-            return null; // STUB
+            if (!self.isValid(handle)) return null;
+            return self.dense.items[self.slots.items[handle.index].dense_idx_or_next];
         }
 
         pub fn getPtr(self: *Self, handle: Handle) ?*T {
-            _ = self;
-            _ = handle;
-            return null; // STUB
+            if (!self.isValid(handle)) return null;
+            return &self.dense.items[self.slots.items[handle.index].dense_idx_or_next];
         }
 
         pub fn values(self: Self) []T {
@@ -83,9 +109,8 @@ pub fn SlotMap(comptime T: type) type {
         }
 
         fn isValid(self: Self, handle: Handle) bool {
-            _ = self;
-            _ = handle;
-            return false; // STUB
+            if (handle.index >= self.slots.items.len) return false;
+            return self.slots.items[handle.index].generation == handle.generation;
         }
     };
 }
