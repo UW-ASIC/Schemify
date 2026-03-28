@@ -41,10 +41,10 @@ pub const PdkVariant = struct {
 
 /// All PDK variant names supported by volare.
 pub const KNOWN_VARIANTS = [_][]const u8{
-    "sky130A", "sky130B",
-    "sg13g2",  "ihp-sg13g2",
-    "gf180mcuD", "gf180mcuC", "gf180mcuB",
-    "asap7",
+    "sky130A",   "sky130B",
+    "sg13g2",    "ihp-sg13g2",
+    "gf180mcuD", "gf180mcuC",
+    "gf180mcuB", "asap7",
 };
 
 // ── Internal helpers ─────────────────────────────────────────────────────── //
@@ -82,17 +82,24 @@ fn findSpiceLib(a: Allocator, root: []const u8, variant: []const u8) ?[]const u8
     var n: usize = 0;
 
     const c0 = std.fmt.bufPrint(&name_buf, "libs.tech/ngspice/{s}.lib.spice", .{variant}) catch null;
-    if (c0) |p| { candidates[n] = p; n += 1; }
+    if (c0) |p| {
+        candidates[n] = p;
+        n += 1;
+    }
     if (std.mem.startsWith(u8, variant, "sky130")) {
-        candidates[n] = "libs.tech/ngspice/sky130.lib.spice"; n += 1;
+        candidates[n] = "libs.tech/ngspice/sky130.lib.spice";
+        n += 1;
     }
     if (std.mem.startsWith(u8, variant, "sg13") or std.mem.startsWith(u8, variant, "ihp")) {
-        candidates[n] = "libs.tech/ngspice/models/ngspice/sg13g2.lib.spice"; n += 1;
+        candidates[n] = "libs.tech/ngspice/models/ngspice/sg13g2.lib.spice";
+        n += 1;
     }
     if (std.mem.startsWith(u8, variant, "gf180")) {
-        candidates[n] = "libs.tech/ngspice/gf180mcu.lib.spice"; n += 1;
+        candidates[n] = "libs.tech/ngspice/gf180mcu.lib.spice";
+        n += 1;
     }
-    candidates[n] = "libs.tech/ngspice/primitives.spice"; n += 1;
+    candidates[n] = "libs.tech/ngspice/primitives.spice";
+    n += 1;
 
     for (candidates[0..n]) |rel| {
         const full = std.fs.path.join(a, &.{ root, rel }) catch continue;
@@ -112,7 +119,10 @@ fn probeVariant(a: Allocator, root: []const u8, variant: []const u8) ?PdkVariant
     std.fs.accessAbsolute(libs_tech, .{}) catch return null;
 
     const root_owned = a.dupe(u8, root) catch return null;
-    const name_owned = a.dupe(u8, variant) catch { a.free(root_owned); return null; };
+    const name_owned = a.dupe(u8, variant) catch {
+        a.free(root_owned);
+        return null;
+    };
 
     const xschem_path = std.fs.path.join(a, &.{ root, "libs.tech", "xschem" }) catch null;
     const has_xschem = if (xschem_path) |p| blk: {
@@ -122,20 +132,27 @@ fn probeVariant(a: Allocator, root: []const u8, variant: []const u8) ?PdkVariant
     } else false;
 
     return .{
-        .name      = name_owned,
-        .root      = root_owned,
-        .version   = readVersion(a, root_owned),
+        .name = name_owned,
+        .root = root_owned,
+        .version = readVersion(a, root_owned),
         .spice_lib = findSpiceLib(a, root_owned, variant),
         .has_xschem = has_xschem,
     };
 }
 
 fn buildBases(a: Allocator, out: *List([]const u8)) !void {
-    if (volareBase(a)) |vb|          try out.append(a, vb);
+    if (volareBase(a)) |vb| try out.append(a, vb);
     if (envAlloc(a, "PDK_ROOT")) |v| try out.append(a, v);
-    if (envAlloc(a, "PDK"))      |v| try out.append(a, v);
+    if (envAlloc(a, "PDK")) |v| try out.append(a, v);
     try out.append(a, try a.dupe(u8, "/usr/share/pdk"));
     try out.append(a, try a.dupe(u8, "/opt/pdk"));
+}
+
+fn isKnownVariant(variant: []const u8) bool {
+    for (KNOWN_VARIANTS) |v| {
+        if (std.mem.eql(u8, v, variant)) return true;
+    }
+    return false;
 }
 
 // ── Public API ───────────────────────────────────────────────────────────── //
@@ -144,7 +161,10 @@ fn buildBases(a: Allocator, out: *List([]const u8)) !void {
 /// Appends found variants to `out`. All strings are allocator-owned.
 pub fn scan(a: Allocator, out: *List(PdkVariant)) !void {
     var bases: List([]const u8) = .{};
-    defer { for (bases.items) |b| a.free(b); bases.deinit(a); }
+    defer {
+        for (bases.items) |b| a.free(b);
+        bases.deinit(a);
+    }
     try buildBases(a, &bases);
 
     for (KNOWN_VARIANTS) |variant| {
@@ -168,7 +188,10 @@ pub fn discover(a: Allocator, out: *List(PdkVariant)) !void {
 /// Returns the first match, or null if not found.
 pub fn findVariant(a: Allocator, variant: []const u8) ?PdkVariant {
     var bases: List([]const u8) = .{};
-    defer { for (bases.items) |b| a.free(b); bases.deinit(a); }
+    defer {
+        for (bases.items) |b| a.free(b);
+        bases.deinit(a);
+    }
     buildBases(a, &bases) catch return null;
 
     for (bases.items) |base| {
@@ -183,7 +206,7 @@ pub fn findVariant(a: Allocator, variant: []const u8) ?PdkVariant {
 pub fn freeVariant(a: Allocator, pv: PdkVariant) void {
     a.free(pv.name);
     a.free(pv.root);
-    if (pv.version)   |v| a.free(v);
+    if (pv.version) |v| a.free(v);
     if (pv.spice_lib) |s| a.free(s);
 }
 
@@ -203,9 +226,7 @@ pub const CloneError = error{
 /// Returns `VolareUnavailable` if volare is not in PATH.
 /// Returns `VariantUnknown` if `variant` is not in KNOWN_VARIANTS.
 pub fn clone(a: Allocator, variant: []const u8) CloneError!void {
-    var known = false;
-    for (KNOWN_VARIANTS) |v| if (std.mem.eql(u8, v, variant)) { known = true; break; };
-    if (!known) return CloneError.VariantUnknown;
+    if (!isKnownVariant(variant)) return CloneError.VariantUnknown;
 
     const home = homeDir(a) orelse return CloneError.HomeNotFound;
     defer a.free(home);
@@ -232,21 +253,21 @@ const StemHashMap = std.StringHashMapUnmanaged(StemInfo);
 
 /// Map a device type string (from XSchem props) to a (kind, prefix) pair.
 fn deviceKindFromType(type_str: []const u8) struct { kind: []const u8, prefix: u8 } {
-    if (std.mem.eql(u8, type_str, "nfet")      or
-        std.mem.eql(u8, type_str, "pfet")      or
-        std.mem.eql(u8, type_str, "nmos")      or
-        std.mem.eql(u8, type_str, "pmos"))      return .{ .kind = "mosfet",    .prefix = 'M' };
-    if (std.mem.eql(u8, type_str, "npn")       or
-        std.mem.eql(u8, type_str, "pnp"))       return .{ .kind = "bjt",       .prefix = 'Q' };
-    if (std.mem.eql(u8, type_str, "diode"))     return .{ .kind = "diode",     .prefix = 'D' };
-    if (std.mem.eql(u8, type_str, "resistor")  or
-        std.mem.eql(u8, type_str, "res"))       return .{ .kind = "resistor",  .prefix = 'R' };
+    if (std.mem.eql(u8, type_str, "nfet") or
+        std.mem.eql(u8, type_str, "pfet") or
+        std.mem.eql(u8, type_str, "nmos") or
+        std.mem.eql(u8, type_str, "pmos")) return .{ .kind = "mosfet", .prefix = 'M' };
+    if (std.mem.eql(u8, type_str, "npn") or
+        std.mem.eql(u8, type_str, "pnp")) return .{ .kind = "bjt", .prefix = 'Q' };
+    if (std.mem.eql(u8, type_str, "diode")) return .{ .kind = "diode", .prefix = 'D' };
+    if (std.mem.eql(u8, type_str, "resistor") or
+        std.mem.eql(u8, type_str, "res")) return .{ .kind = "resistor", .prefix = 'R' };
     if (std.mem.eql(u8, type_str, "capacitor") or
-        std.mem.eql(u8, type_str, "cap"))       return .{ .kind = "capacitor", .prefix = 'C' };
-    if (std.mem.eql(u8, type_str, "inductor")  or
-        std.mem.eql(u8, type_str, "ind"))       return .{ .kind = "inductor",  .prefix = 'L' };
+        std.mem.eql(u8, type_str, "cap")) return .{ .kind = "capacitor", .prefix = 'C' };
+    if (std.mem.eql(u8, type_str, "inductor") or
+        std.mem.eql(u8, type_str, "ind")) return .{ .kind = "inductor", .prefix = 'L' };
     if (std.mem.eql(u8, type_str, "subcircuit") or
-        std.mem.eql(u8, type_str, "subckt"))    return .{ .kind = "subckt",    .prefix = 'X' };
+        std.mem.eql(u8, type_str, "subckt")) return .{ .kind = "subckt", .prefix = 'X' };
     return .{ .kind = "unknown", .prefix = 'X' };
 }
 
@@ -462,21 +483,17 @@ pub fn convertToSchemify(a: Allocator, variant: PdkVariant, out_dir: []const u8)
 /// Returns the absolute path to `<root>/libs.tech/xschem/`, or null.
 pub fn xschemDir(a: Allocator, root: []const u8) ?[]const u8 {
     const p = std.fs.path.join(a, &.{ root, "libs.tech", "xschem" }) catch return null;
-    if (std.fs.accessAbsolute(p, .{})) return p else |_| { a.free(p); return null; }
+    if (std.fs.accessAbsolute(p, .{})) return p else |_| {
+        a.free(p);
+        return null;
+    }
 }
 
-/// Returns the absolute path to `<root>/libs.tech/ngspice/`, or null.
-pub fn ngspiceDir(a: Allocator, root: []const u8) ?[]const u8 {
-    const p = std.fs.path.join(a, &.{ root, "libs.tech", "ngspice" }) catch return null;
-    if (std.fs.accessAbsolute(p, .{})) return p else |_| { a.free(p); return null; }
-}
-
-/// Returns the CHN output directory for a given variant.
-/// Path: `~/.config/Schemify/pdks/<variant>/`. Allocator-owned.
-pub fn chnOutDir(a: Allocator, variant_name: []const u8) ?[]const u8 {
-    const home = homeDir(a) orelse return null;
-    defer a.free(home);
-    return std.fs.path.join(a, &.{ home, ".config", "Schemify", "pdks", variant_name }) catch null;
+/// Returns the schemify output directory for a given variant.
+/// Path: `<root>/libs.tech/schemify/`. Allocator-owned.
+/// Unlike `xschemDir`, does not check existence — the directory will be created.
+pub fn schemifyDir(a: Allocator, root: []const u8) ?[]const u8 {
+    return std.fs.path.join(a, &.{ root, "libs.tech", "schemify" }) catch null;
 }
 
 // ── PDK family mapping ────────────────────────────────────────────────────── //
@@ -484,11 +501,12 @@ pub fn chnOutDir(a: Allocator, variant_name: []const u8) ?[]const u8 {
 /// Map a full variant name to the volare PDK family name.
 /// e.g. "sky130A" → "sky130", "gf180mcuD" → "gf180mcu", "ihp-sg13g2" → "ihp-sg13g2".
 pub fn pdkFamily(variant: []const u8) []const u8 {
-    if (std.mem.startsWith(u8, variant, "sky130"))   return "sky130";
-    if (std.mem.startsWith(u8, variant, "gf180"))    return "gf180mcu";
-    if (std.mem.startsWith(u8, variant, "sg13") or
-        std.mem.startsWith(u8, variant, "ihp"))      return "ihp-sg13g2";
-    if (std.mem.startsWith(u8, variant, "asap7"))    return "asap7";
+    if (std.mem.startsWith(u8, variant, "sky130")) return "sky130";
+    if (std.mem.startsWith(u8, variant, "gf180")) return "gf180mcu";
+    if (std.mem.startsWith(u8, variant, "sg13") or std.mem.startsWith(u8, variant, "ihp")) {
+        return "ihp-sg13g2";
+    }
+    if (std.mem.startsWith(u8, variant, "asap7")) return "asap7";
     return variant;
 }
 
