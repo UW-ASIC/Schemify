@@ -1,0 +1,24 @@
+chn_prim 1.0
+
+SYMBOL pnp
+
+  pins [3]:
+    C  inout  x=20  y=30
+    B  in  x=-20  y=0
+    E  inout  x=20  y=-30
+
+  params [4]:
+    type = pnp
+    format = @spiceprefix@name @pinlist @model area=@area m=@m
+    tedax_format = footprint @name @footprint value @name @value device @name @device spicedev @name @spicedev spiceval @name @spiceval comptag @name @comptag
+    template = name=Q1 model=Q2N2907 device=2N2907 footprint=TO92 area=1 m=1
+
+  drawing:
+    line 0 -30 0 30
+    line -20 0 0 0
+    line 10 -20 20 -30
+    line 0 10 20 30
+    pin_positions:
+      C: (20, 30)
+      B: (-20, 0)
+      E: (20, -30)

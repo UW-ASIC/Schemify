@@ -1,0 +1,15 @@
+chn_prim 1.0
+
+SYMBOL package_not_shown
+
+  pins [0]:
+
+  params [5]:
+    type = package
+    spice_ignore = true
+    verilog_ignore = true
+    tedax_ignore = true
+    template =  -- THIS IS A TEMPLATE, REPLACE WITH ACTUAL CODE OR REMOVE INSTANCE!! library ieee; use ieee.std_logic_1164.all; use ieee.std_logic_arith.all; use ieee.std_logic_unsigned.all; package aaa is type real_vector is array(natural range <>) of real; constant dx : real := 0.001 ; procedure assegna( signal A      : inout real; signal A_OLD  : in real; A_VAL  : in real ); end aaa; -- end package declaration package body aaa is procedure assegna( signal A      : inout real; signal A_OLD  : in real; A_VAL  : in real ) is constant tdelay: time := 0.01 ns; begin if (A /=  A_VAL) then A <= A_OLD+dx, A_VAL after tdelay; end if; end assegna; end aaa; -- end package body 
+
+  drawing:
+    line 0 -10 355 -10

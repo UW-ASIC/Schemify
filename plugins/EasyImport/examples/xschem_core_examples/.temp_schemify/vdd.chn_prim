@@ -1,0 +1,17 @@
+chn_prim 1.0
+
+SYMBOL vdd
+
+  pins [1]:
+    p  inout
+
+  params [5]:
+    type = label
+    function0 = H
+    global = true
+    format = *.alias @lab
+    template = name=l1 lab=VDD
+
+  drawing:
+    line 0 -20 0 0
+    line -10 -20 10 -20

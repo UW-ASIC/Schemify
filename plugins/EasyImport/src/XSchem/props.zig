@@ -89,10 +89,18 @@ pub const PropertyTokenizer = struct {
             self.pos += 1;
             const val_start = self.pos;
 
-            // Find closing quote, respecting backslash escapes (for double-quotes)
+            // Find closing quote, respecting backslash escapes (for double-quotes).
+            // XSchem uses `\\"` inside double-quoted values to represent a literal
+            // double-quote (the `\\` is a literal backslash, the `"` is quoted).
+            // We must treat `\\"` as a 3-char escape, NOT as `\\` + closing `"`.
             while (self.pos < s.len) {
                 if (s[self.pos] == '\\' and q == '"') {
-                    // Backslash in double-quoted value: skip the escaped char
+                    if (self.pos + 2 < s.len and s[self.pos + 1] == '\\' and s[self.pos + 2] == '"') {
+                        // `\\"` — escaped quote preceded by backslash: skip all 3
+                        self.pos += 3;
+                        continue;
+                    }
+                    // Single backslash escape: skip the escaped char
                     if (self.pos + 1 < s.len) {
                         self.pos += 2;
                         continue;
@@ -163,8 +171,8 @@ pub fn parseProps(arena: std.mem.Allocator, source: []const u8) !struct { props:
     while (tok.next()) |token| {
         const key = try arena.dupe(u8, token.key);
         const value = if (token.single_quoted)
-            // Single-quoted: no escape processing
-            try arena.dupe(u8, token.value)
+            // Single-quoted: preserve quotes for SPICE output (e.g., value='res/2')
+            try std.fmt.allocPrint(arena, "'{s}'", .{token.value})
         else
             // Double-quoted or bare: process escapes
             try unescapeValue(arena, token.value);
@@ -192,6 +200,13 @@ fn unescapeValue(arena: std.mem.Allocator, raw: []const u8) ![]const u8 {
     var i: usize = 0;
     while (i < raw.len) {
         if (raw[i] == '\\' and i + 1 < raw.len) {
+            // XSchem uses `\\"` (3-char sequence) for embedded double-quotes
+            // inside double-quoted values. Handle this before the 2-char cases.
+            if (raw[i + 1] == '\\' and i + 2 < raw.len and raw[i + 2] == '"') {
+                try buf.append(arena, '"');
+                i += 3;
+                continue;
+            }
             const next_ch = raw[i + 1];
             switch (next_ch) {
                 '{', '}', '"', '\\' => {

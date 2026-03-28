@@ -1,0 +1,54 @@
+chn 1.0
+
+SYMBOL imem
+
+  pins [38]:
+    data[31]  out
+    data[30]  out
+    data[29]  out
+    data[28]  out
+    data[27]  out
+    data[26]  out
+    data[25]  out
+    data[24]  out
+    data[23]  out
+    data[22]  out
+    data[21]  out
+    data[20]  out
+    data[19]  out
+    data[18]  out
+    data[17]  out
+    data[16]  out
+    data[15]  out
+    data[14]  out
+    data[13]  out
+    data[12]  out
+    data[11]  out
+    data[10]  out
+    data[9]  out
+    data[8]  out
+    data[7]  out
+    data[6]  out
+    data[5]  out
+    data[4]  out
+    data[3]  out
+    data[2]  out
+    data[1]  out
+    data[0]  out
+    addr[5]  in
+    addr[4]  in
+    addr[3]  in
+    addr[2]  in
+    addr[1]  in
+    addr[0]  in
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [2]:
+    180 -130 180 -130 addr[5:0]
+    450 -150 450 -150 data[31:0]

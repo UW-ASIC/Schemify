@@ -1,0 +1,50 @@
+chn_testbench 1.0
+
+TESTBENCH sky130_mismatch
+
+  nmos [2]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M18  210  -200  0  0  0.15  0.5  1  10  nfet_01v8  X
+    M1[9:0]  470  -200  0  0  0.15  0.5  1  1  nfet_01v8  X
+
+  isource [2]{name, x, y, rot, flip, value, lvs_format}:
+    I0  230  -310  0  0  100n   
+    I1  490  -310  0  0  100n   
+
+  instances [1]:
+    CORNER  sky130_fd_pr/corner  x=-10  y=-200  only_toplevel=true  corner=tt_mm
+
+  vsource [1]{name, x, y, rot, flip, savecurrent}:
+    V1  230  -390  0  0  true
+
+  nets [4]:
+    VTH1  -> M18.D, M18.G, I0.m
+    VSS  -> M18.S, M18.B, M1[9:0].S, M1[9:0].B, V1.plus, I1.p
+    net1  -> I0.p, V1.minus
+    VTH2  -> M1[9:0].D, M1[9:0].G, I1.m
+
+  wires [25]:
+    230 -200 260 -200
+    230 -250 230 -230
+    230 -280 230 -250
+    140 -250 140 -200
+    140 -250 230 -250
+    230 -170 230 -120
+    230 -360 230 -340
+    490 -200 520 -200
+    490 -250 490 -230
+    490 -280 490 -250
+    400 -250 400 -200
+    400 -250 490 -250
+    490 -170 490 -120
+    490 -440 490 -340
+    230 -440 230 -420
+    400 -200 450 -200
+    140 -200 190 -200
+    260 -200 260 -200 VSS
+    230 -250 230 -250 VTH1
+    230 -120 230 -120 VSS
+    230 -440 230 -440 VSS
+    520 -200 520 -200 VSS
+    490 -250 490 -250 VTH2
+    490 -120 490 -120 VSS
+    490 -440 490 -440 VSS

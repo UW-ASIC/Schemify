@@ -12,6 +12,7 @@ const log = utility;
 pub const DeviceKind = Devices.DeviceKind;
 pub const primitives = Devices.primitives;
 pub const SpiceBackend = @import("SpiceIF.zig").Backend;
+pub const NetlistMode = @import("SpiceIF.zig").NetlistMode;
 pub const pdk = &Devices.global_pdk;
 
 pub const PinDir = enum(u8) {
@@ -250,9 +251,16 @@ pub const Schemify = struct {
 
     verilog_body: ?[]const u8 = null,
     spice_body:   ?[]const u8 = null,
+    /// When set, contains the SPICE definition for this symbol (e.g., ".include foo.cir").
+    /// Used instead of inline subcircuit expansion during hierarchy resolution.
+    spice_sym_def: ?[]const u8 = null,
     /// Inline subckt definitions to emit after .ends (populated by renderInlineSubckts).
     /// Not serialized; computed at netlist-emission time.
     inline_spice: ?[]const u8 = null,
+    /// When true, emitSpice skips code blocks that have only_toplevel=true
+    /// (the default for code.sym). Set by resolveHierarchy when emitting
+    /// inline subcircuit definitions.
+    skip_toplevel_code: bool = false,
     stype: SifyType = .component,
     digital: ?DigitalConfig = null,
 
@@ -312,6 +320,25 @@ pub const Schemify = struct {
                 3 => -fx,
             },
         };
+    }
+
+    /// Try to unite a point (px, py) with any wire it touches (within tolerance=2).
+    fn unitePointWithWire(uf: *UnionFindType, px: i32, py: i32, k: u64, wx0: []const i32, wy0: []const i32, wx1: []const i32, wy1: []const i32, wire_count: usize) void {
+        const tolerance = 2;
+        for (0..wire_count) |wi| {
+            const on_wire = blk: {
+                if (wy0[wi] == wy1[wi] and @abs(wy0[wi] - py) <= tolerance) {
+                    break :blk px >= @min(wx0[wi], wx1[wi]) - tolerance and px <= @max(wx0[wi], wx1[wi]) + tolerance;
+                } else if (wx0[wi] == wx1[wi] and @abs(wx0[wi] - px) <= tolerance) {
+                    break :blk py >= @min(wy0[wi], wy1[wi]) - tolerance and py <= @max(wy0[wi], wy1[wi]) + tolerance;
+                }
+                break :blk false;
+            };
+            if (on_wire) {
+                uf.unite(NetMap.pointKey(wx0[wi], wy0[wi]), k);
+                break;
+            }
+        }
     }
 
     pub fn resolveNets(self: *Schemify) void {
@@ -385,23 +412,7 @@ pub const Schemify = struct {
                 if (kind_p == .probe) {
                     const k = NetMap.pointKey(ix_p[i], iy_p[i]);
                     uf.makeSet(k);
-                    for (0..self.wires.len) |wi| {
-                        const on_wire = blk: {
-                            const tolerance = 2;
-                            const px = ix_p[i];
-                            const py = iy_p[i];
-                            if (wy0[wi] == wy1[wi] and @abs(wy0[wi] - py) <= tolerance) {
-                                break :blk px >= @min(wx0[wi], wx1[wi]) - tolerance and px <= @max(wx0[wi], wx1[wi]) + tolerance;
-                            } else if (wx0[wi] == wx1[wi] and @abs(wx0[wi] - px) <= tolerance) {
-                                break :blk py >= @min(wy0[wi], wy1[wi]) - tolerance and py <= @max(wy0[wi], wy1[wi]) + tolerance;
-                            }
-                            break :blk false;
-                        };
-                        if (on_wire) {
-                            uf.unite(NetMap.pointKey(wx0[wi], wy0[wi]), k);
-                            break;
-                        }
-                    }
+                    unitePointWithWire(&uf, ix_p[i], iy_p[i], k, wx0, wy0, wx1, wy1, self.wires.len);
                     continue;
                 }
                 if (kind_p.isNonElectrical() and kind_p != .probe_diff) continue;
@@ -411,27 +422,7 @@ pub const Schemify = struct {
                     const abs = applyRotFlip(pin.x, pin.y, irot_p[i], iflip_p[i], ix_p[i], iy_p[i]);
                     const k = NetMap.pointKey(abs.x, abs.y);
                     uf.makeSet(k);
-                    // propag=0 pins (e.g. ammeter minus, vsource minus) do NOT
-                    // propagate their net name through to the device's other pins,
-                    // but they ARE still electrically connected to the wire they
-                    // physically touch.  Unite them with that wire so the union-find
-                    // assigns the correct named net (e.g. VSS) instead of an
-                    // auto-generated net* name.
-                    for (0..self.wires.len) |wi| {
-                        const on_wire = blk: {
-                            const tolerance = 2;
-                            if (wy0[wi] == wy1[wi] and @abs(wy0[wi] - abs.y) <= tolerance) {
-                                break :blk abs.x >= @min(wx0[wi], wx1[wi]) - tolerance and abs.x <= @max(wx0[wi], wx1[wi]) + tolerance;
-                            } else if (wx0[wi] == wx1[wi] and @abs(wx0[wi] - abs.x) <= tolerance) {
-                                break :blk abs.y >= @min(wy0[wi], wy1[wi]) - tolerance and abs.y <= @max(wy0[wi], wy1[wi]) + tolerance;
-                            }
-                            break :blk false;
-                        };
-                        if (on_wire) {
-                            uf.unite(NetMap.pointKey(wx0[wi], wy0[wi]), k);
-                            break;
-                        }
-                    }
+                    unitePointWithWire(&uf, abs.x, abs.y, k, wx0, wy0, wx1, wy1, self.wires.len);
                 }
                 // Same-name pin unification (doublepin/bidirectional symbols).
                 var first_key_for_pin = std.StringHashMapUnmanaged(u64){};
@@ -487,6 +478,90 @@ pub const Schemify = struct {
                     if (take_new) root_names.items[pos].name = name;
                 } else {
                     rnFind.insert(&root_names, a, root, name);
+                }
+            }
+
+            // Disambiguation: when multiple disjoint union-find groups share
+            // the same non-auto net name, SPICE would treat them as a single net.
+            //
+            // In XSchem, label instances (lab_pin, lab_wire, etc.) with the same
+            // `lab` create implicit connections — all are on the same net.  Wire
+            // display annotations ({lab=...} on N-lines) do NOT create such
+            // connections; they're merely display hints.
+            //
+            // Strategy:
+            // - For each name that appears on multiple roots, collect which roots
+            //   have a label instance (zero-length wire) backing the name.
+            // - Strip the name from roots that lack label instances (those roots
+            //   got the name from wire display annotations, not real labels).
+            // - Do NOT unite roots — that would change physical topology.
+            //
+            // 1. Detect names that appear on multiple roots.
+            const NameInfo = struct { count: u32, label_count: u32 };
+            var name_info = std.StringHashMapUnmanaged(NameInfo){};
+            defer name_info.deinit(a);
+            for (root_names.items) |rn| {
+                if (isAutoNetName(rn.name)) continue;
+                const gop = name_info.getOrPut(a, rn.name) catch continue;
+                if (!gop.found_existing) gop.value_ptr.* = .{ .count = 0, .label_count = 0 };
+                gop.value_ptr.count += 1;
+            }
+            // 2. Count label instances per conflicted name.
+            var label_roots = std.StringHashMapUnmanaged(std.ArrayListUnmanaged(u64)){};
+            defer {
+                var lr_it = label_roots.iterator();
+                while (lr_it.next()) |entry| entry.value_ptr.deinit(a);
+                label_roots.deinit(a);
+            }
+            {
+                var ni_it = name_info.iterator();
+                while (ni_it.next()) |entry| {
+                    if (entry.value_ptr.count <= 1) continue;
+                    const cname = entry.key_ptr.*;
+                    var roots_list = std.ArrayListUnmanaged(u64){};
+                    for (0..self.wires.len) |i| {
+                        const wn = wnn[i] orelse continue;
+                        if (!std.mem.eql(u8, wn, cname)) continue;
+                        if (wx0[i] == wx1[i] and wy0[i] == wy1[i]) {
+                            const k = NetMap.pointKey(wx0[i], wy0[i]);
+                            const root = uf.find(k);
+                            // Avoid duplicates
+                            var found = false;
+                            for (roots_list.items) |r| if (r == root) { found = true; break; };
+                            if (!found) roots_list.append(a, root) catch {};
+                        }
+                    }
+                    entry.value_ptr.label_count = @intCast(roots_list.items.len);
+                    label_roots.put(a, cname, roots_list) catch {};
+                }
+            }
+            // 3. For each conflicted name where at least one root has a label
+            //    instance: strip the name from roots that lack label instances.
+            //    Do NOT unite roots — that would change physical topology.
+            {
+                var lr_it = label_roots.iterator();
+                while (lr_it.next()) |entry| {
+                    const cname = entry.key_ptr.*;
+                    const lroots = entry.value_ptr.items;
+                    // Only strip if there are label-instance roots (wire-only
+                    // roots borrowed the name from display annotations).
+                    if (lroots.len > 0) {
+                        var remove_indices = std.ArrayListUnmanaged(usize){};
+                        defer remove_indices.deinit(a);
+                        for (root_names.items, 0..) |rn, ri| {
+                            if (!std.mem.eql(u8, rn.name, cname)) continue;
+                            var is_label = false;
+                            for (lroots) |lr| if (rn.root == lr) { is_label = true; break; };
+                            if (!is_label) {
+                                remove_indices.append(a, ri) catch {};
+                            }
+                        }
+                        var ri_idx: usize = remove_indices.items.len;
+                        while (ri_idx > 0) {
+                            ri_idx -= 1;
+                            _ = root_names.orderedRemove(remove_indices.items[ri_idx]);
+                        }
+                    }
                 }
             }
         }
@@ -750,8 +825,12 @@ pub const Schemify = struct {
             .conn_count = @intCast(desc.conns.len),
             .spice_line = if (desc.spice_line) |s| try a.dupe(u8, s) else null,
         });
-        // If sym_data is provided, keep it parallel with instances.
-        if (desc.sym_data) |sd| try self.appendSymData(sd);
+        // Keep sym_data parallel with instances — always append an entry.
+        if (desc.sym_data) |sd| {
+            try self.appendSymData(sd);
+        } else {
+            try self.sym_data.append(a, .{});
+        }
         return idx;
     }
 

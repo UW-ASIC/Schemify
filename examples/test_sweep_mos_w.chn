@@ -1,0 +1,35 @@
+chn_testbench 1.0
+
+TESTBENCH test_sweep_mos_w
+
+  vsource [2]{name, x, y, rot, flip, value}:
+    V1  740  -190  0  0  1
+    V2  640  -190  0  0  1.8
+
+  instances [2]:
+    CORNER  sky130_fd_pr/corner  x=1060  y=-210  only_toplevel=false  corner=tt
+    annot1  sky130_fd_pr/annotate_fet_params  x=950  y=-340  ref=M1
+
+  nmos [1]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M1  840  -220  0  0  0.15  WN  1  1  nfet_01v8  X
+
+  nets [3]:
+    G  -> V1.p, M1.G
+    GND  -> V1.m, V2.m, M1.S, M1.B
+    D  -> V2.p, M1.D
+
+  wires [14]:
+    860 -190 860 -100
+    640 -100 860 -100
+    640 -160 640 -100
+    740 -160 740 -100
+    740 -220 820 -220
+    640 -310 640 -220
+    640 -310 860 -310
+    860 -310 860 -250
+    860 -220 960 -220
+    960 -220 960 -100
+    860 -100 960 -100
+    640 -100 640 -100 GND
+    790 -310 790 -310 D
+    790 -220 790 -220 G

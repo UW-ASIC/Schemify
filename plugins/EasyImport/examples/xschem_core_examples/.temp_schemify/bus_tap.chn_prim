@@ -1,0 +1,21 @@
+chn_prim 1.0
+
+SYMBOL bus_tap
+
+  pins [2]:
+    tap  inout  x=10  y=-10
+    bus  inout
+
+  params [6]:
+    type = bus_tap
+    template = name=l1 lab=[0]
+    format = * tap: @#1:net_name --> @#0:net_name
+    verilog_format = // tap: @#1:net_name --> @#0:net_name
+    vhdl_format = -- tap: @#1:net_name --> @#0:net_name
+    tedax_format = # tap: @#1:net_name --> @#0:net_name
+
+  drawing:
+    line 0 0 10 -10
+    pin_positions:
+      tap: (10, -10)
+      bus: (0, 0)

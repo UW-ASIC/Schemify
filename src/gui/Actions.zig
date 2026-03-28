@@ -188,11 +188,11 @@ pub fn runGuiCommand(app: *AppState, gui_cmd: GuiCommand) void {
     switch (gui_cmd) {
         .view_schematic => {
             app.gui.view_mode = .schematic;
-            app.status_msg = "Viewing schematic";
+            app.status_msg = "Schematic view";
         },
         .view_symbol => {
             app.gui.view_mode = .symbol;
-            app.status_msg = "Viewing symbol";
+            app.status_msg = "Symbol view";
         },
         .file_new => {
             app.status_msg = "New file";

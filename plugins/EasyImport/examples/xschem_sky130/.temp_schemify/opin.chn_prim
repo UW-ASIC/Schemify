@@ -1,0 +1,14 @@
+chn_prim 1.0
+
+SYMBOL opin
+
+  pins [1]:
+    p  in
+
+  params [3]:
+    type = opin
+    format = *.opin @lab
+    template = name=p1 lab=xxx
+
+  drawing:
+    line 0 0 9 0

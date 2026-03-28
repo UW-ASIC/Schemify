@@ -20,19 +20,14 @@ const Allocator = std.mem.Allocator;
 ///   pub fn suggest(*B, usize, [][]f64) !usize
 ///   pub fn best(*B) ?struct{...}
 pub fn validateBackend(comptime B: type) void {
-    if (!@hasDecl(B, "Config"))          @compileError(@typeName(B) ++ " missing: pub const Config");
-    if (!@hasDecl(B, "Candidate"))       @compileError(@typeName(B) ++ " missing: pub const Candidate");
-    if (!@hasDecl(B, "init"))            @compileError(@typeName(B) ++ " missing: pub fn init");
-    if (!@hasDecl(B, "deinit"))          @compileError(@typeName(B) ++ " missing: pub fn deinit");
-    if (!@hasDecl(B, "addObservation"))  @compileError(@typeName(B) ++ " missing: pub fn addObservation");
-    if (!@hasDecl(B, "suggest"))         @compileError(@typeName(B) ++ " missing: pub fn suggest");
-    if (!@hasDecl(B, "best"))            @compileError(@typeName(B) ++ " missing: pub fn best");
-    // Verify they are actually functions (not e.g. accidentally a field)
-    if (@typeInfo(@TypeOf(B.init))           != .@"fn") @compileError(@typeName(B) ++ ".init must be a fn");
-    if (@typeInfo(@TypeOf(B.deinit))         != .@"fn") @compileError(@typeName(B) ++ ".deinit must be a fn");
-    if (@typeInfo(@TypeOf(B.addObservation)) != .@"fn") @compileError(@typeName(B) ++ ".addObservation must be a fn");
-    if (@typeInfo(@TypeOf(B.suggest))        != .@"fn") @compileError(@typeName(B) ++ ".suggest must be a fn");
-    if (@typeInfo(@TypeOf(B.best))           != .@"fn") @compileError(@typeName(B) ++ ".best must be a fn");
+    inline for ([_][]const u8{ "Config", "Candidate" }) |name| {
+        if (!@hasDecl(B, name)) @compileError(@typeName(B) ++ " missing: pub const " ++ name);
+    }
+    inline for ([_][]const u8{ "init", "deinit", "addObservation", "suggest", "best" }) |name| {
+        if (!@hasDecl(B, name)) @compileError(@typeName(B) ++ " missing: pub fn " ++ name);
+        if (@typeInfo(@TypeOf(@field(B, name))) != .@"fn")
+            @compileError(@typeName(B) ++ "." ++ name ++ " must be a fn");
+    }
 }
 
 // ============================================================================
@@ -108,26 +103,26 @@ pub const Bayesian = struct {
         config: Config,
     ) !Self {
         return .{
-            .n_params        = n_params,
-            .n_objectives    = n_objectives,
-            .n_constraints   = n_constraints,
-            .bounds_min      = try allocator.dupe(f64, bounds_min),
-            .bounds_max      = try allocator.dupe(f64, bounds_max),
-            .config          = config,
-            .obs_params      = std.ArrayList([]f64).init(allocator),
-            .obs_objectives  = std.ArrayList([]f64).init(allocator),
+            .n_params = n_params,
+            .n_objectives = n_objectives,
+            .n_constraints = n_constraints,
+            .bounds_min = try allocator.dupe(f64, bounds_min),
+            .bounds_max = try allocator.dupe(f64, bounds_max),
+            .config = config,
+            .obs_params = std.ArrayList([]f64).init(allocator),
+            .obs_objectives = std.ArrayList([]f64).init(allocator),
             .obs_constraints = std.ArrayList([]f64).init(allocator),
-            .obs_valid       = std.ArrayList(bool).init(allocator),
-            .allocator       = allocator,
-            .iteration       = 0,
+            .obs_valid = std.ArrayList(bool).init(allocator),
+            .allocator = allocator,
+            .iteration = 0,
             .best_feasible_idx = null,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.obs_params.items)      |p| self.allocator.free(p);
-        for (self.obs_objectives.items)  |o| self.allocator.free(o);
-        for (self.obs_constraints.items) |c| self.allocator.free(c);
+        inline for (.{ self.obs_params.items, self.obs_objectives.items, self.obs_constraints.items }) |slices| {
+            for (slices) |values| self.allocator.free(values);
+        }
         self.obs_params.deinit();
         self.obs_objectives.deinit();
         self.obs_constraints.deinit();
@@ -180,7 +175,7 @@ pub const Bayesian = struct {
     pub fn best(self: *Self) ?struct { params: []const f64, objectives: []const f64 } {
         const idx = self.best_feasible_idx orelse return null;
         return .{
-            .params     = self.obs_params.items[idx],
+            .params = self.obs_params.items[idx],
             .objectives = self.obs_objectives.items[idx],
         };
     }
@@ -218,8 +213,11 @@ pub const PythonBackend = struct {
 
     pub fn init(
         allocator: Allocator,
-        _: usize, _: usize, _: usize,
-        _: []const f64, _: []const f64,
+        _: usize,
+        _: usize,
+        _: usize,
+        _: []const f64,
+        _: []const f64,
         config: Config,
     ) !Self {
         return .{ .config = config, .allocator = allocator };
@@ -229,7 +227,10 @@ pub const PythonBackend = struct {
 
     pub fn addObservation(
         _: *Self,
-        _: []const f64, _: []const f64, _: []const f64, _: bool,
+        _: []const f64,
+        _: []const f64,
+        _: []const f64,
+        _: bool,
     ) !void {}
 
     pub fn suggest(_: *Self, _: usize, _: [][]f64) !usize {
@@ -279,6 +280,10 @@ pub const TraceAcquisition = struct {
         return normalCDF((best_f - mean - xi) / std_dev);
     }
 
-    fn normalCDF(x: f64) f64 { return 0.5 * (1.0 + std.math.erf(x / @sqrt(2.0))); }
-    fn normalPDF(x: f64) f64 { return @exp(-0.5 * x * x) / @sqrt(2.0 * std.math.pi); }
+    fn normalCDF(x: f64) f64 {
+        return 0.5 * (1.0 + std.math.erf(x / @sqrt(2.0)));
+    }
+    fn normalPDF(x: f64) f64 {
+        return @exp(-0.5 * x * x) / @sqrt(2.0 * std.math.pi);
+    }
 };

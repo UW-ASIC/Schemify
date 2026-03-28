@@ -1,0 +1,4 @@
+** sch_path: /home/omare/Documents/UWASIC/Schemify/plugins/EasyImport/examples/xschem_core_examples/plugins/EasyImport/examples/xschem_core_examples/tb_symbol_include.sch
+.subckt tb_symbol_include
+
+.ends

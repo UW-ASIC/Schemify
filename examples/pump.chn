@@ -1,0 +1,18 @@
+chn 1.0
+
+SYMBOL pump
+
+  pins [2]:
+    USC  inout
+    ING  in
+
+  params [1]:
+    template = name=x1 val=4.5 conduct=10.0
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [2]:
+    50 -90 50 -90 USC
+    -80 -90 -80 -90 ING

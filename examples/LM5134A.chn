@@ -1,0 +1,26 @@
+chn 1.0
+
+SYMBOL LM5134A
+
+  pins [6]:
+    VDD  inout
+    PILOT  inout
+    OUT  inout
+    IN  inout
+    INB  inout
+    VSS  inout
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [6]:
+    -500 20 -500 20 VDD
+    -500 40 -500 40 PILOT
+    -500 60 -500 60 OUT
+    -200 20 -200 20 IN
+    -200 40 -200 40 INB
+    -200 60 -200 60 VSS

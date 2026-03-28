@@ -1,0 +1,25 @@
+chn_prim 1.0
+
+SYMBOL capa-2
+
+  pins [2]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+
+  params [5]:
+    type = polarized_capacitor
+    format = @name @pinlist @value m=@m
+    tedax_format = footprint @name @footprint value @name @value device @name @device @comptag
+    verilog_ignore = true
+    template = name=C1 m=1 value=1p footprint=1206 device=polarized_capacitor
+
+  drawing:
+    line 0 5 0 30
+    line 0 -30 0 -5
+    line -10 -5 10 -5
+    line 3 -23 8 -23
+    line 5 -25 5 -20
+    arc 0 26 21 62 56
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)

@@ -1,0 +1,32 @@
+chn_testbench 1.0
+
+TESTBENCH untitled
+
+  instances [1]:
+    x1  lm324.chn  x=640  y=-300
+
+  resistors [1]{name, x, y, rot, flip, m, value}:
+    r1  900  -250  0  0  1  10k
+
+  capacitors [1]{name, x, y, rot, flip, m, value}:
+    c1  820  -250  0  0  1  1n
+
+  code_blocks [1]:
+    STIMULI  code  value=  .option RUNLVL=5 post .param VCC=10 .param VSS=0 .temp  25 vvcc vcc 0 dc VCC vvss vss 0 dc VSS vp p 0 pwl 0 0 100n 2 200u 2 201u 3 400u 3 401u 1  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in netlist/simulation directory. .include model_lm324.txt .tran 0.1u 500u 
+
+  wires [15]:
+    520 -340 560 -340
+    640 -400 640 -370
+    640 -230 640 -200
+    770 -300 960 -300
+    900 -300 900 -280
+    820 -300 820 -280
+    770 -300 770 -150
+    560 -150 770 -150
+    560 -260 560 -150
+    640 -200 640 -200 VSS
+    640 -400 640 -400 VCC
+    960 -300 960 -300 Q
+    520 -340 520 -340 P
+    820 -220 820 -220 VSS
+    900 -220 900 -220 VSS

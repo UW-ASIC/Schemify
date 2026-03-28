@@ -1,3 +1,0 @@
-MOSFET 91
-Resistor 101
-Resistor 102

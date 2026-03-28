@@ -1,0 +1,35 @@
+chn_prim 1.0
+
+SYMBOL nmos4_depl
+
+  pins [4]:
+    d  inout  x=20  y=-30
+    g  in  x=-20  y=0
+    s  inout  x=20  y=30
+    b  in  x=20  y=0
+
+  params [4]:
+    type = nmos
+    format = @spiceprefix@name @pinlist @model w=@w l=@l @extra m=@m
+    template = name=M1 model=nmos_depl w=5u l=0.18u del=0 m=1
+    verilog_format = rnmos #@del @name ( @@s , @@d , @@d );
+
+  drawing:
+    line 5 -30 5 30
+    line 10 -20 20 -20
+    line 20 -30 20 -20
+    line 10 20 20 20
+    line 20 20 20 30
+    line -5 -15 -5 15
+    line -5 0 -5 5
+    line -20 0 -13 0
+    line -20 0 -5 0
+    line 15 0 20 0
+    line 10 -5 15 0
+    line 10 5 15 0
+    rect 5 -20 10 20
+    pin_positions:
+      d: (20, -30)
+      g: (-20, 0)
+      s: (20, 30)
+      b: (20, 0)

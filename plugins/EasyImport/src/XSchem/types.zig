@@ -177,6 +177,11 @@ pub const XSchemFiles = struct {
     k_format: ?[]const u8 = null,
     k_template: ?[]const u8 = null,
     k_extra: ?[]const u8 = null,
+    k_global: bool = false,
+    k_spice_sym_def: ?[]const u8 = null,
+
+    // S-block (raw SPICE body from schematic header)
+    s_block: ?[]const u8 = null,
 
     // Arena-per-stage allocation -- single deinit tears down everything
     arena: std.heap.ArenaAllocator,

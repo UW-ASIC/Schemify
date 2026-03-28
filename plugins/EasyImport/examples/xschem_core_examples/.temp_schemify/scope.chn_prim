@@ -1,0 +1,14 @@
+chn_prim 1.0
+
+SYMBOL scope
+
+  pins [1]:
+    p  in
+
+  params [3]:
+    type = scope
+    template = name=l1
+    highlight = true
+
+  drawing:
+    line 0 0 10 -20

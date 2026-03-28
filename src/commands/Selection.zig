@@ -4,17 +4,22 @@ const std = @import("std");
 const st = @import("state");
 const Point = st.Point;
 const Immediate = @import("command.zig").Immediate;
+const h = @import("helpers.zig");
+const selInst = h.selInst;
+const selWire = h.selWire;
+const ptEq = h.ptEq;
+const setBit = h.setBit;
 
 pub const Error = error{OutOfMemory};
 
 pub fn handle(imm: Immediate, state: anytype) Error!void {
     switch (imm) {
-        .select_all                      => state.selectAll(),
-        .select_none                     => state.selection.clear(),
-        .select_connected                => selectConnected(state, false),
+        .select_all => state.selectAll(),
+        .select_none => state.selection.clear(),
+        .select_connected => selectConnected(state, false),
         .select_connected_stop_junctions => selectConnected(state, true),
-        .highlight_dup_refdes            => highlightDupRefdes(state),
-        .rename_dup_refdes               => try renameDupRefdes(state),
+        .highlight_dup_refdes => highlightDupRefdes(state),
+        .rename_dup_refdes => try renameDupRefdes(state),
         .find_select_dialog => {
             // TODO: open FindDialog GUI component that lets the user type a
             // query string, then selects matching instances/nets.
@@ -23,8 +28,8 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
 
         // highlighted_nets |= selection.wires
         .highlight_selected_nets => {
-            const fio   = state.active() orelse return;
-            const sch   = &fio.sch;
+            const fio = state.active() orelse return;
+            const sch = &fio.sch;
             const alloc = state.allocator();
             try state.highlighted_nets.resize(alloc, sch.wires.len, false);
             // Grow selection bitset to match so setUnion is legal.
@@ -44,11 +49,11 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
             state.setStatus("Nets unhighlighted");
         },
 
-        .unhighlight_all      => state.highlighted_nets.unsetAll(),
+        .unhighlight_all => state.highlighted_nets.unsetAll(),
 
         .select_attached_nets => {
-            const fio   = state.active() orelse return;
-            const sch   = &fio.sch;
+            const fio = state.active() orelse return;
+            const sch = &fio.sch;
             const alloc = state.allocator();
             for (0..sch.instances.len) |ii| {
                 if (!selInst(state, ii)) continue;
@@ -59,8 +64,7 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
                     const ws: Point = .{ w.x0, w.y0 };
                     const we: Point = .{ w.x1, w.y1 };
                     if (ptEq(ws, ip) or ptEq(we, ip)) {
-                        state.selection.wires.resize(alloc, wi + 1, false) catch continue;
-                        state.selection.wires.set(wi);
+                        setBit(&state.selection.wires, alloc, wi) catch continue;
                     }
                 }
             }
@@ -72,21 +76,12 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
 
 // ── Private helpers ──────────────────────────────────────────────────────────
 
-inline fn ptEq(a: Point, b: Point) bool { return a[0] == b[0] and a[1] == b[1]; }
-
-inline fn selInst(state: anytype, i: usize) bool {
-    return i < state.selection.instances.bit_length and state.selection.instances.isSet(i);
-}
-inline fn selWire(state: anytype, i: usize) bool {
-    return i < state.selection.wires.bit_length and state.selection.wires.isSet(i);
-}
-
 fn selectConnected(state: anytype, stop_at_junctions: bool) void {
     // TODO: honour stop_at_junctions — stop BFS expansion at T/cross junctions
     // (nodes where 3+ wires meet). Requires junction detection from core.
     _ = stop_at_junctions;
-    const fio   = state.active() orelse return;
-    const sch   = &fio.sch;
+    const fio = state.active() orelse return;
+    const sch = &fio.sch;
     const alloc = state.allocator();
     // BFS: up to 8 expansion rounds; bail early when nothing new was added.
     var round: usize = 0;
@@ -103,10 +98,9 @@ fn selectConnected(state: anytype, stop_at_junctions: bool) void {
                 const wb_s: Point = .{ wb.x0, wb.y0 };
                 const wb_e: Point = .{ wb.x1, wb.y1 };
                 const shares = ptEq(wa_s, wb_s) or ptEq(wa_s, wb_e) or
-                               ptEq(wa_e, wb_s) or ptEq(wa_e, wb_e);
+                    ptEq(wa_e, wb_s) or ptEq(wa_e, wb_e);
                 if (shares) {
-                    state.selection.wires.resize(alloc, b + 1, false) catch continue;
-                    state.selection.wires.set(b);
+                    setBit(&state.selection.wires, alloc, b) catch continue;
                     added = true;
                 }
             }
@@ -117,8 +111,8 @@ fn selectConnected(state: anytype, stop_at_junctions: bool) void {
 }
 
 fn highlightDupRefdes(state: anytype) void {
-    const fio   = state.active() orelse return;
-    const sch   = &fio.sch;
+    const fio = state.active() orelse return;
+    const sch = &fio.sch;
     const alloc = state.allocator();
     var map = std.StringHashMap(usize).init(alloc);
     defer map.deinit();
@@ -130,16 +124,15 @@ fn highlightDupRefdes(state: anytype) void {
     for (0..sch.instances.len) |i| {
         const inst = sch.instances.get(i);
         if ((map.get(inst.name) orelse 0) > 1) {
-            state.selection.instances.resize(alloc, i + 1, false) catch continue;
-            state.selection.instances.set(i);
+            setBit(&state.selection.instances, alloc, i) catch continue;
         }
     }
     state.setStatus("Duplicate refdes highlighted");
 }
 
 fn renameDupRefdes(state: anytype) Error!void {
-    const fio   = state.active() orelse return;
-    const sch   = &fio.sch;
+    const fio = state.active() orelse return;
+    const sch = &fio.sch;
     const alloc = state.allocator();
     var map = std.StringHashMap(u32).init(alloc);
     defer map.deinit();

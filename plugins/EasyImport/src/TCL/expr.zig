@@ -133,11 +133,15 @@ const ExprParser = struct {
             self.skipWs();
             if (self.matchChar('+')) {
                 const rhs = try self.parseMultiplicative();
-                lhs = .{ .float = lhs.asFloat() + rhs.asFloat() };
+                const lf: f64 = lhs.asFloat();
+                const rf: f64 = rhs.asFloat();
+                lhs = .{ .float = lf + rf };
             } else if (self.pos < self.src.len and self.src[self.pos] == '-') {
                 self.pos += 1;
                 const rhs = try self.parseMultiplicative();
-                lhs = .{ .float = lhs.asFloat() - rhs.asFloat() };
+                const lf: f64 = lhs.asFloat();
+                const rf: f64 = rhs.asFloat();
+                lhs = .{ .float = lf - rf };
             } else break;
         }
         return lhs;
@@ -149,17 +153,21 @@ const ExprParser = struct {
             self.skipWs();
             if (self.matchChar('*')) {
                 const rhs = try self.parseUnary();
-                lhs = .{ .float = lhs.asFloat() * rhs.asFloat() };
+                const lf: f64 = lhs.asFloat();
+                const rf: f64 = rhs.asFloat();
+                lhs = .{ .float = lf * rf };
             } else if (self.matchChar('/')) {
                 const rhs = try self.parseUnary();
-                const d = rhs.asFloat();
-                if (d == 0.0) return error.DivisionByZero;
-                lhs = .{ .float = lhs.asFloat() / d };
+                const rf: f64 = rhs.asFloat();
+                if (rf == 0.0) return error.DivisionByZero;
+                const lf: f64 = lhs.asFloat();
+                lhs = .{ .float = lf / rf };
             } else if (self.matchChar('%')) {
                 const rhs = try self.parseUnary();
-                const d = rhs.asFloat();
-                if (d == 0.0) return error.DivisionByZero;
-                lhs = .{ .float = @mod(lhs.asFloat(), d) };
+                const rf: f64 = rhs.asFloat();
+                if (rf == 0.0) return error.DivisionByZero;
+                const lf: f64 = lhs.asFloat();
+                lhs = .{ .float = @mod(lf, rf) };
             } else break;
         }
         return lhs;
@@ -309,6 +317,14 @@ const ExprParser = struct {
             const ch = self.src[self.pos];
             if (std.ascii.isAlphanumeric(ch) or ch == '_' or ch == '.' or ch == ':') {
                 self.pos += 1;
+            } else if ((ch == '-' or ch == '+') and self.pos > start) {
+                // Allow '-' or '+' as part of scientific notation exponent (e.g., 1e-4, 0.5E+3).
+                const prev = self.src[self.pos - 1];
+                if ((prev == 'e' or prev == 'E') and self.pos + 1 < self.src.len and
+                    std.ascii.isDigit(self.src[self.pos + 1]))
+                {
+                    self.pos += 1;
+                } else break;
             } else break;
         }
         return self.src[start..self.pos];
@@ -395,3 +411,19 @@ fn applyFunc(name: []const u8, arg: ExprResult) ExprResult {
 }
 
 // Tests are in test/test_tcl.zig
+
+fn dummyLookup(_: []const u8) ?[]const u8 { return null; }
+
+test "arithmetic with scientific notation" {
+    // Verify integer * float gives correct results
+    const r1 = try evalExpr("1200*1e-4", &dummyLookup, &dummyLookup, null);
+    try std.testing.expectApproxEqRel(@as(f64, 0.12), r1.asFloat(), 1e-10);
+
+    // Full calc_rc expression: 1200 * L / W with L=1e-4, W=0.5e-6
+    const r2 = try evalExpr("1200*1e-4/0.5e-6", &dummyLookup, &dummyLookup, null);
+    try std.testing.expectApproxEqRel(@as(f64, 240000.0), r2.asFloat(), 1e-10);
+
+    // Cap expression: 1e-3 * W * L
+    const r3 = try evalExpr("1e-3*0.5e-6*1e-4", &dummyLookup, &dummyLookup, null);
+    try std.testing.expectApproxEqRel(@as(f64, 5e-14), r3.asFloat(), 1e-10);
+}

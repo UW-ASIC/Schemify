@@ -1,4 +1,0 @@
-91 is between Node0 and Node1
-101 is between Node0 and Node1
-102 is between Node1 and Node2
-Node2 and Node3 are connected

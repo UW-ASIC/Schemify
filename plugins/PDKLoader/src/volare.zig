@@ -16,10 +16,10 @@
 
 const std = @import("std");
 const core = @import("core");
+const xschem = @import("xschem");
 
 const Allocator = std.mem.Allocator;
 const List = std.ArrayListUnmanaged;
-const XSchem = core.XSchem;
 
 // ── PDK variant descriptor ───────────────────────────────────────────────── //
 
@@ -307,8 +307,8 @@ fn writeRegistryDat(
         // tier
         const tier: []const u8 = if (info.has_sch and info.has_sym) "comp" else "prim";
 
-        // sym_path = absolute path to output .chn_sym file
-        const sym_out_name = try std.fmt.allocPrint(a, "{s}.chn_sym", .{cell_name});
+        // sym_path = absolute path to output .chn_prim file
+        const sym_out_name = try std.fmt.allocPrint(a, "{s}.chn_prim", .{cell_name});
         defer a.free(sym_out_name);
         const sym_path = try std.fs.path.join(a, &.{ out_dir, sym_out_name });
         defer a.free(sym_path);
@@ -323,7 +323,7 @@ fn writeRegistryDat(
         };
         defer a.free(data);
 
-        var xs = XSchem.readFile(data, a, null);
+        var xs = xschem.parse(a, data) catch continue;
         defer xs.deinit();
 
         // build pin_order string
@@ -336,14 +336,8 @@ fn writeRegistryDat(
         }
         const pin_order: []const u8 = pin_buf.items;
 
-        // extract device type from props
-        var type_str: []const u8 = "";
-        for (xs.props.items) |prop| {
-            if (std.mem.eql(u8, prop.key, "type")) {
-                type_str = prop.value;
-                break;
-            }
-        }
+        // extract device type from K-block type prop
+        const type_str: []const u8 = xs.k_type orelse "";
         const kp = deviceKindFromType(type_str);
 
         // write registry line
@@ -380,7 +374,7 @@ fn writeRegistryDat(
 /// Classification (two-pass):
 ///   - `.sch` + matching `.sym` (same stem) → component → `.chn`
 ///   - `.sch` alone (no matching `.sym`)    → testbench → `.chn_tb`
-///   - `.sym` (always)                      → primitive/symbol → `.chn_sym`
+///   - `.sym` (always)                      → primitive/symbol → `.chn_prim`
 ///
 /// Creates `out_dir` if it does not exist.
 /// Also writes `<out_dir>/registry.dat` with one line per symbol.
@@ -446,7 +440,7 @@ pub fn convertToSchemify(a: Allocator, variant: PdkVariant, out_dir: []const u8)
         const ext: []const u8 = if (is_sch)
             (if (info.has_sym) ".chn" else ".chn_tb")
         else
-            ".chn_sym";
+            ".chn_prim";
 
         const in_path = try std.fs.path.join(a, &.{ xschem_path, entry.path });
         defer a.free(in_path);
@@ -454,10 +448,14 @@ pub fn convertToSchemify(a: Allocator, variant: PdkVariant, out_dir: []const u8)
         const data = std.fs.cwd().readFileAlloc(a, in_path, 4 * 1024 * 1024) catch continue;
         defer a.free(data);
 
-        var xs = XSchem.readFile(data, a, null);
+        var xs = xschem.parse(a, data) catch continue;
         defer xs.deinit();
+        sanitizeXSchemTexts(&xs);
 
-        var sch = xs.toSchemify(a) catch continue;
+        const stem_len_for_name = entry.basename.len - 4;
+        const stem_name = entry.basename[0..stem_len_for_name];
+
+        var sch = xschem.convert(a, &xs, null, stem_name, null) catch continue;
         defer sch.deinit();
 
         const out_data = sch.writeFile(a, null) orelse continue;
@@ -478,6 +476,38 @@ pub fn convertToSchemify(a: Allocator, variant: PdkVariant, out_dir: []const u8)
     _ = writeRegistryDat(a, xschem_path, out_dir, &stem_map) catch {};
 
     return count;
+}
+
+/// Sanitize XSchemFiles text sizes so the converter's `@intFromFloat` does
+/// not panic on extreme/NaN/Inf values.  Clamps each text size to [0.0, 10.0]
+/// so that `@round(size * 25.0)` fits in a u8 (max 250).
+/// Also clamps coordinates to i32-safe range and rotation to [0,3].
+fn sanitizeXSchemTexts(xs: *xschem.XSchemFiles) void {
+    if (xs.texts.len == 0) return;
+    const sl = xs.texts.slice();
+    const sizes = sl.items(.size);
+    const xs_arr = sl.items(.x);
+    const ys_arr = sl.items(.y);
+    const rots = sl.items(.rotation);
+    for (0..xs.texts.len) |i| {
+        // Clamp size: must produce valid u8 after * 25.0
+        if (std.math.isNan(sizes[i]) or std.math.isInf(sizes[i]) or sizes[i] < 0.0 or sizes[i] > 10.0) {
+            sizes[i] = 0.4; // default XSchem text size
+        }
+        // Clamp coordinates to i32 range
+        const f64_i32_max: f64 = @floatFromInt(@as(i32, std.math.maxInt(i32)));
+        const f64_i32_min: f64 = @floatFromInt(@as(i32, std.math.minInt(i32)));
+        if (std.math.isNan(xs_arr[i]) or std.math.isInf(xs_arr[i]) or xs_arr[i] > f64_i32_max or xs_arr[i] < f64_i32_min) {
+            xs_arr[i] = 0;
+        }
+        if (std.math.isNan(ys_arr[i]) or std.math.isInf(ys_arr[i]) or ys_arr[i] > f64_i32_max or ys_arr[i] < f64_i32_min) {
+            ys_arr[i] = 0;
+        }
+        // Clamp rotation
+        if (rots[i] < 0 or rots[i] > 3) {
+            rots[i] = @mod(rots[i], 4);
+        }
+    }
 }
 
 /// Returns the absolute path to `<root>/libs.tech/xschem/`, or null.

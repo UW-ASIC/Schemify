@@ -1,0 +1,229 @@
+chn 1.0
+
+SYMBOL bandgap
+
+  pins [6]:
+    START  in
+    CLK  in
+    EN_N  in
+    VBG  out
+    VCC  in
+    VSS  in
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  pnp [2]{name, x, y, rot, flip, model, m, spiceprefix}:
+    Q1  100  -310  0  1  pnp_05v5_W0p68L0p68  1  X
+    Q2  310  -310  0  0  pnp_05v5_W0p68L0p68  20  X
+
+  vsource [6]{name, x, y, rot, flip}:
+    Vc1  80  -250  0  0
+    Vb1  170  -250  0  0
+    Vb2  240  -250  0  0
+    Vc2  330  -250  0  0
+    V1  80  -900  0  0
+    V2  330  -900  0  0
+
+  instances [23]:
+    x1  sky130_tests/bandgap_opamp  x=610  y=-500
+    x2  sky130_tests/zero_opamp  x=1130  y=-470
+    x3  sky130_tests/passgate  x=880  y=-510  W_N=0.5  L_N=0.15  W_P=0.5  L_P=0.15  VCCBPIN=VCC  VSSBPIN=VSS  m=1
+    x4  sky130_tests/passgate  x=880  y=-360  W_N=0.5  L_N=0.15  W_P=0.5  L_P=0.15  VCCBPIN=VCC  VSSBPIN=VSS  m=1
+    x5  sky130_tests/passgate  x=1380  y=-530  W_N=0.5  L_N=0.35  W_P=0.6  L_P=0.35  VCCBPIN=VCC  VSSBPIN=VSS  m=1  modelp=pfet_01v8_lvt
+    x6  sky130_tests/passgate  x=1380  y=-250  W_N=0.5  L_N=0.35  W_P=0.6  L_P=0.35  VCCBPIN=VCC  VSSBPIN=VSS  m=1  modelp=pfet_01v8_lvt
+    x8  sky130_tests/lvnand  x=1170  y=-860  WidthN=1  LenN=0.15  WidthP=1  LenP=0.15  m=1
+    x9  sky130_tests/lvnand  x=1170  y=-700  rot=2  flip=1  WidthN=1  LenN=0.15  WidthP=1  LenP=0.15  m=1
+    x10  sky130_tests/not  x=1080  y=-680  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+    x11  sky130_tests/not  x=1600  y=-860  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+    x12  sky130_tests/not  x=1280  y=-860  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x13  sky130_tests/not  x=1360  y=-860  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x14  sky130_tests/not  x=1440  y=-860  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x15  sky130_tests/not  x=1520  y=-860  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x16  sky130_tests/not  x=1280  y=-700  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x17  sky130_tests/not  x=1360  y=-700  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x18  sky130_tests/not  x=1440  y=-700  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x19  sky130_tests/not  x=1520  y=-700  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x20  sky130_tests/not  x=1600  y=-700  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+    x7  sky130_tests/passgate  x=1620  y=-400  rot=1  W_N=0.5  L_N=0.15  W_P=0.5  L_P=0.15  VCCBPIN=VCC  VSSBPIN=VSS  m=1
+    x21  sky130_tests/not  x=580  y=-280  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+    x22  sky130_tests/not  x=1680  y=-630  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+    x23  sky130_tests/not  x=1680  y=-930  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+
+  capacitors [5]{name, x, y, rot, flip, value, model, W, L, MF, spiceprefix}:
+    c2  520  -900  0  0  5p  -  -  -  -  -
+    C2  1490  -500  0  0  -  cap_mim_m3_2  10  10  20  X
+    C1  1490  -220  0  0  -  cap_mim_m3_2  10  10  20  X
+    C3  840  -240  0  0  -  cap_mim_m3_2  10  10  2  X
+    C4  840  -630  2  1  -  cap_mim_m3_2  10  10  2  X
+
+  resistors [11]{name, x, y, rot, flip, W, L, model, spiceprefix, mult}:
+    R12  330  -840  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R1  330  -780  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R2  330  -720  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R3  330  -660  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R4  330  -600  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R5  80  -840  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R6  80  -780  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R7  80  -720  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R8  80  -660  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R9  80  -600  0  0  1.41  20  res_xhigh_po_1p41  X  1
+    R10  330  -410  0  0  1.41  20  res_xhigh_po_1p41  X  1
+
+  nets [43]:
+    net6  -> Q1.collector, Vc1.plus
+    net2  -> Q1.base, Vb1.plus
+    PLUS  -> Q1.emitter, x1.PLUS, x2.PLUS, x3.A, R9.M, C4.c0
+    net7  -> Q2.collector, Vc2.plus
+    net1  -> Q2.base, Vb2.plus
+    E2  -> Q2.emitter, R10.M
+    VSS  -> Vc1.minus, Vb1.minus, Vb2.minus, Vc2.minus, x1.VSS, x2.VSS, c2.m, C2.c1, C1.c1, R12.B, R1.B, R2.B, R3.B, R4.B, R5.B, R6.B, R7.B, R8.B, R9.B, R10.B, C3.c1, C4.c1
+    EN_N  -> x1.EN_N, x2.EN_N
+    MINUS  -> x1.MINUS, x4.A, R4.M, R10.P, C3.c0
+    VBG  -> x1.DIFFOUT, V1.plus, V2.plus, c2.p
+    VCC  -> x1.VCC, x2.VCC
+    ADJ  -> x1.ADJ, x6.Z, x7.Z, C1.c0
+    START  -> x1.START, x7.GN, x21.a
+    net8  -> V1.minus, R5.P
+    net9  -> V2.minus, R12.P
+    ZMINUS  -> x2.MINUS, x3.Z, x4.Z
+    net3  -> x2.DIFFOUT, x5.A, x6.A
+    ADJ2  -> x2.ADJ, x5.Z, x7.A, C2.c0
+    F2N  -> x3.GP, x5.GP, x23.y
+    F2  -> x3.GN, x5.GN, x11.y, x23.a
+    F1N  -> x4.GP, x6.GP, x22.y
+    F1  -> x4.GN, x6.GN, x20.y, x22.a
+    CLK  -> x8.A, x10.a
+    net4  -> x8.B, x19.y, x20.a
+    net10  -> x8.Y, x12.a
+    net11  -> x9.A, x10.y
+    net5  -> x9.B, x11.a, x15.y
+    net12  -> x9.Y, x16.a
+    net13  -> x12.y, x13.a
+    net14  -> x13.y, x14.a
+    net15  -> x14.y, x15.a
+    net16  -> x16.y, x17.a
+    net17  -> x17.y, x18.a
+    net18  -> x18.y, x19.a
+    START_N  -> x7.GP, x21.y
+    net19  -> R12.M, R1.P
+    net20  -> R1.M, R2.P
+    net21  -> R2.M, R3.P
+    net22  -> R3.M, R4.P
+    net23  -> R5.M, R6.P
+    net24  -> R6.M, R7.P
+    net25  -> R7.M, R8.P
+    net26  -> R8.M, R9.P
+
+  wires [107]:
+    80 -220 330 -220
+    240 -310 240 -280
+    240 -310 290 -310
+    170 -310 170 -280
+    120 -310 170 -310
+    330 -470 330 -440
+    80 -530 80 -340
+    80 -930 710 -930
+    690 -500 710 -500
+    710 -930 710 -500
+    80 -530 530 -530
+    330 -470 530 -470
+    920 -510 940 -510
+    940 -440 940 -360
+    920 -360 940 -360
+    940 -440 1050 -440
+    940 -510 940 -440
+    1320 -530 1340 -530
+    1320 -250 1340 -250
+    1320 -470 1320 -250
+    1210 -470 1320 -470
+    1320 -530 1320 -470
+    1620 -530 1720 -530
+    1620 -250 1720 -250
+    990 -780 1020 -780
+    1020 -880 1120 -880
+    1020 -780 1020 -680
+    1020 -880 1020 -780
+    1020 -680 1040 -680
+    1560 -760 1560 -700
+    1120 -810 1560 -760
+    1120 -840 1120 -810
+    1560 -860 1560 -800
+    1120 -750 1560 -800
+    1120 -750 1120 -720
+    1620 -530 1620 -440
+    1420 -530 1620 -530
+    1620 -360 1620 -250
+    1420 -250 1620 -250
+    1640 -930 1640 -860
+    1640 -700 1640 -630
+    330 -380 330 -340
+    330 -570 330 -470
+    80 -570 80 -530
+    840 -360 840 -270
+    840 -600 840 -510
+    840 -690 840 -660
+    840 -210 840 -180
+    80 -130 80 -130 EN_N
+    150 -130 150 -130 VBG
+    710 -930 710 -930 VBG
+    80 -540 80 -540 PLUS
+    330 -350 330 -350 E2
+    330 -480 330 -480 MINUS
+    530 -370 530 -370 VCC
+    530 -350 530 -350 VSS
+    530 -390 530 -390 EN_N
+    80 -110 80 -110 VCC
+    80 -220 80 -220 VSS
+    80 -90 80 -90 VSS
+    530 -410 530 -410 ADJ
+    530 -430 530 -430 START
+    880 -330 880 -330 F1
+    880 -480 880 -480 F2
+    880 -540 880 -540 F2N
+    880 -390 880 -390 F1N
+    1050 -500 1050 -500 PLUS
+    840 -510 840 -510 PLUS
+    840 -360 840 -360 MINUS
+    1380 -220 1380 -220 F1
+    1380 -500 1380 -500 F2
+    1380 -560 1380 -560 F2N
+    1380 -280 1380 -280 F1N
+    1720 -530 1720 -530 ADJ2
+    1720 -250 1720 -250 ADJ
+    1050 -400 1050 -400 ADJ2
+    1050 -360 1050 -360 VCC
+    1050 -340 1050 -340 VSS
+    1050 -380 1050 -380 EN_N
+    1640 -880 1640 -880 F2
+    1640 -700 1640 -700 F1
+    1720 -930 1720 -930 F2N
+    1720 -630 1720 -630 F1N
+    520 -870 520 -870 VSS
+    540 -280 540 -280 START
+    620 -280 620 -280 START_N
+    1590 -400 1590 -400 START
+    1650 -400 1650 -400 START_N
+    990 -780 990 -780 CLK
+    80 -150 80 -150 CLK
+    80 -170 80 -170 START
+    1490 -470 1490 -470 VSS
+    1490 -190 1490 -190 VSS
+    940 -450 940 -450 ZMINUS
+    310 -410 310 -410 VSS
+    60 -840 60 -840 VSS
+    60 -780 60 -780 VSS
+    60 -720 60 -720 VSS
+    60 -660 60 -660 VSS
+    60 -600 60 -600 VSS
+    310 -840 310 -840 VSS
+    310 -780 310 -780 VSS
+    310 -720 310 -720 VSS
+    310 -660 310 -660 VSS
+    310 -600 310 -600 VSS
+    840 -690 840 -690 VSS
+    840 -180 840 -180 VSS

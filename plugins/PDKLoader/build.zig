@@ -6,26 +6,67 @@ pub fn build(b: *std.Build) void {
     const sdk_dep = b.dependency("schemify_sdk", .{});
     const ctx     = helper.setup(b, sdk_dep);
 
+    // ── EasyImport modules (XSchem parser & converter) ──────────────────────
+    const xschem_mod = buildXSchemModule(b, ctx, sdk_dep);
+
     if (!ctx.is_web) {
         const lib = helper.addNativePluginLibrary(b, ctx, "EasyPDKLoader", "src/main.zig");
         lib.root_module.addImport("core", ctx.core_mod);
+        lib.root_module.addImport("xschem", xschem_mod);
         b.installArtifact(lib);
         helper.addNativeAutoInstallRunStep(b, "EasyPDKLoader", sdk_dep, "EasyPDKLoader");
 
-        addTests(b, ctx);
+        addTests(b, ctx, xschem_mod);
     }
 
     // PDK scanning requires filesystem access — no WASM plugin.
 }
 
-fn addTests(b: *std.Build, ctx: anytype) void {
-    // volare.zig is the module under test; it needs "core" for XSchem conversion.
+/// Build the xschem module from EasyImport's source files, along with its
+/// dependencies (tcl, convert_types).  All source paths resolved via sdk_dep.
+fn buildXSchemModule(
+    b: *std.Build,
+    ctx: anytype,
+    sdk_dep: *std.Build.Dependency,
+) *std.Build.Module {
+    // Tcl module (tokenizer, expr, evaluator, commands)
+    const tcl_mod = b.createModule(.{
+        .root_source_file = sdk_dep.path("plugins/EasyImport/src/TCL/mod.zig"),
+        .target   = ctx.target,
+        .optimize = ctx.optimize,
+    });
+
+    // Shared conversion result types
+    const ct_mod = b.createModule(.{
+        .root_source_file = sdk_dep.path("plugins/EasyImport/src/convert_types.zig"),
+        .target   = ctx.target,
+        .optimize = ctx.optimize,
+    });
+    ct_mod.addImport("core", ctx.core_mod);
+
+    // XSchem module (types, props, reader, xschemrc, converter, backend)
+    const xschem_mod = b.createModule(.{
+        .root_source_file = sdk_dep.path("plugins/EasyImport/src/XSchem/mod.zig"),
+        .target   = ctx.target,
+        .optimize = ctx.optimize,
+    });
+    xschem_mod.addImport("tcl", tcl_mod);
+    xschem_mod.addImport("core", ctx.core_mod);
+    xschem_mod.addImport("utility", ctx.utility_mod);
+    xschem_mod.addImport("convert_types", ct_mod);
+
+    return xschem_mod;
+}
+
+fn addTests(b: *std.Build, ctx: anytype, xschem_mod: *std.Build.Module) void {
+    // volare.zig is the module under test; it needs "core" and "xschem".
     const volare_mod = b.createModule(.{
         .root_source_file = b.path("src/volare.zig"),
         .target           = ctx.target,
         .optimize         = ctx.optimize,
     });
     volare_mod.addImport("core", ctx.core_mod);
+    volare_mod.addImport("xschem", xschem_mod);
 
     // ── integration tests (tests/test_volare_pdks.zig) ─────────────────────
     const test_mod = b.createModule(.{

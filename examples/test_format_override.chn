@@ -1,0 +1,27 @@
+chn_testbench 1.0
+
+TESTBENCH test_format_override
+
+  instances [2]:
+    x1  stdcells/AND2  x=270  y=-120  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS  format=@name @@A @@B @VCCPIN @VSSPIN @VCCBPIN @VSSBPIN @@Y @symname  symname=MYAND2
+    x2  stdcells/AND2  x=650  y=-120  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+
+  nets [6]:
+    x1_Y  -> x1.Y
+    x1_A  -> x1.A
+    x1_B  -> x1.B
+    x2_Y  -> x2.Y
+    x2_A  -> x2.A
+    x2_B  -> x2.B
+
+  wires [10]:
+    330 -120 330 -120 x1_Y
+    210 -140 210 -140 x1_A
+    210 -100 210 -100 x1_B
+    710 -120 710 -120 x2_Y
+    590 -140 590 -140 x2_A
+    590 -100 590 -100 x2_B
+    70 -140 70 -140 x2_B
+    70 -160 70 -160 x2_A
+    70 -200 70 -200 x1_B
+    70 -220 70 -220 x1_A

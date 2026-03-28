@@ -1,0 +1,132 @@
+chn 1.0
+
+SYMBOL gain_stage
+
+  pins [7]:
+    IN  in
+    OUT  out
+    VCC  in
+    VSS  in
+    START_N  in
+    START  in
+    EN_N  in
+
+  params [2]:
+    template = name=x1 wcap=10 WN=0.5 WP=1 modeln=nfet_01v8_lvt
+    extra = modeln
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  instances [3]:
+    C5  devices/parax_cap  x=980  y=-310  value=4f
+    C1  devices/parax_cap  x=830  y=-390  value=4f
+    x6  sky130_tests/passgate  x=290  y=-660  W_N=0.42  L_N=0.35  W_P=0.6  L_P=0.35  VCCBPIN=VCC  VSSBPIN=VSS  m=1  modeln=nfet_01v8  modelp=pfet_01v8_lvt  schematic=passgate_1
+
+  nmos [4]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M6  890  -240  0  0  1  WN  1  1  @modeln  X
+    M7  1040  -170  0  0  0.15  0.5  1  3  nfet_01v8  X
+    M9  650  -620  0  0  1  WN  1  1  @modeln  X
+    M10  650  -540  0  0  4  WN  1  1  nfet_01v8  X
+
+  vsource [3]{name, x, y, rot, flip}:
+    v4  910  -140  0  0
+    v17  910  -490  0  0
+    v1  830  -660  3  0
+
+  pmos [4]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M46  890  -550  0  0  0.15  5  1  1  pfet_01v8  X
+    M5  890  -400  0  0  1  WP  1  1  pfet_01v8_lvt  X
+    M8  650  -720  0  0  1  WP  1  1  pfet_01v8_lvt  X
+    M1  650  -800  0  0  4  WP  1  1  pfet_01v8  X
+
+  capacitors [1]{name, x, y, rot, flip, model, W, L, MF, spiceprefix}:
+    C2  450  -630  0  0  cap_mim_m3_2  wcap  wcap  2  X
+
+  nets [14]:
+    OUT  -> C5.p, M6.D, M7.D, M5.D, x6.A, v1.minus
+    IN  -> M6.G, M5.G, C1.p
+    net1  -> M6.S, v4.plus
+    VSS  -> M6.B, v4.minus, M7.S, M7.B, M9.B, M10.S, M10.B, C2.c1
+    EN_N  -> M7.G, M46.G, M1.G
+    net6  -> M46.D, v17.plus
+    VCC  -> M46.S, M46.B, M5.B, M8.B, M10.G, M1.S, M1.B
+    net2  -> v17.minus, M5.S
+    net4  -> M8.D, M9.D, v1.plus
+    ADJ  -> M8.G, M9.G, x6.Z, C2.c0
+    net3  -> M8.S, M1.D
+    net5  -> M9.S, M10.D
+    START  -> x6.GP
+    START_N  -> x6.GN
+
+  wires [69]:
+    910 -240 940 -240
+    1060 -320 1130 -320
+    910 -320 910 -270
+    910 -210 910 -170
+    1060 -170 1090 -170
+    1060 -320 1060 -200
+    1040 -320 1060 -320
+    1060 -140 1060 -110
+    910 -370 910 -320
+    910 -550 940 -550
+    910 -610 910 -580
+    810 -400 870 -400
+    910 -400 940 -400
+    910 -460 910 -430
+    670 -800 700 -800
+    670 -860 670 -830
+    670 -720 700 -720
+    670 -770 670 -750
+    670 -620 700 -620
+    670 -660 670 -650
+    670 -690 670 -660
+    630 -660 630 -620
+    670 -540 700 -540
+    670 -510 670 -500
+    670 -590 670 -570
+    860 -660 1040 -660
+    900 -110 1060 -110
+    810 -320 810 -240
+    810 -240 870 -240
+    1040 -660 1040 -320
+    1040 -880 1040 -660
+    200 -880 1040 -880
+    200 -880 200 -660
+    630 -720 630 -660
+    910 -320 1040 -320
+    720 -320 810 -320
+    670 -660 800 -660
+    330 -660 630 -660
+    200 -660 250 -660
+    810 -400 810 -320
+    100 -580 100 -580 IN
+    100 -430 100 -430 VSS
+    100 -460 100 -460 VCC
+    140 -550 140 -550 OUT
+    940 -240 940 -240 VSS
+    1130 -320 1130 -320 OUT
+    1090 -170 1090 -170 VSS
+    1020 -170 1020 -170 EN_N
+    940 -550 940 -550 VCC
+    910 -610 910 -610 VCC
+    870 -550 870 -550 EN_N
+    940 -400 940 -400 VCC
+    700 -800 700 -800 VCC
+    670 -860 670 -860 VCC
+    630 -800 630 -800 EN_N
+    700 -720 700 -720 VCC
+    700 -620 700 -620 VSS
+    700 -540 700 -540 VSS
+    630 -690 630 -690 ADJ
+    630 -540 630 -540 VCC
+    670 -500 670 -500 VSS
+    900 -110 900 -110 VSS
+    720 -320 720 -320 IN
+    290 -630 290 -630 START_N
+    290 -690 290 -690 START
+    450 -600 450 -600 VSS
+    100 -510 100 -510 START
+    100 -490 100 -490 START_N
+    100 -530 100 -530 EN_N

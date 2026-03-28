@@ -1,0 +1,69 @@
+chn_testbench 1.0
+
+TESTBENCH untitled
+
+  vsource [3]{name, x, y, rot, flip, value, savecurrent}:
+    V1  50  -110  0  0  pwl 0 0 10u 3  1
+    V2  50  -240  0  0  3  1
+    V3  50  -370  0  0  1.5  1
+
+  resistors [2]{name, x, y, rot, flip, value, footprint, device, m}:
+    R1  340  -120  0  0  80k  1206  resistor  1
+    R2  1240  -410  0  0  80k  1206  resistor  1
+
+  instances [2]:
+    Xinv  cmos_inv.sch  x=50  y=-260  WN=15u  WP=45u  LLN=3u  LLP=3u
+    Xkeeper  bus_keeper.sch  x=1290  y=60  WN_FB=6u  WP_FB=12u
+
+  instances [2]:
+    Xinv2  cmos_inv.chn  x=250  y=-190  WN=15u  WP=45u  LLN=3u  LLP=3u
+    Xinv1  cmos_inv.chn  x=510  y=-860  WN=1u  WP=1u  LLN=2u  LLP=2u
+
+  vsource [1]{name, x, y, rot, flip}:
+    Vmeas  1350  -350  0  1
+
+  nmos [1]{name, x, y, rot, flip, model, w, l, m}:
+    M1  630  -840  3  0  n  1u  2u  1
+
+  code_blocks [2]:
+    STIMULI  code  only_toplevel=true  value=* .options SRCSTEPS=0 .option savecurrents .control save all dc v1 0 3 0.001 write LCC_instances.raw set appendwrite  dc v1 3 0 -0.001 write LCC_instances.raw op write LCC_instances.raw tran 10n 10u uic write LCC_instances.raw alter V1 pwl = [ 0 3 10u 0 ] tran 10n 10u uic write LCC_instances.raw * quit 0 .endc 
+    MODEL  code  only_toplevel=true  value=************************************************ *         NOMINAL N-Channel Transistor         * *            UCB-3 Parameter Set               * *         HIGH-SPEED CMOS Logic Family         * *                10-Jan.-1995                  * ************************************************ .Model N NMOS ( +LEVEL = 3 +KP    = 45.3E-6 +VTO   = 0.72 +TOX   = 51.5E-9 +NSUB  = 2.8E15 +GAMMA = 0.94 +PHI   = 0.65 +VMAX  = 150E3 +RS    = 40 +RD    = 40 +XJ    = 0.11E-6 +LD    = 0.52E-6 +DELTA = 0.315 +THETA = 0.054 +ETA   = 0.025 +KAPPA = 0.0 +WD    = 0.0 )  *********************************************** *        NOMINAL P-Channel transistor         * *           UCB-3 Parameter Set               * *         HIGH-SPEED CMOS Logic Family        * *               10-Jan.-1995                  * *********************************************** .Model P PMOS ( +LEVEL = 3 +KP    = 22.1E-6 +VTO   = -0.71 +TOX   = 51.5E-9 +NSUB  = 3.3E16 +GAMMA = 0.92 +PHI   = 0.65 +VMAX  = 970E3 +RS    = 80 +RD    = 80 +XJ    = 0.63E-6 +LD    = 0.23E-6 +DELTA = 2.24 +THETA = 0.108 +ETA   = 0.322 +KAPPA = 0.0 +WD    = 0.0 )  
+
+  wires [37]:
+    340 -90 340 -70
+    380 -190 400 -190
+    1240 -380 1240 -360
+    420 -490 1350 -490
+    1350 -240 1450 -240
+    290 -190 380 -190
+    1350 -320 1350 -240
+    1350 -490 1350 -380
+    50 -280 50 -270
+    50 -180 50 -140
+    50 -420 50 -400
+    660 -860 680 -860
+    550 -860 600 -860
+    570 -910 570 -860
+    630 -820 680 -820
+    680 -860 680 -820
+    60 -490 110 -490
+    150 -190 210 -190
+    1240 -460 1240 -440
+    340 -170 340 -150
+    410 -860 470 -860
+    50 -180 50 -180 A
+    50 -80 50 -80 0
+    150 -190 150 -190 A
+    400 -190 400 -190 ZZZ
+    50 -210 50 -210 0
+    340 -70 340 -70 HALF
+    50 -420 50 -420 HALF
+    50 -340 50 -340 0
+    60 -490 60 -490 A
+    1240 -360 1240 -360 HALF
+    1350 -490 1350 -490 ZZ
+    410 -860 410 -860 A
+    570 -910 570 -910 Z
+    50 -280 50 -280 VDD
+    630 -860 630 -860 0
+    680 -860 680 -860 VDD

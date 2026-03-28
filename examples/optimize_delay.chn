@@ -1,0 +1,47 @@
+chn_testbench 1.0
+
+TESTBENCH optimize_delay
+
+  instances [2]:
+    V1  devices/vsource  x=90  y=-440  value=\{VCC\}
+    V2  devices/vsource  x=220  y=-440  value=pulse 0 \{VCC\} 0 100p 100p + \{PER/2-0.1n\} \{PER\}
+
+  instances [7]:
+    C1  devices/parax_cap  x=650  y=-110  gnd=0  value=4f  m=1
+    C2  devices/parax_cap  x=730  y=-110  gnd=0  value=4f  m=1
+    C3  devices/parax_cap  x=810  y=-110  gnd=0  value=4f  m=1
+    x4  sky130_tests/not  x=610  y=-180  m=1  VCCPIN=VCC  VSSPIN=GND  W_N=3.5  L_N=0.15  W_P=7.0  L_P=0.15
+    x1  sky130_tests/not  x=690  y=-180  m=1  VCCPIN=VCC  VSSPIN=GND  W_N=3.5  L_N=0.15  W_P=7.0  L_P=0.15
+    x2  sky130_tests/not  x=770  y=-180  m=1  VCCPIN=VCC  VSSPIN=GND  W_N=3.5  L_N=0.15  W_P=7.0  L_P=0.15
+    x3  sky130_tests/not  x=850  y=-180  m=1  VCCPIN=VCC  VSSPIN=GND  W_N=3.5  L_N=0.15  W_P=7.0  L_P=0.15
+
+  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
+    C4  900  -120  0  0  1  100f  1206  ceramic capacitor
+
+  nets [8]:
+    VCC  -> V1.p
+    GND  -> V1.m, V2.m
+    CK  -> V2.p, x4.a
+    net3  -> C1.p, x4.y, x1.a
+    net1  -> C2.p, x1.y, x2.a
+    net2  -> C3.p, x2.y, x3.a
+    CK_DEL  -> x3.y, C4.p
+    0  -> C4.m
+
+  wires [16]:
+    90 -410 90 -390
+    220 -410 220 -390
+    220 -490 220 -470
+    90 -490 90 -470
+    730 -180 730 -120
+    810 -180 810 -120
+    650 -180 650 -120
+    890 -180 920 -180
+    900 -180 900 -150
+    90 -390 90 -390 GND
+    220 -390 220 -390 GND
+    220 -490 220 -490 CK
+    90 -490 90 -490 VCC
+    570 -180 570 -180 CK
+    920 -180 920 -180 CK_DEL
+    900 -90 900 -90 0

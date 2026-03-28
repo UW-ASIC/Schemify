@@ -1,0 +1,56 @@
+chn_testbench 1.0
+
+TESTBENCH test_jfet
+
+  njfet [1]{name, x, y, rot, flip, model, area, m}:
+    J1  320  -220  0  0  2N3459  1  1
+
+  vsource [4]{name, x, y, rot, flip}:
+    Vgate  230  -220  1  0
+    Vdrain  340  -330  0  0
+    Vgate1  230  -700  1  0
+    Vdrain1  340  -640  0  0
+
+  pjfet [1]{name, x, y, rot, flip, model, area, m}:
+    J2  320  -700  0  0  2N2609  1  1
+
+  vcvs [2]{name, x, y, rot, flip, value}:
+    E1  340  -540  0  0  -1
+    E2  150  -610  0  0  -1
+
+  nets [9]:
+    net1  -> J1.d, Vdrain.minus
+    net2  -> J1.g, Vgate.plus
+    GND  -> J1.s, J2.d, E1.m, E1.cm, E2.m, E2.cm
+    G  -> Vgate.minus, E2.cp
+    D  -> Vdrain.plus, E1.cp
+    net4  -> J2.s, Vdrain1.plus
+    net3  -> J2.g, Vgate1.plus
+    G1  -> Vgate1.minus, E2.p
+    D1  -> Vdrain1.minus, E1.p
+
+  wires [24]:
+    340 -300 340 -250
+    340 -190 340 -110
+    260 -220 300 -220
+    150 -220 200 -220
+    340 -420 340 -360
+    260 -700 300 -700
+    150 -700 200 -700
+    150 -700 150 -640
+    340 -510 340 -490
+    150 -580 150 -560
+    340 -610 340 -570
+    340 -830 340 -730
+    150 -220 150 -220 G
+    340 -420 340 -420 D
+    340 -110 340 -110 GND
+    150 -700 150 -700 G1
+    340 -830 340 -830 GND
+    300 -520 300 -520 GND
+    300 -560 300 -560 D
+    340 -580 340 -580 D1
+    110 -590 110 -590 GND
+    110 -630 110 -630 G
+    340 -490 340 -490 GND
+    150 -560 150 -560 GND

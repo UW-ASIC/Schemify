@@ -1,0 +1,51 @@
+chn 1.0
+
+SYMBOL not
+
+  pins [4]:
+    y  out
+    a  in
+    VCCPIN  inout
+    VSSPIN  inout
+
+  params [2]:
+    template = name=x1 m=1 + W_N=1 L_N=0.15 W_P=2 L_P=0.15 + VCCPIN=VCC VSSPIN=VSS
+    extra = VCCPIN VSSPIN
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  nmos [1]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M1  400  -200  0  0  L_N  W_N  1  1  nfet_01v8  X
+
+  pmos [1]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M2  400  -320  0  0  L_P  W_P  1  1  pfet_01v8  X
+
+  nets [4]:
+    y  -> M1.D, M2.D
+    a  -> M1.G, M2.G
+    VSSPIN  -> M1.S, M1.B
+    VCCPIN  -> M2.S, M2.B
+
+  wires [20]:
+    420 -260 420 -230
+    420 -260 460 -260
+    380 -260 380 -200
+    340 -260 380 -260
+    420 -400 420 -360
+    420 -160 420 -140
+    420 -200 500 -200
+    500 -200 500 -160
+    420 -160 500 -160
+    420 -360 500 -360
+    500 -360 500 -320
+    420 -320 500 -320
+    380 -320 380 -260
+    420 -290 420 -260
+    420 -170 420 -160
+    420 -360 420 -350
+    460 -260 460 -260 y
+    340 -260 340 -260 a
+    420 -400 420 -400 VCCPIN
+    420 -140 420 -140 VSSPIN

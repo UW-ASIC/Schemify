@@ -1,0 +1,26 @@
+chn 1.0
+
+SYMBOL mos_power_ampli_extracted
+
+  pins [6]:
+    MINUS  in
+    PLUS  in
+    VSS  in
+    OUT  out
+    VPP  in
+    VNN  in
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [6]:
+    140 -190 140 -190 PLUS
+    140 -150 140 -150 VPP
+    140 -130 140 -130 VNN
+    210 -160 210 -160 OUT
+    140 -210 140 -210 MINUS
+    140 -170 140 -170 VSS

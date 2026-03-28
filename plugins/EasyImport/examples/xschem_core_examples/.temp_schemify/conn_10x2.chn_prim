@@ -1,0 +1,85 @@
+chn_prim 1.0
+
+SYMBOL conn_10x2
+
+  pins [20]:
+    conn_1  inout  x=-30  y=-20
+    conn_2  inout  x=-30  y=0
+    conn_3  inout  x=-30  y=20
+    conn_4  inout  x=-30  y=40
+    conn_5  inout  x=-30  y=60
+    conn_6  inout  x=-30  y=80
+    conn_7  inout  x=-30  y=100
+    conn_8  inout  x=-30  y=120
+    conn_7  inout  x=-30  y=140
+    conn_8  inout  x=-30  y=160
+    conn_1  inout  x=30  y=160
+    conn_2  inout  x=30  y=140
+    conn_3  inout  x=30  y=120
+    conn_4  inout  x=30  y=100
+    conn_5  inout  x=30  y=80
+    conn_6  inout  x=30  y=60
+    conn_7  inout  x=30  y=40
+    conn_8  inout  x=30  y=20
+    conn_7  inout  x=30  y=0
+    conn_8  inout  x=30  y=-20
+
+  params [5]:
+    type = connector
+    verilog_ignore = true
+    format = *connector(8,1) @pinlist
+    tedax_format = footprint @name @footprint
+    template = name=c1 footprint=connector(8,1)
+
+  drawing:
+    line -30 -20 -20 -20
+    line 20 -20 30 -20
+    line -30 0 -20 0
+    line 20 0 30 0
+    line -30 20 -20 20
+    line 20 20 30 20
+    line -30 40 -20 40
+    line 20 40 30 40
+    line -30 60 -20 60
+    line 20 60 30 60
+    line -30 80 -20 80
+    line 20 80 30 80
+    line -30 100 -20 100
+    line 20 100 30 100
+    line -30 120 -20 120
+    line 20 120 30 120
+    line -30 140 -20 140
+    line 20 140 30 140
+    line -30 160 -20 160
+    line 20 160 30 160
+    line 0 -30 0 170
+    line -20 150 20 150
+    line -20 130 20 130
+    line -20 110 20 110
+    line -20 90 20 90
+    line -20 70 20 70
+    line -20 50 20 50
+    line -20 30 20 30
+    line -20 10 20 10
+    line -20 -10 20 -10
+    pin_positions:
+      conn_1: (-30, -20)
+      conn_2: (-30, 0)
+      conn_3: (-30, 20)
+      conn_4: (-30, 40)
+      conn_5: (-30, 60)
+      conn_6: (-30, 80)
+      conn_7: (-30, 100)
+      conn_8: (-30, 120)
+      conn_7: (-30, 140)
+      conn_8: (-30, 160)
+      conn_1: (30, 160)
+      conn_2: (30, 140)
+      conn_3: (30, 120)
+      conn_4: (30, 100)
+      conn_5: (30, 80)
+      conn_6: (30, 60)
+      conn_7: (30, 40)
+      conn_8: (30, 20)
+      conn_7: (30, 0)
+      conn_8: (30, -20)

@@ -1,0 +1,115 @@
+chn_testbench 1.0
+
+TESTBENCH test_ac
+
+  nmos [4]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M1  290  -360  0  0  2  4  1  1  nfet_01v8_lvt  X
+    M2  540  -360  0  1  2  4  1  1  nfet_01v8_lvt  X
+    M4  390  -180  0  0  4  4  1  1  nfet_01v8_lvt  X
+    M6  780  -690  0  0  2  4  1  1  nfet_01v8_lvt  X
+
+  pmos [2]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M3  500  -500  0  0  4  4  1  1  pfet_01v8_lvt  X
+    M5  330  -500  0  1  4  4  1  1  pfet_01v8_lvt  X
+
+  vsource [1]{name, x, y, rot, flip, current}:
+    Vtail  410  -240  0  0  8.3431e-06
+
+  instances [4]:
+    V1  devices/vsource  x=50  y=-190  value=0.7
+    V2  devices/vsource  x=50  y=-270  value=1.8
+    V3  devices/vsource  x=50  y=-360  value=0.91
+    V4  devices/vsource  x=50  y=-450  value=0 ac 1 0 + sin(0 1m 100meg 0 0 0)
+
+  instances [6]:
+    CORNER  sky130_fd_pr/corner  x=930  y=-190  only_toplevel=true  corner=tt
+    annot1  sky130_fd_pr/annotate_fet_params  x=290  y=-650  flip=1  ref=M5
+    annot2  sky130_fd_pr/annotate_fet_params  x=530  y=-650  ref=M3
+    annot5  sky130_fd_pr/annotate_fet_params  x=320  y=-160  flip=1  ref=M4
+    annot3  sky130_fd_pr/annotate_fet_params  x=290  y=-320  flip=1  ref=M1
+    annot4  sky130_fd_pr/annotate_fet_params  x=530  y=-320  ref=M2
+
+  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
+    C2  900  -520  3  1  1  1T  1206  ceramic capacitor
+
+  inductors [1]{name, x, y, rot, flip, m, value, footprint, device}:
+    L1  810  -520  3  1  1  1T  1206  inductor
+
+  vcvs [2]{name, x, y, rot, flip, value}:
+    E1  870  -630  0  1  1
+    E2  870  -780  0  1  1
+
+  nets [12]:
+    G  -> M1.D, M3.G, M5.D, M5.G
+    PLUS  -> M1.G, V3.p
+    S  -> M1.S, M2.S, Vtail.plus, E1.cp
+    GND  -> M1.B, M2.B, M4.S, M4.B, V1.m, V2.m, V3.m, V4.m, E1.m, E1.cm, M6.B, E2.m, E2.cm
+    OUT  -> M2.D, M3.D, L1.p, M6.G, E2.cp
+    MINUS  -> M2.G, C2.p, L1.m
+    net3  -> M4.D, Vtail.minus
+    BIAS  -> M4.G, V1.p
+    VCC  -> M3.S, M3.B, M5.S, M5.B, V2.p
+    IN  -> V4.p, C2.m
+    net1  -> E1.p, M6.S
+    net2  -> M6.D, E2.p
+
+  wires [59]:
+    520 -330 520 -310
+    310 -310 520 -310
+    310 -330 310 -310
+    410 -310 410 -290
+    350 -500 480 -500
+    350 -500 350 -470
+    310 -470 350 -470
+    310 -470 310 -390
+    520 -470 520 -390
+    520 -570 520 -530
+    310 -570 520 -570
+    310 -570 310 -530
+    520 -450 610 -450
+    410 -150 410 -130
+    410 -290 410 -270
+    310 -360 520 -360
+    520 -530 520 -500
+    310 -530 310 -500
+    410 -180 410 -150
+    930 -520 990 -520
+    840 -520 870 -520
+    760 -520 780 -520
+    860 -520 860 -360
+    560 -360 860 -360
+    610 -450 760 -450
+    760 -520 760 -450
+    800 -660 870 -660
+    870 -600 870 -580
+    870 -750 870 -730
+    800 -810 870 -810
+    800 -810 800 -720
+    800 -690 840 -690
+    760 -690 760 -550
+    760 -550 760 -520
+    430 -310 430 -310 S
+    410 -570 410 -570 VCC
+    420 -500 420 -500 G
+    410 -130 410 -130 GND
+    270 -360 270 -360 PLUS
+    860 -360 860 -360 MINUS
+    370 -180 370 -180 BIAS
+    50 -220 50 -220 BIAS
+    50 -300 50 -300 VCC
+    50 -390 50 -390 PLUS
+    50 -480 50 -480 IN
+    430 -360 430 -360 GND
+    50 -160 50 -160 GND
+    50 -240 50 -240 GND
+    50 -330 50 -330 GND
+    50 -420 50 -420 GND
+    760 -500 760 -500 OUT
+    990 -520 990 -520 IN
+    910 -610 910 -610 GND
+    910 -650 910 -650 S
+    910 -760 910 -760 GND
+    910 -800 910 -800 OUT
+    870 -580 870 -580 GND
+    870 -730 870 -730 GND
+    840 -690 840 -690 GND

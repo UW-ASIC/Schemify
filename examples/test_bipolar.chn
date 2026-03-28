@@ -1,0 +1,57 @@
+chn_testbench 1.0
+
+TESTBENCH test_bipolar
+
+  pnp [1]{name, x, y, rot, flip, spiceprefix}:
+    Q1  630  -220  0  0  X
+
+  vsource [6]{name, x, y, rot, flip}:
+    Vc1  650  -160  0  0
+    Vb1  560  -160  0  0
+    Ve1  650  -350  0  0
+    Ve2  650  -690  0  0
+    Vc2  650  -810  0  0
+    Vb2  560  -810  0  0
+
+  isource [1]{name, x, y, rot, flip, value}:
+    I0  650  -410  0  0  1u
+
+  instances [1]:
+    CORNER  sky130_fd_pr/corner  x=170  y=-180  only_toplevel=true  corner=tt
+
+  npn [1]{name, x, y, rot, flip, model, spiceprefix, m}:
+    Q2  630  -750  0  0  npn_05v5_w1p00l2p00  X  1
+
+  cccs [1]{name, x, y, rot, flip, vnam, value}:
+    F1  650  -870  0  0  Ve1  1
+
+  nets [9]:
+    net3  -> Q1.collector, Vc1.plus
+    net1  -> Q1.base, Vb1.plus
+    E1  -> Q1.emitter, Ve1.minus
+    0  -> Vc1.minus, Vb1.minus, I0.p, Ve2.minus, Q2.s, F1.p
+    net4  -> I0.m, Ve1.plus
+    net5  -> Ve2.plus, Q2.e
+    B2  -> Vc2.plus, Vb2.plus, F1.m
+    net6  -> Vc2.minus, Q2.c
+    net2  -> Vb2.minus, Q2.b
+
+  wires [18]:
+    560 -220 610 -220
+    560 -220 560 -190
+    650 -470 650 -440
+    650 -320 650 -250
+    560 -130 720 -130
+    590 -260 650 -260
+    560 -750 610 -750
+    560 -780 560 -750
+    560 -840 650 -840
+    650 -930 650 -900
+    650 -750 690 -750
+    720 -130 720 -130 0
+    650 -280 650 -280 E1
+    650 -470 650 -470 0
+    650 -660 650 -660 0
+    650 -930 650 -930 0
+    690 -750 690 -750 0
+    560 -840 560 -840 B2

@@ -1,0 +1,110 @@
+chn 1.0
+
+SYMBOL tb_bandgap_opamp
+
+  pins [6]:
+    VCC  in
+    START  in
+    PLUS  in
+    OUT  out
+    MINUS  in
+    EN_N  in
+
+SCHEMATIC
+
+  instances [5]:
+    x6  sky130_tests/passgate  x=380  y=-540  W_N=0.42  L_N=0.3  W_P=0.7  L_P=0.35  VCCBPIN=VCC  VSSBPIN=VSS  m=1  modelp=pfet_01v8_lvt  schematic=passgate_1
+    x2  sky130_tests/not  x=540  y=-700  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+    CORNER  sky130_fd_pr/corner  x=40  y=-210  only_toplevel=true  corner=tt_mm
+    x1  sky130_tests/zero_opamp  x=350  y=-360
+    x3  sky130_tests/gain_stage  x=630  y=-360  wcap=9  modeln=nfet_01v8  schematic=gain_stage2
+
+  capacitors [1]{name, x, y, rot, flip, model, W, L, MF, spiceprefix}:
+    C1  490  -510  0  0  cap_mim_m3_2  9  9  2  X
+
+  nmos [2]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix, lvs_format}:
+    M18  110  -880  0  0  0.15  0.5  1  1  nfet_01v8  X   
+    M1  270  -880  0  0  0.15  0.5  1  1  nfet_01v8  X   
+
+  isource [2]{name, x, y, rot, flip, value, lvs_format}:
+    I0  130  -990  0  0  100n   
+    I1  290  -990  0  0  100n   
+
+  vsource [1]{name, x, y, rot, flip, VOL, MAX, MIN, lvs_format}:
+    E5  120  -1230  0  0  temper  200  -200   
+
+  nets [13]:
+    ADJ  -> x6.Z, C1.c0, x1.ADJ
+    DIFFOUT_N  -> x6.A, x1.DIFFOUT, x3.IN
+    START  -> x6.GP, x2.a, x3.START
+    START_N  -> x6.GN, x2.y, x3.START_N
+    VSS  -> C1.c1, x1.VSS, M18.S, M18.B, I0.p, x3.VSS, E5.m, M1.S, M1.B, I1.p
+    EN_N  -> x1.EN_N, x3.EN_N
+    MINUS  -> x1.MINUS
+    PLUS  -> x1.PLUS
+    VCC  -> x1.VCC, x3.VCC
+    VTH1  -> M18.D, M18.G, I0.m
+    OUT  -> x3.OUT
+    TEMPERAT  -> E5.p
+    VTH2  -> M1.D, M1.G, I1.m
+
+  wires [59]:
+    320 -540 340 -540
+    420 -540 720 -540
+    130 -880 160 -880
+    130 -930 130 -910
+    130 -960 130 -930
+    90 -930 90 -880
+    90 -930 130 -930
+    130 -850 130 -800
+    130 -1060 130 -1020
+    430 -360 570 -360
+    120 -1280 120 -1260
+    290 -880 320 -880
+    290 -930 290 -910
+    290 -960 290 -930
+    250 -930 250 -880
+    250 -930 290 -930
+    290 -850 290 -800
+    290 -1060 290 -1020
+    270 -270 270 -270 EN_N
+    270 -330 270 -330 MINUS
+    270 -390 270 -390 PLUS
+    460 -360 460 -360 DIFFOUT_N
+    270 -250 270 -250 VCC
+    270 -230 270 -230 VSS
+    270 -290 270 -290 ADJ
+    380 -510 380 -510 START_N
+    380 -570 380 -570 START
+    720 -540 720 -540 ADJ
+    490 -480 490 -480 VSS
+    320 -540 320 -540 DIFFOUT_N
+    500 -700 500 -700 START
+    580 -700 580 -700 START_N
+    160 -880 160 -880 VSS
+    130 -930 130 -930 VTH1
+    130 -800 130 -800 VSS
+    130 -1060 130 -1060 VSS
+    690 -360 690 -360 OUT
+    610 -250 610 -250 VCC
+    610 -230 610 -230 VSS
+    610 -270 610 -270 START_N
+    610 -290 610 -290 START
+    610 -310 610 -310 EN_N
+    120 -1280 120 -1280 TEMPERAT
+    120 -1200 120 -1200 VSS
+    80 -570 80 -570 VCC
+    80 -590 80 -590 START
+    80 -610 80 -610 PLUS
+    80 -650 80 -650 MINUS
+    80 -670 80 -670 EN_N
+    0 -20 0 -20 VCC
+    0 -40 0 -40 START
+    0 -60 0 -60 PLUS
+    0 -80 0 -80 OUT
+    0 -100 0 -100 MINUS
+    0 -120 0 -120 EN_N
+    320 -880 320 -880 VSS
+    290 -930 290 -930 VTH2
+    290 -800 290 -800 VSS
+    290 -1060 290 -1060 VSS

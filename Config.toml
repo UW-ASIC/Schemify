@@ -1,0 +1,5 @@
+name = "Schemify Examples"
+
+[paths]
+chn = ["examples/*"]
+chn_tb = ["examples/*"]

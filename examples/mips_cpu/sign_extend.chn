@@ -1,0 +1,64 @@
+chn 1.0
+
+SYMBOL sign_extend
+
+  pins [48]:
+    idata[15]  in
+    idata[14]  in
+    idata[13]  in
+    idata[12]  in
+    idata[11]  in
+    idata[10]  in
+    idata[9]  in
+    idata[8]  in
+    idata[7]  in
+    idata[6]  in
+    idata[5]  in
+    idata[4]  in
+    idata[3]  in
+    idata[2]  in
+    idata[1]  in
+    idata[0]  in
+    odata[31]  out
+    odata[30]  out
+    odata[29]  out
+    odata[28]  out
+    odata[27]  out
+    odata[26]  out
+    odata[25]  out
+    odata[24]  out
+    odata[23]  out
+    odata[22]  out
+    odata[21]  out
+    odata[20]  out
+    odata[19]  out
+    odata[18]  out
+    odata[17]  out
+    odata[16]  out
+    odata[15]  out
+    odata[14]  out
+    odata[13]  out
+    odata[12]  out
+    odata[11]  out
+    odata[10]  out
+    odata[9]  out
+    odata[8]  out
+    odata[7]  out
+    odata[6]  out
+    odata[5]  out
+    odata[4]  out
+    odata[3]  out
+    odata[2]  out
+    odata[1]  out
+    odata[0]  out
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [2]:
+    390 -120 390 -120 odata[31:0]
+    160 -120 160 -120 idata[15:0]

@@ -1,74 +1,79 @@
 const std = @import("std");
+const sdk = @import("schemify_sdk");
+const helper = sdk.build_plugin_helper;
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
+    const sdk_dep = b.dependency("schemify_sdk", .{});
+    const ctx = helper.setup(b, sdk_dep);
 
-    // Pull core modules from the root Schemify SDK so the plugin can
-    // produce core.Schemify objects and call emitSpice().
-    const sdk = b.dependency("schemify_sdk", .{ .target = target, .optimize = optimize });
-    const utility_mod = sdk.module("utility");
-    const core_mod = sdk.module("core");
+    // ── Internal modules ────────────────────────────────────────────────────
 
-    // Shared conversion result types (used by all backends and lib.zig)
-    const ct_mod = b.addModule("convert_types", .{
+    const ct_mod = b.createModule(.{
         .root_source_file = b.path("src/convert_types.zig"),
-        .target = target,
-        .optimize = optimize,
+        .target = ctx.target,
+        .optimize = ctx.optimize,
     });
-    ct_mod.addImport("core", core_mod);
+    ct_mod.addImport("core", ctx.core_mod);
 
-    // Tcl module (tokenizer, expr, evaluator, commands)
-    const tcl_mod = b.addModule("tcl", .{
+    const tcl_mod = b.createModule(.{
         .root_source_file = b.path("src/TCL/mod.zig"),
-        .target = target,
-        .optimize = optimize,
+        .target = ctx.target,
+        .optimize = ctx.optimize,
     });
 
-    // XSchem module (types, props, reader, xschemrc, converter, backend)
-    const xschem_mod = b.addModule("xschem", .{
+    const xschem_mod = b.createModule(.{
         .root_source_file = b.path("src/XSchem/mod.zig"),
-        .target = target,
-        .optimize = optimize,
+        .target = ctx.target,
+        .optimize = ctx.optimize,
     });
     xschem_mod.addImport("tcl", tcl_mod);
-    xschem_mod.addImport("core", core_mod);
-    xschem_mod.addImport("utility", utility_mod);
+    xschem_mod.addImport("core", ctx.core_mod);
+    xschem_mod.addImport("utility", ctx.utility_mod);
     xschem_mod.addImport("convert_types", ct_mod);
 
-    // Virtuoso module
-    const virtuoso_mod = b.addModule("virtuoso", .{
+    const virtuoso_mod = b.createModule(.{
         .root_source_file = b.path("src/Virtuoso/mod.zig"),
-        .target = target,
-        .optimize = optimize,
+        .target = ctx.target,
+        .optimize = ctx.optimize,
     });
     virtuoso_mod.addImport("convert_types", ct_mod);
 
-    // EasyImport top-level library module
-    const lib_mod = b.addModule("easyimport", .{
+    const lib_mod = b.createModule(.{
         .root_source_file = b.path("src/lib.zig"),
-        .target = target,
-        .optimize = optimize,
+        .target = ctx.target,
+        .optimize = ctx.optimize,
     });
     lib_mod.addImport("xschem", xschem_mod);
     lib_mod.addImport("virtuoso", virtuoso_mod);
     lib_mod.addImport("tcl", tcl_mod);
-    lib_mod.addImport("core", core_mod);
+    lib_mod.addImport("core", ctx.core_mod);
     lib_mod.addImport("convert_types", ct_mod);
 
-    // Umbrella test
+    // ── Native plugin (.so) ─────────────────────────────────────────────────
+
+    if (!ctx.is_web) {
+        const plugin_lib = helper.addNativePluginLibrary(b, ctx, "XSchemDropIN", "src/main.zig");
+        plugin_lib.root_module.addImport("easyimport", lib_mod);
+        b.installArtifact(plugin_lib);
+        helper.addNativeAutoInstallRunStep(b, "XSchemDropIN", sdk_dep, "EasyImport");
+    }
+
+    // Import requires filesystem access — no WASM plugin.
+
+    // ── Tests ───────────────────────────────────────────────────────────────
+
     const test_step = b.step("test", "Run all tests");
     {
         const tmod = b.createModule(.{
             .root_source_file = b.path("test/test_all.zig"),
-            .target = target,
-            .optimize = optimize,
+            .target = ctx.target,
+            .optimize = ctx.optimize,
         });
         tmod.addImport("xschem", xschem_mod);
         tmod.addImport("tcl", tcl_mod);
         tmod.addImport("virtuoso", virtuoso_mod);
         tmod.addImport("easyimport", lib_mod);
-        tmod.addImport("core", core_mod);
+        tmod.addImport("core", ctx.core_mod);
         tmod.addImport("convert_types", ct_mod);
 
         const t = b.addTest(.{ .root_module = tmod });

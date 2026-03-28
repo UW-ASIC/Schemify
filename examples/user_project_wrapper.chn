@@ -1,0 +1,182 @@
+chn 1.0
+
+SYMBOL user_project_wrapper
+
+  pins [26]:
+    analog_io[0:30]  inout
+    io_in[0:37]  in
+    io_oeb[0:37]  out
+    io_out[0:37]  out
+    la_data_in[0:127]  in
+    la_data_out[127:0]  out
+    la_oen[0:127]  in
+    user_clock2  in
+    wb_clk_i  in
+    wb_rst_i  in
+    wbs_ack_o  out
+    wbs_adr_i[0:31]  in
+    wbs_cyc_i  in
+    wbs_dat_i[0:31]  in
+    wbs_dat_o[0:31]  out
+    wbs_sel_i[0:3]  in
+    wbs_stb_i  in
+    wbs_we_i  in
+    vccd1.extra69  inout
+    vssd1.extra66  inout
+    vccd2.extra3  inout
+    vssd2.extra3  inout
+    vdda1.extra3  inout
+    vssa1.extra3  inout
+    vdda2.extra3  inout
+    vssa2.extra3  inout
+
+SCHEMATIC
+
+  instances [5]:
+    Xdecred_hash_block0  decred_hash_macro/decred_hash_macro  x=900  y=-760
+    Xdecred_hash_block1  decred_hash_macro/decred_hash_macro  x=900  y=-560
+    Xdecred_hash_block2  decred_hash_macro/decred_hash_macro  x=900  y=-360
+    Xdecred_hash_block3  decred_hash_macro/decred_hash_macro  x=900  y=-160
+    Xdecred_controller_block  decred_hash_macro/decred_controller  x=1730  y=-450
+
+  nets [44]:
+    DATA_AVAILABLE[0]  -> Xdecred_hash_block0.DATA_AVAILABLE
+    CLK  -> Xdecred_hash_block0.CLK, Xdecred_hash_block1.CLK, Xdecred_hash_block2.CLK, Xdecred_hash_block3.CLK, Xdecred_controller_block.m1_clk_local
+    DATA_TO_HASH[0:7]  -> Xdecred_hash_block0.DATA_TO_HASH[0], Xdecred_hash_block0.DATA_TO_HASH[1], Xdecred_hash_block0.DATA_TO_HASH[2], Xdecred_hash_block0.DATA_TO_HASH[3], Xdecred_hash_block0.DATA_TO_HASH[4], Xdecred_hash_block0.DATA_TO_HASH[5], Xdecred_hash_block0.DATA_TO_HASH[6], Xdecred_hash_block0.DATA_TO_HASH[7], Xdecred_hash_block1.DATA_TO_HASH[0], Xdecred_hash_block1.DATA_TO_HASH[1], Xdecred_hash_block1.DATA_TO_HASH[2], Xdecred_hash_block1.DATA_TO_HASH[3], Xdecred_hash_block1.DATA_TO_HASH[4], Xdecred_hash_block1.DATA_TO_HASH[5], Xdecred_hash_block1.DATA_TO_HASH[6], Xdecred_hash_block1.DATA_TO_HASH[7], Xdecred_hash_block2.DATA_TO_HASH[0], Xdecred_hash_block2.DATA_TO_HASH[1], Xdecred_hash_block2.DATA_TO_HASH[2], Xdecred_hash_block2.DATA_TO_HASH[3], Xdecred_hash_block2.DATA_TO_HASH[4], Xdecred_hash_block2.DATA_TO_HASH[5], Xdecred_hash_block2.DATA_TO_HASH[6], Xdecred_hash_block2.DATA_TO_HASH[7], Xdecred_hash_block3.DATA_TO_HASH[0], Xdecred_hash_block3.DATA_TO_HASH[1], Xdecred_hash_block3.DATA_TO_HASH[2], Xdecred_hash_block3.DATA_TO_HASH[3], Xdecred_hash_block3.DATA_TO_HASH[4], Xdecred_hash_block3.DATA_TO_HASH[5], Xdecred_hash_block3.DATA_TO_HASH[6], Xdecred_hash_block3.DATA_TO_HASH[7], Xdecred_controller_block.DATA_TO_HASH[0], Xdecred_controller_block.DATA_TO_HASH[1], Xdecred_controller_block.DATA_TO_HASH[2], Xdecred_controller_block.DATA_TO_HASH[3], Xdecred_controller_block.DATA_TO_HASH[4], Xdecred_controller_block.DATA_TO_HASH[5], Xdecred_controller_block.DATA_TO_HASH[6], Xdecred_controller_block.DATA_TO_HASH[7]
+    DATA_FROM_HASH[0:7]  -> Xdecred_hash_block0.DATA_FROM_HASH[0], Xdecred_hash_block0.DATA_FROM_HASH[1], Xdecred_hash_block0.DATA_FROM_HASH[2], Xdecred_hash_block0.DATA_FROM_HASH[3], Xdecred_hash_block0.DATA_FROM_HASH[4], Xdecred_hash_block0.DATA_FROM_HASH[5], Xdecred_hash_block0.DATA_FROM_HASH[6], Xdecred_hash_block0.DATA_FROM_HASH[7], Xdecred_hash_block1.DATA_FROM_HASH[0], Xdecred_hash_block1.DATA_FROM_HASH[1], Xdecred_hash_block1.DATA_FROM_HASH[2], Xdecred_hash_block1.DATA_FROM_HASH[3], Xdecred_hash_block1.DATA_FROM_HASH[4], Xdecred_hash_block1.DATA_FROM_HASH[5], Xdecred_hash_block1.DATA_FROM_HASH[6], Xdecred_hash_block1.DATA_FROM_HASH[7], Xdecred_hash_block2.DATA_FROM_HASH[0], Xdecred_hash_block2.DATA_FROM_HASH[1], Xdecred_hash_block2.DATA_FROM_HASH[2], Xdecred_hash_block2.DATA_FROM_HASH[3], Xdecred_hash_block2.DATA_FROM_HASH[4], Xdecred_hash_block2.DATA_FROM_HASH[5], Xdecred_hash_block2.DATA_FROM_HASH[6], Xdecred_hash_block2.DATA_FROM_HASH[7], Xdecred_hash_block3.DATA_FROM_HASH[0], Xdecred_hash_block3.DATA_FROM_HASH[1], Xdecred_hash_block3.DATA_FROM_HASH[2], Xdecred_hash_block3.DATA_FROM_HASH[3], Xdecred_hash_block3.DATA_FROM_HASH[4], Xdecred_hash_block3.DATA_FROM_HASH[5], Xdecred_hash_block3.DATA_FROM_HASH[6], Xdecred_hash_block3.DATA_FROM_HASH[7], Xdecred_controller_block.DATA_FROM_HASH[0], Xdecred_controller_block.DATA_FROM_HASH[1], Xdecred_controller_block.DATA_FROM_HASH[2], Xdecred_controller_block.DATA_FROM_HASH[3], Xdecred_controller_block.DATA_FROM_HASH[4], Xdecred_controller_block.DATA_FROM_HASH[5], Xdecred_controller_block.DATA_FROM_HASH[6], Xdecred_controller_block.DATA_FROM_HASH[7]
+    HASH_ADDR[0:5]  -> Xdecred_hash_block0.HASH_ADDR[0], Xdecred_hash_block0.HASH_ADDR[1], Xdecred_hash_block0.HASH_ADDR[2], Xdecred_hash_block0.HASH_ADDR[3], Xdecred_hash_block0.HASH_ADDR[4], Xdecred_hash_block0.HASH_ADDR[5], Xdecred_hash_block1.HASH_ADDR[0], Xdecred_hash_block1.HASH_ADDR[1], Xdecred_hash_block1.HASH_ADDR[2], Xdecred_hash_block1.HASH_ADDR[3], Xdecred_hash_block1.HASH_ADDR[4], Xdecred_hash_block1.HASH_ADDR[5], Xdecred_hash_block2.HASH_ADDR[0], Xdecred_hash_block2.HASH_ADDR[1], Xdecred_hash_block2.HASH_ADDR[2], Xdecred_hash_block2.HASH_ADDR[3], Xdecred_hash_block2.HASH_ADDR[4], Xdecred_hash_block2.HASH_ADDR[5], Xdecred_hash_block3.HASH_ADDR[0], Xdecred_hash_block3.HASH_ADDR[1], Xdecred_hash_block3.HASH_ADDR[2], Xdecred_hash_block3.HASH_ADDR[3], Xdecred_hash_block3.HASH_ADDR[4], Xdecred_hash_block3.HASH_ADDR[5], Xdecred_controller_block.HASH_ADDR[0], Xdecred_controller_block.HASH_ADDR[1], Xdecred_controller_block.HASH_ADDR[2], Xdecred_controller_block.HASH_ADDR[3], Xdecred_controller_block.HASH_ADDR[4], Xdecred_controller_block.HASH_ADDR[5]
+    HASH_EN  -> Xdecred_hash_block0.HASH_EN, Xdecred_hash_block1.HASH_EN, Xdecred_hash_block2.HASH_EN, Xdecred_hash_block3.HASH_EN, Xdecred_controller_block.HASH_EN
+    MACRO_RD_SELECT[0]  -> Xdecred_hash_block0.MACRO_RD_SELECT
+    THREAD_COUNT[0:3]  -> Xdecred_hash_block0.THREAD_COUNT[0], Xdecred_hash_block0.THREAD_COUNT[1], Xdecred_hash_block0.THREAD_COUNT[2], Xdecred_hash_block0.THREAD_COUNT[3], Xdecred_hash_block1.THREAD_COUNT[0], Xdecred_hash_block1.THREAD_COUNT[1], Xdecred_hash_block1.THREAD_COUNT[2], Xdecred_hash_block1.THREAD_COUNT[3], Xdecred_hash_block2.THREAD_COUNT[0], Xdecred_hash_block2.THREAD_COUNT[1], Xdecred_hash_block2.THREAD_COUNT[2], Xdecred_hash_block2.THREAD_COUNT[3], Xdecred_hash_block3.THREAD_COUNT[0], Xdecred_hash_block3.THREAD_COUNT[1], Xdecred_hash_block3.THREAD_COUNT[2], Xdecred_hash_block3.THREAD_COUNT[3], Xdecred_controller_block.THREAD_COUNT[0], Xdecred_controller_block.THREAD_COUNT[1], Xdecred_controller_block.THREAD_COUNT[2], Xdecred_controller_block.THREAD_COUNT[3]
+    MACRO_WR_SELECT[0]  -> Xdecred_hash_block0.MACRO_WR_SELECT
+    DATA_AVAILABLE[1]  -> Xdecred_hash_block1.DATA_AVAILABLE
+    MACRO_RD_SELECT[1]  -> Xdecred_hash_block1.MACRO_RD_SELECT
+    MACRO_WR_SELECT[1]  -> Xdecred_hash_block1.MACRO_WR_SELECT
+    DATA_AVAILABLE[2]  -> Xdecred_hash_block2.DATA_AVAILABLE
+    MACRO_RD_SELECT[2]  -> Xdecred_hash_block2.MACRO_RD_SELECT
+    MACRO_WR_SELECT[2]  -> Xdecred_hash_block2.MACRO_WR_SELECT
+    DATA_AVAILABLE[3]  -> Xdecred_hash_block3.DATA_AVAILABLE
+    MACRO_RD_SELECT[3]  -> Xdecred_hash_block3.MACRO_RD_SELECT
+    MACRO_WR_SELECT[3]  -> Xdecred_hash_block3.MACRO_WR_SELECT
+    io_out[24]  -> Xdecred_controller_block.CLK_LED
+    DATA_AVAILABLE[0:3]  -> Xdecred_controller_block.DATA_AVAILABLE[0], Xdecred_controller_block.DATA_AVAILABLE[1], Xdecred_controller_block.DATA_AVAILABLE[2], Xdecred_controller_block.DATA_AVAILABLE[3]
+    io_in[8]  -> Xdecred_controller_block.EXT_RESET_N_fromHost
+    io_out[22]  -> Xdecred_controller_block.EXT_RESET_N_toClient
+    io_out[26]  -> Xdecred_controller_block.HASH_LED
+    io_in[18]  -> Xdecred_controller_block.ID_fromClient
+    io_out[23]  -> Xdecred_controller_block.ID_toHost
+    io_in[17]  -> Xdecred_controller_block.IRQ_OUT_fromClient
+    io_out[27]  -> Xdecred_controller_block.IRQ_OUT_toHost
+    io_in[10]  -> Xdecred_controller_block.M1_CLK_IN
+    io_in[11]  -> Xdecred_controller_block.M1_CLK_SELECT
+    MACRO_RD_SELECT[0:3]  -> Xdecred_controller_block.MACRO_RD_SELECT[0], Xdecred_controller_block.MACRO_RD_SELECT[1], Xdecred_controller_block.MACRO_RD_SELECT[2], Xdecred_controller_block.MACRO_RD_SELECT[3]
+    MACRO_WR_SELECT[0:3]  -> Xdecred_controller_block.MACRO_WR_SELECT[0], Xdecred_controller_block.MACRO_WR_SELECT[1], Xdecred_controller_block.MACRO_WR_SELECT[2], Xdecred_controller_block.MACRO_WR_SELECT[3]
+    io_in[16]  -> Xdecred_controller_block.MISO_fromClient
+    io_out[25]  -> Xdecred_controller_block.MISO_toHost
+    io_in[15]  -> Xdecred_controller_block.MOSI_fromHost
+    io_out[21]  -> Xdecred_controller_block.MOSI_toClient
+    user_clock2  -> Xdecred_controller_block.PLL_INPUT
+    io_in[12]  -> Xdecred_controller_block.S1_CLK_IN
+    io_in[13]  -> Xdecred_controller_block.S1_CLK_SELECT
+    io_in[9]  -> Xdecred_controller_block.SCLK_fromHost
+    io_out[20]  -> Xdecred_controller_block.SCLK_toClient
+    io_in[14]  -> Xdecred_controller_block.SCSN_fromHost
+    io_out[19]  -> Xdecred_controller_block.SCSN_toClient
+    io_oeb[9]  -> Xdecred_controller_block.one
+    io_oeb[27]  -> Xdecred_controller_block.zero
+
+  wires [94]:
+    750 -810 750 -810 CLK
+    1050 -810 1050 -810 DATA_AVAILABLE[0]
+    1050 -790 1050 -790 DATA_FROM_HASH[0:7]
+    750 -790 750 -790 DATA_TO_HASH[0:7]
+    750 -770 750 -770 HASH_ADDR[0:5]
+    750 -750 750 -750 HASH_EN
+    750 -730 750 -730 MACRO_RD_SELECT[0]
+    750 -710 750 -710 MACRO_WR_SELECT[0]
+    1050 -770 1050 -770 THREAD_COUNT[0:3]
+    750 -610 750 -610 CLK
+    1050 -590 1050 -590 DATA_FROM_HASH[0:7]
+    750 -590 750 -590 DATA_TO_HASH[0:7]
+    750 -570 750 -570 HASH_ADDR[0:5]
+    750 -550 750 -550 HASH_EN
+    750 -510 750 -510 MACRO_WR_SELECT[1]
+    1050 -570 1050 -570 THREAD_COUNT[0:3]
+    750 -410 750 -410 CLK
+    1050 -390 1050 -390 DATA_FROM_HASH[0:7]
+    750 -390 750 -390 DATA_TO_HASH[0:7]
+    750 -370 750 -370 HASH_ADDR[0:5]
+    750 -350 750 -350 HASH_EN
+    750 -310 750 -310 MACRO_WR_SELECT[2]
+    1050 -370 1050 -370 THREAD_COUNT[0:3]
+    750 -210 750 -210 CLK
+    1050 -190 1050 -190 DATA_FROM_HASH[0:7]
+    750 -190 750 -190 DATA_TO_HASH[0:7]
+    750 -170 750 -170 HASH_ADDR[0:5]
+    750 -150 750 -150 HASH_EN
+    750 -110 750 -110 MACRO_WR_SELECT[3]
+    1050 -170 1050 -170 THREAD_COUNT[0:3]
+    1880 -760 1880 -760 io_out[24]
+    1580 -740 1580 -740 DATA_AVAILABLE[0:3]
+    1580 -720 1580 -720 DATA_FROM_HASH[0:7]
+    1880 -700 1880 -700 DATA_TO_HASH[0:7]
+    1580 -680 1580 -680 io_in[8]
+    1880 -660 1880 -660 io_out[22]
+    1880 -640 1880 -640 HASH_ADDR[0:5]
+    1880 -620 1880 -620 HASH_EN
+    1880 -600 1880 -600 io_out[26]
+    1580 -580 1580 -580 io_in[18]
+    1880 -560 1880 -560 io_out[23]
+    1580 -540 1580 -540 io_in[17]
+    1880 -520 1880 -520 io_out[27]
+    1580 -500 1580 -500 io_in[10]
+    1580 -480 1580 -480 io_in[11]
+    1880 -460 1880 -460 MACRO_RD_SELECT[0:3]
+    1880 -440 1880 -440 MACRO_WR_SELECT[0:3]
+    1580 -420 1580 -420 io_in[16]
+    1880 -400 1880 -400 io_out[25]
+    1580 -380 1580 -380 io_in[15]
+    1880 -360 1880 -360 io_out[21]
+    1580 -340 1580 -340 user_clock2
+    1580 -320 1580 -320 io_in[12]
+    1580 -300 1580 -300 io_in[13]
+    1580 -280 1580 -280 io_in[9]
+    1880 -260 1880 -260 io_out[20]
+    1580 -240 1580 -240 io_in[14]
+    1880 -220 1880 -220 io_out[19]
+    1580 -200 1580 -200 THREAD_COUNT[0:3]
+    1880 -180 1880 -180 CLK
+    1880 -160 1880 -160 io_oeb[9]
+    1880 -140 1880 -140 io_oeb[27]
+    1050 -610 1050 -610 DATA_AVAILABLE[1]
+    1050 -410 1050 -410 DATA_AVAILABLE[2]
+    1050 -210 1050 -210 DATA_AVAILABLE[3]
+    750 -530 750 -530 MACRO_RD_SELECT[1]
+    750 -330 750 -330 MACRO_RD_SELECT[2]
+    750 -130 750 -130 MACRO_RD_SELECT[3]
+    240 -190 240 -190 analog_io[0:30]
+    180 -400 180 -400 io_in[0:37]
+    240 -550 240 -550 io_oeb[0:37]
+    240 -530 240 -530 io_out[0:37]
+    180 -380 180 -380 la_data_in[0:127]
+    240 -510 240 -510 la_data_out[127:0]
+    180 -420 180 -420 la_oen[0:127]
+    180 -360 180 -360 user_clock2
+    180 -340 180 -340 wb_clk_i
+    180 -320 180 -320 wb_rst_i
+    240 -490 240 -490 wbs_ack_o
+    180 -300 180 -300 wbs_adr_i[0:31]
+    180 -280 180 -280 wbs_cyc_i
+    180 -260 180 -260 wbs_dat_i[0:31]
+    240 -470 240 -470 wbs_dat_o[0:31]
+    180 -240 180 -240 wbs_sel_i[0:3]
+    180 -220 180 -220 wbs_stb_i
+    180 -200 180 -200 wbs_we_i
+    240 -350 240 -350 vccd1.extra69
+    240 -330 240 -330 vssd1.extra66
+    240 -310 240 -310 vccd2.extra3
+    240 -290 240 -290 vssd2.extra3
+    240 -270 240 -270 vdda1.extra3
+    240 -250 240 -250 vssa1.extra3
+    240 -230 240 -230 vdda2.extra3
+    240 -210 240 -210 vssa2.extra3

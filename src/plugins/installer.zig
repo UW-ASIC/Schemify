@@ -209,39 +209,47 @@ pub const Installer = struct {
             entries.deinit(allocator);
         }
 
-        // Parse existing manifest if present; silently ignore missing/corrupt file.
-        if (Vfs.readAlloc(allocator, manifest_path)) |existing| {
-            defer allocator.free(existing);
-            // Inline: scan JSON array for quoted filename strings.
-            if (std.mem.indexOf(u8, existing, "\"plugins\"")) |arr_start| {
-                if (std.mem.indexOfPos(u8, existing, arr_start, "[")) |bracket| {
-                    if (std.mem.indexOfPos(u8, existing, bracket, "]")) |bracket_end| {
-                        const arr_body = existing[bracket + 1 .. bracket_end];
-                        var pos: usize = 0;
-                        while (std.mem.indexOfPos(u8, arr_body, pos, "\"")) |qs| {
-                            const qe = std.mem.indexOfPos(u8, arr_body, qs + 1, "\"") orelse break;
-                            const entry = arr_body[qs + 1 .. qe];
-                            if (entry.len > 0) try entries.append(allocator, try allocator.dupe(u8, entry));
-                            pos = qe + 1;
-                        }
-                    }
-                }
-            }
-        } else |_| {}
+        readManifestEntries(allocator, manifest_path, &entries) catch {};
 
-        const already = for (entries.items) |e| {
-            if (std.mem.eql(u8, e, filename)) break true;
-        } else false;
-
-        if (!already) {
+        if (!containsEntry(entries.items, filename)) {
             try entries.append(allocator, try allocator.dupe(u8, filename));
         }
 
+        try writeManifest(allocator, manifest_path, entries.items);
+    }
+
+    fn readManifestEntries(
+        allocator: std.mem.Allocator,
+        manifest_path: []const u8,
+        entries: *std.ArrayListUnmanaged([]u8),
+    ) !void {
+        const existing = try Vfs.readAlloc(allocator, manifest_path);
+        defer allocator.free(existing);
+
+        const plugins_key_idx = std.mem.indexOf(u8, existing, "\"plugins\"") orelse return;
+        const arr_open = std.mem.indexOfPos(u8, existing, plugins_key_idx, "[") orelse return;
+        const arr_close = std.mem.indexOfPos(u8, existing, arr_open, "]") orelse return;
+        const arr_body = existing[arr_open + 1 .. arr_close];
+
+        var pos: usize = 0;
+        while (std.mem.indexOfPos(u8, arr_body, pos, "\"")) |qs| {
+            const qe = std.mem.indexOfPos(u8, arr_body, qs + 1, "\"") orelse break;
+            const entry = arr_body[qs + 1 .. qe];
+            if (entry.len > 0) try entries.append(allocator, try allocator.dupe(u8, entry));
+            pos = qe + 1;
+        }
+    }
+
+    fn writeManifest(
+        allocator: std.mem.Allocator,
+        manifest_path: []const u8,
+        entries: []const []u8,
+    ) !void {
         var out = std.ArrayListUnmanaged(u8){};
         defer out.deinit(allocator);
         const w = out.writer(allocator);
         try w.writeAll("{\n  \"plugins\": [\n");
-        for (entries.items, 0..) |e, i| {
+        for (entries, 0..) |e, i| {
             if (i > 0) try w.writeAll(",\n");
             try w.print("    \"{s}\"", .{e});
         }
@@ -278,6 +286,13 @@ pub const Installer = struct {
 fn hasPluginExt(ext: []const u8) bool {
     for (all_plugin_exts) |e| {
         if (std.mem.eql(u8, ext, e)) return true;
+    }
+    return false;
+}
+
+fn containsEntry(entries: []const []u8, name: []const u8) bool {
+    for (entries) |e| {
+        if (std.mem.eql(u8, e, name)) return true;
     }
     return false;
 }

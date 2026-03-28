@@ -1,0 +1,81 @@
+chn 1.0
+
+SYMBOL test_carry_lookahead
+
+  pins [3]:
+    A[255:0]  in
+    B[255:0]  in
+    CIN  in
+
+SCHEMATIC
+
+  instances [13]:
+    xaddcarry256[255:0]  sky130_stdcells/fah_1  x=590  y=-390  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC
+    xadd256  sky130_tests/adder_256bit  x=610  y=-240
+    C7[255:0]  devices/parax_cap  x=650  y=-340  gnd=0  value=5f  m=1
+    C8[255:0]  devices/parax_cap  x=650  y=-420  gnd=0  value=5f  m=1
+    CORNER  sky130_fd_pr/corner  x=30  y=-600  only_toplevel=true  corner=tt
+    xadd32  sky130_tests/adder_32bit  x=610  y=-110
+    xaddcarry32[31:0]  sky130_stdcells/fah_1  x=1050  y=-390  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC
+    C2[255:0]  devices/parax_cap  x=870  y=-280  rot=2  gnd=0  value=5f  m=1
+    C3[255:0]  devices/parax_cap  x=870  y=-150  rot=2  gnd=0  value=5f  m=1
+    C6  devices/parax_cap  x=870  y=-240  gnd=0  value=5f  m=1
+    C1  devices/parax_cap  x=870  y=-110  gnd=0  value=5f  m=1
+    C4[31:0]  devices/parax_cap  x=1110  y=-340  gnd=0  value=5f  m=1
+    C5[31:0]  devices/parax_cap  x=1110  y=-420  gnd=0  value=5f  m=1
+
+  nets [19]:
+    A[255:0]  -> xaddcarry256[255:0].A, xadd256.A[255], xadd256.A[254], xadd256.A[253], xadd256.A[252], xadd256.A[251], xadd256.A[250], xadd256.A[249], xadd256.A[248], xadd256.A[247], xadd256.A[246], xadd256.A[245], xadd256.A[244], xadd256.A[243], xadd256.A[242], xadd256.A[241], xadd256.A[240], xadd256.A[239], xadd256.A[238], xadd256.A[237], xadd256.A[236], xadd256.A[235], xadd256.A[234], xadd256.A[233], xadd256.A[232], xadd256.A[231], xadd256.A[230], xadd256.A[229], xadd256.A[228], xadd256.A[227], xadd256.A[226], xadd256.A[225], xadd256.A[224], xadd256.A[223], xadd256.A[222], xadd256.A[221], xadd256.A[220], xadd256.A[219], xadd256.A[218], xadd256.A[217], xadd256.A[216], xadd256.A[215], xadd256.A[214], xadd256.A[213], xadd256.A[212], xadd256.A[211], xadd256.A[210], xadd256.A[209], xadd256.A[208], xadd256.A[207], xadd256.A[206], xadd256.A[205], xadd256.A[204], xadd256.A[203], xadd256.A[202], xadd256.A[201], xadd256.A[200], xadd256.A[199], xadd256.A[198], xadd256.A[197], xadd256.A[196], xadd256.A[195], xadd256.A[194], xadd256.A[193], xadd256.A[192], xadd256.A[191], xadd256.A[190], xadd256.A[189], xadd256.A[188], xadd256.A[187], xadd256.A[186], xadd256.A[185], xadd256.A[184], xadd256.A[183], xadd256.A[182], xadd256.A[181], xadd256.A[180], xadd256.A[179], xadd256.A[178], xadd256.A[177], xadd256.A[176], xadd256.A[175], xadd256.A[174], xadd256.A[173], xadd256.A[172], xadd256.A[171], xadd256.A[170], xadd256.A[169], xadd256.A[168], xadd256.A[167], xadd256.A[166], xadd256.A[165], xadd256.A[164], xadd256.A[163], xadd256.A[162], xadd256.A[161], xadd256.A[160], xadd256.A[159], xadd256.A[158], xadd256.A[157], xadd256.A[156], xadd256.A[155], xadd256.A[154], xadd256.A[153], xadd256.A[152], xadd256.A[151], xadd256.A[150], xadd256.A[149], xadd256.A[148], xadd256.A[147], xadd256.A[146], xadd256.A[145], xadd256.A[144], xadd256.A[143], xadd256.A[142], xadd256.A[141], xadd256.A[140], xadd256.A[139], xadd256.A[138], xadd256.A[137], xadd256.A[136], xadd256.A[135], xadd256.A[134], xadd256.A[133], xadd256.A[132], xadd256.A[131], xadd256.A[130], xadd256.A[129], xadd256.A[128], xadd256.A[127], xadd256.A[126], xadd256.A[125], xadd256.A[124], xadd256.A[123], xadd256.A[122], xadd256.A[121], xadd256.A[120], xadd256.A[119], xadd256.A[118], xadd256.A[117], xadd256.A[116], xadd256.A[115], xadd256.A[114], xadd256.A[113], xadd256.A[112], xadd256.A[111], xadd256.A[110], xadd256.A[109], xadd256.A[108], xadd256.A[107], xadd256.A[106], xadd256.A[105], xadd256.A[104], xadd256.A[103], xadd256.A[102], xadd256.A[101], xadd256.A[100], xadd256.A[99], xadd256.A[98], xadd256.A[97], xadd256.A[96], xadd256.A[95], xadd256.A[94], xadd256.A[93], xadd256.A[92], xadd256.A[91], xadd256.A[90], xadd256.A[89], xadd256.A[88], xadd256.A[87], xadd256.A[86], xadd256.A[85], xadd256.A[84], xadd256.A[83], xadd256.A[82], xadd256.A[81], xadd256.A[80], xadd256.A[79], xadd256.A[78], xadd256.A[77], xadd256.A[76], xadd256.A[75], xadd256.A[74], xadd256.A[73], xadd256.A[72], xadd256.A[71], xadd256.A[70], xadd256.A[69], xadd256.A[68], xadd256.A[67], xadd256.A[66], xadd256.A[65], xadd256.A[64], xadd256.A[63], xadd256.A[62], xadd256.A[61], xadd256.A[60], xadd256.A[59], xadd256.A[58], xadd256.A[57], xadd256.A[56], xadd256.A[55], xadd256.A[54], xadd256.A[53], xadd256.A[52], xadd256.A[51], xadd256.A[50], xadd256.A[49], xadd256.A[48], xadd256.A[47], xadd256.A[46], xadd256.A[45], xadd256.A[44], xadd256.A[43], xadd256.A[42], xadd256.A[41], xadd256.A[40], xadd256.A[39], xadd256.A[38], xadd256.A[37], xadd256.A[36], xadd256.A[35], xadd256.A[34], xadd256.A[33], xadd256.A[32], xadd256.A[31], xadd256.A[30], xadd256.A[29], xadd256.A[28], xadd256.A[27], xadd256.A[26], xadd256.A[25], xadd256.A[24], xadd256.A[23], xadd256.A[22], xadd256.A[21], xadd256.A[20], xadd256.A[19], xadd256.A[18], xadd256.A[17], xadd256.A[16], xadd256.A[15], xadd256.A[14], xadd256.A[13], xadd256.A[12], xadd256.A[11], xadd256.A[10], xadd256.A[9], xadd256.A[8], xadd256.A[7], xadd256.A[6], xadd256.A[5], xadd256.A[4], xadd256.A[3], xadd256.A[2], xadd256.A[1], xadd256.A[0]
+    B[255:0]  -> xaddcarry256[255:0].B, xadd256.B[255], xadd256.B[254], xadd256.B[253], xadd256.B[252], xadd256.B[251], xadd256.B[250], xadd256.B[249], xadd256.B[248], xadd256.B[247], xadd256.B[246], xadd256.B[245], xadd256.B[244], xadd256.B[243], xadd256.B[242], xadd256.B[241], xadd256.B[240], xadd256.B[239], xadd256.B[238], xadd256.B[237], xadd256.B[236], xadd256.B[235], xadd256.B[234], xadd256.B[233], xadd256.B[232], xadd256.B[231], xadd256.B[230], xadd256.B[229], xadd256.B[228], xadd256.B[227], xadd256.B[226], xadd256.B[225], xadd256.B[224], xadd256.B[223], xadd256.B[222], xadd256.B[221], xadd256.B[220], xadd256.B[219], xadd256.B[218], xadd256.B[217], xadd256.B[216], xadd256.B[215], xadd256.B[214], xadd256.B[213], xadd256.B[212], xadd256.B[211], xadd256.B[210], xadd256.B[209], xadd256.B[208], xadd256.B[207], xadd256.B[206], xadd256.B[205], xadd256.B[204], xadd256.B[203], xadd256.B[202], xadd256.B[201], xadd256.B[200], xadd256.B[199], xadd256.B[198], xadd256.B[197], xadd256.B[196], xadd256.B[195], xadd256.B[194], xadd256.B[193], xadd256.B[192], xadd256.B[191], xadd256.B[190], xadd256.B[189], xadd256.B[188], xadd256.B[187], xadd256.B[186], xadd256.B[185], xadd256.B[184], xadd256.B[183], xadd256.B[182], xadd256.B[181], xadd256.B[180], xadd256.B[179], xadd256.B[178], xadd256.B[177], xadd256.B[176], xadd256.B[175], xadd256.B[174], xadd256.B[173], xadd256.B[172], xadd256.B[171], xadd256.B[170], xadd256.B[169], xadd256.B[168], xadd256.B[167], xadd256.B[166], xadd256.B[165], xadd256.B[164], xadd256.B[163], xadd256.B[162], xadd256.B[161], xadd256.B[160], xadd256.B[159], xadd256.B[158], xadd256.B[157], xadd256.B[156], xadd256.B[155], xadd256.B[154], xadd256.B[153], xadd256.B[152], xadd256.B[151], xadd256.B[150], xadd256.B[149], xadd256.B[148], xadd256.B[147], xadd256.B[146], xadd256.B[145], xadd256.B[144], xadd256.B[143], xadd256.B[142], xadd256.B[141], xadd256.B[140], xadd256.B[139], xadd256.B[138], xadd256.B[137], xadd256.B[136], xadd256.B[135], xadd256.B[134], xadd256.B[133], xadd256.B[132], xadd256.B[131], xadd256.B[130], xadd256.B[129], xadd256.B[128], xadd256.B[127], xadd256.B[126], xadd256.B[125], xadd256.B[124], xadd256.B[123], xadd256.B[122], xadd256.B[121], xadd256.B[120], xadd256.B[119], xadd256.B[118], xadd256.B[117], xadd256.B[116], xadd256.B[115], xadd256.B[114], xadd256.B[113], xadd256.B[112], xadd256.B[111], xadd256.B[110], xadd256.B[109], xadd256.B[108], xadd256.B[107], xadd256.B[106], xadd256.B[105], xadd256.B[104], xadd256.B[103], xadd256.B[102], xadd256.B[101], xadd256.B[100], xadd256.B[99], xadd256.B[98], xadd256.B[97], xadd256.B[96], xadd256.B[95], xadd256.B[94], xadd256.B[93], xadd256.B[92], xadd256.B[91], xadd256.B[90], xadd256.B[89], xadd256.B[88], xadd256.B[87], xadd256.B[86], xadd256.B[85], xadd256.B[84], xadd256.B[83], xadd256.B[82], xadd256.B[81], xadd256.B[80], xadd256.B[79], xadd256.B[78], xadd256.B[77], xadd256.B[76], xadd256.B[75], xadd256.B[74], xadd256.B[73], xadd256.B[72], xadd256.B[71], xadd256.B[70], xadd256.B[69], xadd256.B[68], xadd256.B[67], xadd256.B[66], xadd256.B[65], xadd256.B[64], xadd256.B[63], xadd256.B[62], xadd256.B[61], xadd256.B[60], xadd256.B[59], xadd256.B[58], xadd256.B[57], xadd256.B[56], xadd256.B[55], xadd256.B[54], xadd256.B[53], xadd256.B[52], xadd256.B[51], xadd256.B[50], xadd256.B[49], xadd256.B[48], xadd256.B[47], xadd256.B[46], xadd256.B[45], xadd256.B[44], xadd256.B[43], xadd256.B[42], xadd256.B[41], xadd256.B[40], xadd256.B[39], xadd256.B[38], xadd256.B[37], xadd256.B[36], xadd256.B[35], xadd256.B[34], xadd256.B[33], xadd256.B[32], xadd256.B[31], xadd256.B[30], xadd256.B[29], xadd256.B[28], xadd256.B[27], xadd256.B[26], xadd256.B[25], xadd256.B[24], xadd256.B[23], xadd256.B[22], xadd256.B[21], xadd256.B[20], xadd256.B[19], xadd256.B[18], xadd256.B[17], xadd256.B[16], xadd256.B[15], xadd256.B[14], xadd256.B[13], xadd256.B[12], xadd256.B[11], xadd256.B[10], xadd256.B[9], xadd256.B[8], xadd256.B[7], xadd256.B[6], xadd256.B[5], xadd256.B[4], xadd256.B[3], xadd256.B[2], xadd256.B[1], xadd256.B[0]
+    CARRY0[254:0],CIN  -> xaddcarry256[255:0].CI
+    CARRY0[255:0]  -> xaddcarry256[255:0].COUT, C8[255:0].p
+    S0[255:0]  -> xaddcarry256[255:0].SUM, C7[255:0].p
+    S3[255:0]  -> xadd256.S[255], xadd256.S[254], xadd256.S[253], xadd256.S[252], xadd256.S[251], xadd256.S[250], xadd256.S[249], xadd256.S[248], xadd256.S[247], xadd256.S[246], xadd256.S[245], xadd256.S[244], xadd256.S[243], xadd256.S[242], xadd256.S[241], xadd256.S[240], xadd256.S[239], xadd256.S[238], xadd256.S[237], xadd256.S[236], xadd256.S[235], xadd256.S[234], xadd256.S[233], xadd256.S[232], xadd256.S[231], xadd256.S[230], xadd256.S[229], xadd256.S[228], xadd256.S[227], xadd256.S[226], xadd256.S[225], xadd256.S[224], xadd256.S[223], xadd256.S[222], xadd256.S[221], xadd256.S[220], xadd256.S[219], xadd256.S[218], xadd256.S[217], xadd256.S[216], xadd256.S[215], xadd256.S[214], xadd256.S[213], xadd256.S[212], xadd256.S[211], xadd256.S[210], xadd256.S[209], xadd256.S[208], xadd256.S[207], xadd256.S[206], xadd256.S[205], xadd256.S[204], xadd256.S[203], xadd256.S[202], xadd256.S[201], xadd256.S[200], xadd256.S[199], xadd256.S[198], xadd256.S[197], xadd256.S[196], xadd256.S[195], xadd256.S[194], xadd256.S[193], xadd256.S[192], xadd256.S[191], xadd256.S[190], xadd256.S[189], xadd256.S[188], xadd256.S[187], xadd256.S[186], xadd256.S[185], xadd256.S[184], xadd256.S[183], xadd256.S[182], xadd256.S[181], xadd256.S[180], xadd256.S[179], xadd256.S[178], xadd256.S[177], xadd256.S[176], xadd256.S[175], xadd256.S[174], xadd256.S[173], xadd256.S[172], xadd256.S[171], xadd256.S[170], xadd256.S[169], xadd256.S[168], xadd256.S[167], xadd256.S[166], xadd256.S[165], xadd256.S[164], xadd256.S[163], xadd256.S[162], xadd256.S[161], xadd256.S[160], xadd256.S[159], xadd256.S[158], xadd256.S[157], xadd256.S[156], xadd256.S[155], xadd256.S[154], xadd256.S[153], xadd256.S[152], xadd256.S[151], xadd256.S[150], xadd256.S[149], xadd256.S[148], xadd256.S[147], xadd256.S[146], xadd256.S[145], xadd256.S[144], xadd256.S[143], xadd256.S[142], xadd256.S[141], xadd256.S[140], xadd256.S[139], xadd256.S[138], xadd256.S[137], xadd256.S[136], xadd256.S[135], xadd256.S[134], xadd256.S[133], xadd256.S[132], xadd256.S[131], xadd256.S[130], xadd256.S[129], xadd256.S[128], xadd256.S[127], xadd256.S[126], xadd256.S[125], xadd256.S[124], xadd256.S[123], xadd256.S[122], xadd256.S[121], xadd256.S[120], xadd256.S[119], xadd256.S[118], xadd256.S[117], xadd256.S[116], xadd256.S[115], xadd256.S[114], xadd256.S[113], xadd256.S[112], xadd256.S[111], xadd256.S[110], xadd256.S[109], xadd256.S[108], xadd256.S[107], xadd256.S[106], xadd256.S[105], xadd256.S[104], xadd256.S[103], xadd256.S[102], xadd256.S[101], xadd256.S[100], xadd256.S[99], xadd256.S[98], xadd256.S[97], xadd256.S[96], xadd256.S[95], xadd256.S[94], xadd256.S[93], xadd256.S[92], xadd256.S[91], xadd256.S[90], xadd256.S[89], xadd256.S[88], xadd256.S[87], xadd256.S[86], xadd256.S[85], xadd256.S[84], xadd256.S[83], xadd256.S[82], xadd256.S[81], xadd256.S[80], xadd256.S[79], xadd256.S[78], xadd256.S[77], xadd256.S[76], xadd256.S[75], xadd256.S[74], xadd256.S[73], xadd256.S[72], xadd256.S[71], xadd256.S[70], xadd256.S[69], xadd256.S[68], xadd256.S[67], xadd256.S[66], xadd256.S[65], xadd256.S[64], xadd256.S[63], xadd256.S[62], xadd256.S[61], xadd256.S[60], xadd256.S[59], xadd256.S[58], xadd256.S[57], xadd256.S[56], xadd256.S[55], xadd256.S[54], xadd256.S[53], xadd256.S[52], xadd256.S[51], xadd256.S[50], xadd256.S[49], xadd256.S[48], xadd256.S[47], xadd256.S[46], xadd256.S[45], xadd256.S[44], xadd256.S[43], xadd256.S[42], xadd256.S[41], xadd256.S[40], xadd256.S[39], xadd256.S[38], xadd256.S[37], xadd256.S[36], xadd256.S[35], xadd256.S[34], xadd256.S[33], xadd256.S[32], xadd256.S[31], xadd256.S[30], xadd256.S[29], xadd256.S[28], xadd256.S[27], xadd256.S[26], xadd256.S[25], xadd256.S[24], xadd256.S[23], xadd256.S[22], xadd256.S[21], xadd256.S[20], xadd256.S[19], xadd256.S[18], xadd256.S[17], xadd256.S[16], xadd256.S[15], xadd256.S[14], xadd256.S[13], xadd256.S[12], xadd256.S[11], xadd256.S[10], xadd256.S[9], xadd256.S[8], xadd256.S[7], xadd256.S[6], xadd256.S[5], xadd256.S[4], xadd256.S[3], xadd256.S[2], xadd256.S[1], xadd256.S[0], C2[255:0].p
+    COUT3  -> xadd256.COUT, C6.p
+    SG3  -> xadd256.SG
+    CIN  -> xadd256.CIN, xadd32.CIN
+    SP3  -> xadd256.SP
+    A[31:0]  -> xadd32.A[31], xadd32.A[30], xadd32.A[29], xadd32.A[28], xadd32.A[27], xadd32.A[26], xadd32.A[25], xadd32.A[24], xadd32.A[23], xadd32.A[22], xadd32.A[21], xadd32.A[20], xadd32.A[19], xadd32.A[18], xadd32.A[17], xadd32.A[16], xadd32.A[15], xadd32.A[14], xadd32.A[13], xadd32.A[12], xadd32.A[11], xadd32.A[10], xadd32.A[9], xadd32.A[8], xadd32.A[7], xadd32.A[6], xadd32.A[5], xadd32.A[4], xadd32.A[3], xadd32.A[2], xadd32.A[1], xadd32.A[0], xaddcarry32[31:0].A
+    S2[31:0]  -> xadd32.S[31], xadd32.S[30], xadd32.S[29], xadd32.S[28], xadd32.S[27], xadd32.S[26], xadd32.S[25], xadd32.S[24], xadd32.S[23], xadd32.S[22], xadd32.S[21], xadd32.S[20], xadd32.S[19], xadd32.S[18], xadd32.S[17], xadd32.S[16], xadd32.S[15], xadd32.S[14], xadd32.S[13], xadd32.S[12], xadd32.S[11], xadd32.S[10], xadd32.S[9], xadd32.S[8], xadd32.S[7], xadd32.S[6], xadd32.S[5], xadd32.S[4], xadd32.S[3], xadd32.S[2], xadd32.S[1], xadd32.S[0], C3[255:0].p
+    B[31:0]  -> xadd32.B[31], xadd32.B[30], xadd32.B[29], xadd32.B[28], xadd32.B[27], xadd32.B[26], xadd32.B[25], xadd32.B[24], xadd32.B[23], xadd32.B[22], xadd32.B[21], xadd32.B[20], xadd32.B[19], xadd32.B[18], xadd32.B[17], xadd32.B[16], xadd32.B[15], xadd32.B[14], xadd32.B[13], xadd32.B[12], xadd32.B[11], xadd32.B[10], xadd32.B[9], xadd32.B[8], xadd32.B[7], xadd32.B[6], xadd32.B[5], xadd32.B[4], xadd32.B[3], xadd32.B[2], xadd32.B[1], xadd32.B[0], xaddcarry32[31:0].B
+    COUT2  -> xadd32.COUT, C1.p
+    SG2  -> xadd32.SG
+    SP2  -> xadd32.SP
+    CARRY1[30:0],CIN  -> xaddcarry32[31:0].CI
+    CARRY1[31:0]  -> xaddcarry32[31:0].COUT, C5[31:0].p
+    S1[31:0]  -> xaddcarry32[31:0].SUM, C4[31:0].p
+
+  wires [33]:
+    760 -250 1040 -250
+    760 -120 1040 -120
+    760 -270 920 -270
+    760 -140 920 -140
+    280 -380 280 -380 A[255:0]
+    280 -360 280 -360 B[255:0]
+    280 -340 280 -340 CIN
+    530 -350 530 -350 CARRY0[254:0],CIN
+    650 -430 650 -430 CARRY0[255:0]
+    650 -350 650 -350 S0[255:0]
+    460 -270 460 -270 A[255:0]
+    920 -270 920 -270 S3[255:0]
+    460 -250 460 -250 B[255:0]
+    1040 -250 1040 -250 COUT3
+    760 -230 760 -230 SG3
+    460 -230 460 -230 CIN
+    760 -210 760 -210 SP3
+    530 -430 530 -430 A[255:0]
+    530 -390 530 -390 B[255:0]
+    320 -280 320 -280 VCC
+    320 -220 320 -220 VSS
+    460 -140 460 -140 A[31:0]
+    460 -120 460 -120 B[31:0]
+    460 -100 460 -100 CIN
+    920 -140 920 -140 S2[31:0]
+    1040 -120 1040 -120 COUT2
+    760 -100 760 -100 SG2
+    760 -80 760 -80 SP2
+    990 -350 990 -350 CARRY1[30:0],CIN
+    1110 -430 1110 -430 CARRY1[31:0]
+    1110 -350 1110 -350 S1[31:0]
+    990 -430 990 -430 A[31:0]
+    990 -390 990 -390 B[31:0]

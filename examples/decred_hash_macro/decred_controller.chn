@@ -1,0 +1,40 @@
+chn 1.0
+
+SYMBOL decred_controller
+
+  pins [27]:
+    CLK_LED  out
+    EXT_RESET_N_fromHost  in
+    EXT_RESET_N_toClient  out
+    HASH_EN  out
+    HASH_LED  out
+    ID_fromClient  in
+    ID_toHost  out
+    IRQ_OUT_fromClient  in
+    IRQ_OUT_toHost  out
+    M1_CLK_IN  in
+    M1_CLK_SELECT  in
+    MISO_fromClient  in
+    MISO_toHost  out
+    MOSI_fromHost  in
+    MOSI_toClient  out
+    PLL_INPUT  in
+    S1_CLK_IN  in
+    S1_CLK_SELECT  in
+    SCLK_fromHost  in
+    SCLK_toClient  out
+    SCSN_fromHost  in
+    SCSN_toClient  out
+    m1_clk_local  out
+    one  out
+    zero  out
+    VPWR  inout
+    VGND  inout
+
+  params [2]:
+    template = name=x1 VPWR=VPWR VGND=VGND prefix=sky130_fd_sc_hd__ 
+    extra = VPWR VGND prefix
+
+  spice_prefix: X
+
+SCHEMATIC

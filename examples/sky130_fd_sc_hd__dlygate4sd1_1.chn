@@ -1,0 +1,60 @@
+chn 1.0
+
+SYMBOL sky130_fd_sc_hd__dlygate4sd1_1
+
+  pins [6]:
+    A  in
+    VGND  in
+    VNB  in
+    VPB  in
+    VPWR  in
+    X  out
+
+SCHEMATIC
+
+  pmos [4]{name, x, y, rot, flip, W, L, model, spiceprefix}:
+    M3  120  -30  0  0  420000u  150000u  pfet_01v8_hvt  X
+    M1  440  -30  0  0  420000u  150000u  pfet_01v8_hvt  X
+    M5  280  -30  0  0  420000u  150000u  pfet_01v8_hvt  X
+    M0  600  -30  0  0  1e+06u  150000u  pfet_01v8_hvt  X
+
+  nmos [4]{name, x, y, rot, flip, W, L, model, spiceprefix}:
+    M7  120  30  0  0  420000u  150000u  nfet_01v8  X
+    M2  440  30  0  0  420000u  150000u  nfet_01v8  X
+    M6  280  30  0  0  420000u  150000u  nfet_01v8  X
+    M4  600  30  0  0  650000u  150000u  nfet_01v8  X
+
+  wires [33]:
+    60 0 100 0
+    100 -30 100 30
+    140 0 260 0
+    420 -30 420 30
+    460 0 580 0
+    260 -30 260 30
+    300 0 420 0
+    580 -30 580 30
+    620 0 740 0
+    -120 -40 -120 -40 A
+    -120 -20 -120 -20 VGND
+    -120 0 -120 0 VNB
+    -120 20 -120 20 VPB
+    -120 40 -120 40 VPWR
+    -100 -40 -100 -40 X
+    140 -30 140 -30 VPB
+    140 -60 140 -60 VPWR
+    140 30 140 30 VNB
+    140 60 140 60 VGND
+    60 0 60 0 A
+    460 -30 460 -30 VPB
+    460 -60 460 -60 VPWR
+    460 30 460 30 VNB
+    460 60 460 60 VGND
+    300 -30 300 -30 VPB
+    300 -60 300 -60 VPWR
+    300 30 300 30 VNB
+    300 60 300 60 VGND
+    620 -30 620 -30 VPB
+    620 -60 620 -60 VPWR
+    620 30 620 30 VNB
+    620 60 620 60 VGND
+    740 0 740 0 X

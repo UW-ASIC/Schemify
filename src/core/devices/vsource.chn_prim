@@ -1,0 +1,32 @@
+chn_prim 1.0
+
+SYMBOL vsource
+  desc: Independent voltage source
+
+  pins [2]:
+    p  inout
+    n  inout
+
+  params [1]:
+    dc = 0
+
+  spice_prefix: V
+  spice_format: "@name @p @n dc=@dc"
+
+  drawing:
+    lines:
+      # Top lead (through circle)
+      (0,-30) (0,-15)
+      # Bottom lead (through circle)
+      (0,15) (0,30)
+      # Plus sign (near positive terminal)
+      (0,-12) (0,-6)
+      (-3,-9) (3,-9)
+      # Minus sign (near negative terminal)
+      (-3,9) (3,9)
+    circle: (0,0) r=15
+    text: (20,0) "@name"
+    text: (20,10) "@dc"
+    pin_positions:
+      p: (0,-30)
+      n: (0,30)
