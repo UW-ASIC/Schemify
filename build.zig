@@ -27,6 +27,7 @@ const module_defs = [_]Def{
     .{ "theme_config", "src/gui/Theme.zig", &.{"dvui"} },
     .{ "runtime", "src/plugins/runtime.zig", &.{ "PluginIF", "state", "theme_config", "commands" } },
     .{ "cli", "src/cli.zig", &.{ "core", "installer", "utility", "state" } },
+    .{ "debug_server", "src/debug_server.zig", &.{ "state", "dvui" } },
 };
 
 // ── Test suites ───────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ pub fn build(b: *std.Build) void {
     // ── Executable ────────────────────────────────────────────────────────────
     const exe_mod = b.createModule(.{ .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
     exe_mod.addOptions("build_options", build_opts);
-    addImports(exe_mod, &mods, &.{ "dvui", "utility", "core", "PluginIF", "commands", "state", "cli", "runtime", "theme_config" });
+    addImports(exe_mod, &mods, &.{ "dvui", "utility", "core", "PluginIF", "commands", "state", "cli", "runtime", "theme_config", "debug_server" });
 
     const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
     exe.root_module.strip = optimize != .Debug;
