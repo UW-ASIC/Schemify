@@ -3,11 +3,219 @@ const dvui = @import("dvui");
 const theme = @import("theme_config");
 const st = @import("state");
 const core = @import("core");
+const utility = @import("utility");
+const Vfs = utility.Vfs;
 
 const Palette = theme.Palette;
 const Schemify = core.Schemify;
 const DeviceKind = core.DeviceKind;
 const primitives = core.primitives;
+const Allocator = std.mem.Allocator;
+
+// ===========================================================================
+// Subcircuit Symbol Cache
+// ===========================================================================
+
+/// Cached port info extracted from a .chn file used as a subcircuit symbol.
+const SubcktPin = struct {
+    name: []const u8,
+    dir: core.PinDir,
+    x: i16,
+    y: i16,
+};
+
+const SubcktSymbol = struct {
+    pins: []SubcktPin,
+    box_w: i16,
+    box_h: i16,
+};
+
+const SubcktCache = std.StringHashMapUnmanaged(SubcktSymbol);
+var subckt_cache: SubcktCache = .{};
+var subckt_arena_state: ?std.heap.ArenaAllocator = null;
+
+fn subcktArena() Allocator {
+    if (subckt_arena_state == null) {
+        subckt_arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    }
+    return subckt_arena_state.?.allocator();
+}
+
+/// Try to resolve a subcircuit symbol from a .chn file in the same directory.
+fn resolveSubcktSymbol(symbol: []const u8, doc_origin: st.Origin, project_dir: []const u8) ?*const SubcktSymbol {
+    // Check cache first
+    if (subckt_cache.get(symbol)) |*cached| return cached;
+
+    // Try to find the .chn file
+    var path_buf: [512]u8 = undefined;
+    const chn_path = resolveSubcktPath(symbol, doc_origin, project_dir, &path_buf) orelse return null;
+
+    // Load and parse the file to extract ports
+    const arena = subcktArena();
+    const data = Vfs.readAlloc(arena, chn_path) catch return null;
+    const parsed = core.Schemify.readFile(data, arena, null);
+
+    // Extract port instances (input_pin, output_pin, inout_pin)
+    var pins: std.ArrayListUnmanaged(SubcktPin) = .{};
+    const kinds = parsed.instances.items(.kind);
+    const names = parsed.instances.items(.name);
+    const xs = parsed.instances.items(.x);
+    const ys = parsed.instances.items(.y);
+    for (0..parsed.instances.len) |i| {
+        const dir: core.PinDir = switch (kinds[i]) {
+            .input_pin => .input,
+            .output_pin => .output,
+            .inout_pin => .inout,
+            else => continue,
+        };
+        pins.append(arena, .{
+            .name = arena.dupe(u8, names[i]) catch names[i],
+            .dir = dir,
+            .x = @intCast(xs[i]),
+            .y = @intCast(ys[i]),
+        }) catch continue;
+    }
+
+    if (pins.items.len == 0) return null;
+
+    // Compute box layout: inputs on left, outputs on right, inout on left
+    var left_count: i16 = 0;
+    var right_count: i16 = 0;
+    for (pins.items) |p| {
+        switch (p.dir) {
+            .input, .inout, .power, .ground => left_count += 1,
+            .output => right_count += 1,
+        }
+    }
+    const max_side: i16 = @max(left_count, right_count);
+    const pin_spacing: i16 = 20;
+    const box_h: i16 = @max(40, (max_side + 1) * pin_spacing);
+    // Width based on longest pin name (rough estimate: 8 units per char + margin)
+    var max_name_len: usize = 0;
+    for (pins.items) |p| {
+        if (p.name.len > max_name_len) max_name_len = p.name.len;
+    }
+    const box_w: i16 = @max(60, @as(i16, @intCast(@min(max_name_len * 8 + 30, 120))));
+    const half_w = @divTrunc(box_w, 2);
+    const half_h = @divTrunc(box_h, 2);
+
+    // Assign pin positions along the box edges
+    var left_idx: i16 = 0;
+    var right_idx: i16 = 0;
+    for (pins.items) |*p| {
+        switch (p.dir) {
+            .input, .inout, .power, .ground => {
+                p.x = -half_w - 10;
+                p.y = -half_h + (left_idx + 1) * pin_spacing;
+                left_idx += 1;
+            },
+            .output => {
+                p.x = half_w + 10;
+                p.y = -half_h + (right_idx + 1) * pin_spacing;
+                right_idx += 1;
+            },
+        }
+    }
+
+    // Cache it
+    const key = arena.dupe(u8, symbol) catch return null;
+    const sym = SubcktSymbol{
+        .pins = pins.toOwnedSlice(arena) catch return null,
+        .box_w = box_w,
+        .box_h = box_h,
+    };
+    subckt_cache.put(arena, key, sym) catch return null;
+    return subckt_cache.getPtr(key);
+}
+
+fn resolveSubcktPath(symbol: []const u8, doc_origin: st.Origin, project_dir: []const u8, buf: *[512]u8) ?[]const u8 {
+    // Strip .sym extension if present (Schemify uses .chn, not .sym)
+    const base = if (std.mem.endsWith(u8, symbol, ".sym"))
+        symbol[0 .. symbol.len - ".sym".len]
+    else
+        symbol;
+
+    // If it already ends with .chn, check directly
+    if (std.mem.endsWith(u8, base, ".chn")) {
+        if (Vfs.exists(base)) return base;
+    }
+
+    // Directory of the current document
+    const dir: []const u8 = switch (doc_origin) {
+        .chn_file => |p| std.fs.path.dirname(p) orelse ".",
+        else => ".",
+    };
+
+    // Try: {doc_dir}/{base}.chn  (e.g. sky130_tests/adder_1bit -> {dir}/sky130_tests/adder_1bit.chn)
+    if (std.fmt.bufPrint(buf, "{s}/{s}.chn", .{ dir, base })) |path| {
+        if (Vfs.exists(path)) return path;
+    } else |_| {}
+
+    // Try: {project_dir}/{base}.chn
+    if (std.fmt.bufPrint(buf, "{s}/{s}.chn", .{ project_dir, base })) |path| {
+        if (Vfs.exists(path)) return path;
+    } else |_| {}
+
+    // Try just the stem (strip any path prefix): {doc_dir}/{stem}.chn
+    const stem = std.fs.path.stem(base);
+    if (std.fmt.bufPrint(buf, "{s}/{s}.chn", .{ dir, stem })) |path| {
+        if (Vfs.exists(path)) return path;
+    } else |_| {}
+
+    return null;
+}
+
+/// Draw a subcircuit box with labeled pin stubs.
+fn drawSubcktBox(sym: *const SubcktSymbol, origin: Vec2, rot: u2, flip: bool, vp: Viewport, color: Color) void {
+    const s: Vec2 = @splat(vp.scale);
+    const sym_w: f32 = @max(1.4, 1.8 * vp.scale);
+    const half_w: f32 = @floatFromInt(@divTrunc(sym.box_w, 2));
+    const half_h: f32 = @floatFromInt(@divTrunc(sym.box_h, 2));
+
+    // Draw the box outline
+    const corners = [4][2]f32{
+        .{ -half_w, -half_h },
+        .{ half_w, -half_h },
+        .{ half_w, half_h },
+        .{ -half_w, half_h },
+    };
+    inline for (0..4) |i| {
+        const a = applyRotFlip(corners[i][0], corners[i][1], rot, flip);
+        const b = applyRotFlip(corners[(i + 1) % 4][0], corners[(i + 1) % 4][1], rot, flip);
+        const pa = origin + Vec2{ a[0], a[1] } * s;
+        const pb = origin + Vec2{ b[0], b[1] } * s;
+        strokeLine(pa[0], pa[1], pb[0], pb[1], sym_w, color);
+    }
+
+    // Draw pin stubs, markers and labels
+    for (sym.pins, 0..) |pin, pi| {
+        const px: f32 = @floatFromInt(pin.x);
+        const py: f32 = @floatFromInt(pin.y);
+        // Pin endpoint (outside the box)
+        const pp = applyRotFlip(px, py, rot, flip);
+        const pp_px = origin + Vec2{ pp[0], pp[1] } * s;
+
+        // Stub line from box edge to pin
+        const edge_x: f32 = if (px < 0) -half_w else half_w;
+        const ep = applyRotFlip(edge_x, py, rot, flip);
+        const ep_px = origin + Vec2{ ep[0], ep[1] } * s;
+        strokeLine(ep_px[0], ep_px[1], pp_px[0], pp_px[1], sym_w, color);
+
+        // Pin dot
+        const pin_sq: f32 = @max(2.5, 3.5 * @min(vp.scale, 2.0));
+        strokeDot(pp_px, pin_sq, color);
+
+        // Pin name label (inside the box, near the edge)
+        if (vp.scale >= 0.3 and pin.name.len > 0) {
+            const label_x = if (px < 0)
+                ep_px[0] + 3.0 * vp.scale
+            else
+                ep_px[0] - @as(f32, @floatFromInt(pin.name.len)) * 6.0 * vp.scale - 3.0 * vp.scale;
+            const label_y = ep_px[1] - 8.0 * vp.scale;
+            drawLabel(pin.name, label_x, label_y, color, vp, 0x8000 + pi);
+        }
+    }
+}
 
 // ===========================================================================
 // Renderer
@@ -33,12 +241,6 @@ pub const CanvasEvent = union(enum) {
 };
 
 pub const Renderer = struct {
-    zoom: f32 = 1.0,
-    pan: [2]f32 = .{ 0, 0 },
-    snap_size: f32 = 10.0,
-    show_grid: bool = true,
-    wire_start: ?Point = null,
-
     // Internal input state — caller doesn't touch these.
     dragging: bool = false,
     drag_last: Vec2 = .{ 0, 0 },
@@ -61,14 +263,14 @@ pub const Renderer = struct {
         const vp = Viewport{
             .cx = rs.r.x + rs.r.w / 2.0,
             .cy = rs.r.y + rs.r.h / 2.0,
-            .scale = self.zoom * rs.s,
-            .pan = self.pan,
+            .scale = app.view.zoom * rs.s,
+            .pan = app.view.pan,
             .bounds = rs.r,
         };
 
-        const event = self.handleInput(wd, vp);
+        const event = self.handleInput(app, wd, vp);
 
-        if (self.show_grid) drawGrid(vp, pal, self.snap_size);
+        if (app.show_grid) drawGrid(vp, pal, app.tool.snap_size);
         drawOrigin(vp, pal);
 
         // Dispatch based on view mode and active document
@@ -78,20 +280,19 @@ pub const Renderer = struct {
 
             switch (app.gui.view_mode) {
                 .schematic => if (file_type != .prim_only) drawSchematic(&doc.sch, app, vp, pal),
-                .symbol => if (file_type != .tb_only) {
-                    drawSchematic(&doc.sch, app, vp, pal);
-                },
+                .symbol => if (file_type != .tb_only) drawSymbol(&doc.sch, vp, pal),
             }
 
             // Wire placement preview overlay
-            drawWirePreview(app, vp, pal);
+            if (app.gui.view_mode == .schematic) drawWirePreview(app, vp, pal);
         }
 
         return event;
     }
 
-    fn handleInput(self: *Renderer, wd: *dvui.WidgetData, vp: Viewport) CanvasEvent {
+    fn handleInput(self: *Renderer, app: *st.AppState, wd: *dvui.WidgetData, vp: Viewport) CanvasEvent {
         var result: CanvasEvent = .none;
+        const snap = app.tool.snap_size;
 
         for (dvui.events()) |*ev| {
             if (ev.handled or !dvui.eventMatchSimple(ev, wd)) continue;
@@ -114,7 +315,7 @@ pub const Renderer = struct {
                                         self.dragging = true;
                                         self.drag_last = mp;
                                     } else {
-                                        result = self.handleClick(mp, vp);
+                                        result = self.handleClick(mp, vp, snap);
                                     }
                                 },
                                 .middle => {
@@ -126,7 +327,7 @@ pub const Renderer = struct {
                                     ev.handled = true;
                                     result = .{ .right_click = .{
                                         .pixel = mp,
-                                        .world = p2w(mp, vp, self.snap_size),
+                                        .world = p2w(mp, vp, snap),
                                     } };
                                 },
                                 else => {},
@@ -147,8 +348,8 @@ pub const Renderer = struct {
                                 const delta = cur - self.drag_last;
                                 const inv_s: Vec2 = @splat(1.0 / vp.scale);
                                 const pan_delta = delta * inv_s;
-                                self.pan[0] -= pan_delta[0];
-                                self.pan[1] -= pan_delta[1];
+                                app.view.pan[0] -= pan_delta[0];
+                                app.view.pan[1] -= pan_delta[1];
                                 self.drag_last = cur;
                             }
                         },
@@ -158,19 +359,19 @@ pub const Renderer = struct {
                             const world_before = p2w_raw(cursor, vp);
 
                             const factor: f32 = if (dy > 0) 1.25 else (1.0 / 1.25);
-                            self.zoom = std.math.clamp(self.zoom * factor, 0.01, 50.0);
+                            app.view.zoom = std.math.clamp(app.view.zoom * factor, 0.01, 50.0);
 
                             const new_vp = Viewport{
                                 .cx = vp.cx,
                                 .cy = vp.cy,
                                 .scale = vp.scale * factor,
-                                .pan = self.pan,
+                                .pan = app.view.pan,
                                 .bounds = vp.bounds,
                             };
                             const world_after = p2w_raw(cursor, new_vp);
 
-                            self.pan[0] += world_before[0] - world_after[0];
-                            self.pan[1] += world_before[1] - world_after[1];
+                            app.view.pan[0] += world_before[0] - world_after[0];
+                            app.view.pan[1] += world_before[1] - world_after[1];
                         },
                         else => {},
                     }
@@ -182,13 +383,13 @@ pub const Renderer = struct {
         return result;
     }
 
-    fn handleClick(self: *Renderer, mp: Vec2, vp: Viewport) CanvasEvent {
+    fn handleClick(self: *Renderer, mp: Vec2, vp: Viewport, snap: f32) CanvasEvent {
         const now: f64 = @as(f64, @floatFromInt(dvui.frameTimeNS())) / 1_000_000_000.0;
         const dt = now - self.last_click_time;
         const dp = mp - self.last_click_pos;
         const dist = @sqrt(dp[0] * dp[0] + dp[1] * dp[1]);
 
-        const world_pt = p2w(mp, vp, self.snap_size);
+        const world_pt = p2w(mp, vp, snap);
 
         if (dt < 0.4 and dist < 10.0) {
             self.last_click_time = 0;
@@ -205,9 +406,9 @@ pub const Renderer = struct {
 // File Classification
 // ===========================================================================
 
-const FileType = enum { full, prim_only, tb_only };
+pub const FileType = enum { full, prim_only, tb_only };
 
-fn classifyFile(origin: st.Origin) FileType {
+pub fn classifyFile(origin: st.Origin) FileType {
     return switch (origin) {
         .chn_file => |path| {
             if (std.mem.endsWith(u8, path, ".chn_prim")) return .prim_only;
@@ -313,6 +514,11 @@ fn drawSchematic(sch: *const Schemify, app: *st.AppState, vp: Viewport, pal: Pal
         const iname = sch.instances.items(.name);
         const isymbol = sch.instances.items(.symbol);
 
+        const doc_origin: st.Origin = if (app.active_idx < app.documents.items.len)
+            app.documents.items[app.active_idx].origin
+        else
+            .unsaved;
+
         for (0..sch.instances.len) |i| {
             const selected = i < app.selection.instances.bit_length and app.selection.instances.isSet(i);
             const color = if (selected) pal.inst_sel else pal.symbol_line;
@@ -325,8 +531,9 @@ fn drawSchematic(sch: *const Schemify, app: *st.AppState, vp: Viewport, pal: Pal
 
             if (prim) |entry| {
                 drawPrimEntry(entry, origin, rot, flip, vp, color);
+            } else if (resolveSubcktSymbol(isymbol[i], doc_origin, app.project_dir)) |subckt| {
+                drawSubcktBox(subckt, origin, rot, flip, vp, color);
             } else {
-                // Fallback: generic box for unknown devices
                 drawGenericBox(origin, rot, flip, vp, color);
             }
 
@@ -335,6 +542,16 @@ fn drawSchematic(sch: *const Schemify, app: *st.AppState, vp: Viewport, pal: Pal
             const pin_color = if (selected) pal.wire_sel else pal.inst_pin;
             strokeLine(origin[0] - pin_arm, origin[1], origin[0] + pin_arm, origin[1], 0.8, pin_color);
             strokeLine(origin[0], origin[1] - pin_arm, origin[0], origin[1] + pin_arm, 0.8, pin_color);
+
+            // Draw pin connection squares at each pin position
+            if (prim) |entry| {
+                const pin_sq: f32 = @max(2.5, 3.5 * @min(vp.scale, 2.0));
+                for (entry.pinPositions()) |pp| {
+                    const pp_rf = applyRotFlip(@floatFromInt(pp.x), @floatFromInt(pp.y), rot, flip);
+                    const pp_px = origin + Vec2{ pp_rf[0], pp_rf[1] } * @as(Vec2, @splat(vp.scale));
+                    strokeDot(pp_px, pin_sq, pal.wire_endpoint);
+                }
+            }
 
             // Instance name label
             if (vp.scale >= 0.3 and iname[i].len > 0) {
@@ -384,95 +601,186 @@ fn drawSchematic(sch: *const Schemify, app: *st.AppState, vp: Viewport, pal: Pal
 }
 
 // ===========================================================================
-// Symbol View Drawing
+// Symbol Drawing (symbol view — lines, rects, circles, arcs, pins, texts)
 // ===========================================================================
 
-fn drawSymbolView(sym: *const Schemify, vp: Viewport, pal: Palette) void {
+fn drawSymbol(sch: *const Schemify, vp: Viewport, pal: Palette) void {
     const prev_clip = dvui.clip(.{ .x = vp.bounds.x, .y = vp.bounds.y, .w = vp.bounds.w, .h = vp.bounds.h });
     defer dvui.clipSet(prev_clip);
 
-    // ── Lines ────────────────────────────────────────────────────────────── //
-    if (sym.lines.len > 0) {
-        const lx0 = sym.lines.items(.x0);
-        const ly0 = sym.lines.items(.y0);
-        const lx1 = sym.lines.items(.x1);
-        const ly1 = sym.lines.items(.y1);
-        for (0..sym.lines.len) |i| {
+    const sym_w: f32 = @max(1.4, 1.8 * vp.scale);
+    const has_geometry = sch.lines.len > 0 or sch.rects.len > 0 or sch.circles.len > 0 or sch.arcs.len > 0;
+
+    if (has_geometry) {
+        // Draw explicit symbol geometry from SYMBOL section.
+        drawSymbolGeometry(sch, vp, sym_w, pal);
+    } else if (sch.pins.len > 0) {
+        // No explicit geometry — auto-generate a box from pins.
+        drawAutoSymbolBox(sch, vp, sym_w, pal);
+    }
+
+    // Texts
+    if (vp.scale >= 0.3 and sch.texts.len > 0) {
+        const tcontent = sch.texts.items(.content);
+        const tx = sch.texts.items(.x);
+        const ty = sch.texts.items(.y);
+        for (0..sch.texts.len) |i| {
+            if (tcontent[i].len == 0) continue;
+            const p = w2p(.{ tx[i], ty[i] }, vp);
+            drawLabel(tcontent[i], p[0], p[1], pal.symbol_line, vp, sch.pins.len + i);
+        }
+    }
+}
+
+fn drawSymbolGeometry(sch: *const Schemify, vp: Viewport, sym_w: f32, pal: Palette) void {
+    // Lines
+    if (sch.lines.len > 0) {
+        const lx0 = sch.lines.items(.x0);
+        const ly0 = sch.lines.items(.y0);
+        const lx1 = sch.lines.items(.x1);
+        const ly1 = sch.lines.items(.y1);
+        for (0..sch.lines.len) |i| {
             const a = w2p(.{ lx0[i], ly0[i] }, vp);
             const b = w2p(.{ lx1[i], ly1[i] }, vp);
-            strokeLine(a[0], a[1], b[0], b[1], 1.4, pal.symbol_line);
+            strokeLine(a[0], a[1], b[0], b[1], sym_w, pal.symbol_line);
         }
     }
-
-    // ── Rects ────────────────────────────────────────────────────────────── //
-    if (sym.rects.len > 0) {
-        const rx0 = sym.rects.items(.x0);
-        const ry0 = sym.rects.items(.y0);
-        const rx1 = sym.rects.items(.x1);
-        const ry1 = sym.rects.items(.y1);
-        for (0..sym.rects.len) |i| {
+    // Rects
+    if (sch.rects.len > 0) {
+        const rx0 = sch.rects.items(.x0);
+        const ry0 = sch.rects.items(.y0);
+        const rx1 = sch.rects.items(.x1);
+        const ry1 = sch.rects.items(.y1);
+        for (0..sch.rects.len) |i| {
             const tl = w2p(.{ rx0[i], ry0[i] }, vp);
             const br = w2p(.{ rx1[i], ry1[i] }, vp);
-            strokeRectOutline(tl, br, 1.4, pal.symbol_line);
+            strokeRectOutline(tl, br, sym_w, pal.symbol_line);
         }
     }
-
-    // ── Circles ──────────────────────────────────────────────────────────── //
-    if (sym.circles.len > 0) {
-        const ccx = sym.circles.items(.cx);
-        const ccy = sym.circles.items(.cy);
-        const crad = sym.circles.items(.radius);
-        for (0..sym.circles.len) |i| {
+    // Circles
+    if (sch.circles.len > 0) {
+        const ccx = sch.circles.items(.cx);
+        const ccy = sch.circles.items(.cy);
+        const crad = sch.circles.items(.radius);
+        for (0..sch.circles.len) |i| {
             const center = w2p(.{ ccx[i], ccy[i] }, vp);
             const r: f32 = @as(f32, @floatFromInt(crad[i])) * vp.scale;
-            strokeCircle(center, r, 1.4, pal.symbol_line);
+            strokeCircle(center, r, sym_w, pal.symbol_line);
         }
     }
-
-    // ── Arcs ─────────────────────────────────────────────────────────────── //
-    if (sym.arcs.len > 0) {
-        const acx = sym.arcs.items(.cx);
-        const acy = sym.arcs.items(.cy);
-        const arad = sym.arcs.items(.radius);
-        const astart = sym.arcs.items(.start_angle);
-        const asweep = sym.arcs.items(.sweep_angle);
-        for (0..sym.arcs.len) |i| {
+    // Arcs
+    if (sch.arcs.len > 0) {
+        const acx = sch.arcs.items(.cx);
+        const acy = sch.arcs.items(.cy);
+        const arad = sch.arcs.items(.radius);
+        const astart = sch.arcs.items(.start_angle);
+        const asweep = sch.arcs.items(.sweep_angle);
+        for (0..sch.arcs.len) |i| {
             const center = w2p(.{ acx[i], acy[i] }, vp);
             const r: f32 = @as(f32, @floatFromInt(arad[i])) * vp.scale;
-            strokeArc(center, r, astart[i], asweep[i], 1.4, pal.symbol_line);
+            strokeArc(center, r, astart[i], asweep[i], sym_w, pal.symbol_line);
         }
     }
-
-    // ── Pins (cross + dot + label) ──────────────────────────────────────── //
-    if (sym.pins.len > 0) {
-        const px = sym.pins.items(.x);
-        const py = sym.pins.items(.y);
-        const pname = sym.pins.items(.name);
-        const pin_arm: f32 = @max(3.5, 5.0 * @min(vp.scale, 2.0));
-
-        for (0..sym.pins.len) |i| {
+    // Pins (with markers and labels)
+    if (sch.pins.len > 0) {
+        const px = sch.pins.items(.x);
+        const py = sch.pins.items(.y);
+        const pname = sch.pins.items(.name);
+        const pin_arm: f32 = @max(3.0, 4.0 * @min(vp.scale, 2.0));
+        for (0..sch.pins.len) |i| {
             const p = w2p(.{ px[i], py[i] }, vp);
-            // Cross
-            strokeLine(p[0] - pin_arm, p[1], p[0] + pin_arm, p[1], 2.0, pal.symbol_pin);
-            strokeLine(p[0], p[1] - pin_arm, p[0], p[1] + pin_arm, 2.0, pal.symbol_pin);
-            // Dot
-            strokeDot(p, 3.0, pal.symbol_pin);
-            // Pin name label
-            if (vp.scale >= 0.4 and pname[i].len > 0) {
-                drawLabel(pname[i], p[0] + 8.0, p[1] - 14.0, pal.symbol_pin, vp, i);
+            strokeLine(p[0] - pin_arm, p[1], p[0] + pin_arm, p[1], 1.0, pal.inst_pin);
+            strokeLine(p[0], p[1] - pin_arm, p[0], p[1] + pin_arm, 1.0, pal.inst_pin);
+            strokeDot(p, pin_arm * 0.6, pal.wire_endpoint);
+            if (vp.scale >= 0.3 and pname[i].len > 0) {
+                drawLabel(pname[i], p[0] + 8.0 * vp.scale, p[1] - 14.0 * vp.scale, pal.inst_pin, vp, i);
             }
         }
     }
+}
 
-    // ── Texts ────────────────────────────────────────────────────────────── //
-    if (vp.scale >= 0.3 and sym.texts.len > 0) {
-        const tcontent = sym.texts.items(.content);
-        const tx = sym.texts.items(.x);
-        const ty = sym.texts.items(.y);
-        for (0..sym.texts.len) |i| {
-            if (tcontent[i].len == 0) continue;
-            const p = w2p(.{ tx[i], ty[i] }, vp);
-            drawLabel(tcontent[i], p[0], p[1], pal.symbol_line, vp, sym.pins.len + i);
+/// Auto-generate a symbol box with pin stubs when no explicit geometry exists.
+fn drawAutoSymbolBox(sch: *const Schemify, vp: Viewport, sym_w: f32, pal: Palette) void {
+    const dirs = sch.pins.items(.dir);
+    const px = sch.pins.items(.x);
+    const py = sch.pins.items(.y);
+    const pname = sch.pins.items(.name);
+
+    // Classify pins into left (input/power/ground) and right (output) sides.
+    var left_count: i32 = 0;
+    var right_count: i32 = 0;
+    for (0..sch.pins.len) |i| {
+        switch (dirs[i]) {
+            .input, .power, .ground => left_count += 1,
+            .output => right_count += 1,
+            .inout => {
+                if (left_count <= right_count) left_count += 1 else right_count += 1;
+            },
+        }
+    }
+    const max_pins: i32 = @max(@max(left_count, right_count), 1);
+
+    const pin_spacing: i32 = 20;
+    const stub_len: i32 = 10;
+    const name_width: i32 = @as(i32, @intCast(sch.name.len)) * 8;
+    const box_w: i32 = @max(120, name_width + 40);
+    const box_h: i32 = (max_pins + 1) * pin_spacing;
+
+    // Draw bounding box.
+    const tl = w2p(.{ 0, 0 }, vp);
+    const tr = w2p(.{ box_w, 0 }, vp);
+    const br = w2p(.{ box_w, box_h }, vp);
+    const bl = w2p(.{ 0, box_h }, vp);
+    strokeLine(tl[0], tl[1], tr[0], tr[1], sym_w, pal.symbol_line);
+    strokeLine(tr[0], tr[1], br[0], br[1], sym_w, pal.symbol_line);
+    strokeLine(br[0], br[1], bl[0], bl[1], sym_w, pal.symbol_line);
+    strokeLine(bl[0], bl[1], tl[0], tl[1], sym_w, pal.symbol_line);
+
+    // Component name in center of box.
+    if (vp.scale >= 0.2) {
+        const cx = w2p(.{ @divTrunc(box_w, 2), @divTrunc(box_h, 2) }, vp);
+        drawLabel(sch.name, cx[0] - 40.0, cx[1] - 8.0, pal.symbol_line, vp, 50000);
+    }
+
+    // Draw pins with stubs and labels.
+    var li: i32 = 0;
+    var ri: i32 = 0;
+    const pin_arm: f32 = @max(3.0, 4.0 * @min(vp.scale, 2.0));
+
+    for (0..sch.pins.len) |i| {
+        const is_left = switch (dirs[i]) {
+            .input, .power, .ground => true,
+            .output => false,
+            .inout => blk: {
+                // Match the classification logic above.
+                // We can't easily re-derive which side each inout went to,
+                // so use the pin's actual position if set, else alternate.
+                if (px[i] != 0 or py[i] != 0) {
+                    break :blk px[i] <= @divTrunc(box_w, 2);
+                }
+                break :blk li <= ri;
+            },
+        };
+
+        const slot: i32 = if (is_left) blk: { li += 1; break :blk li; } else blk: { ri += 1; break :blk ri; };
+        const pin_y: i32 = slot * pin_spacing;
+
+        if (is_left) {
+            const stub_start = w2p(.{ -stub_len, pin_y }, vp);
+            const stub_end = w2p(.{ 0, pin_y }, vp);
+            strokeLine(stub_start[0], stub_start[1], stub_end[0], stub_end[1], sym_w, pal.symbol_line);
+            strokeDot(stub_start, pin_arm * 0.6, pal.wire_endpoint);
+            if (vp.scale >= 0.3 and pname[i].len > 0) {
+                drawLabel(pname[i], stub_end[0] + 4.0 * vp.scale, stub_end[1] - 12.0 * vp.scale, pal.inst_pin, vp, i);
+            }
+        } else {
+            const stub_start = w2p(.{ box_w, pin_y }, vp);
+            const stub_end = w2p(.{ box_w + stub_len, pin_y }, vp);
+            strokeLine(stub_start[0], stub_start[1], stub_end[0], stub_end[1], sym_w, pal.symbol_line);
+            strokeDot(stub_end, pin_arm * 0.6, pal.wire_endpoint);
+            if (vp.scale >= 0.3 and pname[i].len > 0) {
+                drawLabel(pname[i], stub_start[0] - 60.0 * vp.scale, stub_start[1] - 12.0 * vp.scale, pal.inst_pin, vp, i);
+            }
         }
     }
 }
@@ -596,6 +904,7 @@ fn kindToName(kind: DeviceKind) ?[]const u8 {
 /// Draw a single PrimEntry's drawing data at the given origin with rotation/flip.
 fn drawPrimEntry(entry: *const primitives.PrimEntry, origin: Vec2, rot: u2, flip: bool, vp: Viewport, color: Color) void {
     const s: Vec2 = @splat(vp.scale);
+    const sym_w: f32 = @max(1.4, 1.8 * vp.scale);
 
     // Line segments
     for (entry.segs()) |seg| {
@@ -603,7 +912,7 @@ fn drawPrimEntry(entry: *const primitives.PrimEntry, origin: Vec2, rot: u2, flip
         const b = applyRotFlip(@floatFromInt(seg.x1), @floatFromInt(seg.y1), rot, flip);
         const pa = origin + Vec2{ a[0], a[1] } * s;
         const pb = origin + Vec2{ b[0], b[1] } * s;
-        strokeLine(pa[0], pa[1], pb[0], pb[1], 1.4, color);
+        strokeLine(pa[0], pa[1], pb[0], pb[1], sym_w, color);
     }
 
     // Circles
@@ -611,7 +920,7 @@ fn drawPrimEntry(entry: *const primitives.PrimEntry, origin: Vec2, rot: u2, flip
         const c = applyRotFlip(@floatFromInt(circ.cx), @floatFromInt(circ.cy), rot, flip);
         const center = origin + Vec2{ c[0], c[1] } * s;
         const r: f32 = @as(f32, @floatFromInt(circ.r)) * vp.scale;
-        strokeCircle(center, r, 1.4, color);
+        strokeCircle(center, r, sym_w, color);
     }
 
     // Arcs
@@ -626,7 +935,7 @@ fn drawPrimEntry(entry: *const primitives.PrimEntry, origin: Vec2, rot: u2, flip
             start_angle = 180 - start_angle - sweep_angle;
         }
         start_angle += @as(i16, @intCast(rot)) * 90;
-        strokeArc(center, r, start_angle, sweep_angle, 1.4, color);
+        strokeArc(center, r, start_angle, sweep_angle, sym_w, color);
     }
 
     // Rects
@@ -635,25 +944,21 @@ fn drawPrimEntry(entry: *const primitives.PrimEntry, origin: Vec2, rot: u2, flip
         const br_raw = applyRotFlip(@floatFromInt(rect.x1), @floatFromInt(rect.y1), rot, flip);
         const tl = origin + Vec2{ @min(tl_raw[0], br_raw[0]), @min(tl_raw[1], br_raw[1]) } * s;
         const br = origin + Vec2{ @max(tl_raw[0], br_raw[0]), @max(tl_raw[1], br_raw[1]) } * s;
-        strokeRectOutline(tl, br, 1.4, color);
+        strokeRectOutline(tl, br, sym_w, color);
     }
 }
 
 /// Draw a generic rectangular box for devices without .chn_prim data.
 fn drawGenericBox(origin: Vec2, rot: u2, flip: bool, vp: Viewport, color: Color) void {
     const s: Vec2 = @splat(vp.scale);
-    const corners = [_][2]f32{
-        .{ -25, -25 }, .{ 25, -25 },
-        .{ 25, 25 },   .{ -25, 25 },
-    };
-    var i: usize = 0;
-    while (i < 4) : (i += 1) {
-        const j = (i + 1) % 4;
+    const sym_w: f32 = @max(1.4, 1.8 * vp.scale);
+    const corners = [4][2]f32{ .{ -25, -25 }, .{ 25, -25 }, .{ 25, 25 }, .{ -25, 25 } };
+    inline for (0..4) |i| {
         const a = applyRotFlip(corners[i][0], corners[i][1], rot, flip);
-        const b = applyRotFlip(corners[j][0], corners[j][1], rot, flip);
+        const b = applyRotFlip(corners[(i + 1) % 4][0], corners[(i + 1) % 4][1], rot, flip);
         const pa = origin + Vec2{ a[0], a[1] } * s;
         const pb = origin + Vec2{ b[0], b[1] } * s;
-        strokeLine(pa[0], pa[1], pb[0], pb[1], 1.4, color);
+        strokeLine(pa[0], pa[1], pb[0], pb[1], sym_w, color);
     }
 }
 
@@ -744,14 +1049,17 @@ fn drawLabel(text: []const u8, x: f32, y: f32, col: Color, vp: Viewport, id_extr
     const size = @max(10.0, @min(18.0, 12.0 * vp.scale));
     var font = dvui.themeGet().font_body;
     font.size = size;
-    const lh = font.size * font.line_height_factor + 8;
+    const lh = size * 1.6 + 4;
+
+    // Estimate text width (0.6 * size per character is a reasonable monospace estimate)
+    const text_w: f32 = @max(200, @as(f32, @floatFromInt(text.len)) * size * 0.8 + 40);
 
     // Clip to viewport bounds
-    if (x > vp.bounds.x + vp.bounds.w or x + 300 < vp.bounds.x) return;
+    if (x > vp.bounds.x + vp.bounds.w or x + text_w < vp.bounds.x) return;
     if (y > vp.bounds.y + vp.bounds.h or y + lh < vp.bounds.y) return;
 
     dvui.labelNoFmt(@src(), text, .{}, .{
-        .rect = .{ .x = x, .y = y, .w = 300, .h = lh },
+        .rect = .{ .x = x, .y = y, .w = text_w, .h = lh },
         .color_text = col,
         .font = font,
         .id_extra = id_extra,

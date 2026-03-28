@@ -1,0 +1,133 @@
+chn 1.0
+
+SYMBOL sky130_oscillator
+
+  pins [5]:
+    VSS  inout
+    VCC  inout
+    ENAB  in
+    QB  out
+    Q  out
+
+SCHEMATIC
+
+  instances [9]:
+    x9  sky130_tests/lvnand  x=520  y=-360  rot=2  flip=1  WidthN=0.5  LenN=0.15  WidthP=1  LenP=0.15  m=1
+    x1  sky130_tests/lvnand  x=520  y=-160  WidthN=0.5  LenN=0.15  WidthP=1  LenP=0.15  m=1
+    x2  sky130_tests/not  x=700  y=-360  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=0.15  W_P=1  L_P=0.15
+    x3  sky130_tests/not  x=700  y=-160  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=0.15  W_P=1  L_P=0.15
+    x4  sky130_tests/lvnand  x=340  y=-380  rot=2  flip=1  WidthN=0.5  LenN=1  WidthP=1  LenP=0.3  m=1
+    x5  sky130_tests/lvnand  x=340  y=-140  WidthN=0.5  LenN=1  WidthP=1  LenP=0.3  m=1
+    CORNER  sky130_fd_pr/corner  x=30  y=-370  only_toplevel=true  corner=ff
+    x6  sky130_tests/not  x=860  y=-360  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+    x7  sky130_tests/not  x=860  y=-160  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=1  L_N=0.15  W_P=2  L_P=0.15
+
+  pmos [2]{name, x, y, rot, flip, W, L, nf, mult, model, spiceprefix}:
+    M1  1170  -330  0  0  4  0.15  1  1  pfet_01v8  X
+    M3  1540  -330  0  0  4  0.15  1  1  pfet_01v8  X
+
+  nmos [2]{name, x, y, rot, flip, W, L, nf, mult, model, spiceprefix}:
+    M2  1060  -170  0  0  1  0.15  1  1  nfet_01v8  X
+    M4  1430  -170  0  0  1  0.15  1  1  nfet_01v8  X
+
+  capacitors [2]{name, x, y, rot, flip, model, W, L, MF, spiceprefix}:
+    C2  1190  -130  0  0  cap_mim_m3_2  10  10  5  X
+    C1  1560  -130  0  0  cap_mim_m3_2  10  10  5  X
+
+  resistors [2]{name, x, y, rot, flip, L, model, spiceprefix, mult}:
+    R1  1560  -250  0  0  20  res_xhigh_po_1p41  X  1
+    R2  1190  -250  0  0  20  res_xhigh_po_1p41  X  1
+
+  vsource [2]{name, x, y, rot, flip, savecurrent}:
+    VB  1190  -390  0  0  false
+    VA  1560  -390  0  0  false
+
+  nets [17]:
+    RSTBB  -> x9.A, x1.Y, x3.a
+    BB  -> x9.B, x4.Y
+    RSTAB  -> x9.Y, x1.A, x2.a
+    AB  -> x1.B, x5.Y
+    BH  -> M1.D, R2.P
+    RSTB  -> M1.G, M2.G, x3.y, x7.a
+    net1  -> M1.S, M1.B, VB.minus
+    B  -> M2.D, x4.B, C2.c0, R2.M
+    VSS  -> M2.S, M2.B, M4.S, M4.B, C2.c1, C1.c1, R1.B, R2.B
+    RSTA  -> x2.y, M3.G, M4.G, x6.a
+    VCC  -> x4.A, VB.plus, VA.plus
+    ENAB  -> x5.A
+    A  -> x5.B, M4.D, C1.c0, R1.M
+    AH  -> M3.D, R1.P
+    net2  -> M3.S, M3.B, VA.minus
+    Q  -> x6.y
+    QB  -> x7.y
+
+  wires [69]:
+    590 -210 590 -160
+    470 -290 590 -210
+    470 -340 470 -290
+    590 -360 590 -310
+    470 -230 590 -310
+    470 -230 470 -180
+    410 -380 470 -380
+    410 -140 470 -140
+    1190 -360 1190 -330
+    1190 -90 1190 -70
+    1080 -170 1080 -90
+    1080 -90 1190 -90
+    1080 -200 1190 -200
+    1040 -330 1150 -330
+    590 -160 660 -160
+    590 -360 660 -360
+    1560 -360 1560 -330
+    1560 -90 1560 -70
+    1450 -170 1450 -90
+    1450 -90 1560 -90
+    1450 -200 1560 -200
+    1410 -330 1520 -330
+    1560 -210 1660 -210
+    1190 -210 1290 -210
+    740 -160 820 -160
+    740 -360 820 -360
+    1560 -300 1560 -280
+    1560 -200 1560 -160
+    1190 -300 1190 -280
+    1190 -200 1190 -160
+    1190 -100 1190 -90
+    1190 -210 1190 -200
+    1560 -100 1560 -90
+    1560 -210 1560 -200
+    1560 -220 1560 -210
+    1190 -220 1190 -210
+    900 -360 920 -360
+    900 -160 920 -160
+    1040 -330 1040 -170
+    1410 -330 1410 -170
+    1190 -420 1190 -420 VCC
+    1190 -70 1190 -70 VSS
+    1560 -420 1560 -420 VCC
+    1560 -70 1560 -70 VSS
+    1290 -210 1290 -210 B
+    1660 -210 1660 -210 A
+    290 -400 290 -400 B
+    290 -360 290 -360 VCC
+    290 -120 290 -120 A
+    290 -160 290 -160 ENAB
+    70 -120 70 -120 VSS
+    70 -140 70 -140 VCC
+    70 -180 70 -180 ENAB
+    760 -160 760 -160 RSTB
+    760 -360 760 -360 RSTA
+    100 -160 100 -160 QB
+    100 -180 100 -180 Q
+    650 -360 650 -360 RSTAB
+    650 -160 650 -160 RSTBB
+    450 -380 450 -380 BB
+    450 -140 450 -140 AB
+    1560 -290 1560 -290 AH
+    1190 -290 1190 -290 BH
+    920 -360 920 -360 Q
+    920 -160 920 -160 QB
+    1410 -230 1410 -230 RSTA
+    1040 -230 1040 -230 RSTB
+    1540 -250 1540 -250 VSS
+    1170 -250 1170 -250 VSS

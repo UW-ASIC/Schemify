@@ -1,0 +1,219 @@
+chn_testbench 1.0
+
+TESTBENCH test_ff
+
+  instances [26]:
+    x17  sky130_stdcells/and2_1  x=1420  y=-870  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x16  sky130_stdcells/dlrtp_1  x=1730  y=-870  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x21  sky130_tests/lvtnot  x=1130  y=-970  m=1  W_N=0.6  L_N=0.8  W_P=0.6  L_P=0.4  VCCPIN=VDD  VSSPIN=GND
+    x22  sky130_tests/lvtnot  x=1210  y=-970  m=1  W_N=0.6  L_N=0.8  W_P=0.6  L_P=0.4  VCCPIN=VDD  VSSPIN=GND
+    x15  sky130_stdcells/inv_1  x=1290  y=-890  rot=2  flip=1  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x20  sky130_stdcells/inv_1  x=970  y=-890  rot=2  flip=1  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x18  sky130_stdcells/dfrtp_1  x=1740  y=-1100  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x23  sky130_tests/lvtnot  x=1050  y=-970  m=1  W_N=0.6  L_N=0.8  W_P=0.6  L_P=0.4  VCCPIN=VDD  VSSPIN=GND
+    x5  sky130_stdcells/nand2_1  x=330  y=-1230  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x6  sky130_stdcells/nand3_1  x=330  y=-1100  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x7  sky130_stdcells/nand3_1  x=330  y=-890  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x8  sky130_stdcells/nand3_1  x=330  y=-730  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x9  sky130_stdcells/nand3_1  x=660  y=-890  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x10  sky130_stdcells/nand2_1  x=660  y=-1020  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x11  sky130_stdcells/xor2_1  x=1240  y=-650  flip=1  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x13  sky130_stdcells/dlrtn_1  x=1390  y=-530  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x12  sky130_stdcells/nand2_1  x=1140  y=-530  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x3  sky130_tests/lvtnot  x=100  y=-300  m=1  W_N=1  L_N=0.15  W_P=2  L_P=0.35  VCCPIN=VDD  VSSPIN=GND
+    x1  sky130_tests/srlatch  x=350  y=-330
+    x2  sky130_tests/srlatch  x=580  y=-330
+    x4  sky130_tests/lvtnot  x=200  y=-200  m=1  W_N=1  L_N=0.15  W_P=2  L_P=0.35  VCCPIN=VDD  VSSPIN=GND
+    x14  sky130_stdcells/dfrbp_1  x=1750  y=-1190  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x19  sky130_tests/lvtnot  x=1730  y=-1310  m=1  W_N=0.6  L_N=0.8  W_P=0.6  L_P=0.4  VCCPIN=VDD  VSSPIN=GND
+    x24  sky130_tests/lvtnot  x=1900  y=-1310  m=1  W_N=0.6  L_N=0.8  W_P=0.6  L_P=0.4  VCCPIN=VDD  VSSPIN=GND
+    x25  sky130_stdcells/dfxtp_1  x=1290  y=-1170  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+    x26  sky130_stdcells/dlrbp_1  x=1830  y=-650  VGND=GND  VNB=GND  VPB=VDD  VPWR=VDD  prefix=sky130_fd_sc_hd__
+
+  vsource [4]{name, x, y, rot, flip, value}:
+    V1  70  -520  0  0  pulse 0 1.8 15n .1n .1n 19.9n 40n
+    V2  320  -520  0  0  pulse 0 1.8 10n .1n .1n 9.9n 20n
+    V3  570  -520  0  0  1.8
+    V4  700  -520  0  0  pwl 0 0 10n 0 11n 1.8
+
+  nets [35]:
+    net9  -> x17.A, x15.Y
+    CLK  -> x17.B, x20.A, V2.p, x6.B, x7.B, x12.B, x2.CLK, x4.a, x14.CLK, x19.a, x25.CLK, x26.GATE
+    net8  -> x17.X, x16.GATE, x18.CLK
+    D  -> x16.D, x18.D, V1.p, x8.B, x11.B, x13.D, x3.a, x1.S, x14.D, x25.D, x26.D
+    RESETB  -> x16.RESET_B, x18.RESET_B, x6.C, x8.C, x9.C, V4.p, x13.RESET_B, x14.RESET_B, x26.RESET_B
+    Q3  -> x16.Q
+    net18  -> x21.a, x23.y
+    net19  -> x21.y, x22.a
+    net11  -> x22.y, x15.A
+    net10  -> x20.Y, x23.a
+    net12  -> x18.Q
+    GND  -> V1.m, V2.m, V3.m, V4.m
+    VDD  -> V3.p
+    net2  -> x5.A, x7.C, x8.Y
+    net4  -> x5.B, x6.Y, x7.A, x10.A
+    net5  -> x5.Y, x6.A
+    net3  -> x7.Y, x8.A, x9.B
+    Q1  -> x9.A, x10.Y
+    QN1  -> x9.Y, x10.B
+    Q2  -> x11.A, x13.Q
+    net7  -> x11.X, x12.A
+    net6  -> x13.GATE_N, x12.Y
+    DN  -> x3.y, x1.R
+    net1  -> x1.CLK, x4.y
+    QI  -> x1.Q, x2.S
+    QIN  -> x1.QN, x2.R
+    Q  -> x2.Q
+    QN  -> x2.QN
+    net13  -> x14.Q
+    net14  -> x14.Q_N
+    net15  -> x19.y, x24.a
+    net16  -> x24.y
+    net17  -> x25.Q
+    Q4  -> x26.Q
+    Q4B  -> x26.Q_N
+
+  wires [143]:
+    60 -360 280 -360
+    60 -360 60 -300
+    420 -360 510 -360
+    480 -330 480 -140
+    480 -330 510 -330
+    650 -360 690 -360
+    650 -300 690 -300
+    30 -360 60 -360
+    130 -200 160 -200
+    140 -300 280 -300
+    160 -140 480 -140
+    160 -200 160 -140
+    240 -330 240 -200
+    240 -330 280 -330
+    420 -300 510 -300
+    70 -580 70 -550
+    70 -580 140 -580
+    320 -580 320 -550
+    320 -580 390 -580
+    720 -920 720 -890
+    600 -980 720 -920
+    600 -1000 600 -980
+    720 -1020 720 -990
+    600 -950 720 -990
+    600 -950 600 -930
+    390 -760 390 -730
+    390 -890 390 -860
+    270 -800 390 -860
+    270 -800 270 -770
+    270 -850 270 -820
+    270 -820 390 -760
+    390 -1130 390 -1040
+    270 -1190 390 -1130
+    270 -1210 270 -1190
+    390 -1230 390 -1200
+    270 -1160 390 -1200
+    270 -1160 270 -1140
+    270 -960 270 -930
+    270 -960 390 -1020
+    390 -1040 390 -1020
+    390 -890 600 -890
+    390 -1040 600 -1040
+    720 -1020 760 -1020
+    720 -890 760 -890
+    600 -850 600 -660
+    270 -660 600 -660
+    270 -690 270 -660
+    220 -1060 220 -660
+    220 -1060 270 -1060
+    190 -890 270 -890
+    190 -990 190 -890
+    190 -1100 270 -1100
+    160 -990 190 -990
+    270 -730 270 -720
+    160 -720 270 -720
+    240 -850 270 -850
+    240 -1250 240 -850
+    240 -1250 270 -1250
+    700 -580 700 -550
+    700 -580 770 -580
+    220 -660 270 -660
+    170 -660 220 -660
+    190 -1100 190 -990
+    1250 -550 1300 -550
+    1060 -510 1080 -510
+    1300 -630 1300 -550
+    1300 -670 1510 -670
+    1510 -670 1510 -550
+    1480 -550 1510 -550
+    1200 -530 1300 -530
+    1080 -650 1180 -650
+    1080 -650 1080 -550
+    1510 -550 1550 -550
+    930 -850 1360 -850
+    930 -890 930 -850
+    1480 -790 1640 -790
+    1640 -850 1640 -790
+    1480 -870 1640 -870
+    1330 -890 1360 -890
+    1010 -970 1010 -890
+    1250 -970 1250 -890
+    1600 -1100 1650 -1100
+    1830 -1120 2000 -1120
+    890 -850 930 -850
+    1820 -890 1860 -890
+    1570 -950 1640 -950
+    1640 -950 1640 -890
+    1510 -1120 1510 -870
+    1510 -1120 1650 -1120
+    1610 -1190 1660 -1190
+    1840 -1210 1960 -1210
+    1840 -1190 2000 -1190
+    1960 -1210 2000 -1210
+    1660 -1310 1660 -1210
+    1660 -1310 1690 -1310
+    1770 -1310 1860 -1310
+    1940 -1310 2000 -1310
+    1150 -1160 1200 -1160
+    1380 -1180 1470 -1180
+    1690 -670 1740 -670
+    1670 -650 1740 -650
+    1920 -670 1980 -670
+    1920 -650 1980 -650
+    70 -490 70 -490 GND
+    140 -580 140 -580 D
+    320 -490 320 -490 GND
+    390 -580 390 -580 CLK
+    570 -490 570 -490 GND
+    570 -550 570 -550 VDD
+    690 -360 690 -360 Q
+    690 -300 690 -300 QN
+    430 -360 430 -360 QI
+    430 -300 430 -300 QIN
+    160 -300 160 -300 DN
+    760 -1020 760 -1020 Q1
+    760 -890 760 -890 QN1
+    160 -990 160 -990 CLK
+    160 -720 160 -720 D
+    170 -660 170 -660 RESETB
+    700 -490 700 -490 GND
+    770 -580 770 -580 RESETB
+    1300 -510 1300 -510 RESETB
+    1250 -550 1250 -550 D
+    1060 -510 1060 -510 CLK
+    1550 -550 1550 -550 Q2
+    130 -200 130 -200 CLK
+    1570 -950 1570 -950 D
+    890 -850 890 -850 CLK
+    1480 -790 1480 -790 RESETB
+    1860 -890 1860 -890 Q3
+    1600 -1100 1600 -1100 D
+    1650 -1080 1650 -1080 RESETB
+    30 -360 30 -360 D
+    1660 -1170 1660 -1170 RESETB
+    1610 -1190 1610 -1190 D
+    1660 -1210 1660 -1210 CLK
+    1150 -1160 1150 -1160 D
+    1200 -1180 1200 -1180 CLK
+    1740 -630 1740 -630 RESETB
+    1690 -670 1690 -670 D
+    1670 -650 1670 -650 CLK
+    1980 -670 1980 -670 Q4
+    1980 -650 1980 -650 Q4B

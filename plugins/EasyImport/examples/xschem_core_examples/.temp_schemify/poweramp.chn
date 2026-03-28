@@ -1,0 +1,164 @@
+chn_testbench 1.0
+
+TESTBENCH untitled
+
+  instances [4]:
+    V1  vsource.sym  x=60  y=-1160  value=dc 'VPP' + pwl 0 0 1m 'VPP'
+    V0  vsource.sym  x=60  y=-1100  value=dc 'VPP' + pwl 0 0 1m 'VPP'
+    V3  vsource.sym  x=870  y=-1100  xvalue=dc 0 pulse -.1 .1 1m .1u .1u 10.1u 20u  value=dc 0 sin 0 1 {frequ} 1m
+    Vin  vsource.sym  x=870  y=-1040  value=0  xvalue=pwl 0 .1 1m .1 1.01m 0
+
+  resistors [14]{name, x, y, rot, flip, m, value}:
+    R1  860  -490  0  1  1  8
+    R11  190  -1210  1  1  1  0.1
+    R9  190  -1050  1  1  1  0.1
+    R19  550  -920  0  1  1  50k
+    R0  550  -860  0  1  1  '50k/gain'
+    R6  240  -350  0  1  1  50k
+    R7  260  -160  0  1  1  50k
+    R2  550  -460  0  1  1  50k
+    R3  550  -400  0  1  1  '50k/(gain-2)'
+    R4  240  -810  0  1  1  50k
+    R5  260  -620  0  1  1  50k
+    R8  400  -950  0  1  1  50k
+    R10  920  -1200  1  1  1  2
+    R13  400  -490  0  1  1  50k
+
+  vcvs [2]{name, x, y, rot, flip, value}:
+    E3  610  -1170  0  0  {gain*0.99}
+    E0  610  -1090  0  0  {-gain*0.99}
+
+  capacitors [6]{name, x, y, rot, flip, m, value}:
+    C3  310  -1090  0  0  1  100u
+    C5  550  -800  0  0  1  100n ; ic=0
+    C6  550  -340  0  0  1  100n ; ic=0
+    C4  170  -220  1  0  1  100n ; ic=0
+    C1  150  -680  1  0  1  100n ; ic=0
+    C2  320  -1170  0  0  1  100u
+
+  instances [2]:
+    x1  mos_power_ampli.chn  x=500  y=-660
+    x0  mos_power_ampli.chn  x=500  y=-200
+
+  vsource [3]{name, x, y, rot, flip}:
+    vcurrvpp  260  -1210  3  0
+    vcurrvnn  260  -1050  3  0
+    vcurrvss  260  -1130  3  0
+
+  code_blocks [2]:
+    NGSPICE  code  simulator=ngspice  only_toplevel=false  value=.option ITL4=20000 ITL5=0 vvss vss 0 dc 0  .param VPP=50 .temp 30 .param frequ=15k .param gain=45 .option savecurrents  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in simulation directory. .include \\"models_poweramp.txt\\" .control save all op write poweramp.raw set appendwrite tran  2e-7 0.025 uic * .FOUR 20k v(outm,outp) * .probe i(*)  save p(r*) p(v*) write poweramp.raw quit 0 .endc 
+    COMMANDS1  code  simulator=xyce  only_toplevel=false  value=vvss vss 0 dc 0  .temp 30 .param VPP=50 .param frequ=5k .param gain=45  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in simulation directory. .include \\"models_poweramp.txt\\" .tran  8e-7 0.07 uic * .op .print tran format=raw file=poweramp_xyce.raw v(*) i(*)  + v(x1:*) v(x0:*) i(x1:*) i(x0:*) * .print dc format=raw file=poweramp_op.raw v(*) i(*) v(x1:*) v(x0:*) i(x1:*) i(x0:*)  
+
+  annotations [7]:
+    p40  probe  x=710  y=-860  analysis=tran
+    p41  probe  x=710  y=-400  analysis=tran
+    p42  probe  x=660  y=-1200  analysis=tran
+    p43  probe  x=670  y=-1120  analysis=tran
+    p44  probe  x=950  y=-1200  analysis=tran
+    p45  probe  x=350  y=-1210  analysis=tran
+    p46  probe  x=350  y=-1050  analysis=tran
+
+  wires [103]:
+    60 -1210 60 -1190
+    60 -1070 60 -1050
+    710 -700 860 -700
+    500 -1150 570 -1150
+    570 -1150 570 -1140
+    570 -1140 610 -1140
+    540 -1190 570 -1190
+    610 -1200 700 -1200
+    310 -1060 310 -1050
+    310 -1130 310 -1120
+    60 -1050 160 -1050
+    60 -1210 160 -1210
+    310 -1130 320 -1130
+    290 -1210 320 -1210
+    290 -1050 310 -1050
+    290 -1130 310 -1130
+    550 -950 710 -950
+    400 -890 550 -890
+    550 -770 550 -750
+    350 -890 350 -700
+    710 -950 710 -700
+    710 -240 860 -240
+    260 -220 350 -220
+    550 -490 710 -490
+    400 -430 550 -430
+    350 -430 350 -240
+    710 -490 710 -240
+    240 -400 240 -380
+    260 -220 260 -190
+    260 -130 260 -110
+    500 -1070 570 -1070
+    540 -1110 570 -1110
+    610 -1120 700 -1120
+    200 -220 240 -220
+    550 -310 550 -290
+    650 -700 710 -700
+    650 -240 710 -240
+    240 -220 260 -220
+    260 -680 350 -680
+    240 -860 240 -840
+    260 -680 260 -650
+    260 -590 260 -570
+    240 -680 260 -680
+    180 -680 240 -680
+    870 -1200 890 -1200
+    870 -1200 870 -1130
+    400 -1000 400 -980
+    400 -540 400 -520
+    860 -700 860 -520
+    860 -460 860 -240
+    350 -890 400 -890
+    350 -430 400 -430
+    570 -1060 610 -1060
+    570 -1070 570 -1060
+    320 -1210 360 -1210
+    310 -1050 360 -1050
+    320 -1130 360 -1130
+    320 -1140 320 -1130
+    320 -1210 320 -1200
+    400 -920 400 -890
+    400 -460 400 -430
+    240 -780 240 -680
+    240 -320 240 -220
+    220 -1210 230 -1210
+    220 -1050 230 -1050
+    60 -1130 230 -1130
+    950 -1200 1020 -1200
+    360 -1210 360 -1210 VPP
+    360 -1050 360 -1050 VNN
+    360 -1130 360 -1130 VSS
+    860 -240 860 -240 OUTP
+    500 -1150 500 -1150 VSS
+    540 -1190 540 -1190 IN
+    700 -1200 700 -1200 REFP
+    550 -750 550 -750 IN
+    350 -640 350 -640 VPP
+    350 -620 350 -620 VNN
+    860 -700 860 -700 OUTM
+    350 -180 350 -180 VPP
+    350 -160 350 -160 VNN
+    240 -400 240 -400 VPP
+    260 -110 260 -110 VSS
+    500 -1070 500 -1070 VSS
+    540 -1110 540 -1110 IN
+    700 -1120 700 -1120 REFM
+    240 -250 240 -250 INX
+    870 -1010 870 -1010 VSS
+    1020 -1200 1020 -1200 IN
+    550 -290 550 -290 VSS
+    350 -200 350 -200 VSS
+    350 -660 350 -660 VSS
+    240 -860 240 -860 VPP
+    260 -570 260 -570 VSS
+    140 -220 140 -220 IN
+    120 -680 120 -680 VSS
+    240 -710 240 -710 VSSX
+    400 -1000 400 -1000 VPP
+    400 -540 400 -540 VPP
+    350 -270 350 -270 FB
+    350 -730 350 -730 FBN
+    870 -1150 870 -1150 IN_INT
+    60 -1210 60 -1210 VPPI
+    60 -1050 60 -1050 VNNI

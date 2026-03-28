@@ -1,0 +1,136 @@
+chn 1.0
+
+SYMBOL counter_clean
+
+  pins [3]:
+    clk_i  in
+    reset_i  in
+    out_o[3:0]  out
+
+SCHEMATIC
+
+  instances [24]:
+    X_12_  sky130_stdcells/inv_2  x=590  y=-250  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_13_  sky130_stdcells/inv_2  x=590  y=-190  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_14_  sky130_stdcells/inv_2  x=360  y=-520  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_15_  sky130_stdcells/or3_1  x=590  y=-560  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_16_  sky130_stdcells/inv_2  x=580  y=-690  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_17_  sky130_stdcells/o21a_1  x=580  y=-330  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_18_  sky130_stdcells/nor3_1  x=870  y=-400  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_19_  sky130_stdcells/inv_2  x=590  y=-480  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_20_  sky130_stdcells/o221a_1  x=890  y=-240  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_21_  sky130_stdcells/nor2_1  x=870  y=-80  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_22_  sky130_stdcells/inv_2  x=580  y=-640  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_23_  sky130_stdcells/o221a_1  x=890  y=-580  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_24_  sky130_stdcells/dfxtp_1  x=1330  y=-340  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_25_  sky130_stdcells/dfxtp_1  x=1330  y=-400  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_26_  sky130_stdcells/dfxtp_1  x=1330  y=-460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    X_27_  sky130_stdcells/dfxtp_1  x=1330  y=-520  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    Xclkbuf_0_clk_i  sky130_stdcells/clkbuf_16  x=1170  y=-120  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    Xclkbuf_1_0_0_clk_i  sky130_stdcells/clkbuf_2  x=1510  y=-160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    Xclkbuf_1_1_0_clk_i  sky130_stdcells/clkbuf_2  x=1510  y=-90  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    Xinput1  sky130_stdcells/clkbuf_1  x=590  y=-130  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    Xoutput2  sky130_stdcells/buf_2  x=1610  y=-330  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    Xoutput3  sky130_stdcells/buf_2  x=1610  y=-400  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    Xoutput4  sky130_stdcells/buf_2  x=1610  y=-470  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    Xoutput5  sky130_stdcells/buf_2  x=1610  y=-540  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+
+  nets [26]:
+    net2  -> X_12_.A, X_20_.B1, X_21_.B, X_24_.Q, Xoutput2.A
+    _04_  -> X_12_.Y, X_15_.A, X_17_.A1, X_20_.A1
+    net3  -> X_13_.A, X_20_.B2, X_25_.Q, Xoutput3.A
+    _05_  -> X_13_.Y, X_15_.B, X_17_.A2, X_20_.A2
+    net4  -> X_14_.A, X_26_.Q, Xoutput4.A
+    _06_  -> X_14_.Y, X_15_.C, X_17_.B1
+    _07_  -> X_15_.X, X_16_.A, X_23_.B2
+    _08_  -> X_16_.Y, X_18_.B, X_23_.A2
+    _09_  -> X_17_.X, X_18_.C
+    net1  -> X_18_.A, X_19_.A, X_21_.A, Xinput1.X
+    _02_  -> X_18_.Y, X_26_.D
+    _10_  -> X_19_.Y, X_20_.C1, X_23_.C1
+    _01_  -> X_20_.X, X_25_.D
+    _00_  -> X_21_.Y, X_24_.D
+    net5  -> X_22_.A, X_23_.A1, X_27_.Q, Xoutput5.A
+    _11_  -> X_22_.Y, X_23_.B1
+    _03_  -> X_23_.X, X_27_.D
+    clknet_1_0_0_clk_i  -> X_24_.CLK, X_26_.CLK, Xclkbuf_1_0_0_clk_i.X
+    clknet_1_1_0_clk_i  -> X_25_.CLK, X_27_.CLK, Xclkbuf_1_1_0_clk_i.X
+    clk_i  -> Xclkbuf_0_clk_i.A
+    clknet_0_clk_i  -> Xclkbuf_0_clk_i.X, Xclkbuf_1_0_0_clk_i.A, Xclkbuf_1_1_0_clk_i.A
+    reset_i  -> Xinput1.A
+    out_o[0]  -> Xoutput2.X
+    out_o[1]  -> Xoutput3.X
+    out_o[2]  -> Xoutput4.X
+    out_o[3]  -> Xoutput5.X
+
+  wires [70]:
+    100 -200 100 -200 clk_i
+    100 -180 100 -180 reset_i
+    180 -200 180 -200 out_o[3:0]
+    550 -250 550 -250 net2
+    630 -250 630 -250 _04_
+    550 -190 550 -190 net3
+    630 -190 630 -190 _05_
+    320 -520 320 -520 net4
+    400 -520 400 -520 _06_
+    530 -600 530 -600 _04_
+    530 -560 530 -560 _05_
+    530 -520 530 -520 _06_
+    650 -560 650 -560 _07_
+    540 -690 540 -690 _07_
+    620 -690 620 -690 _08_
+    500 -370 500 -370 _04_
+    500 -330 500 -330 _05_
+    500 -290 500 -290 _06_
+    660 -330 660 -330 _09_
+    810 -440 810 -440 net1
+    810 -400 810 -400 _08_
+    810 -360 810 -360 _09_
+    930 -400 930 -400 _02_
+    550 -480 550 -480 net1
+    630 -480 630 -480 _10_
+    810 -320 810 -320 _04_
+    810 -280 810 -280 _05_
+    810 -240 810 -240 net2
+    810 -200 810 -200 net3
+    810 -160 810 -160 _10_
+    970 -240 970 -240 _01_
+    810 -100 810 -100 net1
+    810 -60 810 -60 net2
+    930 -80 930 -80 _00_
+    540 -640 540 -640 net5
+    620 -640 620 -640 _11_
+    810 -660 810 -660 net5
+    810 -620 810 -620 _08_
+    810 -580 810 -580 _11_
+    810 -540 810 -540 _07_
+    810 -500 810 -500 _10_
+    970 -580 970 -580 _03_
+    1240 -350 1240 -350 clknet_1_0_0_clk_i
+    1240 -330 1240 -330 _00_
+    1420 -350 1420 -350 net2
+    1240 -410 1240 -410 clknet_1_1_0_clk_i
+    1240 -390 1240 -390 _01_
+    1420 -410 1420 -410 net3
+    1240 -470 1240 -470 clknet_1_0_0_clk_i
+    1240 -450 1240 -450 _02_
+    1420 -470 1420 -470 net4
+    1240 -530 1240 -530 clknet_1_1_0_clk_i
+    1240 -510 1240 -510 _03_
+    1420 -530 1420 -530 net5
+    1130 -120 1130 -120 clk_i
+    1210 -120 1210 -120 clknet_0_clk_i
+    1470 -160 1470 -160 clknet_0_clk_i
+    1550 -160 1550 -160 clknet_1_0_0_clk_i
+    1470 -90 1470 -90 clknet_0_clk_i
+    1550 -90 1550 -90 clknet_1_1_0_clk_i
+    550 -130 550 -130 reset_i
+    630 -130 630 -130 net1
+    1570 -330 1570 -330 net2
+    1650 -330 1650 -330 out_o[0]
+    1570 -400 1570 -400 net3
+    1650 -400 1650 -400 out_o[1]
+    1570 -470 1570 -470 net4
+    1650 -470 1650 -470 out_o[2]
+    1570 -540 1570 -540 net5
+    1650 -540 1650 -540 out_o[3]

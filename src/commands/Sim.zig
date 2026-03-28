@@ -36,15 +36,25 @@ pub fn handleImmediate(imm: Immediate, state: anytype) Error!void {
 }
 
 pub fn handleRun(p: RunSim, state: anytype) Error!void {
-    // TODO: fio.createNetlist() and fio.runSpiceSim() are declared in FileIO
-    // but the SPICE backend (ngspice/Xyce bridge) is not yet wired up.
-    // This path will work once SpiceIF is integrated.
-    const fio  = state.active() orelse return;
-    const path = fio.createNetlist(p.sim) catch {
-        state.setStatusErr("Netlist generation failed");
+    if (is_wasm) { state.setStatus("Simulation not available in browser"); return; }
+    const fio = state.active() orelse return;
+    const netlist = fio.createNetlist(p.sim) catch {
+        state.setStatus("Netlist generation failed");
         return;
     };
-    // path is arena-owned by the document — do not free with the global allocator.
-    fio.runSpiceSim(p.sim, path);
-    state.setStatus("Simulation started");
+    defer fio.alloc.free(netlist);
+    const term = fio.runSpiceSim(p.sim, netlist) catch {
+        state.setStatus("Failed to spawn ngspice");
+        return;
+    };
+    switch (term) {
+        .Exited => |code| {
+            if (code == 0) {
+                state.setStatus("Simulation complete");
+            } else {
+                state.setStatus("ngspice exited with error");
+            }
+        },
+        else => state.setStatus("ngspice terminated abnormally"),
+    }
 }

@@ -1,0 +1,38 @@
+chn_prim 1.0
+
+SYMBOL vcr
+
+  pins [4]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+    cp  in  x=-40  y=-20
+    cm  in  x=-40  y=20
+
+  params [3]:
+    type = vcr
+    format = @name  @@p @@m @function @@cp @@cm @TABLE
+    template = name=G1 function=\\"vcr pwl(1)\\" TABLE=\\"1 0 2 3\\"
+
+  drawing:
+    line -5 15 5 15
+    line 15 -5 15 5
+    line -5 -15 5 -15
+    line -15 -5 -15 5
+    line 5 -15 11 -11
+    line 11 -11 15 -5
+    line 11 11 15 5
+    line 5 15 11 11
+    line -11 11 -5 15
+    line -15 5 -11 11
+    line -15 -5 -11 -11
+    line -11 -11 -5 -15
+    line 0 -30 0 -15
+    line 0 15 0 30
+    line 0 -15 0 15
+    line -20 -20 -10 -20
+    line -15 -25 -15 -15
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)
+      cp: (-40, -20)
+      cm: (-40, 20)

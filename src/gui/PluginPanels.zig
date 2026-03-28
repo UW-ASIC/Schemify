@@ -19,6 +19,8 @@ const bottom_bar_min_height: f32 = 150;
 const bottom_bar_padding: f32 = 8;
 const overlay_min_width: f32 = 360;
 const overlay_min_height: f32 = 220;
+const panel_bg = dvui.Color{ .r = 24, .g = 24, .b = 30, .a = 255 };
+const awaiting_plugin_msg = "(awaiting plugin response)";
 
 /// Maximum row nesting depth (begin_row / end_row).
 const MAX_ROW_NESTING: usize = 8;
@@ -34,7 +36,7 @@ pub fn drawSidebar(app: *AppState, layout: PluginPanelLayout) void {
         if (!panel.visible or panel.layout != layout) continue;
         var box = dvui.box(@src(), .{ .dir = .vertical }, .{
             .background = true,
-            .color_fill = .{ .r = 24, .g = 24, .b = 30, .a = 255 },
+            .color_fill = panel_bg,
             .min_size_content = .{ .w = sidebar_min_width },
             .padding = .{
                 .x = sidebar_padding,
@@ -63,7 +65,7 @@ pub fn drawBottomBar(app: *AppState) void {
 
     var bar = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .background = true,
-        .color_fill = .{ .r = 24, .g = 24, .b = 30, .a = 255 },
+        .color_fill = panel_bg,
         .min_size_content = .{ .h = bottom_bar_min_height },
         .padding = .{
             .x = bottom_bar_padding,
@@ -135,7 +137,7 @@ fn drawPanelBody(panel: PluginPanel, app: *AppState) void {
 
     // Obtain runtime pointer -- graceful null check per UI-SPEC.
     const rt_ptr = app.plugin_runtime_ptr orelse {
-        dvui.labelNoFmt(@src(), "(awaiting plugin response)", .{}, .{ .id_extra = @as(usize, 0xFFFF) });
+        drawAwaitingPlugin(@as(usize, 0xFFFF));
         return;
     };
     const rt: *Runtime = @ptrCast(@alignCast(rt_ptr));
@@ -144,7 +146,7 @@ fn drawPanelBody(panel: PluginPanel, app: *AppState) void {
     const wl = rt.getPanelWidgetList(panel.panel_id);
     const len = wl.len;
     if (len == 0) {
-        dvui.labelNoFmt(@src(), "(awaiting plugin response)", .{}, .{ .id_extra = @as(usize, 0xFFFE) });
+        drawAwaitingPlugin(@as(usize, 0xFFFE));
         return;
     }
 
@@ -157,7 +159,7 @@ fn drawPanelBody(panel: PluginPanel, app: *AppState) void {
     const opens = wl.items(.open);
 
     // Row layout stack (begin_row / end_row nesting).
-    var row_boxes: [MAX_ROW_NESTING]dvui.BoxWidget = undefined;
+    var row_boxes: [MAX_ROW_NESTING]*dvui.BoxWidget = undefined;
     var row_depth: usize = 0;
 
     // Collapsible section state tracking.
@@ -210,7 +212,7 @@ fn drawPanelBody(panel: PluginPanel, app: *AppState) void {
             .slider => {
                 // dvui slider works on a 0-1 fraction; convert from plugin's min/max range.
                 const range = mx - mn;
-                var fraction: f32 = if (range > 0) std.math.clamp((val - mn) / range, 0, 1) else 0;
+                var fraction: f32 = sliderFraction(val, mn, mx);
                 if (dvui.slider(@src(), .{ .fraction = &fraction }, .{ .id_extra = i })) {
                     const new_val = mn + fraction * range;
                     rt.dispatchSliderChanged(panel.panel_id, wid, new_val);
@@ -254,4 +256,13 @@ fn drawPanelBody(panel: PluginPanel, app: *AppState) void {
         row_depth -= 1;
         row_boxes[row_depth].deinit();
     }
+}
+
+fn drawAwaitingPlugin(id_extra: usize) void {
+    dvui.labelNoFmt(@src(), awaiting_plugin_msg, .{}, .{ .id_extra = id_extra });
+}
+
+fn sliderFraction(val: f32, mn: f32, mx: f32) f32 {
+    const range = mx - mn;
+    return if (range > 0) std.math.clamp((val - mn) / range, 0, 1) else 0;
 }

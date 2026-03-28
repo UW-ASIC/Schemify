@@ -1,0 +1,16 @@
+chn_prim 1.0
+
+SYMBOL generic_pin
+
+  pins [0]:
+
+  params [2]:
+    type = generic
+    template = name=g1 generic_type=time value=\\"2 ns\\" lab=xxx
+
+  drawing:
+    line -15 -5 -5 -5
+    line -5 -5 0 0
+    line -5 5 0 0
+    line -15 5 -5 5
+    line -15 -5 -15 5

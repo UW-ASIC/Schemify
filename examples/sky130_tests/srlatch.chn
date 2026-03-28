@@ -1,0 +1,55 @@
+chn 1.0
+
+SYMBOL srlatch
+
+  pins [5]:
+    S  in
+    CLK  in
+    R  in
+    Q  out
+    QN  out
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  instances [4]:
+    x5  sky130_tests/lvnand  x=290  y=-540  WidthN=1  LenN=0.15  WidthP=1  LenP=0.15  m=1
+    x1  sky130_tests/lvnand  x=290  y=-380  rot=2  flip=1  WidthN=1  LenN=0.15  WidthP=1  LenP=0.15  m=1
+    x2  sky130_tests/lvnand  x=500  y=-400  rot=2  flip=1  WidthN=1  LenN=0.15  WidthP=1  LenP=0.15  m=1
+    x3  sky130_tests/lvnand  x=500  y=-520  WidthN=1  LenN=0.15  WidthP=1  LenP=0.15  m=1
+
+  nets [7]:
+    S  -> x5.A
+    CLK  -> x5.B, x1.B
+    SN  -> x5.Y, x3.A
+    R  -> x1.A
+    RN  -> x1.Y, x2.A
+    Q  -> x2.B, x3.Y
+    QN  -> x2.Y, x3.B
+
+  wires [21]:
+    570 -420 570 -400
+    450 -480 570 -420
+    450 -500 450 -480
+    570 -520 570 -500
+    450 -440 570 -500
+    450 -440 450 -420
+    180 -560 240 -560
+    180 -360 240 -360
+    570 -520 630 -520
+    570 -400 630 -400
+    360 -540 450 -540
+    360 -380 450 -380
+    240 -520 240 -400
+    180 -460 240 -460
+    180 -560 180 -560 S
+    180 -360 180 -360 R
+    630 -520 630 -520 Q
+    630 -400 630 -400 QN
+    180 -460 180 -460 CLK
+    420 -540 420 -540 SN
+    420 -380 420 -380 RN

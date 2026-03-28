@@ -1,0 +1,41 @@
+chn 1.0
+
+SYMBOL untitled
+
+  pins [2]:
+    A  inout  x=-150  y=0
+    Z  inout  x=150  y=0
+
+  params [2]:
+    template = name=x1 DEL=3
+    extra = DEL
+
+  spice_prefix: X
+
+  drawing:
+    line -150 0 -130 0
+    line 130 0 150 0
+    pin_positions:
+      A: (-150, 0)
+      Z: (150, 0)
+
+SCHEMATIC
+
+  resistors [1]{name, x, y, rot, flip, value, footprint, device, m}:
+    R1  440  -230  1  0  expr( 2500 * @DEL )  1206  resistor  1
+
+  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
+    C1  500  -160  0  0  1  expr(100f * @DEL )  1206  ceramic capacitor
+
+  code_blocks [1]:
+    COMMANDS  code  only_toplevel=0  value= .param DEL=@DEL ** do something with DEL 
+
+  wires [8]:
+    500 -230 580 -230
+    500 -230 500 -190
+    360 -230 410 -230
+    470 -230 500 -230
+    500 -130 500 -110
+    580 -230 580 -230 Z
+    500 -110 500 -110 GND
+    360 -230 360 -230 A

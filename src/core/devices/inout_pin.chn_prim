@@ -1,0 +1,23 @@
+chn_prim 1.0
+
+SYMBOL inout_pin
+  desc: Bidirectional port (hierarchical)
+
+  pins [1]:
+    p  inout
+
+  params [1]:
+    lab = ""
+
+  drawing:
+    lines:
+      # Pin stub
+      (0,0) (10,0)
+      # Diamond shape for bidirectional
+      (10,0) (18,-6)
+      (18,-6) (30,0)
+      (30,0) (18,6)
+      (18,6) (10,0)
+    text: (20,0) "@lab"
+    pin_positions:
+      p: (0,0)

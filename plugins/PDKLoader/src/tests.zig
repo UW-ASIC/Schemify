@@ -115,11 +115,11 @@ test "schemifyDir: works with any variant root" {
 //
 //   <tmp>/test_pdk_<n>/sky130A/
 //     libs.tech/xschem/
-//       nfet_01v8.sym       ← .sym only → .chn_sym
-//       pfet_01v8.sym       ← .sym only → .chn_sym
+//       nfet_01v8.sym       ← .sym only → .chn_prim
+//       pfet_01v8.sym       ← .sym only → .chn_prim
 //       tb_inv.sch          ← .sch with no matching .sym → .chn_tb
 //       inv.sch             ← .sch + inv.sym pair → .chn
-//       inv.sym             ← .sym + inv.sch pair → .chn_sym
+//       inv.sym             ← .sym + inv.sch pair → .chn_prim
 
 const SYM_NFET =
     \\v {xschem version=3.4.5 file_version=1.2}
@@ -217,7 +217,7 @@ test "convertToSchemify: returns > 0 for synthetic PDK tree" {
     try testing.expect(n > 0);
 }
 
-test "convertToSchemify: output dir contains .chn_sym files" {
+test "convertToSchemify: output dir contains .chn_prim files" {
     const a = testing.allocator;
     const tree = try makeTmpPdkTree(a);
     defer {
@@ -238,14 +238,14 @@ test "convertToSchemify: output dir contains .chn_sym files" {
     };
     _ = try volare.convertToSchemify(a, pv, out_dir);
 
-    var found_chn_sym = false;
+    var found_chn_prim = false;
     var out = try std.fs.openDirAbsolute(out_dir, .{ .iterate = true });
     defer out.close();
     var it = out.iterate();
     while (try it.next()) |entry| {
-        if (std.mem.endsWith(u8, entry.name, ".chn_sym")) found_chn_sym = true;
+        if (std.mem.endsWith(u8, entry.name, ".chn_prim")) found_chn_prim = true;
     }
-    try testing.expect(found_chn_sym);
+    try testing.expect(found_chn_prim);
 }
 
 test "convertToSchemify: tb_inv.sch (no matching .sym) produces .chn_tb" {

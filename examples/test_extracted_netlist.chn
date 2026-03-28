@@ -1,0 +1,99 @@
+chn_testbench 1.0
+
+TESTBENCH test_extracted_netlist
+
+  resistors [6]{name, x, y, rot, flip, value, footprint, device, m}:
+    R1  360  -800  0  0  10k  1206  resistor  1
+    R2  360  -900  0  0  100k  1206  resistor  1
+    R4  460  -640  0  1  100k  1206  resistor  1
+    R5  480  -450  0  1  100k  1206  resistor  1
+    R13  490  -910  0  1  100k  -  -  1
+    RLOAD  1030  -750  0  0  4  1206  resistor  1
+
+  instances [4]:
+    VPP  vsource  x=290  y=-230  value=dc 50
+    VNN  vsource  x=290  y=-170  value=dc 50
+    VVSS  vsource  x=660  y=-160  value=0
+    VIN  vsource  x=30  y=-420  value=pwl +   0     0 100u  0 + 110u   2 200u 2 + 210u    0 300u  0 + 310u  -2
+
+  vsource [3]{name, x, y, rot, flip}:
+    vcurrvpp  430  -280  3  0
+    vcurrvnn  430  -120  3  0
+    vcurrvss  430  -200  3  0
+
+  capacitors [2]{name, x, y, rot, flip, m, value}:
+    C1  370  -510  1  0  1  50u
+    C4  360  -740  0  0  1  50u
+
+  instances [1]:
+    x1  mos_power_ampli_extracted  x=770  y=-810
+
+  nets [12]:
+    MINUS  -> R1.P, R2.M, R13.M, x1.MINUS
+    C1  -> R1.M, C4.p
+    OUT  -> R2.P, RLOAD.P, x1.OUT
+    net1  -> VPP.p, vcurrvpp.plus
+    net3  -> VPP.m, VNN.p, vcurrvss.plus
+    net2  -> VNN.m, vcurrvnn.plus
+    VPP  -> vcurrvpp.minus, R4.P, R13.P, x1.VPP
+    VNN  -> vcurrvnn.minus, x1.VNN
+    VSS  -> vcurrvss.minus, VVSS.p, VIN.m, R5.M, C4.m, RLOAD.M, x1.VSS
+    0  -> VVSS.m
+    IN  -> VIN.p, C1.m
+    PLUS  -> R4.M, R5.P, C1.p, x1.PLUS
+
+  wires [54]:
+    360 -850 360 -830
+    290 -280 290 -260
+    290 -140 290 -120
+    290 -120 400 -120
+    290 -280 400 -280
+    460 -280 530 -280
+    460 -120 530 -120
+    460 -200 530 -200
+    290 -200 400 -200
+    660 -210 660 -190
+    920 -1000 920 -850
+    360 -1000 920 -1000
+    360 -1000 360 -930
+    490 -850 620 -850
+    550 -830 620 -830
+    550 -830 550 -510
+    1030 -850 1060 -850
+    30 -390 30 -330
+    460 -690 460 -670
+    480 -510 480 -480
+    480 -420 480 -400
+    460 -510 480 -510
+    400 -510 460 -510
+    460 -610 460 -510
+    360 -870 360 -850
+    360 -710 360 -680
+    480 -510 550 -510
+    30 -510 340 -510
+    490 -960 490 -940
+    490 -880 490 -850
+    1030 -850 1030 -780
+    1030 -720 1030 -690
+    30 -510 30 -450
+    360 -850 490 -850
+    920 -850 1030 -850
+    620 -850 620 -850 MINUS
+    620 -810 620 -810 VSS
+    1060 -850 1060 -850 OUT
+    620 -790 620 -790 VPP
+    620 -770 620 -770 VNN
+    530 -280 530 -280 VPP
+    530 -120 530 -120 VNN
+    530 -200 530 -200 VSS
+    660 -210 660 -210 VSS
+    660 -130 660 -130 0
+    360 -680 360 -680 VSS
+    30 -330 30 -330 VSS
+    620 -830 620 -830 PLUS
+    460 -690 460 -690 VPP
+    480 -400 480 -400 VSS
+    210 -510 210 -510 IN
+    490 -960 490 -960 VPP
+    1030 -690 1030 -690 VSS
+    360 -770 360 -770 C1

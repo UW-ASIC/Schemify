@@ -1,0 +1,6 @@
+chn_testbench 1.0
+
+TESTBENCH intuitive_interface_cheatsheet
+
+  instances [1]:
+      bindkeys_cheatsheet.chn  x=190  y=700

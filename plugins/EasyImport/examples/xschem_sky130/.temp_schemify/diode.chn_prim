@@ -1,0 +1,23 @@
+chn_prim 1.0
+
+SYMBOL diode
+
+  pins [2]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+
+  params [6]:
+    type = diode
+    format = @name @pinlist @model area=@area
+    function1 = U H 0 m
+    function0 = L U 1 m
+    tedax_format = footprint @name @footprint value @name @value device @name @device spicedev @name @spicedev spiceval @name @spiceval comptag @name @comptag
+    template = name=D1 model=D1N914 area=1
+
+  drawing:
+    line 0 5 0 30
+    line 0 -30 0 -5
+    line -10 5 10 5
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)

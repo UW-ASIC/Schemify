@@ -113,9 +113,11 @@ pub fn parseRc(
 
 /// Pre-seed the Tcl evaluator with standard XSchem variables.
 fn seedDefaults(tcl: *Tcl, xschemrc_dir: []const u8) !void {
-    // XSCHEM_SHAREDIR: probe env var, then standard paths, then fallback
+    const aa = tcl.evaluator.arena.allocator();
+    // XSCHEM_SHAREDIR: probe env var, then standard paths, then PATH-based, then fallback
     const sharedir = std.posix.getenv("XSCHEM_SHAREDIR") orelse
         probeShareDir() orelse
+        probeShareDirFromBinary(aa) orelse
         "/usr/share/xschem";
     try tcl.setVar("XSCHEM_SHAREDIR", sharedir);
 
@@ -123,7 +125,6 @@ fn seedDefaults(tcl: *Tcl, xschemrc_dir: []const u8) !void {
     if (std.posix.getenv("USER_CONF_DIR")) |ucd| {
         try tcl.setVar("USER_CONF_DIR", ucd);
     } else if (std.posix.getenv("HOME")) |home| {
-        const aa = tcl.evaluator.arena.allocator();
         const path = std.fmt.allocPrint(aa, "{s}/.xschem", .{home}) catch
             return error.OutOfMemory;
         try tcl.setVar("USER_CONF_DIR", path);
@@ -149,6 +150,28 @@ fn probeShareDir() ?[]const u8 {
     for (&candidates) |path| {
         std.fs.cwd().access(path, .{}) catch continue;
         return path;
+    }
+    return null;
+}
+
+/// Derive XSCHEM_SHAREDIR from the xschem binary on PATH.
+/// Handles NixOS, Homebrew, Guix, and other non-FHS prefixes.
+fn probeShareDirFromBinary(aa: Allocator) ?[]const u8 {
+    const path_env = std.posix.getenv("PATH") orelse return null;
+    var iter = std.mem.splitScalar(u8, path_env, ':');
+    while (iter.next()) |dir| {
+        if (dir.len == 0) continue;
+        const xschem_bin = std.fs.path.join(aa, &.{ dir, "xschem" }) catch return null;
+        // Resolve symlinks to get the real binary location
+        const real_bin = std.fs.cwd().realpathAlloc(aa, xschem_bin) catch continue;
+        // Derive: /prefix/bin/xschem → /prefix/share/xschem
+        const bin_dir = std.fs.path.dirname(real_bin) orelse continue;
+        const prefix = std.fs.path.dirname(bin_dir) orelse continue;
+        const share_dir = std.fs.path.join(aa, &.{ prefix, "share", "xschem" }) catch return null;
+        // Verify the device symbols directory exists
+        const dev_dir = std.fs.path.join(aa, &.{ share_dir, "xschem_library", "devices" }) catch return null;
+        std.fs.cwd().access(dev_dir, .{}) catch continue;
+        return share_dir;
     }
     return null;
 }

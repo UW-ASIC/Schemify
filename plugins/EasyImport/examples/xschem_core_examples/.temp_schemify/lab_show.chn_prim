@@ -1,0 +1,14 @@
+chn_prim 1.0
+
+SYMBOL lab_show
+
+  pins [1]:
+    p  in
+
+  params [3]:
+    type = show_label
+    template = name=l1
+    highlight = true
+
+  drawing:
+    line -20 -20 0 0

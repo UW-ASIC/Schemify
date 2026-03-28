@@ -1,0 +1,133 @@
+chn 1.0
+
+SYMBOL stdcells
+
+  pins [11]:
+    QLATCH  out
+    A  in
+    X  out
+    B  in
+    Y  out
+    CLK  in
+    Q  out
+    RESET_B  in
+    XSCHEM  out
+    VCC  in
+    VSS  in
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  instances [22]:
+    x1  sky130_stdcells/nand2_1  x=360  y=-110  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    C1  devices/parax_cap  x=460  y=-100  gnd=0  value=3f  m=1
+    x2  sky130_stdcells/dfrtp_1  x=390  y=-250  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    C2  devices/parax_cap  x=520  y=-260  gnd=0  value=3f  m=1
+    C3  devices/parax_cap  x=420  y=-360  gnd=0  value=3f  m=1
+    x3  sky130_stdcells/nor2b_1  x=320  y=-370  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x4  sky130_stdcells/dlrbn_1  x=720  y=-380  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    C4  devices/parax_cap  x=850  y=-390  gnd=0  value=3f  m=1
+    x5  sky130_stdcells/nor2b_1  x=1120  y=-410  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x6  sky130_stdcells/nand2_1  x=1290  y=-330  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x7  sky130_stdcells/a31o_2  x=1470  y=-310  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x8  sky130_stdcells/inv_2  x=1220  y=-470  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x13  sky130_stdcells/buf_2  x=840  y=-600  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x9  sky130_stdcells/buf_2  x=840  y=-670  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x14  sky130_stdcells/buf_2  x=840  y=-740  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x15  sky130_stdcells/buf_2  x=840  y=-810  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    x11  sky130_stdcells/buf_2  x=840  y=-530  VGND=VSS  VNB=VSS  VPB=VCC  VPWR=VCC  prefix=sky130_fd_sc_hd__
+    C5  devices/parax_cap  x=1180  y=-400  gnd=0  value=3f  m=1
+    C6  devices/parax_cap  x=1290  y=-460  gnd=0  value=3f  m=1
+    C7  devices/parax_cap  x=1580  y=-300  gnd=0  value=3f  m=1
+    C8  devices/parax_cap  x=520  y=-190  gnd=0  value=3f  m=1
+    C9  devices/parax_cap  x=1350  y=-320  gnd=0  value=3f  m=1
+
+  nets [18]:
+    A  -> x1.A, x2.D, x3.A, x4.D
+    B  -> x1.B, x3.B_N, x5.B_N
+    IX  -> x1.Y, C1.p, x9.A
+    CLK  -> x2.CLK, x4.GATE_N
+    RESET_B  -> x2.RESET_B, x4.RESET_B, x7.B1, C8.p
+    IQ  -> x2.Q, C2.p, x7.A3, x14.A
+    IY  -> C3.p, x3.Y, x5.A, x8.A, x13.A
+    IQLATCH  -> x4.Q, C4.p, x6.B, x15.A
+    net1  -> x4.Q_N
+    net2  -> x5.Y, x6.A, C5.p
+    net4  -> x6.Y, x7.A2, C9.p
+    net3  -> x7.A1, x8.Y, C6.p
+    IXSCHEM  -> x7.X, x11.A, C7.p
+    Y  -> x13.X
+    X  -> x9.X
+    Q  -> x14.X
+    QLATCH  -> x15.X
+    XSCHEM  -> x11.X
+
+  wires [64]:
+    420 -110 520 -110
+    440 -370 480 -370
+    890 -400 910 -400
+    810 -380 820 -380
+    1230 -410 1230 -350
+    1180 -410 1230 -410
+    440 -470 440 -370
+    1340 -370 1390 -370
+    1350 -330 1390 -330
+    1390 -290 1390 -270
+    380 -370 440 -370
+    480 -270 1390 -270
+    1380 -250 1380 -200
+    1380 -250 1390 -250
+    890 -310 1230 -310
+    890 -400 890 -310
+    1550 -310 1620 -310
+    300 -200 1380 -200
+    300 -230 300 -200
+    1010 -470 1010 -430
+    1010 -430 1060 -430
+    810 -400 890 -400
+    440 -470 1010 -470
+    1010 -470 1180 -470
+    1340 -470 1340 -370
+    1260 -470 1340 -470
+    520 -110 580 -110
+    300 -130 300 -130 A
+    300 -90 300 -90 B
+    300 -270 300 -270 CLK
+    300 -250 300 -250 A
+    300 -230 300 -230 RESET_B
+    580 -270 580 -270 IQ
+    260 -390 260 -390 A
+    260 -350 260 -350 B
+    480 -370 480 -370 IY
+    630 -380 630 -380 CLK
+    630 -400 630 -400 A
+    630 -360 630 -360 RESET_B
+    910 -400 910 -400 IQLATCH
+    1060 -390 1060 -390 B
+    1620 -310 1620 -310 IXSCHEM
+    250 -560 250 -560 RESET_B
+    250 -580 250 -580 CLK
+    250 -600 250 -600 B
+    250 -620 250 -620 A
+    360 -590 360 -590 Y
+    360 -610 360 -610 X
+    360 -630 360 -630 QLATCH
+    360 -570 360 -570 Q
+    360 -550 360 -550 XSCHEM
+    250 -490 250 -490 VCC
+    250 -470 250 -470 VSS
+    520 -110 520 -110 IX
+    880 -600 880 -600 Y
+    800 -600 800 -600 IY
+    880 -670 880 -670 X
+    800 -670 800 -670 IX
+    880 -740 880 -740 Q
+    800 -740 800 -740 IQ
+    880 -810 880 -810 QLATCH
+    800 -810 800 -810 IQLATCH
+    880 -530 880 -530 XSCHEM
+    800 -530 800 -530 IXSCHEM

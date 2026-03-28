@@ -1,0 +1,312 @@
+chn 1.0
+
+SYMBOL counter
+
+  pins [4]:
+    VGND  in
+    VPWR  in
+    clk_i  in
+    reset_i  in
+
+  params [2]:
+    template = name=x1 prefix=sky130_fd_sc_hd__ 
+    extra =  prefix
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  instances [191]:
+    p67  devices/ipin  x=190  y=20  lab=VGND
+    p68  devices/ipin  x=190  y=40  lab=VPWR
+    p69  devices/ipin  x=190  y=60  lab=clk_i
+    p70  devices/ipin  x=190  y=80  lab=reset_i
+    p71  devices/opin  x=270  y=20  lab=out_o[3:0]
+    XFILLER_0_19  sky130_stdcells/decap_8  x=1300  y=60  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_0_27  sky130_stdcells/fill_1  x=1300  y=160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_0_29  sky130_stdcells/decap_8  x=1300  y=260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_0_37  sky130_stdcells/fill_2  x=1300  y=360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_0_43  sky130_stdcells/decap_4  x=1300  y=460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_0_7  sky130_stdcells/decap_12  x=1300  y=560  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_10_15  sky130_stdcells/decap_12  x=1300  y=660  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_10_27  sky130_stdcells/fill_1  x=1300  y=760  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_10_29  sky130_stdcells/decap_12  x=1300  y=860  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_10_3  sky130_stdcells/decap_12  x=1300  y=960  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_10_41  sky130_stdcells/decap_6  x=1300  y=1060  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_11_19  sky130_stdcells/decap_8  x=1300  y=1160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_11_27  sky130_stdcells/fill_1  x=1300  y=1260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_11_29  sky130_stdcells/decap_8  x=1300  y=1360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_11_37  sky130_stdcells/fill_2  x=1300  y=1460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_11_43  sky130_stdcells/decap_4  x=2220  y=60  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_11_7  sky130_stdcells/decap_12  x=2220  y=160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_1_15  sky130_stdcells/decap_12  x=2220  y=260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_1_27  sky130_stdcells/decap_12  x=2220  y=360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_1_3  sky130_stdcells/decap_12  x=2220  y=460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_1_39  sky130_stdcells/fill_1  x=2220  y=560  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_1_43  sky130_stdcells/decap_4  x=2220  y=660  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_2_11  sky130_stdcells/fill_2  x=2220  y=760  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_2_17  sky130_stdcells/decap_8  x=2220  y=860  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_2_25  sky130_stdcells/decap_3  x=2220  y=960  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_2_3  sky130_stdcells/decap_8  x=2220  y=1060  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_2_32  sky130_stdcells/decap_4  x=2220  y=1160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_2_39  sky130_stdcells/decap_8  x=2220  y=1260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_3_14  sky130_stdcells/decap_6  x=2220  y=1360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_3_23  sky130_stdcells/decap_4  x=2220  y=1460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_3_3  sky130_stdcells/decap_6  x=3140  y=60  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_3_43  sky130_stdcells/decap_4  x=3140  y=160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_3_9  sky130_stdcells/fill_1  x=3140  y=260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_4_21  sky130_stdcells/decap_6  x=3140  y=360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_4_27  sky130_stdcells/fill_1  x=3140  y=460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_4_3  sky130_stdcells/fill_2  x=3140  y=560  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_4_38  sky130_stdcells/decap_8  x=3140  y=660  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_4_46  sky130_stdcells/fill_1  x=3140  y=760  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_5_16  sky130_stdcells/decap_4  x=3140  y=860  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_5_3  sky130_stdcells/decap_6  x=3140  y=960  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_5_40  sky130_stdcells/decap_6  x=3140  y=1060  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_5_46  sky130_stdcells/fill_1  x=3140  y=1160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_5_9  sky130_stdcells/fill_1  x=3140  y=1260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_6_24  sky130_stdcells/decap_4  x=3140  y=1360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_6_3  sky130_stdcells/decap_4  x=3140  y=1460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_6_38  sky130_stdcells/decap_8  x=4060  y=60  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_6_46  sky130_stdcells/fill_1  x=4060  y=160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_6_7  sky130_stdcells/fill_1  x=4060  y=260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_7_14  sky130_stdcells/decap_4  x=4060  y=360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_7_3  sky130_stdcells/decap_8  x=4060  y=460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_7_34  sky130_stdcells/decap_4  x=4060  y=560  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_7_43  sky130_stdcells/decap_4  x=4060  y=660  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_8_13  sky130_stdcells/decap_12  x=4060  y=760  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_8_25  sky130_stdcells/decap_3  x=4060  y=860  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_8_3  sky130_stdcells/decap_6  x=4060  y=960  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_8_32  sky130_stdcells/decap_6  x=4060  y=1060  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_8_42  sky130_stdcells/decap_4  x=4060  y=1160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_8_46  sky130_stdcells/fill_1  x=4060  y=1260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_8_9  sky130_stdcells/fill_1  x=4060  y=1360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_9_15  sky130_stdcells/decap_12  x=4060  y=1460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_9_27  sky130_stdcells/decap_8  x=4980  y=60  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_9_3  sky130_stdcells/decap_12  x=4980  y=160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_9_35  sky130_stdcells/fill_1  x=4980  y=260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XFILLER_9_39  sky130_stdcells/decap_8  x=4980  y=360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_0  sky130_stdcells/decap_3  x=4980  y=460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_1  sky130_stdcells/decap_3  x=4980  y=560  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_10  sky130_stdcells/decap_3  x=4980  y=660  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_11  sky130_stdcells/decap_3  x=4980  y=760  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_12  sky130_stdcells/decap_3  x=4980  y=860  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_13  sky130_stdcells/decap_3  x=4980  y=960  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_14  sky130_stdcells/decap_3  x=4980  y=1060  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_15  sky130_stdcells/decap_3  x=4980  y=1160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_16  sky130_stdcells/decap_3  x=4980  y=1260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_17  sky130_stdcells/decap_3  x=4980  y=1360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_18  sky130_stdcells/decap_3  x=4980  y=1460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_19  sky130_stdcells/decap_3  x=5900  y=60  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_2  sky130_stdcells/decap_3  x=5900  y=160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_20  sky130_stdcells/decap_3  x=5900  y=260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_21  sky130_stdcells/decap_3  x=5900  y=360  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_22  sky130_stdcells/decap_3  x=5900  y=460  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_23  sky130_stdcells/decap_3  x=5900  y=560  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_3  sky130_stdcells/decap_3  x=5900  y=660  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_4  sky130_stdcells/decap_3  x=5900  y=760  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_5  sky130_stdcells/decap_3  x=5900  y=860  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_6  sky130_stdcells/decap_3  x=5900  y=960  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_7  sky130_stdcells/decap_3  x=5900  y=1060  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_8  sky130_stdcells/decap_3  x=5900  y=1160  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XPHY_9  sky130_stdcells/decap_3  x=5900  y=1260  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    XTAP_24  sky130_stdcells/tapvpwrvgnd_1  x=5900  y=1360  VGND=VGND  VPWR=VPWR
+    XTAP_25  sky130_stdcells/tapvpwrvgnd_1  x=5900  y=1460  VGND=VGND  VPWR=VPWR
+    XTAP_26  sky130_stdcells/tapvpwrvgnd_1  x=6820  y=60  VGND=VGND  VPWR=VPWR
+    XTAP_27  sky130_stdcells/tapvpwrvgnd_1  x=6820  y=160  VGND=VGND  VPWR=VPWR
+    XTAP_28  sky130_stdcells/tapvpwrvgnd_1  x=6820  y=260  VGND=VGND  VPWR=VPWR
+    XTAP_29  sky130_stdcells/tapvpwrvgnd_1  x=6820  y=360  VGND=VGND  VPWR=VPWR
+    XTAP_30  sky130_stdcells/tapvpwrvgnd_1  x=6820  y=460  VGND=VGND  VPWR=VPWR
+    p0  devices/lab_pin  x=6780  y=530  lab=net2
+    p1  devices/lab_pin  x=6860  y=530  flip=1  lab=_04_
+    X_12_  sky130_stdcells/inv_2  x=6820  y=530  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p2  devices/lab_pin  x=6780  y=650  lab=net3
+    p3  devices/lab_pin  x=6860  y=650  flip=1  lab=_05_
+    X_13_  sky130_stdcells/inv_2  x=6820  y=650  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p4  devices/lab_pin  x=6780  y=770  lab=net4
+    p5  devices/lab_pin  x=6860  y=770  flip=1  lab=_06_
+    X_14_  sky130_stdcells/inv_2  x=6820  y=770  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p6  devices/lab_pin  x=6760  y=870  lab=_04_
+    p7  devices/lab_pin  x=6760  y=910  lab=_05_
+    p8  devices/lab_pin  x=6760  y=950  lab=_06_
+    p9  devices/lab_pin  x=6880  y=910  flip=1  lab=_07_
+    X_15_  sky130_stdcells/or3_1  x=6820  y=910  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p10  devices/lab_pin  x=6780  y=1050  lab=_07_
+    p11  devices/lab_pin  x=6860  y=1050  flip=1  lab=_08_
+    X_16_  sky130_stdcells/inv_2  x=6820  y=1050  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p12  devices/lab_pin  x=6740  y=1150  lab=_04_
+    p13  devices/lab_pin  x=6740  y=1190  lab=_05_
+    p14  devices/lab_pin  x=6740  y=1230  lab=_06_
+    p15  devices/lab_pin  x=6900  y=1190  flip=1  lab=_09_
+    X_17_  sky130_stdcells/o21a_1  x=6820  y=1190  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p16  devices/lab_pin  x=6760  y=1310  lab=net1
+    p17  devices/lab_pin  x=6760  y=1350  lab=_08_
+    p18  devices/lab_pin  x=6760  y=1390  lab=_09_
+    p19  devices/lab_pin  x=6880  y=1350  flip=1  lab=_02_
+    X_18_  sky130_stdcells/nor3_1  x=6820  y=1350  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p20  devices/lab_pin  x=6780  y=1490  lab=net1
+    p21  devices/lab_pin  x=6860  y=1490  flip=1  lab=_10_
+    X_19_  sky130_stdcells/inv_2  x=6820  y=1490  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p22  devices/lab_pin  x=7660  y=-10  lab=_04_
+    p23  devices/lab_pin  x=7660  y=30  lab=_05_
+    p24  devices/lab_pin  x=7660  y=70  lab=net2
+    p25  devices/lab_pin  x=7660  y=110  lab=net3
+    p26  devices/lab_pin  x=7660  y=150  lab=_10_
+    p27  devices/lab_pin  x=7820  y=70  flip=1  lab=_01_
+    X_20_  sky130_stdcells/o221a_1  x=7740  y=70  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p28  devices/lab_pin  x=7680  y=220  lab=net1
+    p29  devices/lab_pin  x=7680  y=260  lab=net2
+    p30  devices/lab_pin  x=7800  y=240  flip=1  lab=_00_
+    X_21_  sky130_stdcells/nor2_1  x=7740  y=240  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p31  devices/lab_pin  x=7700  y=370  lab=net5
+    p32  devices/lab_pin  x=7780  y=370  flip=1  lab=_11_
+    X_22_  sky130_stdcells/inv_2  x=7740  y=370  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p33  devices/lab_pin  x=7660  y=450  lab=net5
+    p34  devices/lab_pin  x=7660  y=490  lab=_08_
+    p35  devices/lab_pin  x=7660  y=530  lab=_11_
+    p36  devices/lab_pin  x=7660  y=570  lab=_07_
+    p37  devices/lab_pin  x=7660  y=610  lab=_10_
+    p38  devices/lab_pin  x=7820  y=530  flip=1  lab=_03_
+    X_23_  sky130_stdcells/o221a_1  x=7740  y=530  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p39  devices/lab_pin  x=7650  y=690  lab=clknet_1_0_0_clk_i
+    p40  devices/lab_pin  x=7650  y=710  lab=_00_
+    p41  devices/lab_pin  x=7830  y=690  flip=1  lab=net2
+    X_24_  sky130_stdcells/dfxtp_1  x=7740  y=700  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p42  devices/lab_pin  x=7650  y=830  lab=clknet_1_1_0_clk_i
+    p43  devices/lab_pin  x=7650  y=850  lab=_01_
+    p44  devices/lab_pin  x=7830  y=830  flip=1  lab=net3
+    X_25_  sky130_stdcells/dfxtp_1  x=7740  y=840  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p45  devices/lab_pin  x=7650  y=970  lab=clknet_1_0_0_clk_i
+    p46  devices/lab_pin  x=7650  y=990  lab=_02_
+    p47  devices/lab_pin  x=7830  y=970  flip=1  lab=net4
+    X_26_  sky130_stdcells/dfxtp_1  x=7740  y=980  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p48  devices/lab_pin  x=7650  y=1110  lab=clknet_1_1_0_clk_i
+    p49  devices/lab_pin  x=7650  y=1130  lab=_03_
+    p50  devices/lab_pin  x=7830  y=1110  flip=1  lab=net5
+    X_27_  sky130_stdcells/dfxtp_1  x=7740  y=1120  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p51  devices/lab_pin  x=7700  y=1250  lab=clk_i
+    p52  devices/lab_pin  x=7780  y=1250  flip=1  lab=clknet_0_clk_i
+    Xclkbuf_0_clk_i  sky130_stdcells/clkbuf_16  x=7740  y=1250  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p53  devices/lab_pin  x=7700  y=1370  lab=clknet_0_clk_i
+    p54  devices/lab_pin  x=7780  y=1370  flip=1  lab=clknet_1_0_0_clk_i
+    Xclkbuf_1_0_0_clk_i  sky130_stdcells/clkbuf_2  x=7740  y=1370  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p55  devices/lab_pin  x=7700  y=1490  lab=clknet_0_clk_i
+    p56  devices/lab_pin  x=7780  y=1490  flip=1  lab=clknet_1_1_0_clk_i
+    Xclkbuf_1_1_0_clk_i  sky130_stdcells/clkbuf_2  x=7740  y=1490  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p57  devices/lab_pin  x=8620  y=30  lab=reset_i
+    p58  devices/lab_pin  x=8700  y=30  flip=1  lab=net1
+    Xinput1  sky130_stdcells/clkbuf_1  x=8660  y=30  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p59  devices/lab_pin  x=8620  y=150  lab=net2
+    p60  devices/lab_pin  x=8700  y=150  flip=1  lab=out_o[0]
+    Xoutput2  sky130_stdcells/buf_2  x=8660  y=150  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p61  devices/lab_pin  x=8620  y=270  lab=net3
+    p62  devices/lab_pin  x=8700  y=270  flip=1  lab=out_o[1]
+    Xoutput3  sky130_stdcells/buf_2  x=8660  y=270  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p63  devices/lab_pin  x=8620  y=390  lab=net4
+    p64  devices/lab_pin  x=8700  y=390  flip=1  lab=out_o[2]
+    Xoutput4  sky130_stdcells/buf_2  x=8660  y=390  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+    p65  devices/lab_pin  x=8620  y=510  lab=net5
+    p66  devices/lab_pin  x=8700  y=510  flip=1  lab=out_o[3]
+    Xoutput5  sky130_stdcells/buf_2  x=8660  y=510  VGND=VGND  VNB=VGND  VPB=VPWR  VPWR=VPWR
+
+  nets [31]:
+    net6  -> p67.p
+    net7  -> p68.p
+    net8  -> p69.p
+    net9  -> p70.p
+    net10  -> p71.p
+    net2  -> p0.p, X_12_.A, p24.p, X_20_.B1, p29.p, X_21_.B, p41.p, X_24_.Q, p59.p, Xoutput2.A
+    _04_  -> p1.p, X_12_.Y, p6.p, X_15_.A, p12.p, X_17_.A1, p22.p, X_20_.A1
+    net3  -> p2.p, X_13_.A, p25.p, X_20_.B2, p44.p, X_25_.Q, p61.p, Xoutput3.A
+    _05_  -> p3.p, X_13_.Y, p7.p, X_15_.B, p13.p, X_17_.A2, p23.p, X_20_.A2
+    net4  -> p4.p, X_14_.A, p47.p, X_26_.Q, p63.p, Xoutput4.A
+    _06_  -> p5.p, X_14_.Y, p8.p, X_15_.C, p14.p, X_17_.B1
+    _07_  -> p9.p, X_15_.X, p10.p, X_16_.A, p36.p, X_23_.B2
+    _08_  -> p11.p, X_16_.Y, p17.p, X_18_.B, p34.p, X_23_.A2
+    _09_  -> p15.p, X_17_.X, p18.p, X_18_.C
+    net1  -> p16.p, X_18_.A, p20.p, X_19_.A, p28.p, X_21_.A, p58.p, Xinput1.X
+    _02_  -> p19.p, X_18_.Y, p46.p, X_26_.D
+    _10_  -> p21.p, X_19_.Y, p26.p, X_20_.C1, p37.p, X_23_.C1
+    _01_  -> p27.p, X_20_.X, p43.p, X_25_.D
+    _00_  -> p30.p, X_21_.Y, p40.p, X_24_.D
+    net5  -> p31.p, X_22_.A, p33.p, X_23_.A1, p50.p, X_27_.Q, p65.p, Xoutput5.A
+    _11_  -> p32.p, X_22_.Y, p35.p, X_23_.B1
+    _03_  -> p38.p, X_23_.X, p49.p, X_27_.D
+    clknet_1_0_0_clk_i  -> p39.p, X_24_.CLK, p45.p, X_26_.CLK, p54.p, Xclkbuf_1_0_0_clk_i.X
+    clknet_1_1_0_clk_i  -> p42.p, X_25_.CLK, p48.p, X_27_.CLK, p56.p, Xclkbuf_1_1_0_clk_i.X
+    clk_i  -> p51.p, Xclkbuf_0_clk_i.A
+    clknet_0_clk_i  -> p52.p, Xclkbuf_0_clk_i.X, p53.p, Xclkbuf_1_0_0_clk_i.A, p55.p, Xclkbuf_1_1_0_clk_i.A
+    reset_i  -> p57.p, Xinput1.A
+    out_o[0]  -> p60.p, Xoutput2.X
+    out_o[1]  -> p62.p, Xoutput3.X
+    out_o[2]  -> p64.p, Xoutput4.X
+    out_o[3]  -> p66.p, Xoutput5.X
+
+  wires [67]:
+    6780 530 6780 530 net2
+    6860 530 6860 530 _04_
+    6780 650 6780 650 net3
+    6860 650 6860 650 _05_
+    6780 770 6780 770 net4
+    6860 770 6860 770 _06_
+    6760 870 6760 870 _04_
+    6760 910 6760 910 _05_
+    6760 950 6760 950 _06_
+    6880 910 6880 910 _07_
+    6780 1050 6780 1050 _07_
+    6860 1050 6860 1050 _08_
+    6740 1150 6740 1150 _04_
+    6740 1190 6740 1190 _05_
+    6740 1230 6740 1230 _06_
+    6900 1190 6900 1190 _09_
+    6760 1310 6760 1310 net1
+    6760 1350 6760 1350 _08_
+    6760 1390 6760 1390 _09_
+    6880 1350 6880 1350 _02_
+    6780 1490 6780 1490 net1
+    6860 1490 6860 1490 _10_
+    7660 -10 7660 -10 _04_
+    7660 30 7660 30 _05_
+    7660 70 7660 70 net2
+    7660 110 7660 110 net3
+    7660 150 7660 150 _10_
+    7820 70 7820 70 _01_
+    7680 220 7680 220 net1
+    7680 260 7680 260 net2
+    7800 240 7800 240 _00_
+    7700 370 7700 370 net5
+    7780 370 7780 370 _11_
+    7660 450 7660 450 net5
+    7660 490 7660 490 _08_
+    7660 530 7660 530 _11_
+    7660 570 7660 570 _07_
+    7660 610 7660 610 _10_
+    7820 530 7820 530 _03_
+    7650 690 7650 690 clknet_1_0_0_clk_i
+    7650 710 7650 710 _00_
+    7830 690 7830 690 net2
+    7650 830 7650 830 clknet_1_1_0_clk_i
+    7650 850 7650 850 _01_
+    7830 830 7830 830 net3
+    7650 970 7650 970 clknet_1_0_0_clk_i
+    7650 990 7650 990 _02_
+    7830 970 7830 970 net4
+    7650 1110 7650 1110 clknet_1_1_0_clk_i
+    7650 1130 7650 1130 _03_
+    7830 1110 7830 1110 net5
+    7700 1250 7700 1250 clk_i
+    7780 1250 7780 1250 clknet_0_clk_i
+    7700 1370 7700 1370 clknet_0_clk_i
+    7780 1370 7780 1370 clknet_1_0_0_clk_i
+    7700 1490 7700 1490 clknet_0_clk_i
+    7780 1490 7780 1490 clknet_1_1_0_clk_i
+    8620 30 8620 30 reset_i
+    8700 30 8700 30 net1
+    8620 150 8620 150 net2
+    8700 150 8700 150 out_o[0]
+    8620 270 8620 270 net3
+    8700 270 8700 270 out_o[1]
+    8620 390 8620 390 net4
+    8700 390 8700 390 out_o[2]
+    8620 510 8620 510 net5
+    8700 510 8700 510 out_o[3]

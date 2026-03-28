@@ -1,0 +1,27 @@
+chn_prim 1.0
+
+SYMBOL led
+
+  pins [2]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+
+  params [4]:
+    type = diode
+    format = @spiceprefix@name @pinlist @model
+    tedax_format = footprint @name @footprint value @name @value device @name @device spicedev @name @spicedev spiceval @name @spiceval comptag @name @comptag
+    template = name=X1 model=XXX device=XXX
+
+  drawing:
+    line 0 5 0 30
+    line 0 -30 0 -5
+    line -20 5 20 5
+    line -30 -3 -20 -13
+    line -30 -13 -30 -3
+    line -45 3 -30 -13
+    line -35 10 -25 0
+    line -35 0 -35 10
+    line -50 15 -35 0
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)

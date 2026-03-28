@@ -35,7 +35,8 @@ pub fn parse(backing: std.mem.Allocator, data: []const u8) ParseError!XSchemFile
                 brace_depth = 0;
                 const full = accum.items;
                 switch (pending_tag) {
-                    'v', 'V', 'S', 'E' => {},
+                    'v', 'V', 'E' => {},
+                    'S' => parseSBlock(arena, full, &schem),
                     'G' => parseGBlock(arena, full, &schem) catch return error.MalformedComponent,
                     'K' => parseKBlock(arena, full, &schem) catch return error.MalformedComponent,
                     'C' => parseComponent(arena, full, &schem) catch return error.MalformedComponent,
@@ -74,7 +75,8 @@ pub fn parse(backing: std.mem.Allocator, data: []const u8) ParseError!XSchemFile
 fn dispatchLine(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) ParseError!void {
     if (line.len == 0) return;
     switch (line[0]) {
-        'v', 'V', 'S', 'E', '*', 'F' => {},
+        'v', 'V', 'E', '*', 'F' => {},
+        'S' => parseSBlock(arena, line, schem),
         'G' => parseGBlock(arena, line, schem) catch return error.MalformedComponent,
         'K' => parseKBlock(arena, line, schem) catch return error.MalformedComponent,
         'L' => try parseLineShape(arena, line, schem),
@@ -122,7 +124,7 @@ fn parseRect(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) Pa
         if (attrs.len > 0) {
             var ptok = props_mod.PropertyTokenizer.init(attrs);
             while (ptok.next()) |prop| {
-                if (std.mem.eql(u8, prop.key, "name"))
+                if (std.mem.eql(u8, prop.key, "name") and pin_name.len == 0)
                     pin_name = arena.dupe(u8, prop.value) catch return error.MalformedRect
                 else if (std.mem.eql(u8, prop.key, "dir"))
                     pin_dir = types.pinDirectionFromStr(prop.value)
@@ -196,8 +198,13 @@ fn parseWire(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) Pa
     if (attrs.len > 0) {
         var ptok = props_mod.PropertyTokenizer.init(attrs);
         while (ptok.next()) |prop| {
-            if (std.mem.eql(u8, prop.key, "lab"))
-                net_name = arena.dupe(u8, prop.value) catch return error.MalformedWire;
+            if (std.mem.eql(u8, prop.key, "lab")) {
+                // XSchem uses '#' prefix for private/auto-generated net names;
+                // strip it for SPICE netlist output (e.g. #net1 → net1).
+                const lab_raw = prop.value;
+                const lab_clean = if (lab_raw.len > 0 and lab_raw[0] == '#') lab_raw[1..] else lab_raw;
+                net_name = arena.dupe(u8, lab_clean) catch return error.MalformedWire;
+            }
         }
     }
     schem.wires.append(arena, .{
@@ -252,6 +259,14 @@ fn parseKBlock(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) 
     parseSymbolProperties(arena, content, schem);
 }
 
+/// Parse S block — raw SPICE body.  Stores the trimmed content in s_block.
+fn parseSBlock(arena: std.mem.Allocator, line: []const u8, schem: *XSchemFiles) void {
+    const content = extractBraceContent(line);
+    const trimmed = std.mem.trim(u8, content, " \t\r\n");
+    if (trimmed.len == 0) return;
+    schem.s_block = arena.dupe(u8, trimmed) catch null;
+}
+
 /// Extract type, format, template, extra from a symbol property block.
 fn parseSymbolProperties(arena: std.mem.Allocator, content: []const u8, schem: *XSchemFiles) void {
     var ptok = props_mod.PropertyTokenizer.init(content);
@@ -264,7 +279,11 @@ fn parseSymbolProperties(arena: std.mem.Allocator, content: []const u8, schem: *
         else if (std.mem.eql(u8, prop.key, "template"))
             schem.k_template = arena.dupe(u8, prop.value) catch null
         else if (std.mem.eql(u8, prop.key, "extra"))
-            schem.k_extra = arena.dupe(u8, prop.value) catch null;
+            schem.k_extra = arena.dupe(u8, prop.value) catch null
+        else if (std.mem.eql(u8, prop.key, "global"))
+            schem.k_global = std.mem.eql(u8, prop.value, "true")
+        else if (std.mem.eql(u8, prop.key, "spice_sym_def"))
+            schem.k_spice_sym_def = arena.dupe(u8, prop.value) catch null;
     }
 }
 

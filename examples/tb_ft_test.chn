@@ -1,0 +1,63 @@
+chn_testbench 1.0
+
+TESTBENCH tb_ft_test
+
+  nmos [2]{name, x, y, rot, flip, L, W, nf, mult, body, model, spiceprefix}:
+    M_DUT  450  -300  0  0  0.15  10  1  1  GND  nfet_01v8_lvt  X
+    M_BIAS  200  -300  0  1  0.15  10  1  1  GND  nfet_01v8_lvt  X
+
+  isource [1]{name, x, y, rot, flip, value}:
+    Idref  180  -470  0  1  dc 3m AC 1 0
+
+  instances [3]:
+    annot1  sky130_fd_pr/annotate_fet_params  x=460  y=-233  flip=1  ref=M_DUT
+    C1  parax_cap  x=330  y=-410  gnd=GND  value=1  m=1
+    annot2  sky130_fd_pr/annotate_fet_params  x=170  y=-233  flip=1  ref=M_BIAS
+
+  vsource [2]{name, x, y, rot, flip, savecurrent, spice_ignore}:
+    Vd  470  -380  0  0  true  0
+    Vg  380  -300  3  0  true  0
+
+  inductors [1]{name, x, y, rot, flip, m, value, footprint, device, hide_texts, attach}:
+    L2  280  -420  1  0  1  1  1206  inductor  true  L2
+
+  vcvs [1]{name, x, y, rot, flip, value}:
+    E1  410  -440  0  0  1
+
+  nets [6]:
+    net1  -> M_DUT.D, Vd.minus
+    net3  -> M_DUT.G, Vg.minus
+    GND  -> M_DUT.S, Idref.p, M_BIAS.S, E1.m, E1.cm
+    G  -> Idref.m, Vg.plus, M_BIAS.D, M_BIAS.G, L2.m
+    D  -> Vd.plus, E1.p
+    net2  -> L2.p, C1.p, E1.cp
+
+  wires [28]:
+    30 -540 30 -110
+    30 -540 180 -540
+    30 -110 470 -110
+    470 -270 470 -110
+    470 -350 470 -330
+    180 -540 180 -500
+    180 -440 180 -430
+    180 -270 180 -110
+    220 -300 310 -300
+    260 -340 260 -300
+    180 -340 260 -340
+    180 -430 180 -330
+    180 -420 250 -420
+    470 -420 470 -410
+    410 -470 470 -470
+    470 -470 470 -420
+    370 -420 370 -400
+    370 -400 410 -400
+    410 -410 410 -390
+    340 -460 370 -460
+    340 -460 340 -420
+    310 -420 340 -420
+    310 -300 350 -300
+    410 -300 430 -300
+    470 -110 470 -110 GND
+    260 -340 260 -340 G
+    410 -390 410 -390 GND
+    470 -470 470 -470 D

@@ -1,0 +1,27 @@
+chn 1.0
+
+SYMBOL xcross
+
+  pins [2]:
+    A  inout
+    B  inout
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  resistors [1]{name, x, y, rot, flip, value, footprint, device, verilog_ignore, vhdl_ignore, m}:
+    R1  150  -50  0  0  1k  1206  resistor  true  true  1
+
+  nets [2]:
+    A  -> R1.P
+    B  -> R1.M
+
+  wires [4]:
+    150 -80 190 -80
+    150 -20 190 -20
+    190 -80 190 -80 A
+    190 -20 190 -20 B

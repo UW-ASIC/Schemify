@@ -1,0 +1,23 @@
+chn_testbench 1.0
+
+TESTBENCH test_backannotated_subckt
+
+  vsource [1]{name, x, y, rot, flip, value}:
+    V1  140  -160  0  0  pwl 0 0 10n 0 11n 5
+
+  instances [1]:
+    x1  rcline  x=530  y=-170  L=1e-4  W=0.5e-6
+
+  nets [3]:
+    IN  -> V1.p, x1.IN
+    0  -> V1.m
+    OUT  -> x1.OUT
+
+  wires [7]:
+    140 -130 140 -100
+    140 -210 160 -210
+    140 -210 140 -190
+    680 -170 680 -170 OUT
+    380 -170 380 -170 IN
+    140 -100 140 -100 0
+    160 -210 160 -210 IN

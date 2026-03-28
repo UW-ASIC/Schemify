@@ -1,0 +1,23 @@
+chn 1.0
+
+SYMBOL switch_rreal
+
+  pins [3]:
+    ENAB  in
+    B  inout
+    A  inout
+
+  params [4]:
+    type = subcircuit
+    format = @name @pinlist @symname
+    template = name=x1 del=\\"2 ns\\"
+    generic_type = del=time
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [3]:
+    -150 10 -150 10 ENAB
+    -150 -10 -150 -10 A
+    150 -10 150 -10 B

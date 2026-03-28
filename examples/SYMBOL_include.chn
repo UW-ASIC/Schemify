@@ -1,0 +1,33 @@
+chn 1.0
+
+SYMBOL SYMBOL_include
+
+  pins [12]:
+    A[2]  in
+    A[1]  in
+    A[0]  in
+    Z  out
+    B  in
+    Y[5]  out
+    Y[4]  out
+    Y[3]  out
+    Y[2]  out
+    C  in
+    vcc  in
+    VSS  in
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [7]:
+    -120 0 -120 0 A[2:0]
+    -120 20 -120 20 B
+    -120 40 -120 40 C
+    -120 60 -120 60 vcc
+    -120 80 -120 80 VSS
+    120 0 120 0 Z
+    120 40 120 40 Y[5:2]

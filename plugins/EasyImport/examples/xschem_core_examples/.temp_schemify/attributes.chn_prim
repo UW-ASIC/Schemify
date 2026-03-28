@@ -1,0 +1,15 @@
+chn_prim 1.0
+
+SYMBOL attributes
+
+  pins [0]:
+
+  params [5]:
+    type = attributes
+    spice_ignore = true
+    verilog_ignore = true
+    tedax_ignore = true
+    template =  attribute async_set_reset of RPTL : signal is 
+
+  drawing:
+    line 0 -10 355 -10

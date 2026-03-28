@@ -1,0 +1,34 @@
+chn_prim 1.0
+
+SYMBOL npn
+  desc: NPN bipolar junction transistor
+
+  pins [3]:
+    c  inout
+    b  in
+    e  inout
+
+  params [1]:
+    model = NPN
+
+  spice_prefix: Q
+  spice_format: "@name @c @b @e @model"
+
+  drawing:
+    lines:
+      # Base bar (vertical at x=0)
+      (0,-15) (0,15)
+      # Base lead
+      (-20,0) (0,0)
+      # Collector arm (from base bar to pin)
+      (0,-10) (20,-30)
+      # Emitter arm (from base bar to pin)
+      (0,10) (20,30)
+      # Arrow on emitter (pointing away from base)
+      (14,22) (20,30)
+      (12,27) (20,30)
+    text: (25,0) "@name"
+    pin_positions:
+      c: (20,-30)
+      b: (-20,0)
+      e: (20,30)

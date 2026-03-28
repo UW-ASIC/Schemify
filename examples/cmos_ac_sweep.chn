@@ -1,0 +1,109 @@
+chn_testbench 1.0
+
+TESTBENCH cmos_ac_sweep
+
+  vsource [3]{name, x, y, rot, flip, value}:
+    VVCC  30  -250  0  0  'VDD'
+    V3  40  -460  0  0  dc 0 ac 1 0
+    V2  40  -380  0  0  'VCM'
+
+  isource [1]{name, x, y, rot, flip, value}:
+    IBIAS  260  -270  0  0  10u
+
+  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
+    CL  750  -390  0  0  1  2p  1206  ceramic capacitor
+
+  vsource [3]{name, x, y, rot, flip}:
+    Vright  690  -370  0  1
+    Vtail  570  -220  0  1
+    Vleft  500  -370  0  1
+
+  pmos [2]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M7  670  -480  0  0  2  5  1  1  pfet_01v8_lvt  X
+    M2  520  -480  0  1  2  5  1  1  pfet_01v8_lvt  X
+
+  nmos [4]{name, x, y, rot, flip, L, W, nf, mult, model, spiceprefix}:
+    M6  480  -290  0  0  0.5  2  1  1  nfet_01v8_lvt  X
+    M4  710  -290  0  1  0.5  2  1  1  nfet_01v8_lvt  X
+    M1  550  -130  0  0  2  4  1  1  nfet_01v8  X
+    M3  280  -130  0  1  2  4  1  1  nfet_01v8  X
+
+  instances [4]:
+    annot1  sky130_fd_pr/annotate_fet_params  x=410  y=-550  flip=1  ref=M2
+    annot2  sky130_fd_pr/annotate_fet_params  x=780  y=-550  ref=M7
+    annot3  sky130_fd_pr/annotate_fet_params  x=440  y=-260  flip=1  ref=M6
+    annot4  sky130_fd_pr/annotate_fet_params  x=770  y=-260  ref=M4
+
+  nets [11]:
+    VCC  -> VVCC.p, M7.S, M7.B, M2.S, M2.B
+    0  -> VVCC.m, IBIAS.p, CL.m, V2.m, M6.B, M4.B, M1.S, M1.B, M3.S, M3.B
+    GN  -> IBIAS.m, M1.G, M3.D, M3.G
+    DIFFOUT  -> CL.p, Vright.plus, M7.D
+    net2  -> Vright.minus, M4.D
+    PLUS  -> V3.p, M6.G
+    MINUS  -> V3.m, V2.p, M4.G
+    G  -> M7.G, M2.D, M2.G, Vleft.plus
+    net3  -> M6.D, Vleft.minus
+    net1  -> M6.S, M4.S, Vtail.plus
+    net4  -> M1.D, Vtail.minus
+
+  wires [59]:
+    30 -310 30 -280
+    30 -310 60 -310
+    260 -240 260 -160
+    260 -160 300 -160
+    300 -160 300 -130
+    300 -130 530 -130
+    500 -290 520 -290
+    670 -290 690 -290
+    570 -260 690 -260
+    440 -290 460 -290
+    730 -290 750 -290
+    540 -480 650 -480
+    540 -480 540 -450
+    500 -450 540 -450
+    690 -530 690 -510
+    570 -530 690 -530
+    500 -530 500 -510
+    570 -550 570 -530
+    690 -420 830 -420
+    40 -520 40 -490
+    40 -520 70 -520
+    570 -100 570 -70
+    570 -100 590 -100
+    590 -130 590 -100
+    570 -130 590 -130
+    260 -100 260 -70
+    240 -100 260 -100
+    240 -130 240 -100
+    240 -130 260 -130
+    690 -420 690 -400
+    690 -340 690 -320
+    40 -410 70 -410
+    40 -430 40 -410
+    500 -530 570 -530
+    690 -450 690 -420
+    500 -260 570 -260
+    570 -260 570 -250
+    500 -340 500 -320
+    500 -450 500 -400
+    690 -510 690 -480
+    500 -510 500 -480
+    570 -190 570 -160
+    750 -360 750 -360 0
+    30 -220 30 -220 0
+    570 -70 570 -70 0
+    60 -310 60 -310 VCC
+    260 -70 260 -70 0
+    260 -300 260 -300 0
+    520 -290 520 -290 0
+    670 -290 670 -290 0
+    570 -550 570 -550 VCC
+    440 -290 440 -290 PLUS
+    750 -290 750 -290 MINUS
+    830 -420 830 -420 DIFFOUT
+    260 -180 260 -180 GN
+    70 -520 70 -520 PLUS
+    70 -410 70 -410 MINUS
+    500 -430 500 -430 G
+    40 -350 40 -350 0

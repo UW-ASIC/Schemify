@@ -1,0 +1,25 @@
+chn_prim 1.0
+
+SYMBOL jumper
+
+  pins [2]:
+    P  inout  x=0  y=-30
+    M  inout  x=0  y=30
+
+  params [5]:
+    type = jumper
+    format = * @name @pinlist
+    verilog_format = // @name (@@P\\\\, @@M\\\\);
+    tedax_format = footprint @name @footprint device @name @device
+    template = name=J1 footprint=JUMPER2 device=JUMPER
+
+  drawing:
+    line 0 15 0 30
+    line 0 -30 0 -15
+    line 3 -23 8 -23
+    line 5 -25 5 -20
+    arc 0 13 3 270 360
+    arc 0 -13 3 270 360
+    pin_positions:
+      P: (0, -30)
+      M: (0, 30)

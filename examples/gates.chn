@@ -1,0 +1,775 @@
+chn_testbench 1.0
+
+TESTBENCH gates
+
+  instances [76]:
+    x1  stdcells/NAND2  x=140  y=-1470  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x2  stdcells/NOR2  x=140  y=-1110  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x3  stdcells/AOI21  x=160  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x4  stdcells/DFFR  x=1180  y=-520  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x5  stdcells/AND2  x=140  y=-1290  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x6  stdcells/DFFIR  x=1180  y=-690  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x7  stdcells/AND2I  x=400  y=-1290  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x8  stdcells/AND3  x=660  y=-1290  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x9  stdcells/AND4  x=920  y=-1290  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x10  stdcells/AND5  x=1220  y=-1290  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x11  stdcells/AND8  x=1500  y=-1290  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x12  stdcells/NAND2I  x=400  y=-1470  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x13  stdcells/NAND3  x=660  y=-1470  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x14  stdcells/NAND4  x=920  y=-1470  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x15  stdcells/NAND5  x=1220  y=-1470  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x16  stdcells/NAND8  x=1500  y=-1470  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x17  stdcells/AOI22  x=460  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x18  stdcells/NOR3  x=660  y=-1110  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x19  stdcells/NOR4  x=920  y=-1110  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x20  stdcells/NOR5  x=1190  y=-1110  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x21  stdcells/NOR2I  x=400  y=-1110  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x22  stdcells/NOR8  x=1500  y=-1110  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x23  stdcells/OAI21  x=160  y=-350  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x24  stdcells/OAI22  x=460  y=-350  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x25  stdcells/OR2  x=140  y=-930  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x26  stdcells/OR3  x=660  y=-930  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x27  stdcells/OR4  x=920  y=-930  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x28  stdcells/OR5  x=1190  y=-930  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x29  stdcells/OR2I  x=400  y=-930  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x30  stdcells/OR8  x=1500  y=-930  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x31  stdcells/AO21  x=160  y=-520  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x32  stdcells/AO22  x=460  y=-520  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x33  stdcells/OA21  x=160  y=-690  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x34  stdcells/OA22  x=460  y=-690  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x35  stdcells/INV  x=140  y=-1610  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x36  stdcells/BUF  x=400  y=-1610  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x37  stdcells/TBUF  x=660  y=-1610  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x39  stdcells/TBUFI  x=920  y=-1610  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x38  stdcells/MUX2  x=140  y=-1830  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x40  stdcells/MUX2I  x=400  y=-1830  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x41  stdcells/MUX4  x=660  y=-1830  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x42  stdcells/MUX4I  x=920  y=-1830  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x43  stdcells/HA  x=140  y=-1990  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x44  stdcells/FA  x=440  y=-1990  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x45  stdcells/DFF  x=900  y=-520  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x46  stdcells/DFFI  x=900  y=-690  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x47  stdcells/DFFIS  x=1460  y=-690  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x48  stdcells/DFFS  x=1460  y=-520  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x49  stdcells/DFFISR  x=1740  y=-690  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x50  stdcells/DFFSR  x=1740  y=-520  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x51  stdcells/DFFRQ  x=1180  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x52  stdcells/DFFIRQ  x=1180  y=-350  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x53  stdcells/DFFQ  x=900  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x54  stdcells/DFFIQ  x=900  y=-350  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x55  stdcells/DFFISQ  x=1460  y=-350  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x56  stdcells/DFFSQ  x=1460  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x57  stdcells/DFFISRQ  x=1740  y=-350  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x58  stdcells/DFFSRQ  x=1740  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x59  stdcells/XOR2  x=140  y=-830  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x60  stdcells/XNOR2  x=400  y=-830  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x61  stdcells/LATCH  x=2020  y=-450  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x63  stdcells/LATCHIQ  x=2020  y=-320  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x64  stdcells/LATCHIR  x=2320  y=-580  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x65  stdcells/LATCHIRQ  x=2320  y=-320  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x66  stdcells/LATCHQ  x=2020  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x67  stdcells/LATCHR  x=2320  y=-450  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x68  stdcells/LATCHRQ  x=2320  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x69  stdcells/LATCHI  x=2020  y=-580  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x62  stdcells/LATCHIS  x=2620  y=-580  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x70  stdcells/LATCHISQ  x=2620  y=-320  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x71  stdcells/LATCHS  x=2620  y=-450  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x72  stdcells/LATCHSQ  x=2620  y=-180  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x73  stdcells/EDFF  x=2320  y=-750  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x74  stdcells/EDFFQ  x=2320  y=-910  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x75  stdcells/SDFF  x=2020  y=-750  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+    x76  stdcells/SDFFQ  x=2020  y=-910  VCCPIN=VCC  VSSPIN=VSS  VCCBPIN=VCC  VSSBPIN=VSS
+
+  nets [345]:
+    x1_Y  -> x1.Y
+    x1_A  -> x1.A
+    x1_B  -> x1.B
+    x2_Y  -> x2.Y
+    x2_A  -> x2.A
+    x2_B  -> x2.B
+    x3_Y  -> x3.Y
+    x3_A  -> x3.A
+    x3_B  -> x3.B
+    x3_C  -> x3.C
+    x4_Q  -> x4.Q
+    x4_D  -> x4.D
+    x4_C  -> x4.C
+    x4_R  -> x4.R
+    x5_Y  -> x5.Y
+    x5_A  -> x5.A
+    x5_B  -> x5.B
+    x6_Q  -> x6.Q
+    x6_D  -> x6.D
+    x6_C  -> x6.C
+    x6_R  -> x6.R
+    x7_Y  -> x7.Y
+    x7_A  -> x7.A
+    x7_B  -> x7.B
+    x8_Y  -> x8.Y
+    x8_A  -> x8.A
+    x8_B  -> x8.B
+    x8_C  -> x8.C
+    x9_Y  -> x9.Y
+    x9_A  -> x9.A
+    x9_B  -> x9.B
+    x9_C  -> x9.C
+    x9_D  -> x9.D
+    x10_Y  -> x10.Y
+    x10_A  -> x10.A
+    x10_B  -> x10.B
+    x10_C  -> x10.C
+    x10_D  -> x10.D
+    x10_E  -> x10.E
+    x11_Y  -> x11.Y
+    x11_A  -> x11.A
+    x11_B  -> x11.B
+    x11_C  -> x11.C
+    x11_D  -> x11.D
+    x11_E  -> x11.E
+    x11_F  -> x11.F
+    x11_G  -> x11.G
+    x11_H  -> x11.H
+    x12_Y  -> x12.Y
+    x12_A  -> x12.A
+    x12_B  -> x12.B
+    x13_Y  -> x13.Y
+    x13_A  -> x13.A
+    x13_B  -> x13.B
+    x13_C  -> x13.C
+    x14_Y  -> x14.Y
+    x14_A  -> x14.A
+    x14_B  -> x14.B
+    x14_C  -> x14.C
+    x14_D  -> x14.D
+    x15_Y  -> x15.Y
+    x15_A  -> x15.A
+    x15_B  -> x15.B
+    x15_C  -> x15.C
+    x15_D  -> x15.D
+    x15_E  -> x15.E
+    x16_Y  -> x16.Y
+    x16_A  -> x16.A
+    x16_B  -> x16.B
+    x16_C  -> x16.C
+    x16_D  -> x16.D
+    x16_E  -> x16.E
+    x16_F  -> x16.F
+    x16_G  -> x16.G
+    x16_H  -> x16.H
+    x17_Y  -> x17.Y
+    x17_A  -> x17.A
+    x17_B  -> x17.B
+    x17_C  -> x17.C
+    x17_D  -> x17.D
+    x18_Y  -> x18.Y
+    x18_A  -> x18.A
+    x18_B  -> x18.B
+    x18_C  -> x18.C
+    x19_Y  -> x19.Y
+    x19_A  -> x19.A
+    x19_B  -> x19.B
+    x19_C  -> x19.C
+    x19_D  -> x19.D
+    x20_Y  -> x20.Y
+    x20_A  -> x20.A
+    x20_B  -> x20.B
+    x20_C  -> x20.C
+    x20_D  -> x20.D
+    x20_E  -> x20.E
+    x21_Y  -> x21.Y
+    x21_A  -> x21.A
+    x21_B  -> x21.B
+    x22_Y  -> x22.Y
+    x22_A  -> x22.A
+    x22_B  -> x22.B
+    x22_C  -> x22.C
+    x22_D  -> x22.D
+    x22_E  -> x22.E
+    x22_F  -> x22.F
+    x22_G  -> x22.G
+    x22_H  -> x22.H
+    x23_Y  -> x23.Y
+    x23_A  -> x23.A
+    x23_B  -> x23.B
+    x23_C  -> x23.C
+    x24_Y  -> x24.Y
+    x24_A  -> x24.A
+    x24_B  -> x24.B
+    x24_C  -> x24.C
+    x24_D  -> x24.D
+    x25_Y  -> x25.Y
+    x25_A  -> x25.A
+    x25_B  -> x25.B
+    x26_Y  -> x26.Y
+    x26_A  -> x26.A
+    x26_B  -> x26.B
+    x26_C  -> x26.C
+    x27_Y  -> x27.Y
+    x27_A  -> x27.A
+    x27_B  -> x27.B
+    x27_C  -> x27.C
+    x27_D  -> x27.D
+    x28_Y  -> x28.Y
+    x28_A  -> x28.A
+    x28_B  -> x28.B
+    x28_C  -> x28.C
+    x28_D  -> x28.D
+    x28_E  -> x28.E
+    x29_Y  -> x29.Y
+    x29_A  -> x29.A
+    x29_B  -> x29.B
+    x30_Y  -> x30.Y
+    x30_A  -> x30.A
+    x30_B  -> x30.B
+    x30_C  -> x30.C
+    x30_D  -> x30.D
+    x30_E  -> x30.E
+    x30_F  -> x30.F
+    x30_G  -> x30.G
+    x30_H  -> x30.H
+    x31_Y  -> x31.Y
+    x31_A  -> x31.A
+    x31_B  -> x31.B
+    x31_C  -> x31.C
+    x32_Y  -> x32.Y
+    x32_A  -> x32.A
+    x32_B  -> x32.B
+    x32_C  -> x32.C
+    x32_D  -> x32.D
+    x33_Y  -> x33.Y
+    x33_A  -> x33.A
+    x33_B  -> x33.B
+    x33_C  -> x33.C
+    x34_Y  -> x34.Y
+    x34_A  -> x34.A
+    x34_B  -> x34.B
+    x34_C  -> x34.C
+    x34_D  -> x34.D
+    x35_Y  -> x35.Y
+    x35_A  -> x35.A
+    x36_Y  -> x36.Y
+    x36_A  -> x36.A
+    x37_Y  -> x37.Y
+    x37_A  -> x37.A
+    x37_E  -> x37.E
+    x39_Y  -> x39.Y
+    x39_A  -> x39.A
+    x39_E  -> x39.E
+    x38_Y  -> x38.Y
+    x38_A  -> x38.A
+    x38_B  -> x38.B
+    x38_C  -> x38.C
+    x40_Y  -> x40.Y
+    x40_A  -> x40.A
+    x40_B  -> x40.B
+    x40_C  -> x40.C
+    x41_Y  -> x41.Y
+    x41_A  -> x41.A
+    x41_B  -> x41.B
+    x41_C  -> x41.C
+    x41_D  -> x41.D
+    x41_E  -> x41.E
+    x41_F  -> x41.F
+    x42_Y  -> x42.Y
+    x42_A  -> x42.A
+    x42_B  -> x42.B
+    x42_C  -> x42.C
+    x42_D  -> x42.D
+    x42_E  -> x42.E
+    x42_F  -> x42.F
+    x43_S  -> x43.S
+    x43_C  -> x43.C
+    x43_A  -> x43.A
+    x43_B  -> x43.B
+    x44_S  -> x44.S
+    x44_C  -> x44.C
+    x44_A  -> x44.A
+    x44_B  -> x44.B
+    x44_CI  -> x44.CI
+    x45_Q  -> x45.Q
+    x45_D  -> x45.D
+    x45_C  -> x45.C
+    x46_Q  -> x46.Q
+    x46_D  -> x46.D
+    x46_C  -> x46.C
+    x47_Q  -> x47.Q
+    x47_D  -> x47.D
+    x47_C  -> x47.C
+    x47_S  -> x47.S
+    x48_Q  -> x48.Q
+    x48_D  -> x48.D
+    x48_C  -> x48.C
+    x48_S  -> x48.S
+    x49_Q  -> x49.Q
+    x49_D  -> x49.D
+    x49_C  -> x49.C
+    x49_S  -> x49.S
+    x49_R  -> x49.R
+    x50_Q  -> x50.Q
+    x50_D  -> x50.D
+    x50_C  -> x50.C
+    x50_S  -> x50.S
+    x50_R  -> x50.R
+    x51_Q  -> x51.Q
+    x51_QB  -> x51.QB
+    x51_D  -> x51.D
+    x51_C  -> x51.C
+    x51_R  -> x51.R
+    x52_Q  -> x52.Q
+    x52_QB  -> x52.QB
+    x52_D  -> x52.D
+    x52_C  -> x52.C
+    x52_R  -> x52.R
+    x53_Q  -> x53.Q
+    x53_QB  -> x53.QB
+    x53_D  -> x53.D
+    x53_C  -> x53.C
+    x54_Q  -> x54.Q
+    x54_QB  -> x54.QB
+    x54_D  -> x54.D
+    x54_C  -> x54.C
+    x55_Q  -> x55.Q
+    x55_QB  -> x55.QB
+    x55_D  -> x55.D
+    x55_C  -> x55.C
+    x55_S  -> x55.S
+    x56_Q  -> x56.Q
+    x56_QB  -> x56.QB
+    x56_D  -> x56.D
+    x56_C  -> x56.C
+    x56_S  -> x56.S
+    x57_Q  -> x57.Q
+    x57_QB  -> x57.QB
+    x57_D  -> x57.D
+    x57_C  -> x57.C
+    x57_S  -> x57.S
+    x57_R  -> x57.R
+    x58_Q  -> x58.Q
+    x58_QB  -> x58.QB
+    x58_D  -> x58.D
+    x58_C  -> x58.C
+    x58_S  -> x58.S
+    x58_R  -> x58.R
+    x59_Y  -> x59.Y
+    x59_A  -> x59.A
+    x59_B  -> x59.B
+    x60_Y  -> x60.Y
+    x60_A  -> x60.A
+    x60_B  -> x60.B
+    x61_Q  -> x61.Q
+    x61_D  -> x61.D
+    x61_E  -> x61.E
+    x63_Q  -> x63.Q
+    x63_QB  -> x63.QB
+    x63_D  -> x63.D
+    x63_E  -> x63.E
+    x64_Q  -> x64.Q
+    x64_D  -> x64.D
+    x64_E  -> x64.E
+    x64_R  -> x64.R
+    x65_Q  -> x65.Q
+    x65_QB  -> x65.QB
+    x65_D  -> x65.D
+    x65_E  -> x65.E
+    x65_R  -> x65.R
+    x66_Q  -> x66.Q
+    x66_QB  -> x66.QB
+    x66_D  -> x66.D
+    x66_E  -> x66.E
+    x67_Q  -> x67.Q
+    x67_D  -> x67.D
+    x67_E  -> x67.E
+    x67_R  -> x67.R
+    x68_Q  -> x68.Q
+    x68_QB  -> x68.QB
+    x68_D  -> x68.D
+    x68_E  -> x68.E
+    x68_R  -> x68.R
+    x69_Q  -> x69.Q
+    x69_D  -> x69.D
+    x69_E  -> x69.E
+    x62_Q  -> x62.Q
+    x62_D  -> x62.D
+    x62_E  -> x62.E
+    x62_S  -> x62.S
+    x70_Q  -> x70.Q
+    x70_QB  -> x70.QB
+    x70_D  -> x70.D
+    x70_E  -> x70.E
+    x70_S  -> x70.S
+    x71_Q  -> x71.Q
+    x71_D  -> x71.D
+    x71_E  -> x71.E
+    x71_S  -> x71.S
+    x72_Q  -> x72.Q
+    x72_QB  -> x72.QB
+    x72_D  -> x72.D
+    x72_E  -> x72.E
+    x72_S  -> x72.S
+    x73_Q  -> x73.Q
+    x73_D  -> x73.D
+    x73_E  -> x73.E
+    x73_C  -> x73.C
+    x74_Q  -> x74.Q
+    x74_QB  -> x74.QB
+    x74_D  -> x74.D
+    x74_E  -> x74.E
+    x74_C  -> x74.C
+    x75_Q  -> x75.Q
+    x75_SD  -> x75.SD
+    x75_D  -> x75.D
+    x75_E  -> x75.E
+    x75_C  -> x75.C
+    x76_Q  -> x76.Q
+    x76_QB  -> x76.QB
+    x76_SD  -> x76.SD
+    x76_D  -> x76.D
+    x76_E  -> x76.E
+    x76_C  -> x76.C
+
+  wires [345]:
+    200 -1470 200 -1470 x1_Y
+    80 -1490 80 -1490 x1_A
+    80 -1450 80 -1450 x1_B
+    200 -1110 200 -1110 x2_Y
+    80 -1130 80 -1130 x2_A
+    80 -1090 80 -1090 x2_B
+    240 -180 240 -180 x3_Y
+    80 -220 80 -220 x3_A
+    80 -180 80 -180 x3_B
+    80 -140 80 -140 x3_C
+    1240 -540 1240 -540 x4_Q
+    1120 -540 1120 -540 x4_D
+    1120 -500 1120 -500 x4_C
+    1180 -460 1180 -460 x4_R
+    200 -1290 200 -1290 x5_Y
+    80 -1310 80 -1310 x5_A
+    80 -1270 80 -1270 x5_B
+    1240 -710 1240 -710 x6_Q
+    1120 -710 1120 -710 x6_D
+    1120 -670 1120 -670 x6_C
+    1180 -630 1180 -630 x6_R
+    460 -1290 460 -1290 x7_Y
+    340 -1310 340 -1310 x7_A
+    340 -1270 340 -1270 x7_B
+    720 -1290 720 -1290 x8_Y
+    600 -1310 600 -1310 x8_A
+    600 -1290 600 -1290 x8_B
+    600 -1270 600 -1270 x8_C
+    980 -1290 980 -1290 x9_Y
+    860 -1320 860 -1320 x9_A
+    860 -1300 860 -1300 x9_B
+    860 -1280 860 -1280 x9_C
+    860 -1260 860 -1260 x9_D
+    1280 -1290 1280 -1290 x10_Y
+    1160 -1330 1160 -1330 x10_A
+    1160 -1310 1160 -1310 x10_B
+    1160 -1290 1160 -1290 x10_C
+    1160 -1270 1160 -1270 x10_D
+    1160 -1250 1160 -1250 x10_E
+    1560 -1290 1560 -1290 x11_Y
+    1440 -1360 1440 -1360 x11_A
+    1440 -1340 1440 -1340 x11_B
+    1440 -1320 1440 -1320 x11_C
+    1440 -1300 1440 -1300 x11_D
+    1440 -1280 1440 -1280 x11_E
+    1440 -1260 1440 -1260 x11_F
+    1440 -1240 1440 -1240 x11_G
+    1440 -1220 1440 -1220 x11_H
+    460 -1470 460 -1470 x12_Y
+    340 -1490 340 -1490 x12_A
+    340 -1450 340 -1450 x12_B
+    720 -1470 720 -1470 x13_Y
+    600 -1490 600 -1490 x13_A
+    600 -1470 600 -1470 x13_B
+    600 -1450 600 -1450 x13_C
+    980 -1470 980 -1470 x14_Y
+    860 -1500 860 -1500 x14_A
+    860 -1480 860 -1480 x14_B
+    860 -1460 860 -1460 x14_C
+    860 -1440 860 -1440 x14_D
+    1280 -1470 1280 -1470 x15_Y
+    1160 -1510 1160 -1510 x15_A
+    1160 -1490 1160 -1490 x15_B
+    1160 -1470 1160 -1470 x15_C
+    1160 -1450 1160 -1450 x15_D
+    1160 -1430 1160 -1430 x15_E
+    1560 -1470 1560 -1470 x16_Y
+    1440 -1540 1440 -1540 x16_A
+    1440 -1520 1440 -1520 x16_B
+    1440 -1500 1440 -1500 x16_C
+    1440 -1480 1440 -1480 x16_D
+    1440 -1460 1440 -1460 x16_E
+    1440 -1440 1440 -1440 x16_F
+    1440 -1420 1440 -1420 x16_G
+    1440 -1400 1440 -1400 x16_H
+    540 -180 540 -180 x17_Y
+    380 -240 380 -240 x17_A
+    380 -200 380 -200 x17_B
+    380 -160 380 -160 x17_C
+    380 -120 380 -120 x17_D
+    720 -1110 720 -1110 x18_Y
+    600 -1130 600 -1130 x18_A
+    600 -1110 600 -1110 x18_B
+    600 -1090 600 -1090 x18_C
+    980 -1110 980 -1110 x19_Y
+    860 -1140 860 -1140 x19_A
+    860 -1120 860 -1120 x19_B
+    860 -1100 860 -1100 x19_C
+    860 -1080 860 -1080 x19_D
+    1250 -1110 1250 -1110 x20_Y
+    1130 -1150 1130 -1150 x20_A
+    1130 -1130 1130 -1130 x20_B
+    1130 -1110 1130 -1110 x20_C
+    1130 -1090 1130 -1090 x20_D
+    1130 -1070 1130 -1070 x20_E
+    460 -1110 460 -1110 x21_Y
+    340 -1130 340 -1130 x21_A
+    340 -1090 340 -1090 x21_B
+    1560 -1110 1560 -1110 x22_Y
+    1440 -1180 1440 -1180 x22_A
+    1440 -1160 1440 -1160 x22_B
+    1440 -1140 1440 -1140 x22_C
+    1440 -1120 1440 -1120 x22_D
+    1440 -1100 1440 -1100 x22_E
+    1440 -1080 1440 -1080 x22_F
+    1440 -1060 1440 -1060 x22_G
+    1440 -1040 1440 -1040 x22_H
+    240 -350 240 -350 x23_Y
+    80 -390 80 -390 x23_A
+    80 -350 80 -350 x23_B
+    80 -310 80 -310 x23_C
+    540 -350 540 -350 x24_Y
+    380 -410 380 -410 x24_A
+    380 -370 380 -370 x24_B
+    380 -330 380 -330 x24_C
+    380 -290 380 -290 x24_D
+    200 -930 200 -930 x25_Y
+    80 -950 80 -950 x25_A
+    80 -910 80 -910 x25_B
+    720 -930 720 -930 x26_Y
+    600 -950 600 -950 x26_A
+    600 -930 600 -930 x26_B
+    600 -910 600 -910 x26_C
+    980 -930 980 -930 x27_Y
+    860 -960 860 -960 x27_A
+    860 -940 860 -940 x27_B
+    860 -920 860 -920 x27_C
+    860 -900 860 -900 x27_D
+    1250 -930 1250 -930 x28_Y
+    1130 -970 1130 -970 x28_A
+    1130 -950 1130 -950 x28_B
+    1130 -930 1130 -930 x28_C
+    1130 -910 1130 -910 x28_D
+    1130 -890 1130 -890 x28_E
+    460 -930 460 -930 x29_Y
+    340 -950 340 -950 x29_A
+    340 -910 340 -910 x29_B
+    1560 -930 1560 -930 x30_Y
+    1440 -1000 1440 -1000 x30_A
+    1440 -980 1440 -980 x30_B
+    1440 -960 1440 -960 x30_C
+    1440 -940 1440 -940 x30_D
+    1440 -920 1440 -920 x30_E
+    1440 -900 1440 -900 x30_F
+    1440 -880 1440 -880 x30_G
+    1440 -860 1440 -860 x30_H
+    240 -520 240 -520 x31_Y
+    80 -560 80 -560 x31_A
+    80 -520 80 -520 x31_B
+    80 -480 80 -480 x31_C
+    540 -520 540 -520 x32_Y
+    380 -580 380 -580 x32_A
+    380 -540 380 -540 x32_B
+    380 -500 380 -500 x32_C
+    380 -460 380 -460 x32_D
+    240 -690 240 -690 x33_Y
+    80 -730 80 -730 x33_A
+    80 -690 80 -690 x33_B
+    80 -650 80 -650 x33_C
+    540 -690 540 -690 x34_Y
+    380 -750 380 -750 x34_A
+    380 -710 380 -710 x34_B
+    380 -670 380 -670 x34_C
+    380 -630 380 -630 x34_D
+    180 -1610 180 -1610 x35_Y
+    100 -1610 100 -1610 x35_A
+    440 -1610 440 -1610 x36_Y
+    360 -1610 360 -1610 x36_A
+    700 -1610 700 -1610 x37_Y
+    620 -1610 620 -1610 x37_A
+    620 -1570 620 -1570 x37_E
+    960 -1610 960 -1610 x39_Y
+    880 -1610 880 -1610 x39_A
+    880 -1570 880 -1570 x39_E
+    180 -1830 180 -1830 x38_Y
+    100 -1850 100 -1850 x38_A
+    100 -1810 100 -1810 x38_B
+    100 -1770 100 -1770 x38_C
+    440 -1830 440 -1830 x40_Y
+    360 -1850 360 -1850 x40_A
+    360 -1810 360 -1810 x40_B
+    360 -1770 360 -1770 x40_C
+    700 -1830 700 -1830 x41_Y
+    620 -1890 620 -1890 x41_A
+    620 -1850 620 -1850 x41_B
+    620 -1810 620 -1810 x41_C
+    620 -1770 620 -1770 x41_D
+    620 -1730 620 -1730 x41_E
+    620 -1690 620 -1690 x41_F
+    960 -1830 960 -1830 x42_Y
+    880 -1890 880 -1890 x42_A
+    880 -1850 880 -1850 x42_B
+    880 -1810 880 -1810 x42_C
+    880 -1770 880 -1770 x42_D
+    880 -1730 880 -1730 x42_E
+    880 -1690 880 -1690 x42_F
+    200 -2010 200 -2010 x43_S
+    200 -1970 200 -1970 x43_C
+    80 -2010 80 -2010 x43_A
+    80 -1970 80 -1970 x43_B
+    500 -2030 500 -2030 x44_S
+    500 -1950 500 -1950 x44_C
+    380 -2030 380 -2030 x44_A
+    380 -1990 380 -1990 x44_B
+    380 -1950 380 -1950 x44_CI
+    960 -540 960 -540 x45_Q
+    840 -540 840 -540 x45_D
+    840 -500 840 -500 x45_C
+    960 -710 960 -710 x46_Q
+    840 -710 840 -710 x46_D
+    840 -670 840 -670 x46_C
+    1520 -710 1520 -710 x47_Q
+    1400 -710 1400 -710 x47_D
+    1400 -670 1400 -670 x47_C
+    1460 -750 1460 -750 x47_S
+    1520 -540 1520 -540 x48_Q
+    1400 -540 1400 -540 x48_D
+    1400 -500 1400 -500 x48_C
+    1460 -580 1460 -580 x48_S
+    1800 -710 1800 -710 x49_Q
+    1680 -710 1680 -710 x49_D
+    1680 -670 1680 -670 x49_C
+    1740 -750 1740 -750 x49_S
+    1740 -630 1740 -630 x49_R
+    1800 -540 1800 -540 x50_Q
+    1680 -540 1680 -540 x50_D
+    1680 -500 1680 -500 x50_C
+    1740 -580 1740 -580 x50_S
+    1740 -460 1740 -460 x50_R
+    1240 -200 1240 -200 x51_Q
+    1240 -160 1240 -160 x51_QB
+    1120 -200 1120 -200 x51_D
+    1120 -160 1120 -160 x51_C
+    1180 -120 1180 -120 x51_R
+    1240 -370 1240 -370 x52_Q
+    1240 -330 1240 -330 x52_QB
+    1120 -370 1120 -370 x52_D
+    1120 -330 1120 -330 x52_C
+    1180 -290 1180 -290 x52_R
+    960 -200 960 -200 x53_Q
+    960 -160 960 -160 x53_QB
+    840 -200 840 -200 x53_D
+    840 -160 840 -160 x53_C
+    960 -370 960 -370 x54_Q
+    960 -330 960 -330 x54_QB
+    840 -370 840 -370 x54_D
+    840 -330 840 -330 x54_C
+    1520 -370 1520 -370 x55_Q
+    1520 -330 1520 -330 x55_QB
+    1400 -370 1400 -370 x55_D
+    1400 -330 1400 -330 x55_C
+    1460 -410 1460 -410 x55_S
+    1520 -200 1520 -200 x56_Q
+    1520 -160 1520 -160 x56_QB
+    1400 -200 1400 -200 x56_D
+    1400 -160 1400 -160 x56_C
+    1460 -240 1460 -240 x56_S
+    1800 -370 1800 -370 x57_Q
+    1800 -330 1800 -330 x57_QB
+    1680 -370 1680 -370 x57_D
+    1680 -330 1680 -330 x57_C
+    1740 -410 1740 -410 x57_S
+    1740 -290 1740 -290 x57_R
+    1800 -200 1800 -200 x58_Q
+    1800 -160 1800 -160 x58_QB
+    1680 -200 1680 -200 x58_D
+    1680 -160 1680 -160 x58_C
+    1740 -240 1740 -240 x58_S
+    1740 -120 1740 -120 x58_R
+    200 -830 200 -830 x59_Y
+    80 -850 80 -850 x59_A
+    80 -810 80 -810 x59_B
+    460 -830 460 -830 x60_Y
+    340 -850 340 -850 x60_A
+    340 -810 340 -810 x60_B
+    2080 -470 2080 -470 x61_Q
+    1960 -470 1960 -470 x61_D
+    1960 -430 1960 -430 x61_E
+    2080 -340 2080 -340 x63_Q
+    2080 -300 2080 -300 x63_QB
+    1960 -340 1960 -340 x63_D
+    1960 -300 1960 -300 x63_E
+    2380 -600 2380 -600 x64_Q
+    2260 -600 2260 -600 x64_D
+    2260 -560 2260 -560 x64_E
+    2320 -520 2320 -520 x64_R
+    2380 -340 2380 -340 x65_Q
+    2380 -300 2380 -300 x65_QB
+    2260 -340 2260 -340 x65_D
+    2260 -300 2260 -300 x65_E
+    2320 -260 2320 -260 x65_R
+    2080 -200 2080 -200 x66_Q
+    2080 -160 2080 -160 x66_QB
+    1960 -200 1960 -200 x66_D
+    1960 -160 1960 -160 x66_E
+    2380 -470 2380 -470 x67_Q
+    2260 -470 2260 -470 x67_D
+    2260 -430 2260 -430 x67_E
+    2320 -390 2320 -390 x67_R
+    2380 -200 2380 -200 x68_Q
+    2380 -160 2380 -160 x68_QB
+    2260 -200 2260 -200 x68_D
+    2260 -160 2260 -160 x68_E
+    2320 -120 2320 -120 x68_R
+    2080 -600 2080 -600 x69_Q
+    1960 -600 1960 -600 x69_D
+    1960 -560 1960 -560 x69_E
+    2680 -600 2680 -600 x62_Q
+    2560 -600 2560 -600 x62_D
+    2560 -560 2560 -560 x62_E
+    2620 -640 2620 -640 x62_S
+    2680 -340 2680 -340 x70_Q
+    2680 -300 2680 -300 x70_QB
+    2560 -340 2560 -340 x70_D
+    2560 -300 2560 -300 x70_E
+    2620 -380 2620 -380 x70_S
+    2680 -470 2680 -470 x71_Q
+    2560 -470 2560 -470 x71_D
+    2560 -430 2560 -430 x71_E
+    2620 -510 2620 -510 x71_S
+    2680 -200 2680 -200 x72_Q
+    2680 -160 2680 -160 x72_QB
+    2560 -200 2560 -200 x72_D
+    2560 -160 2560 -160 x72_E
+    2620 -240 2620 -240 x72_S
+    2380 -770 2380 -770 x73_Q
+    2260 -770 2260 -770 x73_D
+    2260 -750 2260 -750 x73_E
+    2260 -730 2260 -730 x73_C
+    2380 -930 2380 -930 x74_Q
+    2380 -890 2380 -890 x74_QB
+    2260 -930 2260 -930 x74_D
+    2260 -910 2260 -910 x74_E
+    2260 -890 2260 -890 x74_C
+    2080 -770 2080 -770 x75_Q
+    1960 -790 1960 -790 x75_SD
+    1960 -770 1960 -770 x75_D
+    1960 -750 1960 -750 x75_E
+    1960 -730 1960 -730 x75_C
+    2080 -930 2080 -930 x76_Q
+    2080 -890 2080 -890 x76_QB
+    1960 -950 1960 -950 x76_SD
+    1960 -930 1960 -930 x76_D
+    1960 -910 1960 -910 x76_E
+    1960 -890 1960 -890 x76_C

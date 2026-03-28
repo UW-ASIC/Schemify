@@ -35,20 +35,35 @@ pub const Document = struct {
     origin: Origin = .unsaved,
     dirty: bool = true,
 
+    fn swapRemoveIfValid(list: anytype, idx: usize) bool {
+        if (idx >= list.len) return false;
+        list.swapRemove(idx);
+        return true;
+    }
+
     pub fn open(a: std.mem.Allocator, logger: ?*utility.Logger, path: []const u8) !Document {
         const data = try utility.Vfs.readAlloc(a, path);
+        defer a.free(data);
         const s = core.Schemify.readFile(data, a, logger);
+        const owned_name = try a.dupe(u8, path);
+        errdefer a.free(owned_name);
+        const owned_origin = try a.dupe(u8, path);
         return .{
             .alloc = a,
             .logger = logger,
-            .name = path,
+            .name = owned_name,
             .sch = s,
-            .origin = .{ .chn_file = path },
+            .origin = .{ .chn_file = owned_origin },
             .dirty = false,
         };
     }
 
     pub fn deinit(self: *Document) void {
+        self.alloc.free(self.name);
+        switch (self.origin) {
+            .chn_file => |p| self.alloc.free(p),
+            else => {},
+        }
         self.sch.deinit();
     }
 
@@ -75,22 +90,50 @@ pub const Document = struct {
     pub fn saveAsChn(self: *Document, path: []const u8) !void {
         const out = self.sch.writeFile(self.alloc, self.logger) orelse return error.WriteFailed;
         try utility.Vfs.writeAll(path, out);
-        self.origin = .{ .chn_file = path };
+        // Free old owned strings and dupe new path.
+        const new_origin = try self.alloc.dupe(u8, path);
+        errdefer self.alloc.free(new_origin);
+        const new_name = try self.alloc.dupe(u8, path);
+        switch (self.origin) {
+            .chn_file => |p| self.alloc.free(p),
+            else => {},
+        }
+        self.alloc.free(self.name);
+        self.origin = .{ .chn_file = new_origin };
+        self.name = new_name;
         self.dirty = false;
     }
 
-    pub fn runSpiceSim(self: *Document, sim: Sim, netlist_path: []u8) void {
-        _ = self;
-        _ = sim;
-        _ = netlist_path;
-        // TODO: wire up SpiceIF bridge
+    pub fn runSpiceSim(self: *Document, sim: Sim, netlist_content: []const u8) !std.process.Child.Term {
+        _ = sim; // TODO: use for Xyce support
+        const builtin = @import("builtin");
+        if (builtin.cpu.arch == .wasm32) return error.UnsupportedFeature;
+
+        const base_name = switch (self.origin) {
+            .chn_file => |p| std.fs.path.stem(p),
+            else => self.name,
+        };
+
+        var sp_buf: [512]u8 = undefined;
+        var raw_buf: [512]u8 = undefined;
+        const sp_path = std.fmt.bufPrint(&sp_buf, "/tmp/{s}.sp", .{base_name}) catch return error.Overflow;
+        const raw_path = std.fmt.bufPrint(&raw_buf, "/tmp/{s}.raw", .{base_name}) catch return error.Overflow;
+
+        utility.Vfs.writeAll(sp_path, netlist_content) catch return error.WriteFailed;
+
+        var child = std.process.Child.init(
+            &.{ "ngspice", "-b", sp_path, "-r", raw_path },
+            self.alloc,
+        );
+        child.stdout_behavior = .Ignore;
+        child.stderr_behavior = .Ignore;
+        try child.spawn();
+        const term = try child.wait();
+        return term;
     }
 
     pub fn deleteInstanceAt(self: *Document, idx: usize) void {
-        if (idx < self.sch.instances.len) {
-            self.sch.instances.swapRemove(idx);
-            self.dirty = true;
-        }
+        if (swapRemoveIfValid(&self.sch.instances, idx)) self.dirty = true;
     }
 
     pub fn moveInstanceBy(self: *Document, idx: usize, dx: i32, dy: i32) void {
@@ -104,18 +147,17 @@ pub const Document = struct {
     pub fn addWireSeg(self: *Document, start: Point, end: Point, net_name: ?[]const u8) !void {
         const a = self.sch.alloc();
         try self.sch.wires.append(a, .{
-            .x0 = start[0], .y0 = start[1],
-            .x1 = end[0], .y1 = end[1],
+            .x0 = start[0],
+            .y0 = start[1],
+            .x1 = end[0],
+            .y1 = end[1],
             .net_name = net_name,
         });
         self.dirty = true;
     }
 
     pub fn deleteWireAt(self: *Document, idx: usize) void {
-        if (idx < self.sch.wires.len) {
-            self.sch.wires.swapRemove(idx);
-            self.dirty = true;
-        }
+        if (swapRemoveIfValid(&self.sch.wires, idx)) self.dirty = true;
     }
 };
 
@@ -143,21 +185,19 @@ pub const Selection = struct {
     instances: std.DynamicBitSetUnmanaged = .{},
     wires: std.DynamicBitSetUnmanaged = .{},
 
+    fn hasAny(bits: *const std.DynamicBitSetUnmanaged) bool {
+        if (bits.bit_length == 0) return false;
+        var it = bits.iterator(.{});
+        return it.next() != null;
+    }
+
     pub fn clear(self: *Selection) void {
         if (self.instances.bit_length > 0) self.instances.unsetAll();
         if (self.wires.bit_length > 0) self.wires.unsetAll();
     }
 
     pub fn isEmpty(self: *const Selection) bool {
-        if (self.instances.bit_length > 0) {
-            var it = self.instances.iterator(.{});
-            if (it.next() != null) return false;
-        }
-        if (self.wires.bit_length > 0) {
-            var it = self.wires.iterator(.{});
-            if (it.next() != null) return false;
-        }
-        return true;
+        return !hasAny(&self.instances) and !hasAny(&self.wires);
     }
 };
 
@@ -179,8 +219,11 @@ pub const ClosedTabs = struct {
     head: u8 = 0,
     len: u8 = 0,
 
-    pub fn push(self: *ClosedTabs, _: std.mem.Allocator, path: []const u8) void {
-        self.buf[self.head] = path;
+    pub fn push(self: *ClosedTabs, a: std.mem.Allocator, path: []const u8) void {
+        const owned = a.dupe(u8, path) catch return;
+        // If ring is full, free the overwritten entry.
+        if (self.len == CAP) a.free(self.buf[self.head]);
+        self.buf[self.head] = owned;
         self.head = (self.head + 1) % CAP;
         if (self.len < CAP) self.len += 1;
     }
@@ -209,41 +252,41 @@ pub const Tool = enum {
 
     pub fn label(self: Tool) []const u8 {
         return switch (self) {
-            .select  => "SELECT",
-            .wire    => "WIRE",
-            .move    => "MOVE",
-            .pan     => "PAN",
-            .line    => "LINE",
-            .rect    => "RECT",
+            .select => "SELECT",
+            .wire => "WIRE",
+            .move => "MOVE",
+            .pan => "PAN",
+            .line => "LINE",
+            .rect => "RECT",
             .polygon => "POLYGON",
-            .arc     => "ARC",
-            .circle  => "CIRCLE",
-            .text    => "TEXT",
+            .arc => "ARC",
+            .circle => "CIRCLE",
+            .text => "TEXT",
         };
     }
 };
 
 pub const CommandFlags = packed struct {
-    fullscreen:         bool = false,
-    dark_mode:          bool = false,
-    fill_rects:         bool = false,
-    text_in_symbols:    bool = false,
-    symbol_details:     bool = false,
-    show_all_layers:    bool = true,
-    show_netlist:       bool = false,
-    crosshair:          bool = false,
-    wire_routing:       bool = false,
+    fullscreen: bool = false,
+    dark_mode: bool = false,
+    fill_rects: bool = false,
+    text_in_symbols: bool = false,
+    symbol_details: bool = false,
+    show_all_layers: bool = true,
+    show_netlist: bool = false,
+    crosshair: bool = false,
+    wire_routing: bool = false,
     orthogonal_routing: bool = false,
-    flat_netlist:       bool = false,
-    _pad:               u5  = 0,
-    line_width:         i16 = 1,
+    flat_netlist: bool = false,
+    _pad: u5 = 0,
+    line_width: i16 = 1,
 };
 
 pub const ToolState = struct {
-    active:       Tool    = .select,
-    snap_to_grid: bool    = true,
-    snap_size:    f32     = 10.0,
-    wire_start:   ?[2]i32 = null,
+    active: Tool = .select,
+    snap_to_grid: bool = true,
+    snap_size: f32 = 10.0,
+    wire_start: ?[2]i32 = null,
 };
 
 // ── GUI / Plugin types ───────────────────────────────────────────────────────
@@ -308,6 +351,7 @@ pub const AppState = struct {
     canvas_h: f32 = 600.0,
     show_grid: bool = true,
     status_msg: []const u8 = "Ready",
+    status_buf: [256]u8 = [_]u8{0} ** 256,
     selection: Selection = .{},
     tool: ToolState = .{},
     gui: GuiState = .{},
@@ -325,7 +369,6 @@ pub const AppState = struct {
     hierarchy_stack: std.ArrayListUnmanaged(HierEntry) = .{},
     closed_tabs: ClosedTabs = .{},
     plugin_refresh_requested: bool = false,
-    plugin_state: std.StringHashMapUnmanaged([]const u8) = .{},
     plugin_runtime_ptr: ?*anyopaque = null,
     open_library_browser: bool = false,
     rescan_library_browser: bool = false,
@@ -357,7 +400,9 @@ pub const AppState = struct {
         self.selection.instances.deinit(a);
         self.selection.wires.deinit(a);
         self.highlighted_nets.deinit(a);
-        self.plugin_state.deinit(a);
+        self.config.deinit();
+        self.queue.deinit(a);
+        self.history.deinit(a);
         _ = self.gpa.deinit();
     }
 
@@ -388,9 +433,11 @@ pub const AppState = struct {
 
     pub fn newFile(self: *AppState, name: []const u8) !void {
         const a = self.allocator();
+        const owned_name = try a.dupe(u8, name);
+        errdefer a.free(owned_name);
         try self.documents.append(a, .{
             .alloc = a,
-            .name = name,
+            .name = owned_name,
             .sch = core.Schemify.init(a),
         });
         self.active_idx = @intCast(self.documents.items.len - 1);
@@ -417,9 +464,16 @@ pub const AppState = struct {
         self.status_msg = msg;
     }
 
-    pub fn setStatusErr(self: *AppState, msg: []const u8) void {
-        self.status_msg = msg;
+    /// Copy `msg` into an owned buffer so the slice doesn't dangle.
+    /// Use this when the source data may be freed (e.g. plugin output buffers).
+    pub fn setStatusBuf(self: *AppState, msg: []const u8) void {
+        const n = @min(msg.len, self.status_buf.len);
+        @memcpy(self.status_buf[0..n], msg[0..n]);
+        self.status_msg = self.status_buf[0..n];
     }
+
+    /// Alias for setStatus — kept for call-site clarity (error vs info).
+    pub const setStatusErr = setStatus;
 
     // ── Selection helpers ────────────────────────────────────────────────── //
 

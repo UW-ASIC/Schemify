@@ -1,0 +1,16 @@
+chn_prim 1.0
+
+SYMBOL bus_connect
+
+  pins [1]:
+    p  inout  x=10  y=-10
+
+  params [3]:
+    type = label
+    format = .alias @lab
+    template = name=l1 lab=xxx
+
+  drawing:
+    line 0 0 10 -10
+    pin_positions:
+      p: (10, -10)

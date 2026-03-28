@@ -1,0 +1,47 @@
+chn_testbench 1.0
+
+TESTBENCH montecarlo_mismatch_sim
+
+  vsource [3]{name, x, y, rot, flip, value, savecurrent}:
+    Vprobe2  340  -450  1  1  0  false
+    VICM  230  -170  0  1  dc 0.85 ac 0  false
+    V3  60  -590  0  1  1.8  false
+
+  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
+    C1  540  -190  0  0  1  5p  1206  ceramic capacitor
+
+  instances [2]:
+    CORNER  sky130_fd_pr/corner  x=10  y=-230  only_toplevel=true  corner=tt_mm
+    x2  sky130_tests/ota1tb  x=490  y=-250
+
+  nets [5]:
+    net1  -> Vprobe2.p, C1.p, x2.out
+    VM  -> Vprobe2.m, x2.minus
+    VCM  -> VICM.p, x2.plus
+    GND  -> VICM.m, C1.m, V3.m, x2.gnd
+    VDD  -> V3.p, x2.VDD
+
+  wires [23]:
+    400 -340 400 -310
+    400 -190 400 -150
+    230 -270 340 -270
+    230 -450 230 -270
+    230 -450 310 -450
+    370 -450 540 -450
+    490 -250 540 -250
+    230 -230 340 -230
+    230 -230 230 -200
+    230 -140 230 -100
+    540 -160 540 -120
+    540 -250 540 -220
+    60 -650 60 -620
+    60 -560 60 -520
+    540 -450 540 -250
+    400 -340 400 -340 VDD
+    400 -150 400 -150 GND
+    230 -100 230 -100 GND
+    540 -120 540 -120 GND
+    60 -650 60 -650 VDD
+    60 -520 60 -520 GND
+    230 -220 230 -220 VCM
+    230 -340 230 -340 VM

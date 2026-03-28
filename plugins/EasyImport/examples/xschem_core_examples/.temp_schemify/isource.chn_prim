@@ -1,0 +1,22 @@
+chn_prim 1.0
+
+SYMBOL isource
+
+  pins [2]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+
+  params [3]:
+    type = isource
+    format = @name @pinlist @value
+    template = name=I0 value=1m
+
+  drawing:
+    line 0 -30 0 -15
+    line 0 15 0 30
+    line 3 -23 8 -23
+    line 5 -25 5 -20
+    arc 0 0 15 270 360
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)

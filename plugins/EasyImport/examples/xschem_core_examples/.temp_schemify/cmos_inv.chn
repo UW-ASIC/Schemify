@@ -1,0 +1,66 @@
+chn 1.0
+
+SYMBOL untitled
+
+  pins [2]:
+    Z  out  x=40  y=0
+    A  in  x=-40  y=0
+
+  params [4]:
+    type = subcircuit
+    function0 = 1 ~
+    format = @name @pinlist @symname WN=@WN WP=@WP LLN=@LLN LLP=@LLP m=@m
+    template = name=X1 WN=15u WP=45u LLN=3u LLP=3u m=1
+
+  spice_prefix: X
+
+  drawing:
+    line -40 0 -28 0
+    line -28 -20 -28 20
+    line -28 -20 16 0
+    line -28 20 16 0
+    line 26 0 40 0
+    arc 90 -410 14 135 360
+    arc 21 0 5 180 360
+    pin_positions:
+      Z: (40, 0)
+      A: (-40, 0)
+
+SCHEMATIC
+
+  pmos [1]{name, x, y, rot, flip, model, w, l, m}:
+    M2  120  -350  0  0  p  WP  LLP  1
+
+  nmos [1]{name, x, y, rot, flip, model, w, l, m}:
+    M1  120  -170  0  0  n  WN  LLN  1
+
+  resistors [1]{name, x, y, rot, flip, value, footprint, device, m}:
+    R1  210  -230  1  0  10  1206  resistor  1
+
+  vsource [2]{name, x, y, rot, flip, savecurrent}:
+    V1  140  -260  0  0  -
+    Vmeas  300  -230  3  0  true
+
+  wires [22]:
+    80 -230 80 -170
+    60 -230 80 -230
+    140 -400 140 -380
+    140 -140 140 -120
+    140 -230 180 -230
+    140 -320 140 -290
+    140 -230 140 -200
+    80 -350 100 -350
+    80 -170 100 -170
+    330 -230 370 -230
+    240 -230 270 -230
+    140 -350 200 -350
+    140 -170 200 -170
+    80 -350 80 -230
+    370 -230 370 -230 Z
+    60 -230 60 -230 A
+    140 -400 140 -400 VDD
+    140 -120 140 -120 0
+    200 -170 200 -170 0
+    200 -350 200 -350 VDD
+    140 -220 140 -220 D
+    80 -320 80 -320 A

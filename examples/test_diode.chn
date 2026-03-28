@@ -1,0 +1,52 @@
+chn_testbench 1.0
+
+TESTBENCH test_diode
+
+  isource [1]{name, x, y, rot, flip, value}:
+    I1  400  -330  2  0  dc 0 pwl 0 0 5n 0 6n 10u 10n 10u 12n -10u 16n -10u 17n 0
+
+  diodes [1]{name, x, y, rot, flip, model, area, perim}:
+    D1  400  -140  0  0  diode_pw2nd_05v5  1e12  4e6
+
+  vsource [3]{name, x, y, rot, flip}:
+    Vk2  900  -270  0  0
+    Vk1  400  -270  0  0
+    Vk3  1440  -270  0  0
+
+  instances [3]:
+    D2  sky130_fd_pr/lvsdiode  x=900  y=-140  model=diode_pw2nd_11v0  area=1e12  perim=4e6
+    CORNER  sky130_fd_pr/corner  x=20  y=-205  only_toplevel=false  corner=tt
+    D3  sky130_fd_pr/photodiode  x=1440  y=-140  model=photodiode
+
+  cccs [2]{name, x, y, rot, flip, vnam, value}:
+    F1  900  -330  0  0  vk1  1
+    F2  1440  -330  0  0  vk1  1
+
+  nets [7]:
+    net1  -> I1.p, Vk1.plus
+    0  -> I1.m, D1.d0, D2.d0, F1.p, D3.d0, F2.p
+    K1  -> D1.d1, Vk1.minus
+    net2  -> Vk2.plus, F1.m
+    K2  -> Vk2.minus, D2.d1
+    K3  -> D3.d1, Vk3.minus
+    net3  -> Vk3.plus, F2.m
+
+  wires [18]:
+    400 -390 400 -360
+    400 -240 400 -170
+    400 -110 400 -80
+    900 -390 900 -360
+    900 -240 900 -170
+    900 -110 900 -80
+    1440 -390 1440 -360
+    1440 -240 1440 -170
+    1440 -110 1440 -80
+    400 -200 400 -200 K1
+    400 -390 400 -390 0
+    400 -80 400 -80 0
+    900 -200 900 -200 K2
+    900 -390 900 -390 0
+    900 -80 900 -80 0
+    1440 -200 1440 -200 K3
+    1440 -390 1440 -390 0
+    1440 -80 1440 -80 0

@@ -3,6 +3,9 @@
 const std = @import("std");
 const Immediate = @import("command.zig").Immediate;
 const dvui = @import("dvui");
+const h = @import("helpers.zig");
+const selInst = h.selInst;
+const selWire = h.selWire;
 
 pub const Error = error{};
 
@@ -80,13 +83,6 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
 // ── Private helpers ──────────────────────────────────────────────────────────
 
 const V2 = @Vector(2, f32);
-
-inline fn selInst(state: anytype, i: usize) bool {
-    return i < state.selection.instances.bit_length and state.selection.instances.isSet(i);
-}
-inline fn selWire(state: anytype, i: usize) bool {
-    return i < state.selection.wires.bit_length and state.selection.wires.isSet(i);
-}
 
 /// Convert an integer Point to f32 vector.
 inline fn pointToVec(p: anytype) V2 {

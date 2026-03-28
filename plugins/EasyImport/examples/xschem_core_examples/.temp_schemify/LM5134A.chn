@@ -1,0 +1,49 @@
+chn 1.0
+
+SYMBOL untitled
+
+  pins [6]:
+    VDD  inout  x=-80  y=-120
+    PILOT  inout  x=-80  y=0
+    OUT  inout  x=-80  y=120
+    IN  inout  x=80  y=-120
+    INB  inout  x=80  y=0
+    VSS  inout  x=80  y=120
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+  drawing:
+    line -60 130 60 130
+    line -60 -130 -60 130
+    line 60 -130 60 130
+    line -80 -120 -60 -120
+    line 60 -120 80 -120
+    line -80 0 -60 0
+    line 60 0 80 0
+    line 60 120 80 120
+    line -80 120 -60 120
+    line -60 -130 -20 -130
+    line -20 -130 -10 -120
+    line -10 -120 10 -120
+    line 10 -120 20 -130
+    line 20 -130 60 -130
+    pin_positions:
+      VDD: (-80, -120)
+      PILOT: (-80, 0)
+      OUT: (-80, 120)
+      IN: (80, -120)
+      INB: (80, 0)
+      VSS: (80, 120)
+
+SCHEMATIC
+
+  wires [6]:
+    -500 20 -500 20 VDD
+    -500 40 -500 40 PILOT
+    -500 60 -500 60 OUT
+    -200 20 -200 20 IN
+    -200 40 -200 40 INB
+    -200 60 -200 60 VSS

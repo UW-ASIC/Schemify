@@ -1,0 +1,121 @@
+chn 1.0
+
+SYMBOL alu
+
+  pins [101]:
+    a_in[31]  in
+    a_in[30]  in
+    a_in[29]  in
+    a_in[28]  in
+    a_in[27]  in
+    a_in[26]  in
+    a_in[25]  in
+    a_in[24]  in
+    a_in[23]  in
+    a_in[22]  in
+    a_in[21]  in
+    a_in[20]  in
+    a_in[19]  in
+    a_in[18]  in
+    a_in[17]  in
+    a_in[16]  in
+    a_in[15]  in
+    a_in[14]  in
+    a_in[13]  in
+    a_in[12]  in
+    a_in[11]  in
+    a_in[10]  in
+    a_in[9]  in
+    a_in[8]  in
+    a_in[7]  in
+    a_in[6]  in
+    a_in[5]  in
+    a_in[4]  in
+    a_in[3]  in
+    a_in[2]  in
+    a_in[1]  in
+    a_in[0]  in
+    zero  out
+    b_in[31]  in
+    b_in[30]  in
+    b_in[29]  in
+    b_in[28]  in
+    b_in[27]  in
+    b_in[26]  in
+    b_in[25]  in
+    b_in[24]  in
+    b_in[23]  in
+    b_in[22]  in
+    b_in[21]  in
+    b_in[20]  in
+    b_in[19]  in
+    b_in[18]  in
+    b_in[17]  in
+    b_in[16]  in
+    b_in[15]  in
+    b_in[14]  in
+    b_in[13]  in
+    b_in[12]  in
+    b_in[11]  in
+    b_in[10]  in
+    b_in[9]  in
+    b_in[8]  in
+    b_in[7]  in
+    b_in[6]  in
+    b_in[5]  in
+    b_in[4]  in
+    b_in[3]  in
+    b_in[2]  in
+    b_in[1]  in
+    b_in[0]  in
+    c_out  out
+    y_out[31]  out
+    y_out[30]  out
+    y_out[29]  out
+    y_out[28]  out
+    y_out[27]  out
+    y_out[26]  out
+    y_out[25]  out
+    y_out[24]  out
+    y_out[23]  out
+    y_out[22]  out
+    y_out[21]  out
+    y_out[20]  out
+    y_out[19]  out
+    y_out[18]  out
+    y_out[17]  out
+    y_out[16]  out
+    y_out[15]  out
+    y_out[14]  out
+    y_out[13]  out
+    y_out[12]  out
+    y_out[11]  out
+    y_out[10]  out
+    y_out[9]  out
+    y_out[8]  out
+    y_out[7]  out
+    y_out[6]  out
+    y_out[5]  out
+    y_out[4]  out
+    y_out[3]  out
+    y_out[2]  out
+    y_out[1]  out
+    y_out[0]  out
+    f_in[2]  in
+    f_in[1]  in
+    f_in[0]  in
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [6]:
+    140 -150 140 -150 a_in[31:0]
+    410 -140 410 -140 zero
+    140 -120 140 -120 b_in[31:0]
+    140 -90 140 -90 f_in[2:0]
+    410 -120 410 -120 c_out
+    410 -100 410 -100 y_out[31:0]

@@ -1,0 +1,26 @@
+chn 1.0
+
+SYMBOL test_nand2_noschematic
+
+  pins [3]:
+    ZZ[3:0]  out
+    AA[3:0]  in
+    BB  in
+
+SCHEMATIC
+
+  instances [1]:
+    x1[3:0]  sky130_tests/nand2_noschematic  x=480  y=-170  m=1  wna=4  lna=0.1  wnb=4  lnb=0.1  modeln=NCH  wpa=2  lpa=0.1  wpb=2  lpb=0.1  modelp=PCH  VCCPIN=VCC  VCCBPIN=VCC  VSSPIN=VSS  VSSBPIN=VSS
+
+  nets [3]:
+    ZZ[3:0]  -> x1[3:0].Z
+    AA[3:0]  -> x1[3:0].A
+    BB  -> x1[3:0].B
+
+  wires [6]:
+    340 -190 440 -190
+    340 -150 440 -150
+    540 -170 620 -170
+    620 -170 620 -170 ZZ[3:0]
+    340 -190 340 -190 AA[3:0]
+    340 -150 340 -150 BB

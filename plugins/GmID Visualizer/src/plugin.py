@@ -1,16 +1,11 @@
-"""
-GmID Visualizer — pure Python plugin for Schemify.
-
-Implements the same panel, state, and runner logic that was previously
-split across main.zig / panel.zig / runner.zig / state.zig, using the
-Python SDK and the existing gmid_runner.py / lookup.py helpers.
-"""
+"""GmID Visualizer plugin for Schemify."""
 
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
+from dataclasses import dataclass, field
 
 # ── SDK path resolution ───────────────────────────────────────────────────────
 # When the host copies this script to the install location the relative path
@@ -22,7 +17,7 @@ _SDK_PYTHON_DIR = os.path.normpath(
 if _SDK_PYTHON_DIR not in sys.path:
     sys.path.insert(0, _SDK_PYTHON_DIR)
 
-# Allow importing gmid_runner and lookup from the same src/ directory.
+# Allow importing local helper modules from the same src/ directory.
 if _PLUGIN_SRC_DIR not in sys.path:
     sys.path.insert(0, _PLUGIN_SRC_DIR)
 
@@ -33,8 +28,8 @@ import schemify  # noqa: E402 (must follow sys.path setup)
 WID_MODEL_TOGGLE  = 3
 WID_BROWSE        = 4
 WID_RUN           = 21
-WID_RECENT_BASE   = 100   # 100..107 — up to 8 recent models
-WID_OPEN_SVG_BASE = 300   # 300..323 — up to 24 plots
+WID_RECENT_BASE   = 100
+WID_OPEN_SVG_BASE = 300
 
 MAX_MODELS = 8
 MAX_PLOTS  = 24
@@ -45,6 +40,15 @@ TAG = "GmIDVisualizer"
 
 _MOS_NEEDLES = (" nmos", " pmos", "mosfet", "level=", "nfet", "pfet", "vth0", "tox")
 _BJT_NEEDLES = (" npn", " pnp", " bjt", "is=", "bf=", "br=", "vaf=", "ikf=")
+_FILE_PICKERS = (
+    ["zenity", "--file-selection", "--title=Select MOSFET/BJT model file"],
+    [
+        "kdialog",
+        "--getopenfilename",
+        ".",
+        "Model files (*.spice *.spi *.lib *.model *.mod *.cir *.scs)",
+    ],
+)
 
 
 def _validate_model_file(path: str) -> str:
@@ -69,15 +73,7 @@ def _validate_model_file(path: str) -> str:
 
 def _pick_model_file() -> str | None:
     """Try zenity then kdialog; return a path string or None."""
-    for argv in (
-        ["zenity", "--file-selection", "--title=Select MOSFET/BJT model file"],
-        [
-            "kdialog",
-            "--getopenfilename",
-            ".",
-            "Model files (*.spice *.spi *.lib *.model *.mod *.cir *.scs)",
-        ],
-    ):
+    for argv in _FILE_PICKERS:
         try:
             res = subprocess.run(
                 argv,
@@ -102,64 +98,59 @@ def _open_svg(path: str) -> None:
         pass
 
 
-# ── Plugin state ──────────────────────────────────────────────────────────────
-
+@dataclass(slots=True)
 class _State:
-    """All mutable plugin state, equivalent to state.zig State."""
-
-    def __init__(self) -> None:
-        self.selected_model_path: str = ""
-        self.selected_model_kind: str = "unknown"  # 'mosfet' | 'bjt' | 'unknown'
-
-        self.recent_models: list[str] = []   # most-recent first, max MAX_MODELS
-        self.dropdown_open: bool = False
-
-        # 'idle' | 'running' | 'done' | 'err'
-        self.status: str = "idle"
-        self.status_msg: str = ""
-        self.error_msg: str = ""
-
-        self.plots: list[str] = []           # SVG file paths, max MAX_PLOTS
-
-    # -- helpers ---------------------------------------------------------------
+    selected_model_path: str = ""
+    selected_model_kind: str = "unknown"
+    recent_models: list[str] = field(default_factory=list)
+    dropdown_open: bool = False
+    status: str = "idle"
+    status_msg: str = ""
+    error_msg: str = ""
+    plots: list[str] = field(default_factory=list)
 
     def set_selected_model(self, path: str, kind: str) -> None:
         self.selected_model_path = path
         self.selected_model_kind = kind
 
     def add_recent_model(self, path: str) -> None:
-        # Move to front if already present; otherwise prepend.
         if path in self.recent_models:
             self.recent_models.remove(path)
         self.recent_models.insert(0, path)
-        if len(self.recent_models) > MAX_MODELS:
-            self.recent_models = self.recent_models[:MAX_MODELS]
+        del self.recent_models[MAX_MODELS:]
 
-    def set_status(self, msg: str) -> None:
-        self.status_msg = msg
+    def note(self, message: str) -> None:
+        self.status_msg = message
 
-    def set_error(self, msg: str) -> None:
-        self.error_msg = msg
+    def start_run(self, message: str) -> None:
+        self.status = "running"
+        self.error_msg = ""
+        self.plots.clear()
+        self.status_msg = message
+
+    def finish_run(self, message: str) -> None:
+        self.status = "done"
+        self.status_msg = message
+
+    def fail(self, message: str) -> None:
         self.status = "err"
+        self.error_msg = message
 
     def clear_error(self) -> None:
         self.error_msg = ""
-
-    def clear_plots(self) -> None:
-        self.plots = []
 
     def add_plot(self, path: str) -> None:
         if len(self.plots) < MAX_PLOTS:
             self.plots.append(path)
 
-    def reset_all(self) -> None:
+    def reset_runtime(self) -> None:
         self.selected_model_path = ""
         self.selected_model_kind = "unknown"
         self.dropdown_open = False
         self.status = "idle"
         self.status_msg = ""
         self.error_msg = ""
-        self.plots = []
+        self.plots.clear()
 
 
 # ── Plugin ────────────────────────────────────────────────────────────────────
@@ -191,7 +182,7 @@ class GmIDVisualizer(schemify.Plugin):
 
     def on_unload(self, w: schemify.Writer) -> None:
         w.log_info(TAG, "on_unload")
-        self._state.reset_all()
+        self._state.reset_runtime()
 
     def on_tick(self, dt: float, w: schemify.Writer) -> None:
         pass
@@ -232,18 +223,19 @@ class GmIDVisualizer(schemify.Plugin):
 
     def _draw_run_controls(self, w: schemify.Writer, s: _State) -> None:
         w.button("Run", id=WID_RUN)
-        if s.status == "idle":
-            if s.status_msg:
-                w.label(s.status_msg, id=22)
-            else:
-                w.label("Select model, then run sweep", id=23)
-        elif s.status == "running":
-            w.label("Simulation running...", id=24)
-        elif s.status == "done":
-            w.label(s.status_msg, id=25)
-        elif s.status == "err":
+        if s.status == "err":
             w.label("Error:", id=26)
             w.label(s.error_msg, id=27)
+            return
+
+        status_label = {
+            "idle": (22 if s.status_msg else 23, s.status_msg or "Select model, then run sweep"),
+            "running": (24, "Simulation running..."),
+            "done": (25, s.status_msg),
+        }.get(s.status)
+        if status_label:
+            label_id, text = status_label
+            w.label(text, id=label_id)
 
     def _draw_outputs(self, w: schemify.Writer, s: _State) -> None:
         w.label("Generated SVG Graphs", id=31)
@@ -272,29 +264,13 @@ class GmIDVisualizer(schemify.Plugin):
         self._handle_button(widget_id, w)
 
     def _handle_button(self, widget_id: int, w: schemify.Writer) -> None:
-        s = self._state
-
         if widget_id == WID_MODEL_TOGGLE:
-            s.dropdown_open = not s.dropdown_open
+            self._state.dropdown_open = not self._state.dropdown_open
             w.request_refresh()
             return
 
         if widget_id == WID_BROWSE:
-            path = _pick_model_file()
-            if path:
-                kind = _validate_model_file(path)
-                if kind == "unknown":
-                    s.set_error("Selected file is not recognized as MOSFET or BJT model")
-                else:
-                    s.clear_error()
-                    s.set_selected_model(path, kind)
-                    s.add_recent_model(path)
-                    s.set_status("Model selected and validated")
-                    s.status = "idle"
-                    s.dropdown_open = False
-            else:
-                s.set_status("Browse cancelled")
-            w.request_refresh()
+            self._handle_browse(w)
             return
 
         if widget_id == WID_RUN:
@@ -302,26 +278,56 @@ class GmIDVisualizer(schemify.Plugin):
             return
 
         if WID_RECENT_BASE <= widget_id < WID_RECENT_BASE + MAX_MODELS:
-            idx = widget_id - WID_RECENT_BASE
-            if idx < len(s.recent_models):
-                path = s.recent_models[idx]
-                kind = _validate_model_file(path)
-                s.set_selected_model(path, kind)
-                s.dropdown_open = False
-                if kind == "unknown":
-                    s.set_error("Saved model no longer matches MOSFET/BJT format")
-                else:
-                    s.clear_error()
-                    s.set_status("Model selected from history")
-                    s.status = "idle"
-            w.request_refresh()
+            self._handle_recent_model(widget_id - WID_RECENT_BASE, w)
             return
 
         if WID_OPEN_SVG_BASE <= widget_id < WID_OPEN_SVG_BASE + MAX_PLOTS:
-            idx = widget_id - WID_OPEN_SVG_BASE
-            if idx < len(s.plots):
-                _open_svg(s.plots[idx])
+            self._open_plot(widget_id - WID_OPEN_SVG_BASE)
             return
+
+    def _handle_browse(self, w: schemify.Writer) -> None:
+        s = self._state
+        path = _pick_model_file()
+        if not path:
+            s.note("Browse cancelled")
+            w.request_refresh()
+            return
+
+        kind = _validate_model_file(path)
+        if kind == "unknown":
+            s.fail("Selected file is not recognized as MOSFET or BJT model")
+            w.request_refresh()
+            return
+
+        s.clear_error()
+        s.set_selected_model(path, kind)
+        s.add_recent_model(path)
+        s.note("Model selected and validated")
+        s.status = "idle"
+        s.dropdown_open = False
+        w.request_refresh()
+
+    def _handle_recent_model(self, idx: int, w: schemify.Writer) -> None:
+        s = self._state
+        if idx >= len(s.recent_models):
+            w.request_refresh()
+            return
+
+        path = s.recent_models[idx]
+        kind = _validate_model_file(path)
+        s.set_selected_model(path, kind)
+        s.dropdown_open = False
+        if kind == "unknown":
+            s.fail("Saved model no longer matches MOSFET/BJT format")
+        else:
+            s.clear_error()
+            s.note("Model selected from history")
+            s.status = "idle"
+        w.request_refresh()
+
+    def _open_plot(self, idx: int) -> None:
+        if idx < len(self._state.plots):
+            _open_svg(self._state.plots[idx])
 
     # ── Sweep runner ───────────────────────────────────────────────────────────
 
@@ -329,18 +335,15 @@ class GmIDVisualizer(schemify.Plugin):
         s = self._state
 
         if not s.selected_model_path:
-            s.set_error("No model selected")
+            s.fail("No model selected")
             w.request_refresh()
             return
         if s.selected_model_kind == "unknown":
-            s.set_error("Selected model format is not recognized")
+            s.fail("Selected model format is not recognized")
             w.request_refresh()
             return
 
-        s.status = "running"
-        s.clear_error()
-        s.clear_plots()
-        s.set_status("Running Gm/Id sweep...")
+        s.start_run("Running Gm/Id sweep...")
         w.request_refresh()
 
         # Resolve the runner script path — next to this file in src/.
@@ -363,37 +366,38 @@ class GmIDVisualizer(schemify.Plugin):
                 timeout=600,
             )
         except FileNotFoundError:
-            s.set_error("Failed to launch python3")
+            s.fail("Failed to launch python3")
             w.request_refresh()
             return
         except subprocess.TimeoutExpired:
-            s.set_error("Sweep timed out after 600 s")
+            s.fail("Sweep timed out after 600 s")
             w.request_refresh()
             return
 
         if result.returncode != 0:
             err = result.stderr.strip() or "Sweep command failed"
-            s.set_error(err)
+            s.fail(err)
             w.log_warn(TAG, "python runner exited with failure")
             w.request_refresh()
             return
 
-        # Parse "SVG:<path>" lines from stdout (matches gmid_runner.py output).
-        for line in result.stdout.splitlines():
+        self._collect_runner_output(result.stdout)
+
+        if not s.plots:
+            s.fail("No SVG plots were produced")
+            w.request_refresh()
+            return
+
+        s.finish_run(f"Generated {len(s.plots)} SVG plots")
+        w.request_refresh()
+
+    def _collect_runner_output(self, stdout: str) -> None:
+        for line in stdout.splitlines():
             stripped = line.strip()
             if stripped.startswith("SVG:"):
                 path = stripped[4:].strip()
                 if path:
-                    s.add_plot(path)
-
-        if not s.plots:
-            s.set_error("No SVG plots were produced")
-            w.request_refresh()
-            return
-
-        s.status = "done"
-        s.set_status(f"Generated {len(s.plots)} SVG plots")
-        w.request_refresh()
+                    self._state.add_plot(path)
 
 
 # ── Plugin entry point ────────────────────────────────────────────────────────

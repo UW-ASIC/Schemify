@@ -1,0 +1,21 @@
+chn_prim 1.0
+
+SYMBOL vsource_arith
+
+  pins [2]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+
+  params [3]:
+    type = vsource
+    format = @name @pinlist VOL=' @VOL '
+    template = name=E1 VOL=cos(V(IN))
+
+  drawing:
+    line -20 -20 -10 -20
+    line -15 -25 -15 -15
+    line 0 -30 0 30
+    arc 0 0 15 270 360
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)

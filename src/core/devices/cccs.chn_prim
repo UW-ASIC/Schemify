@@ -1,0 +1,36 @@
+chn_prim 1.0
+
+SYMBOL cccs
+  desc: Current-controlled current source
+
+  pins [2]:
+    p  inout
+    n  inout
+
+  params [2]:
+    gain = 1
+    vsrc = V0
+
+  spice_prefix: F
+  spice_format: "@name @p @n @vsrc @gain"
+
+  drawing:
+    lines:
+      # Output top lead
+      (0,-30) (0,-15)
+      # Output bottom lead
+      (0,15) (0,30)
+      # Arrow inside diamond
+      (0,6) (0,-6)
+      (-3,-3) (0,-6)
+      (3,-3) (0,-6)
+    # Diamond shape
+    lines:
+      (0,-15) (12,0)
+      (12,0) (0,15)
+      (0,15) (-12,0)
+      (-12,0) (0,-15)
+    text: (18,0) "@name"
+    pin_positions:
+      p: (0,-30)
+      n: (0,30)

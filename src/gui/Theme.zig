@@ -108,19 +108,24 @@ pub const Palette = struct {
             .origin = origin,
         };
 
+        // Apply plugin theme overrides (RGB fields).
         const ov = &current_overrides;
-        if (ov.canvas_bg) |rgb| result.canvas_bg = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
+        inline for (.{
+            .{ "canvas_bg", "canvas_bg" },   .{ "wire", "wire" },
+            .{ "wire_endpoint", "wire_endpoint" }, .{ "instance_body", "inst_body" },
+            .{ "instance_pin", "inst_pin" },       .{ "symbol_line", "symbol_line" },
+        }) |pair| {
+            if (@field(ov, pair[0])) |rgb|
+                @field(result, pair[1]) = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
+        }
+        // RGBA override fields.
         if (ov.grid_dot) |rgba| result.grid_dot = .{ .r = rgba[0], .g = rgba[1], .b = rgba[2], .a = rgba[3] };
-        if (ov.wire) |rgb| result.wire = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
+        if (ov.wire_preview) |rgba| result.wire_preview = .{ .r = rgba[0], .g = rgba[1], .b = rgba[2], .a = rgba[3] };
+        // wire_selected also sets inst_sel.
         if (ov.wire_selected) |rgb| {
             result.wire_sel = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
             result.inst_sel = result.wire_sel;
         }
-        if (ov.wire_endpoint) |rgb| result.wire_endpoint = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
-        if (ov.instance_body) |rgb| result.inst_body = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
-        if (ov.instance_pin) |rgb| result.inst_pin = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
-        if (ov.symbol_line) |rgb| result.symbol_line = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
-        if (ov.wire_preview) |rgba| result.wire_preview = .{ .r = rgba[0], .g = rgba[1], .b = rgba[2], .a = rgba[3] };
 
         return result;
     }
@@ -187,28 +192,31 @@ pub fn applyJson(json_str: []const u8) void {
     current_overrides = .{};
 
     const v = &parsed.value;
-    // RGB [3]u8 fields
-    if (v.canvas_bg) |a| current_overrides.canvas_bg = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    if (v.wire) |a| current_overrides.wire = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    if (v.wire_selected) |a| current_overrides.wire_selected = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    if (v.wire_endpoint) |a| current_overrides.wire_endpoint = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    if (v.instance_body) |a| current_overrides.instance_body = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    if (v.instance_pin) |a| current_overrides.instance_pin = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    if (v.symbol_line) |a| current_overrides.symbol_line = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    if (v.sidebar_bg) |a| current_overrides.sidebar_bg = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    if (v.bottombar_bg) |a| current_overrides.bottombar_bg = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
-    // RGBA [4]u8 fields
-    if (v.grid_dot) |a| current_overrides.grid_dot = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]), clamp8(a[3]) };
-    if (v.wire_preview) |a| current_overrides.wire_preview = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]), clamp8(a[3]) };
-    // Float f32 fields (f64 in JSON -> f32 via @floatCast)
-    if (v.corner_radius) |f| current_overrides.corner_radius = @floatCast(f);
-    if (v.border_width) |f| current_overrides.border_width = @floatCast(f);
-    if (v.button_padding_h) |f| current_overrides.button_padding_h = @floatCast(f);
-    if (v.button_padding_v) |f| current_overrides.button_padding_v = @floatCast(f);
-    if (v.wire_width) |f| current_overrides.wire_width = @floatCast(f);
-    if (v.grid_dot_size) |f| current_overrides.grid_dot_size = @floatCast(f);
-    // Integer field (clamped 0-4)
-    if (v.tab_shape) |n| current_overrides.tab_shape = @intCast(std.math.clamp(n, 0, 4));
+    const ov = &current_overrides;
+
+    // RGB [3]u8 color fields — apply clamp8 to each channel.
+    inline for (.{
+        .{ "canvas_bg", "canvas_bg" },     .{ "wire", "wire" },
+        .{ "wire_selected", "wire_selected" }, .{ "wire_endpoint", "wire_endpoint" },
+        .{ "instance_body", "instance_body" }, .{ "instance_pin", "instance_pin" },
+        .{ "symbol_line", "symbol_line" },     .{ "sidebar_bg", "sidebar_bg" },
+        .{ "bottombar_bg", "bottombar_bg" },
+    }) |pair| {
+        if (@field(v, pair[0])) |a| @field(ov, pair[1]) = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]) };
+    }
+
+    // RGBA [4]u8 color fields.
+    inline for (.{ .{ "grid_dot", "grid_dot" }, .{ "wire_preview", "wire_preview" } }) |pair| {
+        if (@field(v, pair[0])) |a| @field(ov, pair[1]) = .{ clamp8(a[0]), clamp8(a[1]), clamp8(a[2]), clamp8(a[3]) };
+    }
+
+    // Float f32 fields (f64 in JSON -> f32 via @floatCast).
+    inline for (.{ "corner_radius", "border_width", "button_padding_h", "button_padding_v", "wire_width", "grid_dot_size" }) |name| {
+        if (@field(v, name)) |f| @field(ov, name) = @floatCast(f);
+    }
+
+    // Integer field (clamped 0-4).
+    if (v.tab_shape) |n| ov.tab_shape = @intCast(std.math.clamp(n, 0, 4));
 }
 
 fn clamp8(x: i64) u8 {

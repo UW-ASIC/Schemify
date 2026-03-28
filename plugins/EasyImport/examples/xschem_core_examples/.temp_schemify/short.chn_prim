@@ -1,0 +1,19 @@
+chn_prim 1.0
+
+SYMBOL short
+
+  pins [2]:
+    A  inout  x=0  y=-30
+    A  inout  x=0  y=30
+
+  params [4]:
+    type = short
+    template = name=x1 value=0.1
+    format = * short @name : @#0:net_name <--> @#1:net_name
+    highlight = true
+
+  drawing:
+    line 0 -30 0 30
+    pin_positions:
+      A: (0, -30)
+      A: (0, 30)

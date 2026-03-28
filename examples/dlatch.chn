@@ -1,0 +1,49 @@
+chn 1.0
+
+SYMBOL dlatch
+
+  pins [4]:
+    D  in
+    Q  out
+    G  in
+    VSS  in
+
+  params [1]:
+    template = name=x1 VTH=1.5 VHI=3.0
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  vswitch [1]{name, x, y, rot, flip, TABLE}:
+    G5  270  -280  1  0  'VTH-0.1' 10G 'VTH+0.1' 10
+
+  capacitors [1]{name, x, y, rot, flip, m, value}:
+    c1  300  -250  0  0  1  1p
+
+  behavioral [2]{name, x, y, rot, flip, TABLE}:
+    E5  120  -280  0  0  'VTH-0.1' 0 'VTH+0.1' VHI
+    E1  440  -280  0  0  'VTH-0.1' 0 'VTH+0.1' VHI
+
+  nets [6]:
+    G  -> G5.CP
+    net2  -> G5.P, c1.p, E1.A
+    net1  -> G5.M, E5.Z
+    VSS  -> G5.CM, c1.m, E5.VSS, E1.VSS
+    D  -> E5.A
+    Q  -> E1.Z
+
+  wires [13]:
+    160 -280 240 -280
+    300 -280 400 -280
+    100 -150 100 -150 D
+    400 -150 400 -150 Q
+    100 -100 100 -100 VSS
+    250 -320 250 -320 VSS
+    300 -220 300 -220 VSS
+    100 -130 100 -130 G
+    270 -320 270 -320 G
+    120 -250 120 -250 VSS
+    440 -250 440 -250 VSS
+    480 -280 480 -280 Q
+    80 -280 80 -280 D

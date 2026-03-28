@@ -1,0 +1,20 @@
+chn_prim 1.0
+
+SYMBOL stop
+
+  pins [1]:
+    node  in  x=-80  y=0
+
+  params [3]:
+    type = stop
+    format =  .control stop when time @timecond when @@node @nodecond .endc
+    template = name=s1 timecond=\\"> 1u\\" nodecond=\\"< 3\\"
+
+  drawing:
+    line -80 0 -60 0
+    line -60 -20 -60 20
+    line -60 -20 60 -20
+    line 60 -20 60 20
+    line -60 20 60 20
+    pin_positions:
+      node: (-80, 0)

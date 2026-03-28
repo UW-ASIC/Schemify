@@ -8,17 +8,24 @@ pub const EvalError = error{
     InvalidExpression, DivisionByZero, UnterminatedString, UnmatchedParen,
 };
 
+/// A user-defined Tcl proc: formal argument names + body source.
+const ProcDef = struct {
+    arg_names: []const []const u8,
+    body: []const u8,
+};
+
 pub const Evaluator = struct {
     arena: std.heap.ArenaAllocator,
     variables: std.StringHashMapUnmanaged([]const u8),
+    procs: std.StringHashMapUnmanaged(ProcDef),
     script_path: ?[]const u8,
     source_visited: std.StringHashMapUnmanaged(void),
     backing: std.mem.Allocator,
 
     const unsupported_constructs = std.StaticStringMap(void).initComptime(.{
-        .{ "proc", {} },     .{ "switch", {} },   .{ "array", {} },
+        .{ "switch", {} },   .{ "array", {} },
         .{ "regexp", {} },   .{ "for", {} },      .{ "foreach", {} },
-        .{ "while", {} },    .{ "catch", {} },     .{ "global", {} },
+        .{ "while", {} },    .{ "global", {} },
         .{ "namespace", {} }, .{ "package", {} },  .{ "eval", {} },
         .{ "uplevel", {} },  .{ "upvar", {} },
     });
@@ -30,17 +37,20 @@ pub const Evaluator = struct {
         .{ "file", .file },       .{ "info", .info },
         .{ "string", .string_ },  .{ "puts", .puts },
         .{ "return", .return_ },  .{ "unset", .unset },
+        .{ "proc", .proc_ },      .{ "catch", .catch_ },
     });
 
     const CommandKind = enum {
         set, append_, lappend, if_, expr, source,
         file, info, string_, puts, return_, unset,
+        proc_, catch_,
     };
 
     pub fn init(backing: std.mem.Allocator) Evaluator {
         return .{
             .arena = std.heap.ArenaAllocator.init(backing),
             .variables = .{},
+            .procs = .{},
             .script_path = null,
             .source_visited = .{},
             .backing = backing,
@@ -49,6 +59,7 @@ pub const Evaluator = struct {
 
     pub fn deinit(self: *Evaluator) void {
         self.variables.deinit(self.backing);
+        self.procs.deinit(self.backing);
         self.source_visited.deinit(self.backing);
         self.arena.deinit();
         self.* = undefined;
@@ -95,7 +106,7 @@ pub const Evaluator = struct {
             return error.UnsupportedConstruct;
         }
 
-        return switch (command_map.get(cmd_name) orelse return self.handleUnknown(args, word_count)) {
+        return switch (command_map.get(cmd_name) orelse return self.handleUnknown(cmd_name, args)) {
             .set => self.execSet(args),
             .append_ => self.execAppend(args),
             .lappend => self.execLappend(args),
@@ -108,12 +119,104 @@ pub const Evaluator = struct {
             .puts => "",  // no-op
             .return_ => if (args.len > 0) args[0] else "",
             .unset => blk: { if (args.len > 0) _ = self.variables.fetchRemove(args[0]); break :blk ""; },
+            .proc_ => self.execProc(cmd_text),
+            .catch_ => self.execCatch(cmd_text),
         };
     }
 
-    fn handleUnknown(self: *Evaluator, args: []const []const u8, count: usize) []const u8 {
-        _ = self;
-        return if (count > 1) args[args.len - 1] else "";
+    fn handleUnknown(self: *Evaluator, cmd_name: []const u8, args: []const []const u8) EvalError![]const u8 {
+        // Check for user-defined proc
+        if (self.procs.get(cmd_name)) |proc_def| {
+            return self.callProc(proc_def, args);
+        }
+        return if (args.len > 0) args[args.len - 1] else "";
+    }
+
+    /// Register a user-defined Tcl proc: `proc name {args} {body}`
+    fn execProc(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
+        // Parse: proc name {arg_list} {body}
+        var blocks_buf: [32][]const u8 = undefined;
+        var block_count: usize = 0;
+        commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
+        // blocks_buf: ["proc", name, arg_list, body]
+        if (block_count < 4) return "";
+        const name = blocks_buf[1];
+        const arg_list = blocks_buf[2];
+        const body = blocks_buf[3];
+
+        // Parse arg_list (space-separated names)
+        const aa = self.arena.allocator();
+        var arg_names: std.ArrayListUnmanaged([]const u8) = .{};
+        var toks = std.mem.tokenizeAny(u8, arg_list, " \t\n\r");
+        while (toks.next()) |tok| {
+            arg_names.append(aa, self.dupeStr(tok)) catch return error.OutOfMemory;
+        }
+
+        self.procs.put(self.backing, self.dupeStr(name), .{
+            .arg_names = (arg_names.toOwnedSlice(aa) catch return error.OutOfMemory),
+            .body = self.dupeStr(body),
+        }) catch return error.OutOfMemory;
+        return "";
+    }
+
+    /// Execute `catch script ?varName?` — evaluate script, return "0" on
+    /// success (and optionally set varName to the result) or "1" on error.
+    fn execCatch(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
+        // Parse: catch {script} ?varName?
+        var blocks_buf: [32][]const u8 = undefined;
+        var block_count: usize = 0;
+        commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
+        // blocks_buf: ["catch", script, ?varName?]
+        if (block_count < 2) return "1";
+        const script = blocks_buf[1];
+        const var_name: ?[]const u8 = if (block_count >= 3) blocks_buf[2] else null;
+
+        const result = self.evalScript(script) catch {
+            // Script raised an error — return "1"
+            return "1";
+        };
+        // Script succeeded — optionally store result in varName
+        if (var_name) |vn| {
+            self.setVar(vn, result) catch {};
+        }
+        return "0";
+    }
+
+    /// Call a user-defined proc: bind formal args to actual args, evaluate body,
+    /// then restore previous variable state.
+    fn callProc(self: *Evaluator, proc_def: ProcDef, actual_args: []const []const u8) EvalError![]const u8 {
+        // Save current values of formal arg names (so we can restore)
+        const aa = self.arena.allocator();
+        const saved = aa.alloc(?[]const u8, proc_def.arg_names.len) catch return error.OutOfMemory;
+        for (proc_def.arg_names, 0..) |arg_name, idx| {
+            saved[idx] = self.getVar(arg_name);
+        }
+        // Bind actual args to formal names
+        for (proc_def.arg_names, 0..) |arg_name, idx| {
+            const val = if (idx < actual_args.len) actual_args[idx] else "";
+            self.setVar(arg_name, val) catch {};
+        }
+        // Evaluate the body
+        const result = self.evalScript(proc_def.body) catch |err| {
+            // Restore saved vars on error
+            for (proc_def.arg_names, 0..) |arg_name, idx| {
+                if (saved[idx]) |sv| {
+                    self.setVar(arg_name, sv) catch {};
+                } else {
+                    _ = self.variables.fetchRemove(arg_name);
+                }
+            }
+            return err;
+        };
+        // Restore saved vars
+        for (proc_def.arg_names, 0..) |arg_name, idx| {
+            if (saved[idx]) |sv| {
+                self.setVar(arg_name, sv) catch {};
+            } else {
+                _ = self.variables.fetchRemove(arg_name);
+            }
+        }
+        return result;
     }
 
     fn execSet(self: *Evaluator, args: []const []const u8) EvalError![]const u8 {
@@ -180,7 +283,9 @@ pub const Evaluator = struct {
             break :blk std.mem.join(self.arena.allocator(), " ", args) catch return error.OutOfMemory;
         };
         const lookup_var_ctx = LookupCtx{ .ev = self };
-        const result = expr_mod.evalExpr(input, lookup_var_ctx.varFn(), lookup_var_ctx.envFn(), null) catch return "0";
+        const result = expr_mod.evalExpr(input, lookup_var_ctx.varFn(), lookup_var_ctx.envFn(), null) catch {
+            return "0";
+        };
         return self.resultToStr(result);
     }
 
@@ -258,10 +363,29 @@ pub const Evaluator = struct {
         const aa = self.arena.allocator();
         return switch (result) {
             .integer => |i| std.fmt.allocPrint(aa, "{d}", .{i}) catch "0",
-            .float => |f| std.fmt.allocPrint(aa, "{d}", .{f}) catch "0",
+            .float => |f| formatTclFloat(aa, f),
             .boolean => |b| if (b) "1" else "0",
             .string => |s| s,
         };
+    }
+
+    /// Format a float value similarly to Tcl's Tcl_PrintDouble (%.17g).
+    /// Uses scientific notation for very small or very large values,
+    /// and plain decimal otherwise.
+    fn formatTclFloat(aa: std.mem.Allocator, f: f64) []const u8 {
+        // Use Zig's '{e}' (scientific) vs '{d}' (decimal) based on magnitude,
+        // matching C's %g behavior (scientific when exp < -4 or exp >= 17).
+        const abs = @abs(f);
+        if (f == 0.0) return "0.0";
+        if (abs < 1e-4 or abs >= 1e17) {
+            // Scientific notation — format similarly to Tcl's %.17g
+            // Zig's {e} produces e.g. "5.0e-14"; we want "5.000000000000001e-14"
+            // Use a buffer approach with Zig's standard fmt
+            var buf: [64]u8 = undefined;
+            const s = std.fmt.bufPrint(&buf, "{e}", .{f}) catch return "0";
+            return aa.dupe(u8, s) catch "0";
+        }
+        return std.fmt.allocPrint(aa, "{d}", .{f}) catch "0";
     }
 
     fn parseAndExpand(self: *Evaluator, src: []const u8, buf: *[64][]const u8, count: *usize) EvalError!void {
