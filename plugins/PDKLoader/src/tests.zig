@@ -3,7 +3,7 @@
 //! Covers:
 //!   - pdkFamily() mapping for all known variants
 //!   - KNOWN_VARIANTS completeness
-//!   - chnOutDir() path construction
+//!   - schemifyDir() path construction
 //!   - convertToSchemify() with a real temp-filesystem PDK tree
 //!   - wid() widget-ID arithmetic (logic replicated from main.zig)
 //!   - variantIndex() lookup (logic replicated from main.zig)
@@ -85,37 +85,28 @@ test "KNOWN_VARIANTS: no duplicate entries" {
     }
 }
 
-// ── 3. chnOutDir() path construction ────────────────────────────────────── //
+// ── 3. schemifyDir() path construction ──────────────────────────────────── //
 
-test "chnOutDir: sky130A ends with .config/Schemify/pdks/sky130A" {
+test "schemifyDir: returns <root>/libs.tech/schemify" {
     const a = testing.allocator;
-    const dir = volare.chnOutDir(a, "sky130A") orelse {
-        // HOME not set in this environment — skip gracefully.
-        std.debug.print("SKIP chnOutDir: HOME not set\n", .{});
-        return;
-    };
+    const dir = volare.schemifyDir(a, "/home/user/.volare/sky130A") orelse return error.Unexpected;
     defer a.free(dir);
-
-    try testing.expect(std.mem.endsWith(u8, dir, ".config/Schemify/pdks/sky130A") or
-                       std.mem.indexOf(u8, dir, ".config/Schemify/pdks/sky130A") != null);
-    try testing.expect(std.mem.indexOf(u8, dir, "Schemify") != null);
-    try testing.expect(std.mem.indexOf(u8, dir, "pdks")     != null);
-    try testing.expect(std.mem.indexOf(u8, dir, "sky130A")  != null);
+    try testing.expectEqualStrings("/home/user/.volare/sky130A/libs.tech/schemify", dir);
 }
 
-test "chnOutDir: sg13g2 ends with pdks/sg13g2" {
+test "schemifyDir: preserves absolute root path" {
     const a = testing.allocator;
-    const dir = volare.chnOutDir(a, "sg13g2") orelse return;
+    const dir = volare.schemifyDir(a, "/opt/pdk/sg13g2") orelse return error.Unexpected;
     defer a.free(dir);
-    try testing.expect(std.mem.indexOf(u8, dir, "sg13g2") != null);
-    try testing.expect(std.mem.indexOf(u8, dir, "pdks")   != null);
-}
-
-test "chnOutDir: result is an absolute path" {
-    const a = testing.allocator;
-    const dir = volare.chnOutDir(a, "asap7") orelse return;
-    defer a.free(dir);
+    try testing.expectEqualStrings("/opt/pdk/sg13g2/libs.tech/schemify", dir);
     try testing.expect(std.fs.path.isAbsolute(dir));
+}
+
+test "schemifyDir: works with any variant root" {
+    const a = testing.allocator;
+    const dir = volare.schemifyDir(a, "/tmp/test_pdk") orelse return error.Unexpected;
+    defer a.free(dir);
+    try testing.expect(std.mem.endsWith(u8, dir, "libs.tech/schemify"));
 }
 
 // ── 4. convertToSchemify() with real temp-filesystem PDK tree ────────────── //
