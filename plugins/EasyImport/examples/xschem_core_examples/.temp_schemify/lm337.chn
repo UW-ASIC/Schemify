@@ -1,0 +1,33 @@
+chn 1.0
+
+SYMBOL untitled
+
+  pins [3]:
+    IN  in  x=-80  y=-10
+    ADJ  in  x=0  y=-40
+    OUT  out  x=80  y=-10
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+  drawing:
+    line -60 -20 60 -20
+    line -60 20 60 20
+    line -60 -20 -60 20
+    line 60 -20 60 20
+    line -80 -10 -60 -10
+    line 60 -10 80 -10
+    line 0 -40 0 -20
+    pin_positions:
+      IN: (-80, -10)
+      ADJ: (0, -40)
+      OUT: (80, -10)
+
+SCHEMATIC
+
+  wires [3]:
+    -500 20 -500 20 IN
+    -500 40 -500 40 ADJ
+    -200 20 -200 20 OUT

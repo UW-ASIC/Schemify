@@ -1,0 +1,44 @@
+chn 1.0
+
+SYMBOL flop
+
+  pins [4]:
+    D  in
+    Q  out
+    CK  in
+    VSS  in
+
+  params [1]:
+    template = name=x1 VTH=1.5 VHI=3.0
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  instances [3]:
+    B5  inv_bsource  x=130  y=-320  TABLE='VTH-0.1' VHI 'VTH+0.1' 0
+    x5  dlatch  x=310  y=-330  VTH=VTH  VHI=VHI
+    x1  dlatch  x=570  y=-330  VTH=VTH  VHI=VHI
+
+  nets [6]:
+    CK  -> B5.A, x1.G
+    net1  -> B5.Z, x5.G
+    VSS  -> B5.VSS, x5.VSS, x1.VSS
+    D  -> x5.D
+    net2  -> x5.Q, x1.D
+    Q  -> x1.Q
+
+  wires [13]:
+    170 -320 220 -320
+    400 -340 480 -340
+    240 -160 240 -160 D
+    540 -160 540 -160 Q
+    240 -110 240 -110 VSS
+    240 -140 240 -140 CK
+    130 -290 130 -290 VSS
+    220 -340 220 -340 D
+    90 -320 90 -320 CK
+    480 -320 480 -320 CK
+    220 -300 220 -300 VSS
+    480 -300 480 -300 VSS
+    660 -340 660 -340 Q

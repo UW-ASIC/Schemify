@@ -1,0 +1,36 @@
+chn 1.0
+
+SYMBOL stdcells_xspice
+
+  pins [11]:
+    QLATCH  out
+    A  in
+    X  out
+    B  in
+    Y  out
+    CLK  in
+    Q  out
+    RESET_B  in
+    XSCHEM  out
+    VCC  in
+    VSS  in
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [11]:
+    250 -560 250 -560 RESET_B
+    250 -580 250 -580 CLK
+    250 -600 250 -600 B
+    250 -620 250 -620 A
+    360 -590 360 -590 Y
+    360 -610 360 -610 X
+    360 -630 360 -630 QLATCH
+    360 -570 360 -570 Q
+    360 -550 360 -550 XSCHEM
+    250 -490 250 -490 VCC
+    250 -470 250 -470 VSS

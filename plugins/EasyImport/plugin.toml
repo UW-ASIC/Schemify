@@ -1,0 +1,7 @@
+[plugin]
+name        = "XSchemDropIN"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libXSchemDropIN.so"
+description = "Drop-in XSchem project bridge: reads xschemrc, converts .sch/.sym to .chn/.chn_tb in .temp_schemify/, generates Config.toml."
+tags        = ["xschem", "import", "conversion", "dropin"]

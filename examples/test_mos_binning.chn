@@ -1,0 +1,32 @@
+chn_testbench 1.0
+
+TESTBENCH test_mos_binning
+
+  vsource [1]{name, x, y, rot, flip, current}:
+    Vd2  730  -220  0  0  5.0094e-04
+
+  nmos [1]{name, x, y, rot, flip, L, W, mult, nf, model, spiceprefix}:
+    M2  710  -140  0  0  LENGTH  WIDTH  1  1  nfet_01v8  X
+
+  instances [1]:
+    CORNER  sky130_fd_pr/corner  x=1050  y=-190  only_toplevel=true  corner=tt
+
+  nets [5]:
+    D  -> Vd2.plus
+    net1  -> Vd2.minus, M2.D
+    G  -> M2.G
+    S  -> M2.S
+    B  -> M2.B
+
+  wires [11]:
+    730 -140 750 -140
+    670 -140 690 -140
+    730 -190 730 -170
+    730 -110 730 -90
+    730 -270 730 -250
+    730 -90 730 -90 S
+    750 -140 750 -140 B
+    670 -140 670 -140 G
+    730 -270 730 -270 D
+    300 -170 300 -170 G
+    300 -210 300 -210 B

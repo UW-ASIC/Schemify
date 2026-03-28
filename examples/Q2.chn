@@ -1,0 +1,66 @@
+chn 1.0
+
+SYMBOL Q2
+
+  pins [3]:
+    P3  inout
+    P2  inout
+    P1  inout
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  instances [3]:
+    Rcx  res  x=440  y=-630  value=1.716 + TC1=0.113e-2  footprint=1206  device=resistor  m=1
+    Re  res  x=440  y=-190  value=0.443  footprint=1206  device=resistor  m=1
+    Rbx  res  x=190  y=-380  rot=3  flip=1  value=0.463 + TC1=0.14e-2  footprint=1206  device=resistor  m=1
+
+  npn [1]{name, x, y, rot, flip, model, device, footprint, area}:
+    Q1  420  -380  0  0  BJTM1_Q2  BJTM1_Q2  SOT23  4
+
+  diodes [2]{name, x, y, rot, flip, model, area}:
+    D1  310  -460  3  0  DiodeM1_Q2  1
+    D2  340  -290  0  0  DiodeM2_Q2  1
+
+  capacitors [2]{name, x, y, rot, flip, m, value, footprint, device}:
+    Ccox  310  -560  3  0  1  6.598e-14  1206  ceramic capacitor
+    Ceox  250  -290  0  0  1  2.417e-14  1206  ceramic capacitor
+
+  nets [6]:
+    P3  -> Rcx.P
+    C  -> Rcx.M, Q1.C, D1.m, Ccox.m
+    E  -> Re.P, Q1.E, D2.m
+    P1  -> Re.M, Ceox.m
+    P2  -> Rbx.P, D1.p, Ccox.p
+    B  -> Rbx.M, Q1.B, Ceox.p, D2.p
+
+  wires [25]:
+    440 -160 440 -100
+    440 -350 440 -220
+    440 -600 440 -410
+    440 -720 440 -660
+    340 -560 440 -560
+    340 -460 440 -460
+    140 -460 280 -460
+    140 -560 140 -460
+    140 -560 280 -560
+    220 -380 400 -380
+    140 -380 160 -380
+    140 -460 140 -380
+    340 -240 440 -240
+    340 -260 340 -240
+    250 -140 440 -140
+    250 -260 250 -140
+    250 -380 250 -320
+    340 -380 340 -320
+    60 -380 140 -380
+    440 -720 440 -720 P3
+    440 -100 440 -100 P1
+    60 -380 60 -380 P2
+    440 -430 440 -430 C
+    440 -310 440 -310 E
+    300 -380 300 -380 B

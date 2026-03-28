@@ -1,0 +1,28 @@
+chn_testbench 1.0
+
+TESTBENCH test_multisim
+
+  vsource [1]{name, x, y, rot, flip, value}:
+    V4  260  -190  0  0  pwl 0 0 1u 0 1.001u 1.8
+
+  resistors [1]{name, x, y, rot, flip, value, footprint, device, m}:
+    R1  500  -260  1  0  100K  1206  resistor  1
+
+  capacitors [1]{name, x, y, rot, flip, m, value}:
+    C2  330  -260  1  0  1  30p
+
+  nets [3]:
+    VCC  -> V4.p, C2.m
+    0  -> V4.m, R1.P
+    A  -> R1.M, C2.p
+
+  wires [9]:
+    260 -260 260 -220
+    360 -260 470 -260
+    260 -260 300 -260
+    530 -260 540 -260
+    540 -260 540 -160
+    260 -160 540 -160
+    260 -160 260 -160 0
+    260 -260 260 -260 VCC
+    410 -260 410 -260 A

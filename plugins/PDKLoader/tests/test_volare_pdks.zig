@@ -99,7 +99,7 @@ fn testVariantConvert(comptime variant: []const u8) !void {
         return;
     }
 
-    const out_dir = volare.chnOutDir(a, pv.name) orelse return;
+    const out_dir = volare.schemifyDir(a, pv.root) orelse return;
     defer a.free(out_dir);
 
     const n = try volare.convertToSchemify(a, pv, out_dir);
@@ -116,14 +116,13 @@ test "gf180mcuC: convert xschem to CHN"  { try testVariantConvert("gf180mcuC"); 
 test "gf180mcuB: convert xschem to CHN"  { try testVariantConvert("gf180mcuB"); }
 test "asap7: convert xschem to CHN"      { try testVariantConvert("asap7"); }
 
-// ── chnOutDir ────────────────────────────────────────────────────────────── //
+// ── schemifyDir ──────────────────────────────────────────────────────────── //
 
-test "chnOutDir: returns non-null for known variant when HOME is set" {
+test "schemifyDir: returns <root>/libs.tech/schemify for known variant root" {
     const a = testing.allocator;
-    const dir = volare.chnOutDir(a, "sky130A") orelse return;
+    const dir = volare.schemifyDir(a, "/home/user/.volare/sky130A") orelse return;
     defer a.free(dir);
-    try testing.expect(std.mem.indexOf(u8, dir, "sky130A") != null);
-    try testing.expect(std.mem.indexOf(u8, dir, "Schemify") != null);
+    try testing.expectEqualStrings("/home/user/.volare/sky130A/libs.tech/schemify", dir);
 }
 
 // ── pdkFamily ────────────────────────────────────────────────────────────── //
@@ -194,4 +193,79 @@ test "loadSelectedVersion: returns null for unknown variant" {
         a.free(r);
         return error.ExpectedNull;
     }
+}
+
+// ── Volare integration test: sky130A full conversion pipeline ─────────── //
+
+test "sky130A: full conversion pipeline with output validation" {
+    const a = testing.allocator;
+
+    // 1. Discover the sky130A variant
+    const pv = volare.findVariant(a, "sky130A") orelse {
+        std.debug.print("SKIP sky130A integration: not installed\n", .{});
+        return; // Not present on this machine — skip gracefully
+    };
+    defer volare.freeVariant(a, pv);
+
+    // Verify basic discovery results
+    try testing.expectEqualStrings("sky130A", pv.name);
+    try testing.expect(pv.root.len > 0);
+
+    // 2. Only proceed if xschem symbols are available
+    if (!pv.has_xschem) {
+        std.debug.print("SKIP sky130A integration: no xschem/ directory\n", .{});
+        return;
+    }
+
+    // Use a temporary output directory to avoid polluting the real PDK
+    const out_dir = try std.fmt.allocPrint(a, "/tmp/schemify_integ_sky130A_{d}", .{
+        @as(u64, @intCast(std.time.milliTimestamp())),
+    });
+    defer {
+        std.fs.cwd().deleteTree(out_dir) catch {};
+        a.free(out_dir);
+    }
+
+    // 3. Run the full conversion
+    const n = try volare.convertToSchemify(a, pv, out_dir);
+    std.debug.print("sky130A integration: converted {d} files to {s}\n", .{ n, out_dir });
+
+    // Verify: file count > 0
+    try testing.expect(n > 0);
+
+    // 4. Verify: output dir exists and is accessible
+    std.fs.accessAbsolute(out_dir, .{}) catch {
+        std.debug.print("FAIL: output dir not created: {s}\n", .{out_dir});
+        return error.OutputDirNotCreated;
+    };
+
+    // 5. Verify: registry.dat exists
+    const reg_path = try std.fs.path.join(a, &.{ out_dir, "registry.dat" });
+    defer a.free(reg_path);
+    std.fs.accessAbsolute(reg_path, .{}) catch {
+        std.debug.print("FAIL: registry.dat not found at {s}\n", .{reg_path});
+        return error.RegistryNotFound;
+    };
+
+    // Verify registry.dat is non-empty
+    const reg_data = try std.fs.cwd().readFileAlloc(a, reg_path, 16 * 1024 * 1024);
+    defer a.free(reg_data);
+    try testing.expect(reg_data.len > 0);
+
+    // 6. Verify: at least one .chn_prim file exists
+    var found_chn_prim = false;
+    var found_count: u32 = 0;
+    {
+        var dir = try std.fs.openDirAbsolute(out_dir, .{ .iterate = true });
+        defer dir.close();
+        var it = dir.iterate();
+        while (try it.next()) |entry| {
+            if (std.mem.endsWith(u8, entry.name, ".chn_prim")) {
+                found_chn_prim = true;
+                found_count += 1;
+            }
+        }
+    }
+    try testing.expect(found_chn_prim);
+    std.debug.print("sky130A integration: found {d} .chn_prim files, registry.dat OK\n", .{found_count});
 }

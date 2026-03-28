@@ -1,0 +1,38 @@
+chn 1.0
+
+SYMBOL untitled
+
+  pins [2]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+
+  params [1]:
+    template = name=x1 VTH=0.6 RON=10 ROFF=1G
+
+  spice_prefix: X
+
+  drawing:
+    line 0 5 0 30
+    line 0 -30 0 -5
+    line -10 5 10 5
+    line 0 5 10 -5
+    line -10 -5 10 -5
+    line -10 -5 0 5
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)
+
+SCHEMATIC
+
+  vswitch [1]{name, x, y, rot, flip, TABLE}:
+    G2  110  -120  0  0  'VTH-0.1' ROFF 'VTH+0.1' RON
+
+  wires [8]:
+    110 -90 110 -20
+    110 -240 110 -150
+    70 -150 70 -120
+    70 -150 110 -150
+    70 -100 70 -90
+    70 -90 110 -90
+    110 -240 110 -240 p
+    110 -20 110 -20 m

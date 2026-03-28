@@ -27,6 +27,9 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const utility = @import("utility");
+const Vfs = utility.Vfs;
+const platform = utility.platform;
 
 // ── Error sets ────────────────────────────────────────────────────────────── //
 
@@ -114,7 +117,8 @@ pub const Installer = struct {
 
         const dest_dir: []u8 = switch (opts.target) {
             .native => blk: {
-                const home = std.posix.getenv("HOME") orelse return error.NoHomeDir;
+                const home = platform.getEnvVar(allocator, "HOME") catch return error.NoHomeDir;
+                defer allocator.free(home);
                 break :blk std.fs.path.join(allocator, &.{ home, ".config", "Schemify", name }) catch
                     return error.OutOfMemory;
             },
@@ -122,7 +126,7 @@ pub const Installer = struct {
         };
         defer allocator.free(dest_dir);
 
-        std.fs.cwd().makePath(dest_dir) catch return error.InvalidUrl;
+        Vfs.makePath(dest_dir) catch return error.InvalidUrl;
 
         const body = try fetchUrl(allocator, resolved);
         defer allocator.free(body);
@@ -130,7 +134,7 @@ pub const Installer = struct {
         const out_path = std.fs.path.join(allocator, &.{ dest_dir, filename }) catch return error.OutOfMemory;
         errdefer allocator.free(out_path);
 
-        std.fs.cwd().writeFile(.{ .sub_path = out_path, .data = body }) catch return error.InvalidUrl;
+        Vfs.writeAll(out_path, body) catch return error.InvalidUrl;
 
         if (opts.target == .web) {
             updateWebManifest(allocator, dest_dir, filename) catch return error.InvalidUrl;
@@ -205,45 +209,53 @@ pub const Installer = struct {
             entries.deinit(allocator);
         }
 
-        // Parse existing manifest if present; silently ignore missing/corrupt file.
-        if (std.fs.cwd().readFileAlloc(allocator, manifest_path, 1 * 1024 * 1024)) |existing| {
-            defer allocator.free(existing);
-            // Inline: scan JSON array for quoted filename strings.
-            if (std.mem.indexOf(u8, existing, "\"plugins\"")) |arr_start| {
-                if (std.mem.indexOfPos(u8, existing, arr_start, "[")) |bracket| {
-                    if (std.mem.indexOfPos(u8, existing, bracket, "]")) |bracket_end| {
-                        const arr_body = existing[bracket + 1 .. bracket_end];
-                        var pos: usize = 0;
-                        while (std.mem.indexOfPos(u8, arr_body, pos, "\"")) |qs| {
-                            const qe = std.mem.indexOfPos(u8, arr_body, qs + 1, "\"") orelse break;
-                            const entry = arr_body[qs + 1 .. qe];
-                            if (entry.len > 0) try entries.append(allocator, try allocator.dupe(u8, entry));
-                            pos = qe + 1;
-                        }
-                    }
-                }
-            }
-        } else |_| {}
+        readManifestEntries(allocator, manifest_path, &entries) catch {};
 
-        const already = for (entries.items) |e| {
-            if (std.mem.eql(u8, e, filename)) break true;
-        } else false;
-
-        if (!already) {
+        if (!containsEntry(entries.items, filename)) {
             try entries.append(allocator, try allocator.dupe(u8, filename));
         }
 
+        try writeManifest(allocator, manifest_path, entries.items);
+    }
+
+    fn readManifestEntries(
+        allocator: std.mem.Allocator,
+        manifest_path: []const u8,
+        entries: *std.ArrayListUnmanaged([]u8),
+    ) !void {
+        const existing = try Vfs.readAlloc(allocator, manifest_path);
+        defer allocator.free(existing);
+
+        const plugins_key_idx = std.mem.indexOf(u8, existing, "\"plugins\"") orelse return;
+        const arr_open = std.mem.indexOfPos(u8, existing, plugins_key_idx, "[") orelse return;
+        const arr_close = std.mem.indexOfPos(u8, existing, arr_open, "]") orelse return;
+        const arr_body = existing[arr_open + 1 .. arr_close];
+
+        var pos: usize = 0;
+        while (std.mem.indexOfPos(u8, arr_body, pos, "\"")) |qs| {
+            const qe = std.mem.indexOfPos(u8, arr_body, qs + 1, "\"") orelse break;
+            const entry = arr_body[qs + 1 .. qe];
+            if (entry.len > 0) try entries.append(allocator, try allocator.dupe(u8, entry));
+            pos = qe + 1;
+        }
+    }
+
+    fn writeManifest(
+        allocator: std.mem.Allocator,
+        manifest_path: []const u8,
+        entries: []const []u8,
+    ) !void {
         var out = std.ArrayListUnmanaged(u8){};
         defer out.deinit(allocator);
         const w = out.writer(allocator);
         try w.writeAll("{\n  \"plugins\": [\n");
-        for (entries.items, 0..) |e, i| {
+        for (entries, 0..) |e, i| {
             if (i > 0) try w.writeAll(",\n");
             try w.print("    \"{s}\"", .{e});
         }
         try w.writeAll("\n  ]\n}\n");
 
-        try std.fs.cwd().writeFile(.{ .sub_path = manifest_path, .data = out.items });
+        try Vfs.writeAll(manifest_path, out.items);
     }
 
     // ── Private: HTTP fetch ───────────────────────────────────────────────── //
@@ -274,6 +286,13 @@ pub const Installer = struct {
 fn hasPluginExt(ext: []const u8) bool {
     for (all_plugin_exts) |e| {
         if (std.mem.eql(u8, ext, e)) return true;
+    }
+    return false;
+}
+
+fn containsEntry(entries: []const []u8, name: []const u8) bool {
+    for (entries) |e| {
+        if (std.mem.eql(u8, e, name)) return true;
     }
     return false;
 }

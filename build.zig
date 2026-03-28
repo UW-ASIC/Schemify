@@ -13,20 +13,21 @@ pub const build_plugin_helper = @import("tools/sdk/build_plugin_helper.zig");
 pub const Backend = enum { native, web };
 
 // ── Module graph ──────────────────────────────────────────────────────────────
-// Order matters: each module may only depend on modules listed before it,
-// or on "dvui" / the spice modules injected by addSpiceMods().
+// Two-pass creation: first create all modules, then wire imports.
+// This allows commands ↔ state to share types without ordering issues.
 const Def = struct { []const u8, []const u8, []const []const u8 };
 const module_defs = [_]Def{
-    .{ "spice", "src/core/spice/root.zig", &.{} },
-    .{ "core", "src/core/core.zig", &.{"spice"} },
-    .{ "PluginIF", "src/PluginIF.zig", &.{ "core", "dvui" } },
-    .{ "commands", "src/commands/command.zig", &.{ "core", "dvui" } },
-    .{ "state", "src/state/state.zig", &.{ "core", "commands", "PluginIF" } },
-    .{ "installer", "src/plugins/installer.zig", &.{} },
-    // theme_config: no external deps — shared between runtime and renderer.
-    .{ "theme_config", "src/gui/renderer/theme_config.zig", &.{} },
-    .{ "runtime", "src/plugins/runtime.zig", &.{ "PluginIF", "state", "theme_config" } },
-    .{ "cli", "src/cli/cli.zig", &.{ "core", "installer" } },
+    .{ "utility", "src/utility/lib.zig", &.{} },
+    .{ "core", "src/core/Schemify.zig", &.{"utility"} },
+    .{ "PluginIF", "src/PluginIF.zig", &.{ "core", "utility", "dvui" } },
+    .{ "commands", "src/commands/command.zig", &.{ "state", "core", "utility", "dvui" } },
+    .{ "state", "src/state.zig", &.{ "utility", "commands", "PluginIF", "core" } },
+    .{ "installer", "src/plugins/installer.zig", &.{"utility"} },
+
+    .{ "theme_config", "src/gui/Theme.zig", &.{"dvui"} },
+    .{ "runtime", "src/plugins/runtime.zig", &.{ "PluginIF", "state", "theme_config", "commands" } },
+    .{ "cli", "src/cli.zig", &.{ "core", "installer", "utility", "state" } },
+    .{ "debug_server", "src/debug_server.zig", &.{ "state", "dvui" } },
 };
 
 // ── Test suites ───────────────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ const module_defs = [_]Def{
 // Run individually: zig build test_<name>  |  Run all: zig build test
 const test_defs = [_]Def{
     .{ "core", "test/core/test_core.zig", &.{"core"} },
+    .{ "utility", "src/utility/lib.zig", &.{} },
 };
 
 // ── web-specific ───────────────────────────────────────────────────────────────
@@ -60,20 +62,22 @@ pub fn build(b: *std.Build) void {
     build_opts.addOption(Backend, "backend", backend);
     build_opts.addOption(bool, "has_cli", !is_web);
 
-    // Module graph
+    // Module graph — two-pass: create all modules first, then wire imports.
     var mods = std.StringHashMap(*std.Build.Module).init(b.allocator);
     mods.put("dvui", dvui_mod) catch @panic("OOM");
     if (!is_web) addSpiceMods(b, target, optimize, spice, &mods);
     for (&module_defs) |def| {
         const mod = b.addModule(def[0], .{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
-        addImports(mod, &mods, def[2]);
         mods.put(def[0], mod) catch @panic("OOM");
+    }
+    for (&module_defs) |def| {
+        addImports(mods.get(def[0]).?, &mods, def[2]);
     }
 
     // ── Executable ────────────────────────────────────────────────────────────
     const exe_mod = b.createModule(.{ .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
     exe_mod.addOptions("build_options", build_opts);
-    addImports(exe_mod, &mods, &.{ "dvui", "core", "PluginIF", "commands", "state", "cli", "runtime", "theme_config" });
+    addImports(exe_mod, &mods, &.{ "dvui", "utility", "core", "PluginIF", "commands", "state", "cli", "runtime", "theme_config", "debug_server" });
 
     const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
     exe.root_module.strip = optimize != .Debug;
@@ -81,6 +85,29 @@ pub fn build(b: *std.Build) void {
     if (is_web) exe.entry = .disabled;
     if (!is_web) addSpiceRPaths(exe, spice);
     b.installArtifact(exe);
+
+    // ── Lint: ban direct std.fs / std.posix usage outside utility/ and cli/ ──
+    const lint = b.addSystemCommand(&.{ "sh", "-c",
+        \\files=$(find src -name '*.zig' \
+        \\  ! -path 'src/utility/*' \
+        \\  ! -path 'src/cli/*' \
+        \\  ! -path 'src/cli.zig')
+        \\if [ -z "$files" ]; then exit 0; fi
+        \\hits=$(echo "$files" | xargs grep -n \
+        \\  -e 'std\.fs\.open' \
+        \\  -e 'std\.fs\.create' \
+        \\  -e 'std\.fs\.delete' \
+        \\  -e 'std\.fs\.access' \
+        \\  -e 'std\.fs\.make' \
+        \\  -e 'std\.fs\.cwd()' \
+        \\  -e 'std\.posix\.getenv' \
+        \\  || true)
+        \\if [ -n "$hits" ]; then
+        \\  printf '\n\033[1;31mBanned API usage detected.\033[0m Use Vfs / platform instead:\n%s\n' "$hits" >&2
+        \\  exit 1
+        \\fi
+    });
+    exe.step.dependOn(&lint.step);
 
     // Size
     const size_cmd = b.addSystemCommand(&.{ "sh", "-c", "printf 'Executable size: '; du -h \"$1\" | cut -f1", "--" });
@@ -97,7 +124,7 @@ pub fn build(b: *std.Build) void {
 
         const test_step = b.step("test", "Run all tests");
         for (&test_defs) |def| {
-            const tmod = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
+            const tmod = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = .ReleaseFast });
             addImports(tmod, &mods, def[2]);
             const test_exe = b.addTest(.{
                 .root_module = tmod,
@@ -116,48 +143,6 @@ pub fn build(b: *std.Build) void {
             }
         }
 
-        // ── get_bench: time every Benchmark test in src/ ─────────────────
-        const bench_step = b.step("get_bench", "Time every 'Benchmark <FILE> <FN>' test in src/");
-        {
-            var bmods = std.StringHashMap(*std.Build.Module).init(b.allocator);
-            bmods.put("dvui", dvui_mod) catch @panic("OOM");
-            addSpiceMods(b, target, optimize, build_dep.SpiceConfig{ .enable_ngspice = false, .enable_xyce = false }, &bmods);
-            for (&module_defs) |def| {
-                const bm = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
-                addImports(bm, &bmods, def[2]);
-                bmods.put(def[0], bm) catch @panic("OOM");
-            }
-
-            var bench_outputs: std.ArrayList(std.Build.LazyPath) = .{};
-
-            var bsrc_dir = std.fs.cwd().openDir("src", .{ .iterate = true }) catch @panic("cannot open src/");
-            defer bsrc_dir.close();
-            var bwalker = bsrc_dir.walk(b.allocator) catch @panic("OOM");
-            defer bwalker.deinit();
-            while (bwalker.next() catch null) |entry| {
-                if (entry.kind != .file or !std.mem.endsWith(u8, entry.path, ".zig")) continue;
-                const contents = bsrc_dir.readFileAlloc(b.allocator, entry.path, 1 << 20) catch continue;
-                if (std.mem.indexOf(u8, contents, "Benchmark ") == null) continue;
-                const rel = b.fmt("src/{s}", .{entry.path});
-                const bmod = b.createModule(.{ .root_source_file = b.path(rel), .target = target, .optimize = optimize });
-                var it = bmods.iterator();
-                while (it.next()) |kv| bmod.addImport(kv.key_ptr.*, kv.value_ptr.*);
-                bmod.addOptions("build_options", build_opts);
-                const bt = b.addTest(.{
-                    .root_module = bmod,
-                    .filters = &[_][]const u8{"Benchmark "},
-                    .test_runner = .{ .path = b.path("test/benchmark_runner.zig"), .mode = .simple },
-                });
-                const bench_run = b.addRunArtifact(bt);
-                bench_run.setEnvironmentVariable("BENCH_SOURCE_FILE", rel);
-                bench_outputs.append(b.allocator, bench_run.captureStdOut()) catch @panic("OOM");
-            }
-
-            const bsort_cmd = b.addSystemCommand(&.{ "sh", "-c", "sort -rn \"$@\" | cut -f2-", "--" });
-            for (bench_outputs.items) |lp| bsort_cmd.addFileArg(lp);
-            bench_step.dependOn(&bsort_cmd.step);
-        }
-
         // ── get_size: print @sizeOf for every struct in src/ ─────────────
         const size_step = b.step("get_size", "Print @sizeOf for every struct in src/");
         {
@@ -166,8 +151,10 @@ pub fn build(b: *std.Build) void {
             addSpiceMods(b, target, optimize, build_dep.SpiceConfig{ .enable_ngspice = false, .enable_xyce = false }, &smods);
             for (&module_defs) |def| {
                 const sm = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
-                addImports(sm, &smods, def[2]);
                 smods.put(def[0], sm) catch @panic("OOM");
+            }
+            for (&module_defs) |def| {
+                addImports(smods.get(def[0]).?, &smods, def[2]);
             }
 
             var size_outputs: std.ArrayList(std.Build.LazyPath) = .{};
@@ -207,7 +194,36 @@ pub fn build(b: *std.Build) void {
     // ── Web: install assets + run_local dev server ────────────────────────────
     if (is_web) {
         const install = b.getInstallStep();
+
+        // dvui's web.js runtime
         install.dependOn(&b.addInstallFileWithDir(dvui_dep.path("src/backends/web.js"), .bin, "web.js").step);
+
+        // Schemify web shell: index.html, boot.js, vfs.js, vfs-worker.js
+        for ([_][]const u8{ "index.html", "boot.js", "vfs.js", "vfs-worker.js" }) |name| {
+            install.dependOn(&b.addInstallFileWithDir(b.path(b.fmt("web/{s}", .{name})), .bin, name).step);
+        }
+
+        // Schemify host imports (VFS + platform)
+        install.dependOn(&b.addInstallFileWithDir(b.path("src/web/schemify_host.js"), .bin, "schemify_host.js").step);
+
+        // Bundled data files so first-run can pre-populate the OPFS VFS.
+        install.dependOn(&b.addInstallFileWithDir(b.path("Config.toml"), .bin, "Config.toml").step);
+        {
+            var examples_dir = std.fs.cwd().openDir("examples", .{ .iterate = true }) catch @panic("cannot open examples/");
+            defer examples_dir.close();
+            var it = examples_dir.iterate();
+            while (it.next() catch null) |entry| {
+                if (entry.kind != .file) continue;
+                if (std.mem.endsWith(u8, entry.name, ".chn") or
+                    std.mem.endsWith(u8, entry.name, ".chn_tb") or
+                    std.mem.endsWith(u8, entry.name, ".chn_prim"))
+                {
+                    const dest = b.fmt("examples/{s}", .{entry.name});
+                    const src = b.fmt("examples/{s}", .{entry.name});
+                    install.dependOn(&b.addInstallFileWithDir(b.path(src), .bin, dest).step);
+                }
+            }
+        }
 
         const kill = b.addSystemCommand(&.{ "sh", "-c", "fuser -k 8080/tcp 2>/dev/null; sleep 0.3; exit 0" });
         kill.step.dependOn(install);

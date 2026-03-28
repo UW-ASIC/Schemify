@@ -1,0 +1,20 @@
+chn_prim 1.0
+
+SYMBOL spice_probe_vdiff
+
+  pins [2]:
+    p  in  x=0  y=-20
+    m  in  x=0  y=20
+
+  params [3]:
+    type = probe
+    format = .save v(@@p\\\\) v(@@m\\\\)
+    template = name=p1
+
+  drawing:
+    line 0 -15 0 -10
+    line -3 -13 3 -13
+    line -3 13 3 13
+    pin_positions:
+      p: (0, -20)
+      m: (0, 20)

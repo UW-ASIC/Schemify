@@ -1,0 +1,15 @@
+chn_prim 1.0
+
+SYMBOL use
+
+  pins [0]:
+
+  params [5]:
+    type = use
+    spice_ignore = true
+    verilog_ignore = true
+    tedax_ignore = true
+    template =  library ieee; use ieee.std_logic_1164.all; use ieee.std_logic_arith.all; use ieee.std_logic_unsigned.all; 
+
+  drawing:
+    line 0 -10 355 -10

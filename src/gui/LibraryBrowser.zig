@@ -1,406 +1,185 @@
-//! Library browser — browse and place/open cells from PDK dirs and config paths.
+//! Library browser — browse and place built-in devices and cells.
+//!
+//! Layout (floating window):
+//!   +-------------------------------------------+
+//!   | Library Browser                       [x] |
+//!   +-------------------------------------------+
+//!   | Built-in Devices                          |
+//!   |-------------------------------------------|
+//!   | [PAS] resistor           R  2p            |
+//!   | [PAS] capacitor          C  2p            |
+//!   | [SEM] nmos4              M  4p            |
+//!   | ...                                       |
+//!   |-------------------------------------------|
+//!   | [Place Selected]                  [Close] |
+//!   +-------------------------------------------+
 
 const std = @import("std");
 const dvui = @import("dvui");
-const AppState = @import("state").AppState;
+const st = @import("state");
+const core = @import("core");
+const actions = @import("Actions.zig");
 
-const SearchBuf = struct {
-    buffer: [128]u8 = [_]u8{0} ** 128,
-    len: usize = 0,
-    pub fn slice(self: *const @This()) []const u8 { return self.buffer[0..self.len]; }
-};
+const AppState = st.AppState;
+const primitives = core.primitives;
 
-pub const EntryKind = enum(u8) {
-    chn,     // schematic  → open in new tab
-    chn_sym, // symbol     → place as instance
-    chn_tb,  // testbench  → open in new tab
-};
+// ── Module-level state ───────────────────────────────────────────────────── //
 
-/// Library entry with heap-owned strings.  Freed by `freeEntries()`.
-pub const Entry = struct {
-    kind: EntryKind,
-    stem: []const u8, // display name (basename, no ext) — heap-owned by gpa
-    path: []const u8, // absolute path — heap-owned by gpa
-};
+var win_rect = dvui.Rect{ .x = 100, .y = 60, .w = 440, .h = 460 };
+var selected_prim: i32 = -1;
 
-// ── Comptime lookup tables ────────────────────────────────────────────────── //
-
-const KindInfo = struct {
-    label:     []const u8,
-    color:     dvui.Color,
-    extension: []const u8,
-};
-
-const kind_info: [@typeInfo(EntryKind).@"enum".fields.len]KindInfo = blk: {
-    var table: [@typeInfo(EntryKind).@"enum".fields.len]KindInfo = undefined;
-    table[@intFromEnum(EntryKind.chn)] = .{
-        .label     = "SCH",
-        .color     = .{ .r = 120, .g = 210, .b = 120, .a = 255 },
-        .extension = ".chn",
-    };
-    table[@intFromEnum(EntryKind.chn_sym)] = .{
-        .label     = "SYM",
-        .color     = .{ .r = 120, .g = 160, .b = 230, .a = 255 },
-        .extension = ".chn_sym",
-    };
-    table[@intFromEnum(EntryKind.chn_tb)] = .{
-        .label     = "TB ",
-        .color     = .{ .r = 230, .g = 185, .b = 80, .a = 255 },
-        .extension = ".chn_tb",
-    };
-    break :blk table;
-};
-
-fn infoFor(kind: EntryKind) KindInfo {
-    return kind_info[@intFromEnum(kind)];
-}
-
-/// Match a file path to an EntryKind by extension, longest match first.
-fn classifyExtension(path: []const u8) ?EntryKind {
-    const check_order = [_]EntryKind{ .chn_sym, .chn_tb, .chn };
-    for (check_order) |kind| {
-        if (std.mem.endsWith(u8, path, infoFor(kind).extension)) return kind;
-    }
-    return null;
-}
-
-// ── Module-level storage ──────────────────────────────────────────────────── //
-
-var gpa = std.heap.page_allocator;
-var entry_list: std.ArrayListUnmanaged(Entry) = .{};
-var filtered:   std.ArrayListUnmanaged(u32)   = .{};
-
-// ── Dialog state ──────────────────────────────────────────────────────────── //
-
-pub const LibraryBrowser = struct {
-    open:         bool = false,
-    search:       SearchBuf = .{},
-    filter_kind:  ?EntryKind = null,
-    selected:     i32 = -1,
-    scanned:      bool = false,
-    filter_dirty: bool = true,
-    win_rect:     dvui.Rect = .{ .x = 80, .y = 60, .w = 500, .h = 540 },
-};
-
-pub var state: LibraryBrowser = .{};
-
-// ── Public API ────────────────────────────────────────────────────────────── //
+// ── Public API ───────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
-    if (!state.scanned) {
-        scanAll(app);
-        state.scanned      = true;
-        state.filter_dirty = true;
-        state.selected     = -1;
-    }
+    if (!app.open_library_browser) return;
 
-    if (state.filter_dirty) {
-        rebuildFilter(state.search.slice());
-        state.filter_dirty = false;
+    if (app.rescan_library_browser) {
+        selected_prim = -1;
+        app.rescan_library_browser = false;
     }
 
     var fwin = dvui.floatingWindow(@src(), .{
-        .modal     = true,
-        .open_flag = &state.open,
-        .rect      = &state.win_rect,
+        .modal = false,
+        .open_flag = &app.open_library_browser,
+        .rect = &win_rect,
     }, .{
-        .min_size_content = .{ .w = 380, .h = 400 },
+        .min_size_content = .{ .w = 380, .h = 300 },
     });
     defer fwin.deinit();
 
-    fwin.dragAreaSet(dvui.windowHeader("Library Browser", "", &state.open));
+    fwin.dragAreaSet(dvui.windowHeader("Library Browser", "", &app.open_library_browser));
 
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand  = .both,
+        .expand = .both,
         .padding = .{ .x = 8, .y = 6, .w = 8, .h = 6 },
     });
     defer body.deinit();
 
-    // ── Search bar ────────────────────────────────────────────────────────── //
+    // Header.
+    dvui.labelNoFmt(@src(), "Built-in Devices", .{}, .{
+        .id_extra = 100,
+        .style = .control,
+        .color_text = .{ .r = 140, .g = 140, .b = 160, .a = 255 },
+    });
+
+    _ = dvui.separator(@src(), .{ .id_extra = 101 });
+
+    // Entry list area.
     {
-        var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
-        defer row.deinit();
-
-        const prev_len = state.search.len;
-        var te = dvui.textEntry(@src(), .{
-            .text        = .{ .buffer = state.search.buffer[0..127] },
-            .placeholder = "Search\xe2\x80\xa6",
-        }, .{ .expand = .horizontal });
-        defer te.deinit();
-        state.search.len = @intCast(std.mem.indexOfScalar(u8, &state.search.buffer, 0) orelse 127);
-
-        if (state.search.len != prev_len) {
-            state.filter_dirty = true;
-            state.selected     = -1;
-        }
-    }
-
-    // ── Kind filter toggles ───────────────────────────────────────────────── //
-    {
-        var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .horizontal,
-            .margin = .{ .x = 0, .y = 4, .w = 0, .h = 4 },
-        });
-        defer row.deinit();
-
-        const all_active = state.filter_kind == null;
-        if (dvui.button(@src(), "All", .{}, .{
-            .id_extra = 10,
-            .style    = if (all_active) .highlight else .control,
-        })) {
-            if (!all_active) { state.filter_kind = null; state.filter_dirty = true; }
-        }
-
-        const toggle_kinds = [_]struct { kind: EntryKind, id: usize }{
-            .{ .kind = .chn,     .id = 11 },
-            .{ .kind = .chn_sym, .id = 12 },
-            .{ .kind = .chn_tb,  .id = 13 },
-        };
-        for (toggle_kinds) |t| {
-            const info = infoFor(t.kind);
-            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 4 } });
-            if (dvui.button(@src(), info.label, .{}, .{
-                .id_extra   = t.id,
-                .style      = if (state.filter_kind == t.kind) .highlight else .control,
-                .color_text = info.color,
-            })) {
-                state.filter_kind = if (state.filter_kind == t.kind) null else t.kind;
-                state.filter_dirty = true;
-            }
-        }
-
-        _ = dvui.spacer(@src(), .{ .expand = .horizontal });
-        var cnt_buf: [32]u8 = undefined;
-        const cnt_label = std.fmt.bufPrint(&cnt_buf, "{d} / {d}", .{
-            filtered.items.len, entry_list.items.len,
-        }) catch "?";
-        dvui.labelNoFmt(@src(), cnt_label, .{}, .{
-            .id_extra  = 14,
-            .gravity_y = 0.5,
-            .style     = .control,
-        });
-    }
-
-    _ = dvui.separator(@src(), .{ .id_extra = 1 });
-
-    // ── Entry list ────────────────────────────────────────────────────────── //
-    {
-        if (filtered.items.len == 0) {
-            const msg = if (entry_list.items.len == 0)
-                "No .chn / .chn_sym / .chn_tb files found."
-            else
-                "No results match your filter.";
-            dvui.labelNoFmt(@src(), msg, .{}, .{ .style = .control });
-        }
-
-        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
+        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both, .id_extra = 102 });
         defer scroll.deinit();
 
-        for (0..filtered.items.len) |fi| {
-            const i     = filtered.items[fi];
-            const entry = &entry_list.items[i];
-            const is_selected = state.selected == @as(i32, @intCast(i));
-            const info = infoFor(entry.kind);
+        for (&primitives.parsed_prims, 0..) |*prim, pi| {
+            const is_sel = selected_prim == @as(i32, @intCast(pi));
 
             var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .id_extra         = fi * 2,
-                .expand           = .horizontal,
-                .background       = true,
-                .border           = .{ .x = 0, .y = 0, .w = 0, .h = 1 },
-                .padding          = .{ .x = 8, .y = 5, .w = 8, .h = 5 },
-                .margin           = .{ .x = 0, .y = 0, .w = 0, .h = 0 },
-                .color_fill       = if (is_selected)
-                    .{ .r = 45, .g = 95, .b = 175, .a = 255 }
+                .id_extra = pi * 2,
+                .expand = .horizontal,
+                .background = true,
+                .padding = .{ .x = 6, .y = 3, .w = 6, .h = 3 },
+                .color_fill = if (is_sel)
+                    dvui.Color{ .r = 45, .g = 95, .b = 175, .a = 255 }
                 else
-                    .{ .r = 28, .g = 28, .b = 36, .a = 0 },
-                .color_fill_hover = .{ .r = 55, .g = 65, .b = 90, .a = 220 },
+                    dvui.Color{ .r = 0, .g = 0, .b = 0, .a = 0 },
+                .color_fill_hover = .{ .r = 50, .g = 55, .b = 75, .a = 180 },
             });
             defer card.deinit();
 
-            dvui.labelNoFmt(@src(), info.label, .{}, .{
-                .id_extra         = fi * 10 + 1,
-                .gravity_y        = 0.5,
-                .color_text       = info.color,
+            // Category badge.
+            const badge = categorizePrim(prim);
+            dvui.labelNoFmt(@src(), badge.label, .{}, .{
+                .id_extra = pi * 10 + 1,
+                .gravity_y = 0.5,
+                .color_text = badge.color,
                 .min_size_content = .{ .w = 28 },
             });
-            _ = dvui.spacer(@src(), .{ .id_extra = fi * 10 + 2, .min_size_content = .{ .w = 8 } });
-            dvui.labelNoFmt(@src(), entry.stem, .{}, .{
-                .id_extra  = fi * 10 + 3,
-                .expand    = .horizontal,
+            _ = dvui.spacer(@src(), .{ .id_extra = pi * 10 + 2, .min_size_content = .{ .w = 4 } });
+
+            // Device name.
+            dvui.labelNoFmt(@src(), prim.kind_name, .{}, .{
+                .id_extra = pi * 10 + 3,
+                .expand = .horizontal,
                 .gravity_y = 0.5,
             });
 
+            // Pin count + prefix info.
+            var info_buf: [16]u8 = undefined;
+            const info = if (prim.prefix != 0)
+                std.fmt.bufPrint(&info_buf, "{c} {d}p", .{ prim.prefix, prim.pin_count }) catch ""
+            else
+                std.fmt.bufPrint(&info_buf, "  {d}p", .{prim.pin_count}) catch "";
+            dvui.labelNoFmt(@src(), info, .{}, .{
+                .id_extra = pi * 10 + 4,
+                .gravity_y = 0.5,
+                .color_text = .{ .r = 140, .g = 140, .b = 160, .a = 255 },
+            });
+
             if (dvui.clicked(&card.wd, .{})) {
-                if (state.selected == @as(i32, @intCast(i))) {
-                    doAction(app, i);
-                    return;
+                if (is_sel) {
+                    // Double-click: place immediately.
+                    placeSelected(app);
+                } else {
+                    selected_prim = @intCast(pi);
                 }
-                state.selected = @intCast(i);
             }
         }
     }
 
-    _ = dvui.separator(@src(), .{ .id_extra = 20 });
+    _ = dvui.separator(@src(), .{ .id_extra = 104 });
 
-    // ── Bottom bar ────────────────────────────────────────────────────────── //
+    // Bottom buttons.
     {
-        var btn_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        var btns = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .horizontal,
-            .margin = .{ .x = 0, .y = 4, .w = 0, .h = 0 },
+            .id_extra = 105,
         });
-        defer btn_row.deinit();
+        defer btns.deinit();
 
-        _ = dvui.spacer(@src(), .{ .expand = .horizontal });
-
-        const action_label: []const u8 = lbl: {
-            if (state.selected < 0) break :lbl "Place / Open";
-            const idx: usize = @intCast(state.selected);
-            if (idx >= entry_list.items.len) break :lbl "Place / Open";
-            break :lbl switch (entry_list.items[idx].kind) {
-                .chn_sym      => "Place",
-                .chn, .chn_tb => "Open",
-            };
-        };
-
-        if (dvui.button(@src(), action_label, .{}, .{
-            .id_extra = 200,
-            .style    = if (state.selected >= 0) .highlight else .control,
-        })) {
-            if (state.selected >= 0) {
-                doAction(app, @intCast(state.selected));
-                return;
-            } else {
-                app.setStatus("Select an entry first");
-            }
+        if (dvui.button(@src(), "Place Selected", .{}, .{ .id_extra = 106 })) {
+            placeSelected(app);
         }
-
-        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 6 } });
-
-        if (dvui.button(@src(), "Refresh", .{}, .{ .id_extra = 202 })) {
-            state.scanned = false;
-        }
-
-        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 6 } });
-
-        if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 201 })) {
-            state.open = false;
+        _ = dvui.spacer(@src(), .{ .expand = .horizontal, .id_extra = 107 });
+        if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 108 })) {
+            app.open_library_browser = false;
         }
     }
 }
 
-// ── Action dispatch ───────────────────────────────────────────────────────── //
-
-fn doAction(app: *AppState, idx: usize) void {
-    if (idx >= entry_list.items.len) return;
-    const entry = &entry_list.items[idx];
-    switch (entry.kind) {
-        .chn_sym => {
-            app.queue.push(app.allocator(), .{ .undoable = .{ .place_device = .{
-                .sym_path = entry.path,
-                .name     = entry.stem,
-                .pos      = .{ 0, 0 },
-            } } }) catch {};
-            app.setStatus("Placing symbol \xe2\x80\x94 click to set position");
-            state.open = false;
-        },
-        .chn, .chn_tb => {
-            app.openPath(entry.path) catch |err| {
-                app.log.err("BROWSER", "open {s}: {}", .{ entry.path, err });
-                app.setStatusErr("Failed to open file");
-                return;
-            };
-            app.setStatus("Opened");
-            state.open = false;
-        },
+fn placeSelected(app: *AppState) void {
+    if (selected_prim < 0 or @as(usize, @intCast(selected_prim)) >= primitives.prim_count) {
+        app.status_msg = "Select a device first";
+        return;
     }
+    const idx = @as(usize, @intCast(selected_prim));
+    const prim = &primitives.parsed_prims[idx];
+    actions.enqueue(app, .{ .undoable = .{ .place_device = .{
+        .sym_path = prim.kind_name,
+        .name = prim.kind_name,
+        .pos = .{ 0, 0 },
+    } } }, "Placed device");
 }
 
-// ── Filter ────────────────────────────────────────────────────────────────── //
+// ── Badge helpers ────────────────────────────────────────────────────────── //
 
-fn rebuildFilter(search: []const u8) void {
-    filtered.clearRetainingCapacity();
-    for (entry_list.items, 0..) |*entry, i| {
-        if (state.filter_kind) |fk| {
-            if (entry.kind != fk) continue;
-        }
-        if (search.len > 0) {
-            if (std.ascii.indexOfIgnoreCase(entry.stem, search) == null) continue;
-        }
-        filtered.append(gpa, @intCast(i)) catch break;
-    }
-}
+const BadgeInfo = struct { label: []const u8, color: dvui.Color };
 
-// ── Scanning ──────────────────────────────────────────────────────────────── //
+fn categorizePrim(prim: *const primitives.PrimEntry) BadgeInfo {
+    const green = dvui.Color{ .r = 120, .g = 210, .b = 120, .a = 255 };
+    const blue = dvui.Color{ .r = 120, .g = 160, .b = 230, .a = 255 };
+    const yellow = dvui.Color{ .r = 220, .g = 200, .b = 100, .a = 255 };
+    const red = dvui.Color{ .r = 220, .g = 120, .b = 120, .a = 255 };
+    const gray = dvui.Color{ .r = 160, .g = 160, .b = 180, .a = 255 };
 
-pub fn scanAll(app: *AppState) void {
-    freeEntries();
-    if (comptime @import("builtin").target.cpu.arch == .wasm32) return;
+    if (prim.non_electrical) return .{ .label = "PWR", .color = red };
 
-    if (std.posix.getenv("HOME")) |home| {
-        if (std.fs.path.join(gpa, &.{ home, ".config", "Schemify", "pdks" }) catch null) |root| {
-            defer gpa.free(root);
-            walkDir(root, &entry_list);
-        }
-    }
-    for (app.config.paths.chn_sym) |dir| walkDir(dir, &entry_list);
-    for (app.config.paths.chn) |fp| {
-        if (std.fs.path.dirname(fp)) |dir| walkDir(dir, &entry_list);
-    }
-    for (app.config.paths.chn_tb) |fp| {
-        if (std.fs.path.dirname(fp)) |dir| walkDir(dir, &entry_list);
-    }
-}
-
-pub fn scanSymbols(chn_sym_dirs: []const []const u8) void {
-    freeEntries();
-    if (comptime @import("builtin").target.cpu.arch == .wasm32) return;
-
-    if (std.posix.getenv("HOME")) |home| {
-        if (std.fs.path.join(gpa, &.{ home, ".config", "Schemify", "pdks" }) catch null) |root| {
-            defer gpa.free(root);
-            walkDir(root, &entry_list);
-        }
-    }
-    for (chn_sym_dirs) |dir| walkDir(dir, &entry_list);
-}
-
-fn freeEntries() void {
-    for (entry_list.items) |entry| {
-        gpa.free(entry.stem);
-        gpa.free(entry.path);
-    }
-    entry_list.clearRetainingCapacity();
-    filtered.clearRetainingCapacity();
-}
-
-fn walkDir(dir_path: []const u8, list: *std.ArrayListUnmanaged(Entry)) void {
-    var dir = std.fs.openDirAbsolute(dir_path, .{ .iterate = true }) catch return;
-    defer dir.close();
-    var walker = dir.walk(gpa) catch return;
-    defer walker.deinit();
-    while (walker.next() catch null) |e| {
-        if (e.kind != .file) continue;
-        const kind = classifyExtension(e.path) orelse continue;
-        if (list.items.len >= 512) return;
-
-        const full = std.fs.path.join(gpa, &.{ dir_path, e.path }) catch continue;
-
-        const base     = std.fs.path.basename(e.path);
-        const ext_len  = infoFor(kind).extension.len;
-        const stem_raw = if (base.len > ext_len) base[0..base.len - ext_len] else base;
-        const stem     = gpa.dupe(u8, stem_raw) catch { gpa.free(full); continue; };
-
-        list.append(gpa, .{ .kind = kind, .stem = stem, .path = full }) catch {
-            gpa.free(full);
-            gpa.free(stem);
-        };
-    }
-}
-
-// ── Tests ─────────────────────────────────────────────────────────────────── //
-
-test "Expose struct size for library_browser" {
-    const print = @import("std").debug.print;
-    print("LibraryBrowser: {d}B\n", .{@sizeOf(LibraryBrowser)});
-    print("Entry: {d}B\n", .{@sizeOf(Entry)});
+    return switch (prim.prefix) {
+        'R', 'C', 'L' => .{ .label = "PAS", .color = green },
+        'M', 'Q', 'J' => .{ .label = "SEM", .color = blue },
+        'D' => .{ .label = "DIO", .color = blue },
+        'V', 'I', 'B' => .{ .label = "SRC", .color = yellow },
+        'E', 'G', 'H', 'F' => .{ .label = "CTL", .color = yellow },
+        'S', 'W' => .{ .label = "SW ", .color = gray },
+        'O', 'K' => .{ .label = "TLN", .color = gray },
+        else => .{ .label = "---", .color = gray },
+    };
 }

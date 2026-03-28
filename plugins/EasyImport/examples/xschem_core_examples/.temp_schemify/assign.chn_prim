@@ -1,0 +1,23 @@
+chn_prim 1.0
+
+SYMBOL assign
+
+  pins [2]:
+    d  out  x=30  y=0
+    s  in  x=-30  y=0
+
+  params [6]:
+    type = delay
+    function0 = 1
+    verilog_format = assign #@delay @@d =  @@s ;
+    vhdl_format =  @@d <=  @@s after @delay ns;
+    format = @name @pinlist 0
+    template = name=V1 delay=1
+
+  drawing:
+    line -30 0 30 0
+    line -10 -5 10 0
+    line -10 5 10 0
+    pin_positions:
+      d: (30, 0)
+      s: (-30, 0)

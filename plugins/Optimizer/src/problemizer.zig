@@ -6,6 +6,31 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const backend = @import("backend/backend.zig");
 
+const SpecClass = enum { objective, constraint };
+
+fn countSpecsByClass(specs: []const Specification, comptime class: SpecClass) usize {
+    var count: usize = 0;
+    for (specs) |s| {
+        const matches = switch (class) {
+            .objective => s.isObjective(),
+            .constraint => s.isConstraint(),
+        };
+        if (matches) count += 1;
+    }
+    return count;
+}
+
+fn countProblemSpecs(testbenches: []const Testbench, comptime class: SpecClass) usize {
+    var count: usize = 0;
+    for (testbenches) |tb| {
+        count += switch (class) {
+            .objective => tb.objectiveCount(),
+            .constraint => tb.constraintCount(),
+        };
+    }
+    return count;
+}
+
 /// A single tunable parameter within a component
 pub const Primitive = struct {
     /// Identifier used in netlist substitution (e.g., "W", "L", "nf")
@@ -172,19 +197,11 @@ pub const Testbench = struct {
     fidelity: f64 = 1.0,
 
     pub fn objectiveCount(self: *const Testbench) usize {
-        var count: usize = 0;
-        for (self.specs) |s| {
-            if (s.isObjective()) count += 1;
-        }
-        return count;
+        return countSpecsByClass(self.specs, .objective);
     }
 
     pub fn constraintCount(self: *const Testbench) usize {
-        var count: usize = 0;
-        for (self.specs) |s| {
-            if (s.isConstraint()) count += 1;
-        }
-        return count;
+        return countSpecsByClass(self.specs, .constraint);
     }
 };
 
@@ -266,10 +283,7 @@ pub const Problem = struct {
     /// Total number of objectives across all testbenches
     pub fn objectiveCount(self: *Problem) usize {
         if (self._objective_count) |c| return c;
-        var count: usize = 0;
-        for (self.testbenches) |tb| {
-            count += tb.objectiveCount();
-        }
+        const count = countProblemSpecs(self.testbenches, .objective);
         self._objective_count = count;
         return count;
     }
@@ -277,10 +291,7 @@ pub const Problem = struct {
     /// Total number of constraints across all testbenches
     pub fn constraintCount(self: *Problem) usize {
         if (self._constraint_count) |c| return c;
-        var count: usize = 0;
-        for (self.testbenches) |tb| {
-            count += tb.constraintCount();
-        }
+        const count = countProblemSpecs(self.testbenches, .constraint);
         self._constraint_count = count;
         return count;
     }
@@ -349,11 +360,11 @@ pub fn CircuitOptimizer(comptime Backend: type) type {
 
         pub fn init(allocator: Allocator, problem: *Problem, backend_config: Backend.Config) !Self {
             return .{
-                .problem      = problem,
-                .be           = try Backend.init(allocator, backend_config),
+                .problem = problem,
+                .be = try Backend.init(allocator, backend_config),
                 .observations = .{},
-                .allocator    = allocator,
-                .iteration    = 0,
+                .allocator = allocator,
+                .iteration = 0,
             };
         }
 
@@ -456,14 +467,14 @@ pub fn example() !void {
 
     // Define components manually (or load via CircuitLoader)
     var m1_primitives = [_]Primitive{
-        .{ .name = "W",  .min = 120e-9, .max = 10e-6,  .value = 1e-6,    .unit = "m", .step = 10e-9 },
-        .{ .name = "L",  .min = 60e-9,  .max = 1e-6,   .value = 100e-9,  .unit = "m", .step = 10e-9 },
-        .{ .name = "nf", .min = 1,      .max = 20,     .value = 1,       .unit = "",  .step = 1 },
+        .{ .name = "W", .min = 120e-9, .max = 10e-6, .value = 1e-6, .unit = "m", .step = 10e-9 },
+        .{ .name = "L", .min = 60e-9, .max = 1e-6, .value = 100e-9, .unit = "m", .step = 10e-9 },
+        .{ .name = "nf", .min = 1, .max = 20, .value = 1, .unit = "", .step = 1 },
     };
 
     var m2_primitives = [_]Primitive{
-        .{ .name = "W", .min = 120e-9, .max = 10e-6, .value = 1e-6,   .unit = "m", .step = 10e-9 },
-        .{ .name = "L", .min = 60e-9,  .max = 1e-6,  .value = 100e-9, .unit = "m", .step = 10e-9 },
+        .{ .name = "W", .min = 120e-9, .max = 10e-6, .value = 1e-6, .unit = "m", .step = 10e-9 },
+        .{ .name = "L", .min = 60e-9, .max = 1e-6, .value = 100e-9, .unit = "m", .step = 10e-9 },
     };
 
     var r_load_primitives = [_]Primitive{
@@ -471,9 +482,9 @@ pub fn example() !void {
     };
 
     var components = [_]Component{
-        .{ .path = "lib/nmos.scs", .instance = "M1",     .primitives = &m1_primitives,     .kind = "nmos" },
-        .{ .path = "lib/pmos.scs", .instance = "M2",     .primitives = &m2_primitives,     .kind = "pmos" },
-        .{ .path = "lib/res.scs",  .instance = "R_load", .primitives = &r_load_primitives, .kind = "resistor" },
+        .{ .path = "lib/nmos.scs", .instance = "M1", .primitives = &m1_primitives, .kind = "nmos" },
+        .{ .path = "lib/pmos.scs", .instance = "M2", .primitives = &m2_primitives, .kind = "pmos" },
+        .{ .path = "lib/res.scs", .instance = "R_load", .primitives = &r_load_primitives, .kind = "resistor" },
     };
 
     // Define testbenches with specifications

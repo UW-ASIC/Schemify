@@ -1,0 +1,26 @@
+chn_prim 1.0
+
+SYMBOL title-2
+
+  pins [0]:
+
+  params [6]:
+    type = logo
+    template = name=l1 author=\\"Stefan Schippers\\" rev=1.0 lock=false
+    verilog_ignore = true
+    vhdl_ignore = true
+    spice_ignore = true
+    tedax_ignore = true
+
+  drawing:
+    line 385 0 3430 0
+    line 0 0 65 0
+    line 3430 -2430 3430 0
+    line 0 -2430 3430 -2430
+    line 0 -2430 0 0
+    line 2110 -160 2110 0
+    line 2110 -160 3430 -160
+    line 2110 -80 3430 -80
+    line 2740 -80 2740 0
+    line 2740 -160 2740 -80
+    line 2450 -80 2450 0

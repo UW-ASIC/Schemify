@@ -3,26 +3,27 @@
 //! The CommandQueue is a fixed-capacity ring buffer drained once per frame.
 
 const std = @import("std");
-const core = @import("core");
-const CT = core.CT;
+const st = @import("state");
+const Point = st.Point;
+const Sim = st.Sim;
 
 // ── Payload types ─────────────────────────────────────────────────────────────
 
 /// Index + symbolic name of a placed instance.
-pub const PlaceDevice   = struct { sym_path: []const u8, name: []const u8, pos: CT.Point };
+pub const PlaceDevice   = struct { sym_path: []const u8, name: []const u8, pos: Point };
 /// Index of the instance to remove.
 pub const DeleteDevice  = struct { idx: u32 };
 /// Index + integer delta in schematic coordinates.
-pub const MoveDevice    = struct { idx: u32, delta: CT.Point };
+pub const MoveDevice    = struct { idx: u32, delta: Point };
 /// Property mutation — key/val are slices into the arena.
 pub const SetProp       = struct { idx: u32, key: []const u8, val: []const u8 };
 /// Wire segment expressed as two integer endpoints.
-pub const AddWire       = struct { start: CT.Point, end: CT.Point };
+pub const AddWire       = struct { start: Point, end: Point };
 /// Index of the wire to remove.
 pub const DeleteWire    = struct { idx: u32 };
 pub const LoadSchematic = struct { path: []const u8 };
 pub const SaveSchematic = struct { path: []const u8 };
-pub const RunSim        = struct { sim: CT.Sim };
+pub const RunSim        = struct { sim: Sim };
 
 // ── Immediate: view/UI commands that never enter history ──────────────────────
 
@@ -110,6 +111,7 @@ pub const Immediate = union(enum) {
     make_schematic_from_symbol,
     make_schem_and_sym,
     insert_from_library,
+    open_file_explorer,
 
     netlist_hierarchical,
     netlist_flat,

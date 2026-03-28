@@ -1,0 +1,33 @@
+chn_prim 1.0
+
+SYMBOL conn_6x1
+
+  pins [6]:
+    conn_1  inout  x=20  y=-20
+    conn_2  inout  x=20  y=0
+    conn_3  inout  x=20  y=20
+    conn_4  inout  x=20  y=40
+    conn_5  inout  x=20  y=60
+    conn_6  inout  x=20  y=80
+
+  params [5]:
+    type = connector
+    verilog_ignore = true
+    format = *connector(6,1) @pinlist
+    tedax_format = footprint @name @footprint value @name @value device @name @device spicedev @name @spicedev spiceval @name @spiceval comptag @name @comptag
+    template = name=c1 footprint=connector(6,1)
+
+  drawing:
+    arc 15 -20 5 270 360
+    arc 15 0 5 270 360
+    arc 15 20 5 270 360
+    arc 15 40 5 270 360
+    arc 15 60 5 270 360
+    arc 15 80 5 270 360
+    pin_positions:
+      conn_1: (20, -20)
+      conn_2: (20, 0)
+      conn_3: (20, 20)
+      conn_4: (20, 40)
+      conn_5: (20, 60)
+      conn_6: (20, 80)

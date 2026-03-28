@@ -1,0 +1,23 @@
+chn_prim 1.0
+
+SYMBOL bsource
+
+  pins [2]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+
+  params [3]:
+    type = source
+    format = @name @pinlist @VAR = @FUNC m=@m
+    template = name=B1 VAR=I FUNC=\\"'pwl(V(plus,minus),0,0, 1,10m, 2, 100m)'\\" m=1
+
+  drawing:
+    line 0 -30 0 -15
+    line -10 0 10 0
+    line 0 15 0 30
+    line -20 -20 -10 -20
+    line -15 -25 -15 -15
+    arc 0 0 15 270 360
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)

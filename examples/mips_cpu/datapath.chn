@@ -1,0 +1,242 @@
+chn 1.0
+
+SYMBOL datapath
+
+  pins [172]:
+    clk  in
+    rst  in
+    alucontrol[2]  in
+    alucontrol[1]  in
+    alucontrol[0]  in
+    alu_src  in
+    branch  in
+    jump  in
+    mem_to_reg  in
+    mem_write  in
+    pc[31]  out
+    pc[30]  out
+    pc[29]  out
+    pc[28]  out
+    pc[27]  out
+    pc[26]  out
+    pc[25]  out
+    pc[24]  out
+    pc[23]  out
+    pc[22]  out
+    pc[21]  out
+    pc[20]  out
+    pc[19]  out
+    pc[18]  out
+    pc[17]  out
+    pc[16]  out
+    pc[15]  out
+    pc[14]  out
+    pc[13]  out
+    pc[12]  out
+    pc[11]  out
+    pc[10]  out
+    pc[9]  out
+    pc[8]  out
+    pc[7]  out
+    pc[6]  out
+    pc[5]  out
+    pc[4]  out
+    pc[3]  out
+    pc[2]  out
+    pc[1]  out
+    pc[0]  out
+    reg_dst  in
+    alu_result[31]  out
+    alu_result[30]  out
+    alu_result[29]  out
+    alu_result[28]  out
+    alu_result[27]  out
+    alu_result[26]  out
+    alu_result[25]  out
+    alu_result[24]  out
+    alu_result[23]  out
+    alu_result[22]  out
+    alu_result[21]  out
+    alu_result[20]  out
+    alu_result[19]  out
+    alu_result[18]  out
+    alu_result[17]  out
+    alu_result[16]  out
+    alu_result[15]  out
+    alu_result[14]  out
+    alu_result[13]  out
+    alu_result[12]  out
+    alu_result[11]  out
+    alu_result[10]  out
+    alu_result[9]  out
+    alu_result[8]  out
+    alu_result[7]  out
+    alu_result[6]  out
+    alu_result[5]  out
+    alu_result[4]  out
+    alu_result[3]  out
+    alu_result[2]  out
+    alu_result[1]  out
+    alu_result[0]  out
+    reg_write  in
+    write_data[31]  out
+    write_data[30]  out
+    write_data[29]  out
+    write_data[28]  out
+    write_data[27]  out
+    write_data[26]  out
+    write_data[25]  out
+    write_data[24]  out
+    write_data[23]  out
+    write_data[22]  out
+    write_data[21]  out
+    write_data[20]  out
+    write_data[19]  out
+    write_data[18]  out
+    write_data[17]  out
+    write_data[16]  out
+    write_data[15]  out
+    write_data[14]  out
+    write_data[13]  out
+    write_data[12]  out
+    write_data[11]  out
+    write_data[10]  out
+    write_data[9]  out
+    write_data[8]  out
+    write_data[7]  out
+    write_data[6]  out
+    write_data[5]  out
+    write_data[4]  out
+    write_data[3]  out
+    write_data[2]  out
+    write_data[1]  out
+    write_data[0]  out
+    instr[31]  in
+    instr[30]  in
+    instr[29]  in
+    instr[28]  in
+    instr[27]  in
+    instr[26]  in
+    instr[25]  in
+    instr[24]  in
+    instr[23]  in
+    instr[22]  in
+    instr[21]  in
+    instr[20]  in
+    instr[19]  in
+    instr[18]  in
+    instr[17]  in
+    instr[16]  in
+    instr[15]  in
+    instr[14]  in
+    instr[13]  in
+    instr[12]  in
+    instr[11]  in
+    instr[10]  in
+    instr[9]  in
+    instr[8]  in
+    instr[7]  in
+    instr[6]  in
+    instr[5]  in
+    instr[4]  in
+    instr[3]  in
+    instr[2]  in
+    instr[1]  in
+    instr[0]  in
+    read_data[31]  in
+    read_data[30]  in
+    read_data[29]  in
+    read_data[28]  in
+    read_data[27]  in
+    read_data[26]  in
+    read_data[25]  in
+    read_data[24]  in
+    read_data[23]  in
+    read_data[22]  in
+    read_data[21]  in
+    read_data[20]  in
+    read_data[19]  in
+    read_data[18]  in
+    read_data[17]  in
+    read_data[16]  in
+    read_data[15]  in
+    read_data[14]  in
+    read_data[13]  in
+    read_data[12]  in
+    read_data[11]  in
+    read_data[10]  in
+    read_data[9]  in
+    read_data[8]  in
+    read_data[7]  in
+    read_data[6]  in
+    read_data[5]  in
+    read_data[4]  in
+    read_data[3]  in
+    read_data[2]  in
+    read_data[1]  in
+    read_data[0]  in
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  instances [3]:
+    xregfile_inst  mips_cpu/regfile  x=460  y=-560
+    xalu_inst  mips_cpu/alu  x=460  y=-420
+    xsign_extend_inst  mips_cpu/sign_extend  x=460  y=-680
+
+  nets [16]:
+    clk  -> xregfile_inst.clk
+    instr[25:21]  -> xregfile_inst.addr1[4], xregfile_inst.addr1[3], xregfile_inst.addr1[2], xregfile_inst.addr1[1], xregfile_inst.addr1[0]
+    instr[20:16]  -> xregfile_inst.addr2[4], xregfile_inst.addr2[3], xregfile_inst.addr2[2], xregfile_inst.addr2[1], xregfile_inst.addr2[0]
+    reg_data1[31:0]  -> xregfile_inst.data1[31], xregfile_inst.data1[30], xregfile_inst.data1[29], xregfile_inst.data1[28], xregfile_inst.data1[27], xregfile_inst.data1[26], xregfile_inst.data1[25], xregfile_inst.data1[24], xregfile_inst.data1[23], xregfile_inst.data1[22], xregfile_inst.data1[21], xregfile_inst.data1[20], xregfile_inst.data1[19], xregfile_inst.data1[18], xregfile_inst.data1[17], xregfile_inst.data1[16], xregfile_inst.data1[15], xregfile_inst.data1[14], xregfile_inst.data1[13], xregfile_inst.data1[12], xregfile_inst.data1[11], xregfile_inst.data1[10], xregfile_inst.data1[9], xregfile_inst.data1[8], xregfile_inst.data1[7], xregfile_inst.data1[6], xregfile_inst.data1[5], xregfile_inst.data1[4], xregfile_inst.data1[3], xregfile_inst.data1[2], xregfile_inst.data1[1], xregfile_inst.data1[0]
+    reg_write  -> xregfile_inst.rw
+    reg_data2[31:0]  -> xregfile_inst.data2[31], xregfile_inst.data2[30], xregfile_inst.data2[29], xregfile_inst.data2[28], xregfile_inst.data2[27], xregfile_inst.data2[26], xregfile_inst.data2[25], xregfile_inst.data2[24], xregfile_inst.data2[23], xregfile_inst.data2[22], xregfile_inst.data2[21], xregfile_inst.data2[20], xregfile_inst.data2[19], xregfile_inst.data2[18], xregfile_inst.data2[17], xregfile_inst.data2[16], xregfile_inst.data2[15], xregfile_inst.data2[14], xregfile_inst.data2[13], xregfile_inst.data2[12], xregfile_inst.data2[11], xregfile_inst.data2[10], xregfile_inst.data2[9], xregfile_inst.data2[8], xregfile_inst.data2[7], xregfile_inst.data2[6], xregfile_inst.data2[5], xregfile_inst.data2[4], xregfile_inst.data2[3], xregfile_inst.data2[2], xregfile_inst.data2[1], xregfile_inst.data2[0]
+    write_reg[4:0]  -> xregfile_inst.addr3[4], xregfile_inst.addr3[3], xregfile_inst.addr3[2], xregfile_inst.addr3[1], xregfile_inst.addr3[0]
+    result[31:0]  -> xregfile_inst.wdata[31], xregfile_inst.wdata[30], xregfile_inst.wdata[29], xregfile_inst.wdata[28], xregfile_inst.wdata[27], xregfile_inst.wdata[26], xregfile_inst.wdata[25], xregfile_inst.wdata[24], xregfile_inst.wdata[23], xregfile_inst.wdata[22], xregfile_inst.wdata[21], xregfile_inst.wdata[20], xregfile_inst.wdata[19], xregfile_inst.wdata[18], xregfile_inst.wdata[17], xregfile_inst.wdata[16], xregfile_inst.wdata[15], xregfile_inst.wdata[14], xregfile_inst.wdata[13], xregfile_inst.wdata[12], xregfile_inst.wdata[11], xregfile_inst.wdata[10], xregfile_inst.wdata[9], xregfile_inst.wdata[8], xregfile_inst.wdata[7], xregfile_inst.wdata[6], xregfile_inst.wdata[5], xregfile_inst.wdata[4], xregfile_inst.wdata[3], xregfile_inst.wdata[2], xregfile_inst.wdata[1], xregfile_inst.wdata[0]
+    src_a[31:0]  -> xalu_inst.a_in[31], xalu_inst.a_in[30], xalu_inst.a_in[29], xalu_inst.a_in[28], xalu_inst.a_in[27], xalu_inst.a_in[26], xalu_inst.a_in[25], xalu_inst.a_in[24], xalu_inst.a_in[23], xalu_inst.a_in[22], xalu_inst.a_in[21], xalu_inst.a_in[20], xalu_inst.a_in[19], xalu_inst.a_in[18], xalu_inst.a_in[17], xalu_inst.a_in[16], xalu_inst.a_in[15], xalu_inst.a_in[14], xalu_inst.a_in[13], xalu_inst.a_in[12], xalu_inst.a_in[11], xalu_inst.a_in[10], xalu_inst.a_in[9], xalu_inst.a_in[8], xalu_inst.a_in[7], xalu_inst.a_in[6], xalu_inst.a_in[5], xalu_inst.a_in[4], xalu_inst.a_in[3], xalu_inst.a_in[2], xalu_inst.a_in[1], xalu_inst.a_in[0]
+    zero  -> xalu_inst.zero
+    src_b[31:0]  -> xalu_inst.b_in[31], xalu_inst.b_in[30], xalu_inst.b_in[29], xalu_inst.b_in[28], xalu_inst.b_in[27], xalu_inst.b_in[26], xalu_inst.b_in[25], xalu_inst.b_in[24], xalu_inst.b_in[23], xalu_inst.b_in[22], xalu_inst.b_in[21], xalu_inst.b_in[20], xalu_inst.b_in[19], xalu_inst.b_in[18], xalu_inst.b_in[17], xalu_inst.b_in[16], xalu_inst.b_in[15], xalu_inst.b_in[14], xalu_inst.b_in[13], xalu_inst.b_in[12], xalu_inst.b_in[11], xalu_inst.b_in[10], xalu_inst.b_in[9], xalu_inst.b_in[8], xalu_inst.b_in[7], xalu_inst.b_in[6], xalu_inst.b_in[5], xalu_inst.b_in[4], xalu_inst.b_in[3], xalu_inst.b_in[2], xalu_inst.b_in[1], xalu_inst.b_in[0]
+    c_out  -> xalu_inst.c_out
+    alu_out[31:0]  -> xalu_inst.y_out[31], xalu_inst.y_out[30], xalu_inst.y_out[29], xalu_inst.y_out[28], xalu_inst.y_out[27], xalu_inst.y_out[26], xalu_inst.y_out[25], xalu_inst.y_out[24], xalu_inst.y_out[23], xalu_inst.y_out[22], xalu_inst.y_out[21], xalu_inst.y_out[20], xalu_inst.y_out[19], xalu_inst.y_out[18], xalu_inst.y_out[17], xalu_inst.y_out[16], xalu_inst.y_out[15], xalu_inst.y_out[14], xalu_inst.y_out[13], xalu_inst.y_out[12], xalu_inst.y_out[11], xalu_inst.y_out[10], xalu_inst.y_out[9], xalu_inst.y_out[8], xalu_inst.y_out[7], xalu_inst.y_out[6], xalu_inst.y_out[5], xalu_inst.y_out[4], xalu_inst.y_out[3], xalu_inst.y_out[2], xalu_inst.y_out[1], xalu_inst.y_out[0]
+    alucontrol[2:0]  -> xalu_inst.f_in[2], xalu_inst.f_in[1], xalu_inst.f_in[0]
+    instr[15:0]  -> xsign_extend_inst.idata[15], xsign_extend_inst.idata[14], xsign_extend_inst.idata[13], xsign_extend_inst.idata[12], xsign_extend_inst.idata[11], xsign_extend_inst.idata[10], xsign_extend_inst.idata[9], xsign_extend_inst.idata[8], xsign_extend_inst.idata[7], xsign_extend_inst.idata[6], xsign_extend_inst.idata[5], xsign_extend_inst.idata[4], xsign_extend_inst.idata[3], xsign_extend_inst.idata[2], xsign_extend_inst.idata[1], xsign_extend_inst.idata[0]
+    imm_ext[31:0]  -> xsign_extend_inst.odata[31], xsign_extend_inst.odata[30], xsign_extend_inst.odata[29], xsign_extend_inst.odata[28], xsign_extend_inst.odata[27], xsign_extend_inst.odata[26], xsign_extend_inst.odata[25], xsign_extend_inst.odata[24], xsign_extend_inst.odata[23], xsign_extend_inst.odata[22], xsign_extend_inst.odata[21], xsign_extend_inst.odata[20], xsign_extend_inst.odata[19], xsign_extend_inst.odata[18], xsign_extend_inst.odata[17], xsign_extend_inst.odata[16], xsign_extend_inst.odata[15], xsign_extend_inst.odata[14], xsign_extend_inst.odata[13], xsign_extend_inst.odata[12], xsign_extend_inst.odata[11], xsign_extend_inst.odata[10], xsign_extend_inst.odata[9], xsign_extend_inst.odata[8], xsign_extend_inst.odata[7], xsign_extend_inst.odata[6], xsign_extend_inst.odata[5], xsign_extend_inst.odata[4], xsign_extend_inst.odata[3], xsign_extend_inst.odata[2], xsign_extend_inst.odata[1], xsign_extend_inst.odata[0]
+
+  wires [33]:
+    210 -440 310 -440
+    210 -420 310 -420
+    170 -350 170 -350 clk
+    170 -330 170 -330 rst
+    170 -310 170 -310 alucontrol[2:0]
+    170 -290 170 -290 alu_src
+    170 -270 170 -270 branch
+    170 -250 170 -250 jump
+    170 -230 170 -230 mem_to_reg
+    170 -190 170 -190 reg_dst
+    170 -170 170 -170 reg_write
+    170 -130 170 -130 instr[31:0]
+    400 -200 400 -200 pc[31:0]
+    170 -110 170 -110 read_data[31:0]
+    400 -180 400 -180 alu_result[31:0]
+    400 -160 400 -160 write_data[31:0]
+    310 -610 310 -610 clk
+    310 -590 310 -590 instr[25:21]
+    310 -570 310 -570 instr[20:16]
+    610 -610 610 -610 reg_data1[31:0]
+    310 -550 310 -550 reg_write
+    610 -590 610 -590 reg_data2[31:0]
+    310 -530 310 -530 write_reg[4:0]
+    310 -510 310 -510 result[31:0]
+    210 -440 210 -440 src_a[31:0]
+    610 -440 610 -440 zero
+    210 -420 210 -420 src_b[31:0]
+    610 -420 610 -420 c_out
+    610 -400 610 -400 alu_out[31:0]
+    310 -400 310 -400 alucontrol[2:0]
+    310 -680 310 -680 instr[15:0]
+    610 -680 610 -680 imm_ext[31:0]
+    170 -210 170 -210 mem_write

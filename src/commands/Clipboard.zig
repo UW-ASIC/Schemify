@@ -1,8 +1,13 @@
 //! Clipboard command handlers.
 
-const CT       = @import("core").CT;
+const st = @import("state");
+const Point = st.Point;
 const Immediate = @import("command.zig").Immediate;
-const edit      = @import("Edit.zig");
+const edit = @import("Edit.zig");
+const h = @import("helpers.zig");
+const selInst = h.selInst;
+const selWire = h.selWire;
+const setBit = h.setBit;
 
 pub const Error = edit.Error;
 
@@ -21,43 +26,38 @@ pub fn handle(imm: Immediate, state: anytype) Error!void {
 
 // ── Private helpers ──────────────────────────────────────────────────────────
 
-const paste_off: CT.Point = .{ 20, 20 };
-
-inline fn selInst(state: anytype, i: usize) bool {
-    return i < state.selection.instances.bit_length and state.selection.instances.isSet(i);
-}
-inline fn selWire(state: anytype, i: usize) bool {
-    return i < state.selection.wires.bit_length and state.selection.wires.isSet(i);
-}
+const paste_off: Point = .{ 20, 20 };
 
 fn pasteFromClipboard(state: anytype) void {
-    const fio   = state.active() orelse return;
-    const sch   = fio.schematic();
-    const sa    = sch.alloc();
+    const fio = state.active() orelse return;
+    const sch = &fio.sch;
+    const sa = sch.alloc();
     const alloc = state.allocator();
     state.selection.clear();
 
     for (state.clipboard.instances.items) |inst| {
-        var copy    = inst;
-        copy.pos    = copy.pos + paste_off;
-        copy.name   = sa.dupe(u8, inst.name)   catch inst.name;
+        var copy = inst;
+        copy.x += paste_off[0];
+        copy.y += paste_off[1];
+        copy.name = sa.dupe(u8, inst.name) catch inst.name;
         copy.symbol = sa.dupe(u8, inst.symbol) catch inst.symbol;
-        copy.props  = .{};
+        copy.prop_start = 0;
+        copy.prop_count = 0;
         sch.instances.append(sa, copy) catch continue;
-        const idx = sch.instances.items.len - 1;
-        state.selection.instances.resize(alloc, idx + 1, false) catch {};
-        if (idx < state.selection.instances.bit_length) state.selection.instances.set(idx);
+        const idx = sch.instances.len - 1;
+        setBit(&state.selection.instances, alloc, idx) catch {};
     }
 
     for (state.clipboard.wires.items) |w| {
-        var copy      = w;
-        copy.start    = copy.start + paste_off;
-        copy.end      = copy.end   + paste_off;
+        var copy = w;
+        copy.x0 += paste_off[0];
+        copy.y0 += paste_off[1];
+        copy.x1 += paste_off[0];
+        copy.y1 += paste_off[1];
         copy.net_name = if (w.net_name) |n| sa.dupe(u8, n) catch n else null;
         sch.wires.append(sa, copy) catch continue;
-        const idx = sch.wires.items.len - 1;
-        state.selection.wires.resize(alloc, idx + 1, false) catch {};
-        if (idx < state.selection.wires.bit_length) state.selection.wires.set(idx);
+        const idx = sch.wires.len - 1;
+        setBit(&state.selection.wires, alloc, idx) catch {};
     }
 
     fio.dirty = true;
@@ -65,24 +65,25 @@ fn pasteFromClipboard(state: anytype) void {
 }
 
 fn copyToClipboard(state: anytype) void {
-    const fio   = state.active() orelse return;
-    const sch   = fio.schematic();
+    const fio = state.active() orelse return;
+    const sch = &fio.sch;
     const alloc = state.allocator();
     state.clipboard.clear();
 
-    for (sch.instances.items, 0..) |inst, i| {
+    for (0..sch.instances.len) |i| {
         if (!selInst(state, i)) continue;
-        var copy    = inst;
-        copy.name   = alloc.dupe(u8, inst.name)   catch inst.name;
-        copy.symbol = alloc.dupe(u8, inst.symbol) catch inst.symbol;
-        copy.props  = .{};
+        var copy = sch.instances.get(i);
+        copy.name = alloc.dupe(u8, copy.name) catch copy.name;
+        copy.symbol = alloc.dupe(u8, copy.symbol) catch copy.symbol;
+        copy.prop_start = 0;
+        copy.prop_count = 0;
         state.clipboard.instances.append(alloc, copy) catch {};
     }
 
-    for (sch.wires.items, 0..) |w, i| {
+    for (0..sch.wires.len) |i| {
         if (!selWire(state, i)) continue;
-        var copy      = w;
-        copy.net_name = if (w.net_name) |n| alloc.dupe(u8, n) catch n else null;
+        var copy = sch.wires.get(i);
+        copy.net_name = if (copy.net_name) |n| alloc.dupe(u8, n) catch n else null;
         state.clipboard.wires.append(alloc, copy) catch {};
     }
 

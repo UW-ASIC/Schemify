@@ -1,0 +1,45 @@
+chn 1.0
+
+SYMBOL doublepin
+
+  pins [8]:
+    A[3]  in
+    A[2]  in
+    A[1]  in
+    A[0]  in
+    B  in
+    CK  in
+    RST  in
+    Z  out
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  instances [1]:
+    x2[3:0]  latch  x=470  y=-260  delay=200 ps  del=200
+
+  nets [5]:
+    A[3:0]  -> x2[3:0].D
+    Z,NC1,NC2,NC3  -> x2[3:0].Q
+    CK  -> x2[3:0].G
+    RST  -> x2[3:0].RST
+    NC4,NC5,NC6,NC7  -> x2[3:0].QN
+
+  wires [13]:
+    360 -240 400 -240
+    210 -190 400 -190
+    210 -280 400 -280
+    540 -280 580 -280
+    330 -150 470 -150
+    470 -210 470 -150
+    210 -280 210 -280 A[3:0]
+    210 -190 210 -190 B
+    810 -250 810 -250 Z
+    330 -150 330 -150 RST
+    360 -240 360 -240 CK
+    580 -280 580 -280 Z,NC1,NC2,NC3
+    540 -240 540 -240 NC4,NC5,NC6,NC7

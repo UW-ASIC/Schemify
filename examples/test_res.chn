@@ -1,0 +1,188 @@
+chn 1.0
+
+SYMBOL test_res
+
+  pins [3]:
+    P  in
+    M  in
+    B  in
+
+SCHEMATIC
+
+  resistors [28]{name, x, y, rot, flip, W, L, model, spiceprefix, mult, spice_ignore}:
+    R1  430  -880  0  0  2.65  2.65  res_iso_pw  X  1  -
+    R2  580  -880  0  0  1  1  res_generic_nd  X  1  -
+    R3  760  -880  0  0  1  1  res_generic_pd  X  1  -
+    R4  930  -880  0  0  1  1  res_generic_po  X  1  0
+    R5  430  -490  0  0  1  1  res_high_po  X  1  -
+    R6  580  -490  0  0  -  0.35  res_high_po_0p35  X  1  -
+    R7  760  -490  0  0  -  0.69  res_high_po_0p69  X  1  -
+    R8  930  -490  0  0  -  1.41  res_high_po_1p41  X  1  -
+    R9  430  -300  0  0  1  1  res_xhigh_po  X  1  -
+    R10  580  -300  0  0  -  0.35  res_xhigh_po_0p35  X  1  -
+    R11  760  -300  0  0  -  0.69  res_xhigh_po_0p69  X  1  -
+    R12  930  -300  0  0  -  1.41  res_xhigh_po_1p41  X  1  -
+    R14  580  -110  0  0  1  1  res_generic_m1  X  1  -
+    R13  1110  -300  0  0  -  2.85  res_xhigh_po_2p85  X  1  -
+    R15  1110  -490  0  0  -  2.85  res_high_po_2p85  X  1  -
+    R16  1290  -300  0  0  -  5.73  res_xhigh_po_5p73  X  1  -
+    R17  1290  -490  0  0  -  5.73  res_high_po_5p73  X  1  -
+    R18  760  -110  0  0  1  1  res_generic_m2  -  1  -
+    R19  430  -110  0  0  1  1  res_generic_l1  -  1  -
+    R21  1110  -110  0  0  1  1  res_generic_m4  -  1  -
+    R20  930  -110  0  0  1  1  res_generic_m3  -  1  -
+    R22  1290  -110  0  0  1  1  res_generic_m5  -  1  -
+    R23  430  -690  0  0  1  10  res_high_po  X  1  -
+    R24  580  -690  0  0  -  3.5  res_high_po_0p35  X  1  -
+    R25  760  -690  0  0  -  6.9  res_high_po_0p69  X  1  -
+    R26  930  -690  0  0  -  14.1  res_high_po_1p41  X  1  -
+    R27  1110  -690  0  0  -  28.5  res_high_po_2p85  X  1  -
+    R28  1290  -690  0  0  -  57.3  res_high_po_5p73  X  1  -
+
+  vsource [28]{name, x, y, rot, flip}:
+    Vr1  430  -940  0  0
+    Vr2  580  -940  0  0
+    Vr3  760  -940  0  0
+    Vr4  930  -940  0  0
+    Vr5  430  -550  0  0
+    Vr6  580  -550  0  0
+    Vr7  760  -550  0  0
+    Vr8  930  -550  0  0
+    Vr9  430  -360  0  0
+    Vr10  580  -360  0  0
+    Vr11  760  -360  0  0
+    Vr12  930  -360  0  0
+    Vr14  580  -170  0  0
+    Vr13  1110  -360  0  0
+    Vr15  1110  -550  0  0
+    Vr16  1290  -360  0  0
+    Vr17  1290  -550  0  0
+    Vr18  760  -170  0  0
+    Vr19  430  -170  0  0
+    Vr20  930  -170  0  0
+    Vr21  1110  -170  0  0
+    Vr22  1290  -170  0  0
+    Vr23  430  -750  0  0
+    Vr24  580  -750  0  0
+    Vr25  760  -750  0  0
+    Vr26  930  -750  0  0
+    Vr27  1110  -750  0  0
+    Vr28  1290  -750  0  0
+
+  instances [1]:
+    CORNER  sky130_fd_pr/corner  x=80  y=-230  only_toplevel=true  corner=tt
+
+  nets [31]:
+    M  -> R1.M, R2.M, R3.M, R4.M, R5.M, R6.M, R7.M, R8.M, R9.M, R10.M, R11.M, R12.M, R14.M, R13.M, R15.M, R16.M, R17.M, R18.M, R19.M, R21.M, R20.M, R22.M, R23.M, R24.M, R25.M, R26.M, R27.M, R28.M
+    net1  -> R1.P, Vr1.minus
+    B  -> R1.B, R2.B, R3.B, R5.B, R6.B, R7.B, R8.B, R9.B, R10.B, R11.B, R12.B, R13.B, R15.B, R16.B, R17.B, R23.B, R24.B, R25.B, R26.B, R27.B, R28.B
+    P  -> Vr1.plus, Vr2.plus, Vr3.plus, Vr4.plus, Vr5.plus, Vr6.plus, Vr7.plus, Vr8.plus, Vr9.plus, Vr10.plus, Vr11.plus, Vr12.plus, Vr14.plus, Vr13.plus, Vr15.plus, Vr16.plus, Vr17.plus, Vr18.plus, Vr19.plus, Vr20.plus, Vr21.plus, Vr22.plus, Vr23.plus, Vr24.plus, Vr25.plus, Vr26.plus, Vr27.plus, Vr28.plus
+    net2  -> Vr2.minus, R2.P
+    net3  -> Vr3.minus, R3.P
+    net4  -> Vr4.minus, R4.P
+    net5  -> Vr5.minus, R5.P
+    net6  -> Vr6.minus, R6.P
+    net7  -> Vr7.minus, R7.P
+    net8  -> Vr8.minus, R8.P
+    net9  -> Vr9.minus, R9.P
+    net10  -> Vr10.minus, R10.P
+    net11  -> Vr11.minus, R11.P
+    net12  -> Vr12.minus, R12.P
+    net13  -> Vr14.minus, R14.P
+    net14  -> Vr13.minus, R13.P
+    net15  -> Vr15.minus, R15.P
+    net16  -> Vr16.minus, R16.P
+    net17  -> Vr17.minus, R17.P
+    net18  -> Vr18.minus, R18.P
+    net19  -> Vr19.minus, R19.P
+    net20  -> Vr20.minus, R20.P
+    net21  -> Vr21.minus, R21.P
+    net22  -> Vr22.minus, R22.P
+    net23  -> Vr23.minus, R23.P
+    net24  -> Vr24.minus, R24.P
+    net25  -> Vr25.minus, R25.P
+    net26  -> Vr26.minus, R26.P
+    net27  -> Vr27.minus, R27.P
+    net28  -> Vr28.minus, R28.P
+
+  wires [80]:
+    410 -880 410 -880 B
+    430 -850 430 -850 M
+    430 -970 430 -970 P
+    580 -970 580 -970 P
+    580 -850 580 -850 M
+    760 -970 760 -970 P
+    760 -850 760 -850 M
+    930 -970 930 -970 P
+    930 -850 930 -850 M
+    430 -580 430 -580 P
+    430 -460 430 -460 M
+    410 -490 410 -490 B
+    580 -580 580 -580 P
+    580 -460 580 -460 M
+    560 -490 560 -490 B
+    760 -580 760 -580 P
+    760 -460 760 -460 M
+    740 -490 740 -490 B
+    930 -580 930 -580 P
+    930 -460 930 -460 M
+    910 -490 910 -490 B
+    430 -390 430 -390 P
+    430 -270 430 -270 M
+    410 -300 410 -300 B
+    580 -390 580 -390 P
+    580 -270 580 -270 M
+    560 -300 560 -300 B
+    760 -390 760 -390 P
+    760 -270 760 -270 M
+    740 -300 740 -300 B
+    930 -390 930 -390 P
+    930 -270 930 -270 M
+    910 -300 910 -300 B
+    310 -200 310 -200 P
+    310 -160 310 -160 M
+    310 -120 310 -120 B
+    580 -200 580 -200 P
+    580 -80 580 -80 M
+    560 -880 560 -880 B
+    740 -880 740 -880 B
+    1110 -390 1110 -390 P
+    1110 -270 1110 -270 M
+    1090 -300 1090 -300 B
+    1110 -580 1110 -580 P
+    1110 -460 1110 -460 M
+    1090 -490 1090 -490 B
+    1290 -390 1290 -390 P
+    1290 -270 1290 -270 M
+    1270 -300 1270 -300 B
+    1290 -580 1290 -580 P
+    1290 -460 1290 -460 M
+    1270 -490 1270 -490 B
+    760 -200 760 -200 P
+    760 -80 760 -80 M
+    430 -200 430 -200 P
+    430 -80 430 -80 M
+    930 -200 930 -200 P
+    930 -80 930 -80 M
+    1110 -200 1110 -200 P
+    1110 -80 1110 -80 M
+    1290 -200 1290 -200 P
+    1290 -80 1290 -80 M
+    430 -780 430 -780 P
+    430 -660 430 -660 M
+    410 -690 410 -690 B
+    580 -780 580 -780 P
+    580 -660 580 -660 M
+    560 -690 560 -690 B
+    760 -780 760 -780 P
+    760 -660 760 -660 M
+    740 -690 740 -690 B
+    930 -780 930 -780 P
+    930 -660 930 -660 M
+    910 -690 910 -690 B
+    1110 -780 1110 -780 P
+    1110 -660 1110 -660 M
+    1090 -690 1090 -690 B
+    1290 -780 1290 -780 P
+    1290 -660 1290 -660 M
+    1270 -690 1270 -690 B

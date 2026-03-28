@@ -1,0 +1,36 @@
+chn 1.0
+
+SYMBOL test_evaluated_param
+
+  pins [2]:
+    A  inout
+    Z  inout
+
+  params [2]:
+    template = name=x1 DEL=3
+    extra = DEL
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  resistors [1]{name, x, y, rot, flip, value, footprint, device, m}:
+    R1  440  -230  1  0  expr( 2500 * @DEL )  1206  resistor  1
+
+  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
+    C1  500  -160  0  0  1  expr(100f * @DEL )  1206  ceramic capacitor
+
+  nets [3]:
+    Z  -> R1.P, C1.p
+    A  -> R1.M
+    GND  -> C1.m
+
+  wires [8]:
+    500 -230 580 -230
+    500 -230 500 -190
+    360 -230 410 -230
+    470 -230 500 -230
+    500 -130 500 -110
+    580 -230 580 -230 Z
+    500 -110 500 -110 GND
+    360 -230 360 -230 A

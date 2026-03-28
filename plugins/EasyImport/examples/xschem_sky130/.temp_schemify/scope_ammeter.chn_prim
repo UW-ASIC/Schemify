@@ -1,0 +1,10 @@
+chn_prim 1.0
+
+SYMBOL scope_ammeter
+
+  pins [0]:
+
+  params [3]:
+    type = scope
+    template = name=l1
+    highlight = true

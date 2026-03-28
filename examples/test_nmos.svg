@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -770 3100 750">
+<style>line.w{stroke:#58d2ff;stroke-width:2}text{font:10px monospace;fill:#ccc}rect.i{fill:none;stroke:#8cf;stroke-width:1}</style>
+<rect width="100%" height="100%" fill="#16161c"/>
+<line class="w" x1="690" y1="-260" x2="710" y2="-260"/>
+<line class="w" x1="630" y1="-260" x2="650" y2="-260"/>
+<line class="w" x1="690" y1="-310" x2="690" y2="-290"/>
+<line class="w" x1="690" y1="-230" x2="690" y2="-210"/>
+<line class="w" x1="640" y1="-390" x2="3050" y2="-390"/>
+<line class="w" x1="1190" y1="-260" x2="1210" y2="-260"/>
+<line class="w" x1="1130" y1="-260" x2="1150" y2="-260"/>
+<line class="w" x1="1190" y1="-310" x2="1190" y2="-290"/>
+<line class="w" x1="1190" y1="-230" x2="1190" y2="-210"/>
+<line class="w" x1="940" y1="-260" x2="960" y2="-260"/>
+<line class="w" x1="880" y1="-260" x2="900" y2="-260"/>
+<line class="w" x1="940" y1="-310" x2="940" y2="-290"/>
+<line class="w" x1="940" y1="-230" x2="940" y2="-210"/>
+<line class="w" x1="1440" y1="-260" x2="1460" y2="-260"/>
+<line class="w" x1="1380" y1="-260" x2="1400" y2="-260"/>
+<line class="w" x1="1440" y1="-310" x2="1440" y2="-290"/>
+<line class="w" x1="1440" y1="-230" x2="1440" y2="-210"/>
+<line class="w" x1="640" y1="-430" x2="3050" y2="-430"/>
+<line class="w" x1="640" y1="-470" x2="3050" y2="-470"/>
+<line class="w" x1="960" y1="-720" x2="960" y2="-700"/>
+<line class="w" x1="690" y1="-390" x2="690" y2="-370"/>
+<line class="w" x1="940" y1="-390" x2="940" y2="-370"/>
+<line class="w" x1="1190" y1="-430" x2="1190" y2="-370"/>
+<line class="w" x1="1440" y1="-470" x2="1440" y2="-370"/>
+<line class="w" x1="780" y1="-720" x2="780" y2="-700"/>
+<line class="w" x1="1910" y1="-720" x2="1910" y2="-700"/>
+<line class="w" x1="1730" y1="-720" x2="1730" y2="-700"/>
+<line class="w" x1="1690" y1="-260" x2="1710" y2="-260"/>
+<line class="w" x1="1630" y1="-260" x2="1650" y2="-260"/>
+<line class="w" x1="1690" y1="-310" x2="1690" y2="-290"/>
+<line class="w" x1="1690" y1="-230" x2="1690" y2="-210"/>
+<line class="w" x1="1690" y1="-510" x2="1690" y2="-370"/>
+<line class="w" x1="640" y1="-510" x2="3050" y2="-510"/>
+<line class="w" x1="1140" y1="-720" x2="1140" y2="-700"/>
+<line class="w" x1="1940" y1="-260" x2="1960" y2="-260"/>
+<line class="w" x1="1880" y1="-260" x2="1900" y2="-260"/>
+<line class="w" x1="1940" y1="-310" x2="1940" y2="-290"/>
+<line class="w" x1="1940" y1="-230" x2="1940" y2="-210"/>
+<line class="w" x1="1940" y1="-550" x2="1940" y2="-370"/>
+<line class="w" x1="640" y1="-550" x2="3050" y2="-550"/>
+<line class="w" x1="1320" y1="-720" x2="1320" y2="-700"/>
+<line class="w" x1="2190" y1="-260" x2="2210" y2="-260"/>
+<line class="w" x1="2130" y1="-260" x2="2150" y2="-260"/>
+<line class="w" x1="2190" y1="-310" x2="2190" y2="-290"/>
+<line class="w" x1="2190" y1="-230" x2="2190" y2="-210"/>
+<line class="w" x1="2190" y1="-390" x2="2190" y2="-370"/>
+<line class="w" x1="640" y1="-590" x2="3050" y2="-590"/>
+<line class="w" x1="1490" y1="-720" x2="1490" y2="-700"/>
+<line class="w" x1="2430" y1="-260" x2="2450" y2="-260"/>
+<line class="w" x1="2370" y1="-260" x2="2390" y2="-260"/>
+<line class="w" x1="2430" y1="-310" x2="2430" y2="-290"/>
+<line class="w" x1="2430" y1="-230" x2="2430" y2="-210"/>
+<line class="w" x1="2430" y1="-390" x2="2430" y2="-370"/>
+<line class="w" x1="2670" y1="-260" x2="2690" y2="-260"/>
+<line class="w" x1="2610" y1="-260" x2="2630" y2="-260"/>
+<line class="w" x1="2670" y1="-310" x2="2670" y2="-290"/>
+<line class="w" x1="2670" y1="-230" x2="2670" y2="-210"/>
+<line class="w" x1="2670" y1="-390" x2="2670" y2="-370"/>
+<line class="w" x1="730" y1="-120" x2="750" y2="-120"/>
+<line class="w" x1="790" y1="-170" x2="790" y2="-150"/>
+<line class="w" x1="790" y1="-90" x2="790" y2="-70"/>
+<line class="w" x1="1230" y1="-120" x2="1250" y2="-120"/>
+<line class="w" x1="1290" y1="-170" x2="1290" y2="-150"/>
+<line class="w" x1="1290" y1="-90" x2="1290" y2="-70"/>
+<line class="w" x1="980" y1="-120" x2="1000" y2="-120"/>
+<line class="w" x1="1040" y1="-170" x2="1040" y2="-150"/>
+<line class="w" x1="1040" y1="-90" x2="1040" y2="-70"/>
+<line class="w" x1="1480" y1="-120" x2="1500" y2="-120"/>
+<line class="w" x1="1540" y1="-170" x2="1540" y2="-150"/>
+<line class="w" x1="1540" y1="-90" x2="1540" y2="-70"/>
+<line class="w" x1="1730" y1="-120" x2="1750" y2="-120"/>
+<line class="w" x1="1790" y1="-170" x2="1790" y2="-150"/>
+<line class="w" x1="1790" y1="-90" x2="1790" y2="-70"/>
+<line class="w" x1="1980" y1="-120" x2="2000" y2="-120"/>
+<line class="w" x1="2040" y1="-170" x2="2040" y2="-150"/>
+<line class="w" x1="2040" y1="-90" x2="2040" y2="-70"/>
+<line class="w" x1="2230" y1="-120" x2="2250" y2="-120"/>
+<line class="w" x1="2290" y1="-170" x2="2290" y2="-150"/>
+<line class="w" x1="2290" y1="-90" x2="2290" y2="-70"/>
+<line class="w" x1="790" y1="-390" x2="790" y2="-230"/>
+<line class="w" x1="1040" y1="-390" x2="1040" y2="-230"/>
+<line class="w" x1="1290" y1="-430" x2="1290" y2="-230"/>
+<line class="w" x1="1540" y1="-470" x2="1540" y2="-230"/>
+<line class="w" x1="1790" y1="-510" x2="1790" y2="-230"/>
+<line class="w" x1="2040" y1="-550" x2="2040" y2="-230"/>
+<line class="w" x1="2290" y1="-390" x2="2290" y2="-230"/>
+<line class="w" x1="2840" y1="-120" x2="2860" y2="-120"/>
+<line class="w" x1="2840" y1="-90" x2="2840" y2="-70"/>
+<line class="w" x1="2840" y1="-180" x2="2840" y2="-150"/>
+<line class="w" x1="2840" y1="-470" x2="2840" y2="-240"/>
+<line class="w" x1="640" y1="-390" x2="640" y2="-390"/>
+<line class="w" x1="690" y1="-210" x2="690" y2="-210"/>
+<line class="w" x1="710" y1="-260" x2="710" y2="-260"/>
+<line class="w" x1="1190" y1="-210" x2="1190" y2="-210"/>
+<line class="w" x1="1210" y1="-260" x2="1210" y2="-260"/>
+<line class="w" x1="940" y1="-210" x2="940" y2="-210"/>
+<line class="w" x1="960" y1="-260" x2="960" y2="-260"/>
+<line class="w" x1="1440" y1="-210" x2="1440" y2="-210"/>
+<line class="w" x1="1460" y1="-260" x2="1460" y2="-260"/>
+<line class="w" x1="640" y1="-430" x2="640" y2="-430"/>
+<line class="w" x1="640" y1="-470" x2="640" y2="-470"/>
+<line class="w" x1="920" y1="-690" x2="920" y2="-690"/>
+<line class="w" x1="960" y1="-640" x2="960" y2="-640"/>
+<line class="w" x1="960" y1="-720" x2="960" y2="-720"/>
+<line class="w" x1="920" y1="-650" x2="920" y2="-650"/>
+<line class="w" x1="740" y1="-690" x2="740" y2="-690"/>
+<line class="w" x1="780" y1="-640" x2="780" y2="-640"/>
+<line class="w" x1="780" y1="-720" x2="780" y2="-720"/>
+<line class="w" x1="740" y1="-650" x2="740" y2="-650"/>
+<line class="w" x1="1870" y1="-690" x2="1870" y2="-690"/>
+<line class="w" x1="1910" y1="-640" x2="1910" y2="-640"/>
+<line class="w" x1="1910" y1="-720" x2="1910" y2="-720"/>
+<line class="w" x1="1870" y1="-650" x2="1870" y2="-650"/>
+<line class="w" x1="1690" y1="-690" x2="1690" y2="-690"/>
+<line class="w" x1="1730" y1="-640" x2="1730" y2="-640"/>
+<line class="w" x1="1730" y1="-720" x2="1730" y2="-720"/>
+<line class="w" x1="1690" y1="-650" x2="1690" y2="-650"/>
+<line class="w" x1="630" y1="-260" x2="630" y2="-260"/>
+<line class="w" x1="880" y1="-260" x2="880" y2="-260"/>
+<line class="w" x1="1130" y1="-260" x2="1130" y2="-260"/>
+<line class="w" x1="1380" y1="-260" x2="1380" y2="-260"/>
+<line class="w" x1="1690" y1="-210" x2="1690" y2="-210"/>
+<line class="w" x1="1710" y1="-260" x2="1710" y2="-260"/>
+<line class="w" x1="1630" y1="-260" x2="1630" y2="-260"/>
+<line class="w" x1="640" y1="-510" x2="640" y2="-510"/>
+<line class="w" x1="1100" y1="-690" x2="1100" y2="-690"/>
+<line class="w" x1="1140" y1="-640" x2="1140" y2="-640"/>
+<line class="w" x1="1140" y1="-720" x2="1140" y2="-720"/>
+<line class="w" x1="1100" y1="-650" x2="1100" y2="-650"/>
+<line class="w" x1="1940" y1="-210" x2="1940" y2="-210"/>
+<line class="w" x1="1960" y1="-260" x2="1960" y2="-260"/>
+<line class="w" x1="1880" y1="-260" x2="1880" y2="-260"/>
+<line class="w" x1="640" y1="-550" x2="640" y2="-550"/>
+<line class="w" x1="1280" y1="-690" x2="1280" y2="-690"/>
+<line class="w" x1="1320" y1="-640" x2="1320" y2="-640"/>
+<line class="w" x1="1320" y1="-720" x2="1320" y2="-720"/>
+<line class="w" x1="1280" y1="-650" x2="1280" y2="-650"/>
+<line class="w" x1="2190" y1="-210" x2="2190" y2="-210"/>
+<line class="w" x1="2210" y1="-260" x2="2210" y2="-260"/>
+<line class="w" x1="2130" y1="-260" x2="2130" y2="-260"/>
+<line class="w" x1="640" y1="-590" x2="640" y2="-590"/>
+<line class="w" x1="1450" y1="-690" x2="1450" y2="-690"/>
+<line class="w" x1="1490" y1="-640" x2="1490" y2="-640"/>
+<line class="w" x1="1490" y1="-720" x2="1490" y2="-720"/>
+<line class="w" x1="1450" y1="-650" x2="1450" y2="-650"/>
+<line class="w" x1="520" y1="-540" x2="520" y2="-540"/>
+<line class="w" x1="520" y1="-500" x2="520" y2="-500"/>
+<line class="w" x1="520" y1="-460" x2="520" y2="-460"/>
+<line class="w" x1="2430" y1="-210" x2="2430" y2="-210"/>
+<line class="w" x1="2450" y1="-260" x2="2450" y2="-260"/>
+<line class="w" x1="2370" y1="-260" x2="2370" y2="-260"/>
+<line class="w" x1="2670" y1="-210" x2="2670" y2="-210"/>
+<line class="w" x1="2690" y1="-260" x2="2690" y2="-260"/>
+<line class="w" x1="2610" y1="-260" x2="2610" y2="-260"/>
+<line class="w" x1="790" y1="-70" x2="790" y2="-70"/>
+<line class="w" x1="1290" y1="-70" x2="1290" y2="-70"/>
+<line class="w" x1="1040" y1="-70" x2="1040" y2="-70"/>
+<line class="w" x1="1540" y1="-70" x2="1540" y2="-70"/>
+<line class="w" x1="730" y1="-120" x2="730" y2="-120"/>
+<line class="w" x1="980" y1="-120" x2="980" y2="-120"/>
+<line class="w" x1="1230" y1="-120" x2="1230" y2="-120"/>
+<line class="w" x1="1480" y1="-120" x2="1480" y2="-120"/>
+<line class="w" x1="1790" y1="-70" x2="1790" y2="-70"/>
+<line class="w" x1="1730" y1="-120" x2="1730" y2="-120"/>
+<line class="w" x1="2040" y1="-70" x2="2040" y2="-70"/>
+<line class="w" x1="1980" y1="-120" x2="1980" y2="-120"/>
+<line class="w" x1="2290" y1="-70" x2="2290" y2="-70"/>
+<line class="w" x1="2230" y1="-120" x2="2230" y2="-120"/>
+<line class="w" x1="2840" y1="-70" x2="2840" y2="-70"/>
+<line class="w" x1="2860" y1="-120" x2="2860" y2="-120"/>
+<line class="w" x1="2800" y1="-120" x2="2800" y2="-120"/>
+<g><rect class="i" x="675" y="-355" width="30" height="30" rx="3"/><text x="678" y="-337">Vd1</text></g>
+<g><rect class="i" x="1175" y="-355" width="30" height="30" rx="3"/><text x="1178" y="-337">Vd3</text></g>
+<g><rect class="i" x="925" y="-355" width="30" height="30" rx="3"/><text x="928" y="-337">Vd2</text></g>
+<g><rect class="i" x="1425" y="-355" width="30" height="30" rx="3"/><text x="1428" y="-337">Vd4</text></g>
+<g><rect class="i" x="1675" y="-355" width="30" height="30" rx="3"/><text x="1678" y="-337">Vd5</text></g>
+<g><rect class="i" x="1925" y="-355" width="30" height="30" rx="3"/><text x="1928" y="-337">Vd6</text></g>
+<g><rect class="i" x="2175" y="-355" width="30" height="30" rx="3"/><text x="2178" y="-337">Vd7</text></g>
+<g><rect class="i" x="2415" y="-355" width="30" height="30" rx="3"/><text x="2418" y="-337">Vd8</text></g>
+<g><rect class="i" x="2655" y="-355" width="30" height="30" rx="3"/><text x="2658" y="-337">Vd9</text></g>
+<g><rect class="i" x="775" y="-215" width="30" height="30" rx="3"/><text x="778" y="-197">Vd10</text></g>
+<g><rect class="i" x="1025" y="-215" width="30" height="30" rx="3"/><text x="1028" y="-197">Vd11</text></g>
+<g><rect class="i" x="1275" y="-215" width="30" height="30" rx="3"/><text x="1278" y="-197">Vd12</text></g>
+<g><rect class="i" x="1525" y="-215" width="30" height="30" rx="3"/><text x="1528" y="-197">Vd13</text></g>
+<g><rect class="i" x="1775" y="-215" width="30" height="30" rx="3"/><text x="1778" y="-197">Vd14</text></g>
+<g><rect class="i" x="2025" y="-215" width="30" height="30" rx="3"/><text x="2028" y="-197">Vd15</text></g>
+<g><rect class="i" x="2275" y="-215" width="30" height="30" rx="3"/><text x="2278" y="-197">Vd16</text></g>
+<g><rect class="i" x="2825" y="-225" width="30" height="30" rx="3"/><text x="2828" y="-207">Vd17</text></g>
+<g><rect class="i" x="945" y="-685" width="30" height="30" rx="3"/><text x="948" y="-667">E1</text></g>
+<g><rect class="i" x="765" y="-685" width="30" height="30" rx="3"/><text x="768" y="-667">E2</text></g>
+<g><rect class="i" x="1895" y="-685" width="30" height="30" rx="3"/><text x="1898" y="-667">E3</text></g>
+<g><rect class="i" x="1715" y="-685" width="30" height="30" rx="3"/><text x="1718" y="-667">E4</text></g>
+<g><rect class="i" x="1125" y="-685" width="30" height="30" rx="3"/><text x="1128" y="-667">E5</text></g>
+<g><rect class="i" x="1305" y="-685" width="30" height="30" rx="3"/><text x="1308" y="-667">E6</text></g>
+<g><rect class="i" x="1475" y="-685" width="30" height="30" rx="3"/><text x="1478" y="-667">E7</text></g>
+<g><rect class="i" x="655" y="-275" width="30" height="30" rx="3"/><text x="658" y="-257">M1</text></g>
+<g><rect class="i" x="905" y="-275" width="30" height="30" rx="3"/><text x="908" y="-257">M2</text></g>
+<g><rect class="i" x="1155" y="-275" width="30" height="30" rx="3"/><text x="1158" y="-257">M3</text></g>
+<g><rect class="i" x="1405" y="-275" width="30" height="30" rx="3"/><text x="1408" y="-257">M4</text></g>
+<g><rect class="i" x="1655" y="-275" width="30" height="30" rx="3"/><text x="1658" y="-257">M5</text></g>
+<g><rect class="i" x="1905" y="-275" width="30" height="30" rx="3"/><text x="1908" y="-257">M6</text></g>
+<g><rect class="i" x="2155" y="-275" width="30" height="30" rx="3"/><text x="2158" y="-257">M7</text></g>
+<g><rect class="i" x="2395" y="-275" width="30" height="30" rx="3"/><text x="2398" y="-257">M8</text></g>
+<g><rect class="i" x="2635" y="-275" width="30" height="30" rx="3"/><text x="2638" y="-257">M9</text></g>
+<g><rect class="i" x="755" y="-135" width="30" height="30" rx="3"/><text x="758" y="-117">M10</text></g>
+<g><rect class="i" x="1005" y="-135" width="30" height="30" rx="3"/><text x="1008" y="-117">M11</text></g>
+<g><rect class="i" x="1255" y="-135" width="30" height="30" rx="3"/><text x="1258" y="-117">M12</text></g>
+<g><rect class="i" x="1505" y="-135" width="30" height="30" rx="3"/><text x="1508" y="-117">M13</text></g>
+<g><rect class="i" x="1755" y="-135" width="30" height="30" rx="3"/><text x="1758" y="-117">M14</text></g>
+<g><rect class="i" x="2005" y="-135" width="30" height="30" rx="3"/><text x="2008" y="-117">M15</text></g>
+<g><rect class="i" x="2255" y="-135" width="30" height="30" rx="3"/><text x="2258" y="-117">M16</text></g>
+<g><rect class="i" x="2805" y="-135" width="30" height="30" rx="3"/><text x="2808" y="-117">M32</text></g>
+<g><rect class="i" x="35" y="-205" width="30" height="30" rx="3"/><text x="38" y="-187">CORNER</text></g>
+</svg>

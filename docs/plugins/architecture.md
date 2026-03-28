@@ -189,4 +189,4 @@ try Plugin.Vfs.writeAll("output.sch", data);
 try Plugin.Vfs.makePath("my-plugin/cache");
 ```
 
-See [FileIO & VFS](./wasm#vfs) for usage patterns.
+See [FileIO & VFS](./creating/wasm#vfs) for usage patterns.

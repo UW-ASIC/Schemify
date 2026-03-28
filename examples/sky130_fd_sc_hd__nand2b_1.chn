@@ -1,0 +1,57 @@
+chn 1.0
+
+SYMBOL sky130_fd_sc_hd__nand2b_1
+
+  pins [7]:
+    A_N  in
+    B  in
+    VGND  in
+    VNB  in
+    VPB  in
+    VPWR  in
+    Y  out
+
+SCHEMATIC
+
+  pmos [3]{name, x, y, rot, flip, W, L, model, spiceprefix}:
+    M0  480  -30  0  0  1e+06u  150000u  pfet_01v8_hvt  X
+    M1  80  -30  0  0  420000u  150000u  pfet_01v8_hvt  X
+    M2  360  -30  0  0  1e+06u  150000u  pfet_01v8_hvt  X
+
+  nmos [3]{name, x, y, rot, flip, W, L, model, spiceprefix}:
+    M3  420  30  0  0  650000u  150000u  nfet_01v8  X
+    M4  80  30  0  0  420000u  150000u  nfet_01v8  X
+    M5  420  90  0  0  650000u  150000u  nfet_01v8  X
+
+  wires [31]:
+    60 -30 60 30
+    20 0 60 0
+    100 0 220 0
+    380 -60 500 -60
+    440 -100 440 -60
+    440 120 440 160
+    380 0 620 0
+    -120 -40 -120 -40 A_N
+    -120 -20 -120 -20 B
+    -120 0 -120 0 VGND
+    -120 20 -120 20 VNB
+    -120 40 -120 40 VPB
+    -120 60 -120 60 VPWR
+    -100 -60 -100 -60 Y
+    500 -30 500 -30 VPB
+    440 -100 440 -100 VPWR
+    460 -30 460 -30 B
+    100 -30 100 -30 VPB
+    100 -60 100 -60 VPWR
+    20 0 20 0 A_N
+    380 -30 380 -30 VPB
+    340 -30 340 -30 A
+    440 30 440 30 VNB
+    620 0 620 0 Y
+    400 30 400 30 A
+    100 30 100 30 VNB
+    100 60 100 60 VGND
+    440 90 440 90 VNB
+    440 160 440 160 VGND
+    400 90 400 90 B
+    220 0 220 0 A

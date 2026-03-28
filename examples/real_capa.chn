@@ -1,0 +1,16 @@
+chn 1.0
+
+SYMBOL real_capa
+
+  pins [1]:
+    USC  inout
+
+  params [1]:
+    template = name=x1 cap=10.0
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [1]:
+    50 -80 50 -80 USC

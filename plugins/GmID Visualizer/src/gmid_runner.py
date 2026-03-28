@@ -7,6 +7,10 @@ import argparse
 from pathlib import Path
 
 
+WIDTH, HEIGHT = 860, 520
+MARGIN_LEFT, MARGIN_BOTTOM, MARGIN_TOP, MARGIN_RIGHT = 90, 70, 60, 30
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate Gm/Id SVG plot set")
     p.add_argument("--model-file", required=True, help="Selected transistor model file")
@@ -40,6 +44,10 @@ def normalize(value: float, v_min: float, v_max: float) -> float:
     return (value - v_min) / (v_max - v_min)
 
 
+def exp(base: float, exponent: float) -> float:
+    return pow(base, exponent)
+
+
 def to_plot_space(
     xs: list[float],
     ys: list[float],
@@ -65,6 +73,28 @@ def to_plot_space(
     return points, x_min, x_max, y_min, y_max
 
 
+def svg_line(x1: float, y1: float, x2: float, y2: float, color: str = "#9fb3d1") -> str:
+    return f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{color}" stroke-width="1"/>'
+
+
+def svg_text(
+    x: float,
+    y: float,
+    text: str,
+    *,
+    color: str = "#cfd8ea",
+    anchor: str = "middle",
+    family: str = "monospace",
+    size: int = 12,
+    transform: str | None = None,
+) -> str:
+    transform_attr = f' transform="{transform}"' if transform else ""
+    return (
+        f'<text x="{x}" y="{y}" fill="{color}" text-anchor="{anchor}" '
+        f'font-family="{family}" font-size="{size}"{transform_attr}>{text}</text>'
+    )
+
+
 def save_plot(
     out_dir: Path,
     filename: str,
@@ -74,17 +104,15 @@ def save_plot(
     x_label: str,
     y_label: str,
 ) -> Path:
-    width, height = 860, 520
-    margin_left, margin_bottom, margin_top, margin_right = 90, 70, 60, 30
     points, x_min, x_max, y_min, y_max = to_plot_space(
         xs,
         ys,
-        width,
-        height,
-        margin_left,
-        margin_bottom,
-        margin_top,
-        margin_right,
+        WIDTH,
+        HEIGHT,
+        MARGIN_LEFT,
+        MARGIN_BOTTOM,
+        MARGIN_TOP,
+        MARGIN_RIGHT,
     )
 
     polyline = " ".join(f"{x:.2f},{y:.2f}" for x, y in points)
@@ -92,37 +120,37 @@ def save_plot(
     y_ticks = format_axis_ticks(y_min, y_max)
 
     content = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}">',
         '<rect width="100%" height="100%" fill="#11161d"/>',
-        f'<text x="{width/2:.1f}" y="30" fill="#eef2ff" text-anchor="middle" font-family="sans-serif" font-size="20">{title}</text>',
-        f'<line x1="{margin_left}" y1="{margin_top}" x2="{margin_left}" y2="{height - margin_bottom}" stroke="#9fb3d1" stroke-width="1"/>',
-        f'<line x1="{margin_left}" y1="{height - margin_bottom}" x2="{width - margin_right}" y2="{height - margin_bottom}" stroke="#9fb3d1" stroke-width="1"/>',
+        svg_text(WIDTH / 2, 30, title, color="#eef2ff", family="sans-serif", size=20),
+        svg_line(MARGIN_LEFT, MARGIN_TOP, MARGIN_LEFT, HEIGHT - MARGIN_BOTTOM),
+        svg_line(MARGIN_LEFT, HEIGHT - MARGIN_BOTTOM, WIDTH - MARGIN_RIGHT, HEIGHT - MARGIN_BOTTOM),
     ]
 
     for tick in x_ticks:
-        tx = margin_left + normalize(tick, x_min, x_max) * (width - margin_left - margin_right)
+        tx = MARGIN_LEFT + normalize(tick, x_min, x_max) * (WIDTH - MARGIN_LEFT - MARGIN_RIGHT)
         content.append(
-            f'<line x1="{tx:.2f}" y1="{height - margin_bottom}" x2="{tx:.2f}" y2="{height - margin_bottom + 6}" stroke="#9fb3d1" stroke-width="1"/>'
+            svg_line(tx, HEIGHT - MARGIN_BOTTOM, tx, HEIGHT - MARGIN_BOTTOM + 6)
         )
         content.append(
-            f'<text x="{tx:.2f}" y="{height - margin_bottom + 22}" fill="#cfd8ea" text-anchor="middle" font-family="monospace" font-size="12">{tick:.3g}</text>'
+            svg_text(tx, HEIGHT - MARGIN_BOTTOM + 22, f"{tick:.3g}")
         )
 
     for tick in y_ticks:
-        ty = margin_top + (1.0 - normalize(tick, y_min, y_max)) * (height - margin_top - margin_bottom)
+        ty = MARGIN_TOP + (1.0 - normalize(tick, y_min, y_max)) * (HEIGHT - MARGIN_TOP - MARGIN_BOTTOM)
         content.append(
-            f'<line x1="{margin_left - 6}" y1="{ty:.2f}" x2="{margin_left}" y2="{ty:.2f}" stroke="#9fb3d1" stroke-width="1"/>'
+            svg_line(MARGIN_LEFT - 6, ty, MARGIN_LEFT, ty)
         )
         content.append(
-            f'<text x="{margin_left - 10}" y="{ty + 4:.2f}" fill="#cfd8ea" text-anchor="end" font-family="monospace" font-size="12">{tick:.3g}</text>'
+            svg_text(MARGIN_LEFT - 10, ty + 4, f"{tick:.3g}", anchor="end")
         )
 
     content.append(f'<polyline fill="none" stroke="#58a6ff" stroke-width="2.2" points="{polyline}"/>')
     content.append(
-        f'<text x="{width/2:.1f}" y="{height - 18}" fill="#eef2ff" text-anchor="middle" font-family="sans-serif" font-size="14">{x_label}</text>'
+        svg_text(WIDTH / 2, HEIGHT - 18, x_label, color="#eef2ff", family="sans-serif", size=14)
     )
     content.append(
-        f'<text transform="translate(22,{height/2:.1f}) rotate(-90)" fill="#eef2ff" text-anchor="middle" font-family="sans-serif" font-size="14">{y_label}</text>'
+        f'<text transform="translate(22,{HEIGHT/2:.1f}) rotate(-90)" fill="#eef2ff" text-anchor="middle" font-family="sans-serif" font-size="14">{y_label}</text>'
     )
     content.append("</svg>")
 
@@ -133,7 +161,7 @@ def save_plot(
 
 def generate_mosfet_set(out_dir: Path, label: str) -> list[Path]:
     gmid = linspace(4.0, 25.0, 320)
-    current_density = [1e-8 * pow(2.718281828, (25.0 - g) / 2.2) for g in gmid]
+    current_density = [1e-8 * exp(2.718281828, (25.0 - g) / 2.2) for g in gmid]
     gm = [2e-6 + 8e-4 / g for g in gmid]
     gds = [5e-9 + 2e-5 / (g * g) for g in gmid]
     av = [gm_i / gds_i for gm_i, gds_i in zip(gm, gds)]
@@ -152,9 +180,9 @@ def generate_mosfet_set(out_dir: Path, label: str) -> list[Path]:
 
 def generate_bjt_set(out_dir: Path, label: str) -> list[Path]:
     gm_over_ic = linspace(5.0, 40.0, 320)
-    collector_current_density = [1e-9 * pow(2.718281828, (40.0 - g) / 4.0) for g in gm_over_ic]
+    collector_current_density = [1e-9 * exp(2.718281828, (40.0 - g) / 4.0) for g in gm_over_ic]
     gm = [g * j for g, j in zip(gm_over_ic, collector_current_density)]
-    beta = [60.0 + 140.0 * (1.0 - pow(2.718281828, -j * 1e7)) for j in collector_current_density]
+    beta = [60.0 + 140.0 * (1.0 - exp(2.718281828, -j * 1e7)) for j in collector_current_density]
     ro = [5e3 + 2e7 / max(j * 1e9, 1e-3) for j in collector_current_density]
     av = [gm_i * ro_i for gm_i, ro_i in zip(gm, ro)]
     vbe = [0.85 - 0.012 * g + 0.00015 * (g * g) for g in gm_over_ic]

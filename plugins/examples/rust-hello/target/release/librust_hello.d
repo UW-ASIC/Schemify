@@ -1,1 +1,0 @@
-/home/omare/Documents/UWASIC/Schemify/plugins/examples/rust-hello/target/release/librust_hello.so: /home/omare/Documents/UWASIC/Schemify/plugins/examples/rust-hello/src/lib.rs /home/omare/Documents/UWASIC/Schemify/tools/sdk/bindings/rust/schemify-plugin/src/lib.rs

@@ -1,0 +1,41 @@
+chn_prim 1.0
+
+SYMBOL resistor3
+  desc: Resistor with body tap (3-terminal)
+
+  pins [3]:
+    p  inout
+    n  inout
+    b  inout
+
+  params [2]:
+    r = 1k
+    m = 1
+
+  spice_prefix: R
+  spice_format: "@name @p @n @b @r m=@m"
+
+  drawing:
+    lines:
+      # Top lead
+      (0,-30) (0,-20)
+      # Zigzag body (matching resistor style)
+      (0,-20) (8,-18)
+      (8,-18) (-8,-13)
+      (-8,-13) (8,-8)
+      (8,-8) (-8,-3)
+      (-8,-3) (8,3)
+      (8,3) (-8,8)
+      (-8,8) (8,13)
+      (8,13) (-8,18)
+      (-8,18) (0,20)
+      # Bottom lead
+      (0,20) (0,30)
+      # Body tap lead
+      (8,0) (20,0)
+    text: (15,-15) "@name"
+    text: (15,15) "@r"
+    pin_positions:
+      p: (0,-30)
+      n: (0,30)
+      b: (20,0)

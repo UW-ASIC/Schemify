@@ -1,0 +1,25 @@
+chn_prim 1.0
+
+SYMBOL isource_table
+
+  pins [2]:
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
+
+  params [3]:
+    type = isource
+    format = @name @pinlist TABLE \{ @CTRL \} = @TABLE
+    template = name=G1 CTRL=\\"V(plus,minus)\\" TABLE=\\"(0, 0) (1, 100m) (2, 300m)\\"
+
+  drawing:
+    line 0 -30 0 -15
+    line -10 0 10 0
+    line -20 13 -18 5
+    line -23 5 -18 5
+    line -23 5 -20 13
+    line 0 15 0 30
+    line -20 -13 -20 5
+    arc 0 0 15 270 360
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)

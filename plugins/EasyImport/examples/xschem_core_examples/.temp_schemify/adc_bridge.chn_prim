@@ -1,0 +1,22 @@
+chn_prim 1.0
+
+SYMBOL adc_bridge
+
+  pins [2]:
+    d  out  x=30  y=0
+    s  in  x=-30  y=0
+
+  params [5]:
+    type = delay
+    verilog_ignore = true
+    vhdl_ignore = true
+    format = @name [ @@s ] [ @@d ] @adc_bridge_model
+    template = name=A1 adc_bridge_model= adc_buff
+
+  drawing:
+    line -30 0 30 0
+    line -10 -5 10 0
+    line -10 5 10 0
+    pin_positions:
+      d: (30, 0)
+      s: (-30, 0)

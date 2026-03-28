@@ -1,0 +1,20 @@
+chn 1.0
+
+SYMBOL lm317
+
+  pins [3]:
+    IN  in
+    ADJ  in
+    OUT  out
+
+  params [1]:
+    template = name=x1
+
+  spice_prefix: X
+
+SCHEMATIC
+
+  wires [3]:
+    -500 20 -500 20 IN
+    -500 40 -500 40 ADJ
+    -200 20 -200 20 OUT
