@@ -99,7 +99,7 @@ fn testVariantConvert(comptime variant: []const u8) !void {
         return;
     }
 
-    const out_dir = volare.chnOutDir(a, pv.name) orelse return;
+    const out_dir = volare.schemifyDir(a, pv.root) orelse return;
     defer a.free(out_dir);
 
     const n = try volare.convertToSchemify(a, pv, out_dir);
@@ -116,14 +116,13 @@ test "gf180mcuC: convert xschem to CHN"  { try testVariantConvert("gf180mcuC"); 
 test "gf180mcuB: convert xschem to CHN"  { try testVariantConvert("gf180mcuB"); }
 test "asap7: convert xschem to CHN"      { try testVariantConvert("asap7"); }
 
-// ── chnOutDir ────────────────────────────────────────────────────────────── //
+// ── schemifyDir ──────────────────────────────────────────────────────────── //
 
-test "chnOutDir: returns non-null for known variant when HOME is set" {
+test "schemifyDir: returns <root>/libs.tech/schemify for known variant root" {
     const a = testing.allocator;
-    const dir = volare.chnOutDir(a, "sky130A") orelse return;
+    const dir = volare.schemifyDir(a, "/home/user/.volare/sky130A") orelse return;
     defer a.free(dir);
-    try testing.expect(std.mem.indexOf(u8, dir, "sky130A") != null);
-    try testing.expect(std.mem.indexOf(u8, dir, "Schemify") != null);
+    try testing.expectEqualStrings("/home/user/.volare/sky130A/libs.tech/schemify", dir);
 }
 
 // ── pdkFamily ────────────────────────────────────────────────────────────── //
