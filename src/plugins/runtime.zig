@@ -342,7 +342,7 @@ pub const Runtime = struct {
                 _ = readStr(payload, &pp) orelse return;
                 const key = readStr(payload, &pp) orelse return;
                 const val = readStr(payload, &pp) orelse return;
-                if (std.mem.eql(u8, key, "active_theme")) theme_config.applyJson(val);
+                if (std.mem.eql(u8, key, "active_theme")) theme_config.applyJson(self.alloc, val);
             },
             .file_read_request => {
                 var pp: usize = 0;

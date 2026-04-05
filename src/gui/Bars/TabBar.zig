@@ -6,7 +6,7 @@ const st = @import("state");
 const AppState = st.AppState;
 const actions = @import("../Actions.zig");
 const Renderer = @import("../Renderer.zig");
-const components = @import("../Components/root.zig");
+const components = @import("../Components/lib.zig");
 const tc = @import("theme_config");
 
 const FileType = Renderer.FileType;

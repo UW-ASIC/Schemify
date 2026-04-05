@@ -29,9 +29,12 @@ const MODAL_MIN_WIDTH: f32 = 680;
 const MODAL_MIN_HEIGHT: f32 = 480;
 const LEFT_PANEL_MIN_WIDTH: f32 = 250;
 
-// ── Module-level persistent state ─────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────── //
 
-var win_rect = dvui.Rect{ .x = 80, .y = 50, .w = 820, .h = 560 };
+/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
+fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
+    return @ptrCast(wr);
+}
 
 // ── Public API ────────────────────────────────────────────────────────────── //
 
@@ -43,7 +46,7 @@ pub fn draw(app: *AppState) void {
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = true,
         .open_flag = &mkt.visible,
-        .rect = &win_rect,
+        .rect = winRectPtr(&app.gui.marketplace_win.win_rect),
     }, .{
         .min_size_content = .{ .w = MODAL_MIN_WIDTH, .h = MODAL_MIN_HEIGHT },
     });

@@ -5,7 +5,7 @@ const dvui = @import("dvui");
 const AppState = @import("state").AppState;
 const actions = @import("../Actions.zig");
 const command = @import("commands");
-const components = @import("../Components/root.zig");
+const components = @import("../Components/lib.zig");
 
 const ToolbarBar = components.HorizontalBar(.{ .height = 28 });
 
@@ -60,9 +60,6 @@ const edit_items = [_]MenuItem{
     .separator,
     .{ .action = .{ .label = "Edit Properties [Q]", .cmd = .{ .immediate = .edit_properties }, .msg = "Edit properties" } },
     .{ .action = .{ .label = "View Properties", .cmd = .{ .immediate = .view_properties }, .msg = "View properties" } },
-    .separator,
-    .{ .action = .{ .label = "Highlight Dup Refs [#]", .cmd = .{ .immediate = .highlight_dup_refdes }, .msg = "Highlighting duplicates" } },
-    .{ .action = .{ .label = "Fix Dup Refs", .cmd = .{ .immediate = .rename_dup_refdes }, .msg = "Renaming duplicates" } },
 };
 
 const view_items = [_]MenuItem{
@@ -94,75 +91,6 @@ const view_items_after_grid = [_]MenuItem{
     .{ .gui_cmd = .{ .label = "Symbol View [W]", .cmd = .view_symbol } },
 };
 
-const wire_draw_items = [_]MenuItem{
-    .{ .action = .{ .label = "Start Wire [W]", .cmd = .{ .immediate = .start_wire }, .msg = "Wire mode" } },
-    .{ .action = .{ .label = "Start Wire (Snap) [Shift+W]", .cmd = .{ .immediate = .start_wire_snap }, .msg = "Wire mode (snap)" } },
-    .{ .action = .{ .label = "Cancel Wire [Escape]", .cmd = .{ .immediate = .cancel_wire }, .msg = "Wire canceled" } },
-    .separator,
-    .{ .action = .{ .label = "Toggle Wire Routing [Space]", .cmd = .{ .immediate = .toggle_wire_routing }, .msg = "Toggle routing" } },
-    .{ .action = .{ .label = "Toggle Ortho Routing [Shift+L]", .cmd = .{ .immediate = .toggle_orthogonal_routing }, .msg = "Toggle ortho routing" } },
-    .separator,
-    .{ .action = .{ .label = "Break Wires at Connections [!]", .cmd = .{ .immediate = .break_wires_at_connections }, .msg = "Break wires" } },
-    .{ .action = .{ .label = "Join/Collapse Wires [&]", .cmd = .{ .immediate = .join_collapse_wires }, .msg = "Join wires" } },
-    .separator,
-    .{ .action = .{ .label = "Draw Line [L]", .cmd = .{ .immediate = .start_line }, .msg = "Line draw mode" } },
-    .{ .action = .{ .label = "Draw Rectangle [Shift+R]", .cmd = .{ .immediate = .start_rect }, .msg = "Rect draw mode" } },
-    .{ .action = .{ .label = "Draw Polygon [P]", .cmd = .{ .immediate = .start_polygon }, .msg = "Polygon draw mode" } },
-    .{ .action = .{ .label = "Draw Arc [Shift+C]", .cmd = .{ .immediate = .start_arc }, .msg = "Arc draw mode" } },
-    .{ .action = .{ .label = "Draw Circle [Ctrl+Shift+C]", .cmd = .{ .immediate = .start_circle }, .msg = "Circle draw mode" } },
-    .{ .action = .{ .label = "Place Text [T]", .cmd = .{ .immediate = .place_text }, .msg = "Place text" } },
-};
-
-const hierarchy_items = [_]MenuItem{
-    .{ .action = .{ .label = "Descend Schematic [E]", .cmd = .{ .immediate = .descend_schematic }, .msg = "Descend into schematic" } },
-    .{ .action = .{ .label = "Descend Symbol [I]", .cmd = .{ .immediate = .descend_symbol }, .msg = "Descend into symbol" } },
-    .{ .action = .{ .label = "Ascend [Ctrl+E / Backspace]", .cmd = .{ .immediate = .ascend }, .msg = "Ascend to parent" } },
-    .{ .action = .{ .label = "Edit in New Tab [Alt+E]", .cmd = .{ .immediate = .edit_in_new_tab }, .msg = "Edit in new tab" } },
-    .separator,
-    .{ .action = .{ .label = "Make Symbol from Schematic [A]", .cmd = .{ .immediate = .make_symbol_from_schematic }, .msg = "Making symbol" } },
-    .{ .action = .{ .label = "Make Schematic from Symbol [Ctrl+L]", .cmd = .{ .immediate = .make_schematic_from_symbol }, .msg = "Making schematic" } },
-    .separator,
-    .{ .action = .{ .label = "Insert from Library [Insert]", .cmd = .{ .immediate = .insert_from_library }, .msg = "Opening library" } },
-    .{ .action = .{ .label = "File Explorer [Ctrl+Shift+E]", .cmd = .{ .immediate = .open_file_explorer }, .msg = "File explorer" } },
-};
-
-const netlist_items = [_]MenuItem{
-    .{ .action = .{ .label = "Generate Hierarchical [N]", .cmd = .{ .immediate = .netlist_hierarchical }, .msg = "Generating netlist" } },
-    .{ .action = .{ .label = "Generate Flat", .cmd = .{ .immediate = .netlist_flat }, .msg = "Generating flat netlist" } },
-    .{ .action = .{ .label = "Generate Top-Only [Shift+N]", .cmd = .{ .immediate = .netlist_top_only }, .msg = "Generating top netlist" } },
-    .{ .action = .{ .label = "Toggle Flat/Hierarchical", .cmd = .{ .immediate = .toggle_flat_netlist }, .msg = "Toggled flat netlist" } },
-    .separator,
-    .{ .action = .{ .label = "Highlight Selected Nets [K]", .cmd = .{ .immediate = .highlight_selected_nets }, .msg = "Highlighting nets" } },
-    .{ .action = .{ .label = "Unhighlight Selected [Ctrl+K]", .cmd = .{ .immediate = .unhighlight_selected_nets }, .msg = "Unhighlighting nets" } },
-    .{ .action = .{ .label = "Unhighlight All [Shift+K]", .cmd = .{ .immediate = .unhighlight_all }, .msg = "Unhighlighting all" } },
-    .{ .action = .{ .label = "Select Attached Nets [Alt+K]", .cmd = .{ .immediate = .select_attached_nets }, .msg = "Selecting nets" } },
-};
-
-const sim_items = [_]MenuItem{
-    .{ .action = .{ .label = "Run NGSpice [F5]", .cmd = .{ .undoable = .{ .run_sim = .{ .sim = .ngspice } } }, .msg = "Queued simulation" } },
-    .{ .action = .{ .label = "Run Xyce", .cmd = .{ .undoable = .{ .run_sim = .{ .sim = .xyce } } }, .msg = "Queued Xyce simulation" } },
-    .{ .action = .{ .label = "Open Waveform Viewer", .cmd = .{ .immediate = .open_waveform_viewer }, .msg = "Opening waveform viewer" } },
-};
-
-const export_items = [_]MenuItem{
-    .{ .action = .{ .label = "Export PDF", .cmd = .{ .immediate = .export_pdf }, .msg = "Export PDF" } },
-    .{ .action = .{ .label = "Export PNG", .cmd = .{ .immediate = .export_png }, .msg = "Export PNG" } },
-    .{ .action = .{ .label = "Export SVG", .cmd = .{ .immediate = .export_svg }, .msg = "Export SVG" } },
-    .{ .action = .{ .label = "Screenshot", .cmd = .{ .immediate = .screenshot_area }, .msg = "Screenshot" } },
-};
-
-const transform_items = [_]MenuItem{
-    .{ .action = .{ .label = "Rotate CW [R]", .cmd = .{ .undoable = .rotate_cw }, .msg = "Queued rotate CW" } },
-    .{ .action = .{ .label = "Rotate CCW [Shift+R]", .cmd = .{ .undoable = .rotate_ccw }, .msg = "Queued rotate CCW" } },
-    .{ .action = .{ .label = "Flip Horizontal [X]", .cmd = .{ .undoable = .flip_horizontal }, .msg = "Queued flip horizontal" } },
-    .{ .action = .{ .label = "Flip Vertical [Shift+X]", .cmd = .{ .undoable = .flip_vertical }, .msg = "Queued flip vertical" } },
-    .separator,
-    .{ .action = .{ .label = "Nudge Left [:left]", .cmd = .{ .undoable = .nudge_left }, .msg = "Queued nudge left" } },
-    .{ .action = .{ .label = "Nudge Right [:right]", .cmd = .{ .undoable = .nudge_right }, .msg = "Queued nudge right" } },
-    .{ .action = .{ .label = "Nudge Up [:up]", .cmd = .{ .undoable = .nudge_up }, .msg = "Queued nudge up" } },
-    .{ .action = .{ .label = "Nudge Down [:down]", .cmd = .{ .undoable = .nudge_down }, .msg = "Queued nudge down" } },
-};
-
 // ── Public API ────────────────────────────────────────────────────────────── //
 
 /// Draw the main toolbar with all menu items.
@@ -177,21 +105,14 @@ const SimpleMenu = struct { label: []const u8, items: []const MenuItem };
 const simple_menus = [_]SimpleMenu{
     .{ .label = "File", .items = &file_items },
     .{ .label = "Edit", .items = &edit_items },
-    // View is handled separately (dynamic grid toggle).
-    .{ .label = "Wire/Draw", .items = &wire_draw_items },
-    .{ .label = "Hierarchy", .items = &hierarchy_items },
-    .{ .label = "Netlist", .items = &netlist_items },
-    .{ .label = "Sim", .items = &sim_items },
-    .{ .label = "Export", .items = &export_items },
-    .{ .label = "Transform", .items = &transform_items },
 };
 
 fn drawMenus(app: *AppState) void {
     var menu_ctx = dvui.menu(@src(), .horizontal, .{});
     defer menu_ctx.deinit();
 
-    // File, Edit menus (indices 0-1).
-    inline for (simple_menus[0..2], 0..) |sm, idx| {
+    // File, Edit menus.
+    inline for (simple_menus, 0..) |sm, idx| {
         drawSimpleMenu(app, sm.label, sm.items, idx + 1);
     }
 
@@ -211,14 +132,6 @@ fn drawMenus(app: *AppState) void {
         renderItems(app, fw, &view_items_after_grid, 1000);
     }
 
-    // Wire/Draw, Hierarchy, Netlist, Sim, Export, Transform menus (indices 2-7).
-    inline for (simple_menus[2..], 0..) |sm, idx| {
-        drawSimpleMenu(app, sm.label, sm.items, idx + 4);
-    }
-
-    // Plugins menu — dynamic: lists loaded panels.
-    drawPluginsMenu(app);
-
     _ = dvui.spacer(@src(), .{ .expand = .horizontal });
 }
 
@@ -227,37 +140,6 @@ fn drawSimpleMenu(app: *AppState, comptime label: []const u8, comptime items: []
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{ .id_extra = id });
         defer fw.deinit();
         renderItems(app, fw, items, 0);
-    }
-}
-
-fn drawPluginsMenu(app: *AppState) void {
-    const r = dvui.menuItemLabel(@src(), "Plugins", .{ .submenu = true }, .{ .id_extra = 10 }) orelse return;
-    var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{ .id_extra = 10 });
-    defer fw.deinit();
-
-    if (menuAction("Plugin Marketplace\xe2\x80\xa6", 9800)) {
-        app.gui.marketplace.visible = true;
-        fw.close();
-    }
-    _ = dvui.separator(@src(), .{ .id_extra = 9801 });
-    if (menuAction("Reload All Plugins [F6]", 9802)) {
-        actions.enqueue(app, .{ .immediate = .plugins_refresh }, "Queued plugin refresh signal");
-        fw.close();
-    }
-    if (app.gui.plugin_panels.items.len > 0) {
-        _ = dvui.separator(@src(), .{ .id_extra = 9803 });
-        for (app.gui.plugin_panels.items, 0..) |panel, i| {
-            var label_buf: [80]u8 = undefined;
-            const vis = if (panel.visible) "\xe2\x9c\x93 " else "  ";
-            const key_hint = if (panel.keybind != 0)
-                std.fmt.bufPrint(&label_buf, "{s}{s}  [{c}]", .{ vis, panel.title, panel.keybind }) catch panel.title
-            else
-                std.fmt.bufPrint(&label_buf, "{s}{s}", .{ vis, panel.title }) catch panel.title;
-            if (menuAction(key_hint, 9810 + i)) {
-                app.gui.plugin_panels.items[i].visible = !app.gui.plugin_panels.items[i].visible;
-                fw.close();
-            }
-        }
     }
 }
 

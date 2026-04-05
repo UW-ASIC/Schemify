@@ -4,7 +4,7 @@ const std = @import("std");
 const dvui = @import("dvui");
 const st = @import("state");
 const keybinds = @import("../Keybinds.zig");
-const components = @import("../Components/root.zig");
+const components = @import("../Components/lib.zig");
 
 const AppState = st.AppState;
 
@@ -15,19 +15,21 @@ const KeybindsWindow = components.FloatingWindow(.{
     .modal = false,
 });
 
-// ── Local state ───────────────────────────────────────────────────────────── //
+// ── Helpers ──────────────────────────────────────────────────────────────── //
 
-pub var open: bool = false;
-var win_rect = dvui.Rect{ .x = 100, .y = 80, .w = 520, .h = 420 };
+/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
+fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
+    return @ptrCast(wr);
+}
 
 // ── Public API ────────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
-    _ = app;
-    KeybindsWindow.draw(&win_rect, &open, drawContents, {});
+    const kd = &app.gui.keybinds_dialog;
+    KeybindsWindow.draw(winRectPtr(&kd.win_rect), &kd.open, drawContents, app);
 }
 
-fn drawContents(_: void) void {
+fn drawContents(app: *AppState) void {
     var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
     defer scroll.deinit();
 
@@ -52,6 +54,6 @@ fn drawContents(_: void) void {
     }
 
     if (dvui.button(@src(), "Close [Esc]", .{}, .{})) {
-        open = false;
+        app.gui.keybinds_dialog.open = false;
     }
 }

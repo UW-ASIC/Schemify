@@ -322,18 +322,75 @@ pub const CtxMenu = struct {
     wire_idx: i32 = -1,
 };
 
+/// Window rectangle for floating windows. Layout-compatible with dvui.Rect.
+/// Used in state module because dvui is not a state dependency.
+pub const WinRect = struct {
+    x: f32 = 0,
+    y: f32 = 0,
+    w: f32 = 0,
+    h: f32 = 0,
+};
+
+pub const FileExplorerState = struct {
+    selected_section: i32 = -1,
+    selected_file: i32 = -1,
+    scanned: bool = false,
+    preview_name: []const u8 = "",
+    win_rect: WinRect = .{ .x = 60, .y = 40, .w = 720, .h = 500 },
+};
+
+pub const LibraryBrowserState = struct {
+    selected_prim: i32 = -1,
+    win_rect: WinRect = .{ .x = 100, .y = 60, .w = 440, .h = 460 },
+};
+
+pub const FindDialogState = struct {
+    is_open: bool = false,
+    query_buf: [128]u8 = [_]u8{0} ** 128,
+    query_len: usize = 0,
+    result_count: usize = 0,
+    win_rect: WinRect = .{ .x = 80, .y = 80, .w = 340, .h = 220 },
+};
+
+pub const PropsDialogState = struct {
+    is_open: bool = false,
+    view_only: bool = false,
+    inst_idx: usize = 0,
+    win_rect: WinRect = .{ .x = 120, .y = 100, .w = 480, .h = 380 },
+};
+
+pub const KeybindsDialogState = struct {
+    open: bool = false,
+    win_rect: WinRect = .{ .x = 100, .y = 80, .w = 520, .h = 420 },
+};
+
+pub const MarketplaceWinState = struct {
+    win_rect: WinRect = .{ .x = 80, .y = 50, .w = 820, .h = 560 },
+};
+
 pub const GuiState = struct {
-    ctx_menu: CtxMenu = .{},
-    keybinds_open: bool = false,
-    view_mode: GuiViewMode = .schematic,
-    command_mode: bool = false,
-    command_buf: [128]u8 = [_]u8{0} ** 128,
-    command_len: usize = 0,
+    // 8-byte aligned (slices / arraylists contain pointer+len)
     plugin_panels: std.ArrayListUnmanaged(PluginPanel) = .{},
-    key_to_panel: [256]i8 = [_]i8{-1} ** 256,
-    marketplace: MarketplaceState = .{},
     plugin_keybinds: std.ArrayListUnmanaged(PluginKeybind) = .{},
     plugin_commands: std.ArrayListUnmanaged(PluginCommand) = .{},
+    marketplace: MarketplaceState = .{},
+    // GUI sub-states (per D-09)
+    file_explorer: FileExplorerState = .{},
+    library_browser: LibraryBrowserState = .{},
+    find_dialog: FindDialogState = .{},
+    props_dialog: PropsDialogState = .{},
+    keybinds_dialog: KeybindsDialogState = .{},
+    marketplace_win: MarketplaceWinState = .{},
+    // 4-byte aligned
+    ctx_menu: CtxMenu = .{},
+    command_len: usize = 0,
+    // 1-byte arrays
+    command_buf: [128]u8 = [_]u8{0} ** 128,
+    key_to_panel: [256]i8 = [_]i8{-1} ** 256,
+    // 1-byte
+    view_mode: GuiViewMode = .schematic,
+    keybinds_open: bool = false,
+    command_mode: bool = false,
 };
 
 // ── AppState ─────────────────────────────────────────────────────────────────

@@ -6,34 +6,39 @@ const st = @import("state");
 
 const AppState = st.AppState;
 
-// ── Dialog state ──────────────────────────────────────────────────────────── //
+// ── Helpers ──────────────────────────────────────────────────────────────── //
 
-var is_open: bool = false;
-var view_only: bool = false;
-var inst_idx: usize = 0;
-var win_rect = dvui.Rect{ .x = 120, .y = 100, .w = 480, .h = 380 };
+/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
+fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
+    return @ptrCast(wr);
+}
+
+// ── Public API ───────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
-    if (!is_open) return;
-    const title: [:0]const u8 = if (view_only)
+    const pd = &app.gui.props_dialog;
+    if (!pd.is_open) return;
+    const title: [:0]const u8 = if (pd.view_only)
         "Instance Properties (read-only)"
     else
         "Instance Properties";
 
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = true,
-        .open_flag = &is_open,
-        .rect = &win_rect,
+        .open_flag = &pd.is_open,
+        .rect = winRectPtr(&pd.win_rect),
     }, .{
         .min_size_content = .{ .w = 380, .h = 260 },
     });
     defer fwin.deinit();
-    fwin.dragAreaSet(dvui.windowHeader(title, "", &is_open));
+    fwin.dragAreaSet(dvui.windowHeader(title, "", &pd.is_open));
 
     drawContents(app);
 }
 
 fn drawContents(app: *AppState) void {
+    const pd = &app.gui.props_dialog;
+
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 },
@@ -43,7 +48,7 @@ fn drawContents(app: *AppState) void {
     // Header with instance info.
     {
         var hdr_buf: [256]u8 = undefined;
-        const hdr = std.fmt.bufPrint(&hdr_buf, "Instance #{d}", .{inst_idx}) catch "Instance";
+        const hdr = std.fmt.bufPrint(&hdr_buf, "Instance #{d}", .{pd.inst_idx}) catch "Instance";
         dvui.labelNoFmt(@src(), hdr, .{}, .{ .style = .control, .id_extra = 0 });
     }
 
@@ -66,15 +71,15 @@ fn drawContents(app: *AppState) void {
         });
         defer btns.deinit();
 
-        if (!view_only) {
+        if (!pd.view_only) {
             if (dvui.button(@src(), "Apply", .{}, .{ .id_extra = 4 })) {
                 // TODO: apply changed properties via command queue
                 app.status_msg = "Properties applied (stub)";
-                is_open = false;
+                pd.is_open = false;
             }
         }
         if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 5 })) {
-            is_open = false;
+            pd.is_open = false;
         }
     }
 }

@@ -71,7 +71,7 @@ pub fn frame(app: *AppState) !void {
     context_menu.draw(app);
 
     // Sync keybinds dialog open state from gui flag.
-    keybinds_dlg.open = keybinds_dlg.open or app.gui.keybinds_open;
+    app.gui.keybinds_dialog.open = app.gui.keybinds_dialog.open or app.gui.keybinds_open;
     app.gui.keybinds_open = false;
     keybinds_dlg.draw(app);
 

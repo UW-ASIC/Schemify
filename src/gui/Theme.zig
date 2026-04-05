@@ -159,8 +159,7 @@ pub inline fn withAlpha(col: Color, a: u8) Color {
 
 // ── Runtime config ──────────────────────────────────────────────────────────
 
-pub fn applyJson(json_str: []const u8) void {
-    const alloc = std.heap.page_allocator;
+pub fn applyJson(alloc: std.mem.Allocator, json_str: []const u8) void {
 
     const Schema = struct {
         canvas_bg: ?[3]i64 = null,
@@ -227,7 +226,7 @@ fn clamp8(x: i64) u8 {
 
 test "applyJson: valid JSON sets overrides" {
     current_overrides = .{};
-    applyJson(
+    applyJson(std.testing.allocator,
         \\{"canvas_bg":[10,20,30]}
     );
     try std.testing.expectEqual(@as(?[3]u8, .{ 10, 20, 30 }), current_overrides.canvas_bg);
@@ -235,17 +234,17 @@ test "applyJson: valid JSON sets overrides" {
 
 test "applyJson: invalid JSON leaves overrides unchanged" {
     current_overrides = .{};
-    applyJson("{broken}");
+    applyJson(std.testing.allocator, "{broken}");
     try std.testing.expectEqual(@as(?[3]u8, null), current_overrides.canvas_bg);
 }
 
 test "applyJson: full replacement resets prior values (D-05)" {
     current_overrides = .{};
-    applyJson(
+    applyJson(std.testing.allocator,
         \\{"wire":[1,2,3]}
     );
     try std.testing.expect(current_overrides.wire != null);
-    applyJson(
+    applyJson(std.testing.allocator,
         \\{"canvas_bg":[4,5,6]}
     );
     try std.testing.expectEqual(@as(?[3]u8, null), current_overrides.wire);
@@ -254,7 +253,7 @@ test "applyJson: full replacement resets prior values (D-05)" {
 
 test "applyJson: unknown fields ignored (D-06)" {
     current_overrides = .{};
-    applyJson(
+    applyJson(std.testing.allocator,
         \\{"canvas_bg":[10,20,30],"name":"test","dark":true}
     );
     try std.testing.expectEqual(@as(?[3]u8, .{ 10, 20, 30 }), current_overrides.canvas_bg);
@@ -262,7 +261,7 @@ test "applyJson: unknown fields ignored (D-06)" {
 
 test "applyJson: color clamping" {
     current_overrides = .{};
-    applyJson(
+    applyJson(std.testing.allocator,
         \\{"canvas_bg":[300,-10,128]}
     );
     try std.testing.expectEqual(@as(?[3]u8, .{ 255, 0, 128 }), current_overrides.canvas_bg);
@@ -270,7 +269,7 @@ test "applyJson: color clamping" {
 
 test "applyJson: float fields" {
     current_overrides = .{};
-    applyJson(
+    applyJson(std.testing.allocator,
         \\{"corner_radius":8.5}
     );
     try std.testing.expectEqual(@as(?f32, 8.5), current_overrides.corner_radius);
@@ -278,11 +277,11 @@ test "applyJson: float fields" {
 
 test "applyJson: tab_shape clamped to 0-4" {
     current_overrides = .{};
-    applyJson(
+    applyJson(std.testing.allocator,
         \\{"tab_shape":3}
     );
     try std.testing.expectEqual(@as(?u8, 3), current_overrides.tab_shape);
-    applyJson(
+    applyJson(std.testing.allocator,
         \\{"tab_shape":99}
     );
     try std.testing.expectEqual(@as(?u8, 4), current_overrides.tab_shape);
