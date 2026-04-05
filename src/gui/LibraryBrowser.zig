@@ -23,25 +23,29 @@ const actions = @import("Actions.zig");
 const AppState = st.AppState;
 const primitives = core.primitives;
 
-// ── Module-level state ───────────────────────────────────────────────────── //
+// ── Helpers ──────────────────────────────────────────────────────────────── //
 
-var win_rect = dvui.Rect{ .x = 100, .y = 60, .w = 440, .h = 460 };
-var selected_prim: i32 = -1;
+/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
+fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
+    return @ptrCast(wr);
+}
 
 // ── Public API ───────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
     if (!app.open_library_browser) return;
 
+    const lb_state = &app.gui.library_browser;
+
     if (app.rescan_library_browser) {
-        selected_prim = -1;
+        lb_state.selected_prim = -1;
         app.rescan_library_browser = false;
     }
 
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = false,
         .open_flag = &app.open_library_browser,
-        .rect = &win_rect,
+        .rect = winRectPtr(&lb_state.win_rect),
     }, .{
         .min_size_content = .{ .w = 380, .h = 300 },
     });
@@ -70,7 +74,7 @@ pub fn draw(app: *AppState) void {
         defer scroll.deinit();
 
         for (&primitives.parsed_prims, 0..) |*prim, pi| {
-            const is_sel = selected_prim == @as(i32, @intCast(pi));
+            const is_sel = lb_state.selected_prim == @as(i32, @intCast(pi));
 
             var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .id_extra = pi * 2,
@@ -119,7 +123,7 @@ pub fn draw(app: *AppState) void {
                     // Double-click: place immediately.
                     placeSelected(app);
                 } else {
-                    selected_prim = @intCast(pi);
+                    lb_state.selected_prim = @intCast(pi);
                 }
             }
         }
@@ -146,11 +150,12 @@ pub fn draw(app: *AppState) void {
 }
 
 fn placeSelected(app: *AppState) void {
-    if (selected_prim < 0 or @as(usize, @intCast(selected_prim)) >= primitives.prim_count) {
+    const lb_state = &app.gui.library_browser;
+    if (lb_state.selected_prim < 0 or @as(usize, @intCast(lb_state.selected_prim)) >= primitives.prim_count) {
         app.status_msg = "Select a device first";
         return;
     }
-    const idx = @as(usize, @intCast(selected_prim));
+    const idx = @as(usize, @intCast(lb_state.selected_prim));
     const prim = &primitives.parsed_prims[idx];
     actions.enqueue(app, .{ .undoable = .{ .place_device = .{
         .sym_path = prim.kind_name,

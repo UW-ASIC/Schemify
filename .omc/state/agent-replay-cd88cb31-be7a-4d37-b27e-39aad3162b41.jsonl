@@ -1,0 +1,10 @@
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"gsd:discuss-phase"}
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"gsd:plan-phase"}
+{"t":0,"agent":"a2e9f2c","agent_type":"gsd-phase-researcher","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a2e9f2c","agent_type":"gsd-phase-researcher","event":"agent_stop","success":true,"duration_ms":333745}
+{"t":0,"agent":"a5bedbf","agent_type":"gsd-planner","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"aac7649","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a5bedbf","agent_type":"gsd-planner","event":"agent_stop","success":true,"duration_ms":806547}
+{"t":0,"agent":"a755b37","agent_type":"gsd-plan-checker","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a755b37","agent_type":"gsd-plan-checker","event":"agent_stop","success":true,"duration_ms":130336}
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"gsd:execute-phase"}

@@ -1,0 +1,457 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1775343203184,
+  "projectRoot": "/home/omare/Documents/UWASIC/Schemify",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "examples",
+      "src",
+      "test"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "deps": {
+      "path": "deps",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1775343203181,
+      "keyFiles": [
+        "lib.zig",
+        "ngspice.zig",
+        "xyce.zig"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 6,
+      "lastAccessed": 1775343203182,
+      "keyFiles": [
+        "Arch.md",
+        "bun.lock",
+        "components.md",
+        "index.md",
+        "package.json"
+      ]
+    },
+    "examples": {
+      "path": "examples",
+      "purpose": "Example code",
+      "fileCount": 174,
+      "lastAccessed": 1775343203183,
+      "keyFiles": [
+        "LACG.chn",
+        "LCC_instances.chn",
+        "LM5134A.chn",
+        "Q1.chn",
+        "Q2.chn"
+      ]
+    },
+    "plugins": {
+      "path": "plugins",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1775343203183,
+      "keyFiles": []
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 7,
+      "lastAccessed": 1775343203183,
+      "keyFiles": [
+        "Arch.md",
+        "PluginIF.zig",
+        "cli.zig",
+        "debug_server.zig",
+        "main.zig"
+      ]
+    },
+    "test": {
+      "path": "test",
+      "purpose": "Test files",
+      "fileCount": 2,
+      "lastAccessed": 1775343203183,
+      "keyFiles": [
+        "size_runner.zig",
+        "test_runner.zig"
+      ]
+    },
+    "tools": {
+      "path": "tools",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1775343203183,
+      "keyFiles": [
+        "build_dep.zig"
+      ]
+    },
+    "web": {
+      "path": "web",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1775343203183,
+      "keyFiles": [
+        "boot.js",
+        "index.html",
+        "vfs-worker.js",
+        "vfs.js"
+      ]
+    },
+    "zig-out": {
+      "path": "zig-out",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1775343203183,
+      "keyFiles": []
+    },
+    "tools/scripts": {
+      "path": "tools/scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1775343203184,
+      "keyFiles": [
+        "gen_registry.py"
+      ]
+    },
+    "zig-out/bin": {
+      "path": "zig-out/bin",
+      "purpose": "Executable scripts",
+      "fileCount": 1,
+      "lastAccessed": 1775343203184,
+      "keyFiles": [
+        "schemify"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src",
+      "accessCount": 45,
+      "lastAccessed": 1775349077909,
+      "type": "directory"
+    },
+    {
+      "path": "src/gui/Renderer.zig",
+      "accessCount": 28,
+      "lastAccessed": 1775349528584,
+      "type": "file"
+    },
+    {
+      "path": "src/plugins/runtime.zig",
+      "accessCount": 24,
+      "lastAccessed": 1775345992892,
+      "type": "file"
+    },
+    {
+      "path": "src/core/Schemify.zig",
+      "accessCount": 17,
+      "lastAccessed": 1775345979406,
+      "type": "file"
+    },
+    {
+      "path": "src/main.zig",
+      "accessCount": 16,
+      "lastAccessed": 1775345979852,
+      "type": "file"
+    },
+    {
+      "path": "src/gui",
+      "accessCount": 11,
+      "lastAccessed": 1775349060893,
+      "type": "directory"
+    },
+    {
+      "path": "src/gui/PluginPanels.zig",
+      "accessCount": 10,
+      "lastAccessed": 1775349077246,
+      "type": "file"
+    },
+    {
+      "path": "src/core/Devices.zig",
+      "accessCount": 9,
+      "lastAccessed": 1775344559658,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Dispatch.zig",
+      "accessCount": 8,
+      "lastAccessed": 1775345977105,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Edit.zig",
+      "accessCount": 8,
+      "lastAccessed": 1775345994187,
+      "type": "file"
+    },
+    {
+      "path": "src/gui/lib.zig",
+      "accessCount": 8,
+      "lastAccessed": 1775349528543,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Undo.zig",
+      "accessCount": 7,
+      "lastAccessed": 1775345984866,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/File.zig",
+      "accessCount": 7,
+      "lastAccessed": 1775345985641,
+      "type": "file"
+    },
+    {
+      "path": "src/gui/Bars/ToolBar.zig",
+      "accessCount": 7,
+      "lastAccessed": 1775349528957,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Sim.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775345541719,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Netlist.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775345545314,
+      "type": "file"
+    },
+    {
+      "path": "src/utility/Logger.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775345974897,
+      "type": "file"
+    },
+    {
+      "path": "src/utility/lib.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775345975061,
+      "type": "file"
+    },
+    {
+      "path": "src/utility/Vfs.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775345976442,
+      "type": "file"
+    },
+    {
+      "path": "src/plugins/installer.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775345979937,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/View.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775346011362,
+      "type": "file"
+    },
+    {
+      "path": "src/gui/Keybinds.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775346753487,
+      "type": "file"
+    },
+    {
+      "path": "CLAUDE.md",
+      "accessCount": 6,
+      "lastAccessed": 1775346753723,
+      "type": "file"
+    },
+    {
+      "path": "src/gui/Actions.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775346766161,
+      "type": "file"
+    },
+    {
+      "path": "src/gui/Theme.zig",
+      "accessCount": 6,
+      "lastAccessed": 1775349538642,
+      "type": "file"
+    },
+    {
+      "path": "src/state.zig",
+      "accessCount": 5,
+      "lastAccessed": 1775343757557,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Hierarchy.zig",
+      "accessCount": 5,
+      "lastAccessed": 1775345543480,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Clipboard.zig",
+      "accessCount": 5,
+      "lastAccessed": 1775345544699,
+      "type": "file"
+    },
+    {
+      "path": "src/utility/Platform.zig",
+      "accessCount": 5,
+      "lastAccessed": 1775345977000,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Selection.zig",
+      "accessCount": 5,
+      "lastAccessed": 1775345986109,
+      "type": "file"
+    },
+    {
+      "path": "src/PluginIF.zig",
+      "accessCount": 4,
+      "lastAccessed": 1775343761172,
+      "type": "file"
+    },
+    {
+      "path": "src/toml.zig",
+      "accessCount": 4,
+      "lastAccessed": 1775344362416,
+      "type": "file"
+    },
+    {
+      "path": "src/core/Synthesis.zig",
+      "accessCount": 4,
+      "lastAccessed": 1775344369515,
+      "type": "file"
+    },
+    {
+      "path": "TODO.md",
+      "accessCount": 4,
+      "lastAccessed": 1775345188526,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/Wire.zig",
+      "accessCount": 4,
+      "lastAccessed": 1775345542607,
+      "type": "file"
+    },
+    {
+      "path": "src/utility/Simd.zig",
+      "accessCount": 4,
+      "lastAccessed": 1775345976246,
+      "type": "file"
+    },
+    {
+      "path": "src/core/Netlist.zig",
+      "accessCount": 4,
+      "lastAccessed": 1775345994136,
+      "type": "file"
+    },
+    {
+      "path": "src/core/SpiceIF.zig",
+      "accessCount": 4,
+      "lastAccessed": 1775346011732,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/command.zig",
+      "accessCount": 3,
+      "lastAccessed": 1775345276149,
+      "type": "file"
+    },
+    {
+      "path": "src/core/Reader.zig",
+      "accessCount": 3,
+      "lastAccessed": 1775345974596,
+      "type": "file"
+    },
+    {
+      "path": "src/utility/UnionFind.zig",
+      "accessCount": 3,
+      "lastAccessed": 1775345976669,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/helpers.zig",
+      "accessCount": 3,
+      "lastAccessed": 1775346004184,
+      "type": "file"
+    },
+    {
+      "path": "src/gui/Bars/TabBar.zig",
+      "accessCount": 3,
+      "lastAccessed": 1775346764485,
+      "type": "file"
+    },
+    {
+      "path": "src/core/HdlParser.zig",
+      "accessCount": 2,
+      "lastAccessed": 1775343801247,
+      "type": "file"
+    },
+    {
+      "path": "src/core/YosysJson.zig",
+      "accessCount": 2,
+      "lastAccessed": 1775343803488,
+      "type": "file"
+    },
+    {
+      "path": "src/core/Writer.zig",
+      "accessCount": 2,
+      "lastAccessed": 1775344143682,
+      "type": "file"
+    },
+    {
+      "path": "web/boot.js",
+      "accessCount": 2,
+      "lastAccessed": 1775345977677,
+      "type": "file"
+    },
+    {
+      "path": "web/index.html",
+      "accessCount": 2,
+      "lastAccessed": 1775346000530,
+      "type": "file"
+    },
+    {
+      "path": "src/gui/Arch.md",
+      "accessCount": 1,
+      "lastAccessed": 1775343376102,
+      "type": "file"
+    },
+    {
+      "path": "src/core/devices/primitives.zig",
+      "accessCount": 1,
+      "lastAccessed": 1775343739627,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

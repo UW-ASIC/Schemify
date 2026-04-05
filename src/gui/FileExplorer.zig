@@ -33,32 +33,34 @@ const FileEntry = struct {
     is_dir: bool,
 };
 
-// ── Module-level state ───────────────────────────────────────────────────── //
-
-const gpa = std.heap.page_allocator;
+// ── Module-level allocation containers (private types, persist across frames) ─
 
 var sections: std.ArrayListUnmanaged(Section) = .{};
 var files: std.ArrayListUnmanaged(FileEntry) = .{};
-var selected_section: i32 = -1;
-var selected_file: i32 = -1;
-var scanned: bool = false;
-var preview_name: []const u8 = "";
-var win_rect: dvui.Rect = .{ .x = 60, .y = 40, .w = 720, .h = 500 };
+
+// ── Helpers ──────────────────────────────────────────────────────────────── //
+
+/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
+fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
+    return @ptrCast(wr);
+}
 
 // ── Public API ───────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
     if (!app.open_file_explorer) return;
 
-    if (!scanned) {
+    const fe_state = &app.gui.file_explorer;
+
+    if (!fe_state.scanned) {
         scanSections(app);
-        scanned = true;
+        fe_state.scanned = true;
     }
 
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = false,
         .open_flag = &app.open_file_explorer,
-        .rect = &win_rect,
+        .rect = winRectPtr(&fe_state.win_rect),
     }, .{
         .min_size_content = .{ .w = 640, .h = 420 },
     });
@@ -87,13 +89,15 @@ pub fn draw(app: *AppState) void {
 
         drawFileList(app);
         _ = dvui.separator(@src(), .{ .id_extra = 101 });
-        drawPreview();
+        drawPreview(app);
     }
 }
 
 // ── Left column: sections ────────────────────────────────────────────────── //
 
 fn drawSections(app: *AppState) void {
+    const fe_state = &app.gui.file_explorer;
+
     var col = dvui.box(@src(), .{ .dir = .vertical }, .{
         .min_size_content = .{ .w = 160 },
         .padding = .{ .x = 6, .y = 6, .w = 6, .h = 6 },
@@ -117,7 +121,7 @@ fn drawSections(app: *AppState) void {
     defer scroll.deinit();
 
     for (sections.items, 0..) |sec, si| {
-        const is_sel = selected_section == @as(i32, @intCast(si));
+        const is_sel = fe_state.selected_section == @as(i32, @intCast(si));
 
         var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .id_extra = si * 2,
@@ -140,10 +144,10 @@ fn drawSections(app: *AppState) void {
         });
 
         if (dvui.clicked(&card.wd, .{})) {
-            if (selected_section != @as(i32, @intCast(si))) {
-                selected_section = @intCast(si);
-                selected_file = -1;
-                clearPreview();
+            if (fe_state.selected_section != @as(i32, @intCast(si))) {
+                fe_state.selected_section = @intCast(si);
+                fe_state.selected_file = -1;
+                fe_state.preview_name = "";
                 scanFiles(app, sec.kind);
             }
         }
@@ -153,6 +157,8 @@ fn drawSections(app: *AppState) void {
 // ── Top-right: file list ─────────────────────────────────────────────────── //
 
 fn drawFileList(app: *AppState) void {
+    const fe_state = &app.gui.file_explorer;
+
     var area = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .min_size_content = .{ .h = 120 },
@@ -162,9 +168,9 @@ fn drawFileList(app: *AppState) void {
 
     // Header with path.
     {
-        const path_label: []const u8 = if (selected_section >= 0 and
-            @as(usize, @intCast(selected_section)) < sections.items.len)
-            sections.items[@intCast(selected_section)].label
+        const path_label: []const u8 = if (fe_state.selected_section >= 0 and
+            @as(usize, @intCast(fe_state.selected_section)) < sections.items.len)
+            sections.items[@intCast(fe_state.selected_section)].label
         else
             "Select a section";
 
@@ -177,7 +183,7 @@ fn drawFileList(app: *AppState) void {
     _ = dvui.spacer(@src(), .{ .id_extra = 302, .min_size_content = .{ .h = 2 } });
 
     if (files.items.len == 0) {
-        dvui.labelNoFmt(@src(), if (selected_section < 0)
+        dvui.labelNoFmt(@src(), if (fe_state.selected_section < 0)
             "Select a section to browse files."
         else
             "No files found.", .{}, .{
@@ -194,7 +200,7 @@ fn drawFileList(app: *AppState) void {
     defer scroll.deinit();
 
     for (files.items, 0..) |fe, fi| {
-        const is_sel = selected_file == @as(i32, @intCast(fi));
+        const is_sel = fe_state.selected_file == @as(i32, @intCast(fi));
 
         var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .id_extra = fi * 2,
@@ -246,9 +252,8 @@ fn drawFileList(app: *AppState) void {
                 };
                 app.open_file_explorer = false;
             } else {
-                selected_file = @intCast(fi);
-                clearPreview();
-                preview_name = fe.name;
+                fe_state.selected_file = @intCast(fi);
+                fe_state.preview_name = fe.name;
             }
         }
     }
@@ -264,7 +269,9 @@ fn classifyBadge(name: []const u8) []const u8 {
 
 // ── Bottom-right: preview ────────────────────────────────────────────────── //
 
-fn drawPreview() void {
+fn drawPreview(app: *AppState) void {
+    const fe_state = &app.gui.file_explorer;
+
     var area = dvui.box(@src(), .{}, .{
         .expand = .both,
         .min_size_content = .{ .h = 160 },
@@ -273,7 +280,7 @@ fn drawPreview() void {
     });
     defer area.deinit();
 
-    if (preview_name.len == 0) {
+    if (fe_state.preview_name.len == 0) {
         dvui.labelNoFmt(@src(), "Select a file to preview.", .{}, .{
             .id_extra = 500,
             .style = .control,
@@ -283,7 +290,7 @@ fn drawPreview() void {
         return;
     }
 
-    dvui.labelNoFmt(@src(), preview_name, .{}, .{
+    dvui.labelNoFmt(@src(), fe_state.preview_name, .{}, .{
         .id_extra = 502,
         .gravity_x = 0.5,
         .gravity_y = 0.5,
@@ -300,82 +307,83 @@ fn drawPreview() void {
 // ── Section scanning ─────────────────────────────────────────────────────── //
 
 fn scanSections(app: *AppState) void {
-    clearSections();
+    const alloc = app.allocator();
+    clearSections(alloc);
 
+    const fe_state = &app.gui.file_explorer;
     const chn_n = app.config.paths.chn.len;
     const tb_n = app.config.paths.chn_tb.len;
 
     if (chn_n > 0) {
         var buf: [64]u8 = undefined;
         const label = std.fmt.bufPrint(&buf, "Schematics ({d})", .{chn_n}) catch "Schematics";
-        const dup = gpa.dupe(u8, label) catch return;
-        sections.append(gpa, .{ .label = dup, .kind = .schematics }) catch {
-            gpa.free(dup);
+        const dup = alloc.dupe(u8, label) catch return;
+        sections.append(alloc, .{ .label = dup, .kind = .schematics }) catch {
+            alloc.free(dup);
         };
     }
 
     if (tb_n > 0) {
         var buf: [64]u8 = undefined;
         const label = std.fmt.bufPrint(&buf, "Testbenches ({d})", .{tb_n}) catch "Testbenches";
-        const dup = gpa.dupe(u8, label) catch return;
-        sections.append(gpa, .{ .label = dup, .kind = .testbenches }) catch {
-            gpa.free(dup);
+        const dup = alloc.dupe(u8, label) catch return;
+        sections.append(alloc, .{ .label = dup, .kind = .testbenches }) catch {
+            alloc.free(dup);
         };
     }
 
     // Auto-select first section and scan its files.
     if (sections.items.len > 0) {
-        selected_section = 0;
+        fe_state.selected_section = 0;
         scanFiles(app, sections.items[0].kind);
     }
 }
 
 fn scanFiles(app: *AppState, kind: SectionKind) void {
-    clearFiles();
+    const alloc = app.allocator();
+    clearFiles(alloc);
     const paths: []const []const u8 = switch (kind) {
         .schematics => app.config.paths.chn,
         .testbenches => app.config.paths.chn_tb,
     };
     for (paths) |p| {
         const name = std.fs.path.basename(p);
-        const name_dup = gpa.dupe(u8, name) catch continue;
-        const path_dup = gpa.dupe(u8, p) catch {
-            gpa.free(name_dup);
+        const name_dup = alloc.dupe(u8, name) catch continue;
+        const path_dup = alloc.dupe(u8, p) catch {
+            alloc.free(name_dup);
             continue;
         };
-        files.append(gpa, .{ .name = name_dup, .path = path_dup, .is_dir = false }) catch {
-            gpa.free(name_dup);
-            gpa.free(path_dup);
+        files.append(alloc, .{ .name = name_dup, .path = path_dup, .is_dir = false }) catch {
+            alloc.free(name_dup);
+            alloc.free(path_dup);
         };
     }
-}
-
-fn clearPreview() void {
-    preview_name = "";
 }
 
 // ── Cleanup ──────────────────────────────────────────────────────────────── //
 
-fn clearFiles() void {
+fn clearFiles(alloc: std.mem.Allocator) void {
     for (files.items) |fe| {
-        gpa.free(fe.name);
-        gpa.free(fe.path);
+        alloc.free(fe.name);
+        alloc.free(fe.path);
     }
     files.clearRetainingCapacity();
 }
 
-fn clearSections() void {
+fn clearSections(alloc: std.mem.Allocator) void {
     for (sections.items) |sec| {
-        gpa.free(sec.label);
+        alloc.free(sec.label);
     }
     sections.clearRetainingCapacity();
 }
 
-pub fn reset() void {
-    clearPreview();
-    clearFiles();
-    clearSections();
-    scanned = false;
-    selected_section = -1;
-    selected_file = -1;
+pub fn reset(app: *AppState) void {
+    const alloc = app.allocator();
+    const fe_state = &app.gui.file_explorer;
+    fe_state.preview_name = "";
+    clearFiles(alloc);
+    clearSections(alloc);
+    fe_state.scanned = false;
+    fe_state.selected_section = -1;
+    fe_state.selected_file = -1;
 }
