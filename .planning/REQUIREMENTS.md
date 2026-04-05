@@ -11,12 +11,12 @@ Requirements for the GUI redesign. Each maps to roadmap phases.
 
 - [x] **INFRA-01**: GUI module rebuilt with components/ subfolder containing reusable themed widgets
 - [x] **INFRA-02**: Renderer.zig (1152 LOC) decomposed into Canvas/ subfolder with single-responsibility components
-- [ ] **INFRA-03**: Minimal toolbar with File, Edit, View menus only — all stubs removed
+- [x] **INFRA-03**: Minimal toolbar with File, Edit, View menus only — all stubs removed
 - [x] **INFRA-04**: Module-level `var` state eliminated from GUI files — all persistent state in AppState.gui
 - [x] **INFRA-05**: state.zig merged into types.zig (state is types, not a separate concept)
 - [x] **INFRA-06**: All Arch.md files removed from source tree
-- [ ] **INFRA-07**: page_allocator replaced with GPA in GUI hot paths (Renderer, FileExplorer, Theme)
-- [ ] **INFRA-08**: Both native (raylib) and WASM (web) backends functional and tested
+- [x] **INFRA-07**: page_allocator replaced with GPA in GUI hot paths (Renderer, FileExplorer, Theme)
+- [x] **INFRA-08**: Both native (raylib) and WASM (web) backends functional and tested
 
 ### Canvas
 
@@ -156,12 +156,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Complete |
 | INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Complete |
-| INFRA-07 | Phase 1 | Pending |
-| INFRA-08 | Phase 1 | Pending |
+| INFRA-07 | Phase 1 | Complete |
+| INFRA-08 | Phase 1 | Complete |
 | CANV-01 | Phase 2 | Pending |
 | CANV-02 | Phase 2 | Pending |
 | CANV-03 | Phase 2 | Pending |
