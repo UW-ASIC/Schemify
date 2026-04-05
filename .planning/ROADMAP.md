@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- Types foundation: Canvas/types.zig, GuiState sub-structs, Components/ restructure, Arch.md cleanup
-- [ ] 01-02-PLAN.md -- Renderer decomposition: Split Renderer.zig into Canvas/ subfolder, rewire gui/lib.zig
+- [x] 01-02-PLAN.md -- Renderer decomposition: Split Renderer.zig into Canvas/ subfolder, rewire gui/lib.zig
 - [ ] 01-03-PLAN.md -- Toolbar stripping, module-level var migration, allocator fixes, dual backend verification
 
 ### Phase 2: Canvas Foundation

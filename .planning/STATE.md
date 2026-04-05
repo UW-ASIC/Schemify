@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-04-05T01:01:34.030Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-04-05T01:12:41.503Z"
 last_activity: 2026-04-05
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 01 (gui-architecture-cleanup) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-05
 
@@ -53,6 +53,7 @@ Progress: [--------------------] 0%
 
 *Updated after each plan completion*
 | Phase 01 P01 | 4min | 2 tasks | 13 files |
+| Phase 01 P02 | 7min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Recent decisions affecting current work:
 - [Roadmap]: Library browser (PROD-05) in Phase 10 -- EDIT-01 placement uses command bar initially
 - [Phase 01]: WinRect plain struct instead of dvui.Rect because state module does not import dvui
 - [Phase 01]: Comptime widget factory pattern for ThemedButton/ThemedPanel/ScrollableList
+- [Phase 01]: Added draw_helpers.zig for shared Canvas drawing primitives to avoid duplication
+- [Phase 01]: CanvasState added inline to state.zig rather than rewiring build.zig to state/lib.zig
 
 ### Pending Todos
 
@@ -80,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-05T01:01:34.027Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-04-05T01:12:41.499Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

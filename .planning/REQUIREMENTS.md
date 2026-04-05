@@ -10,7 +10,7 @@ Requirements for the GUI redesign. Each maps to roadmap phases.
 ### Infrastructure
 
 - [x] **INFRA-01**: GUI module rebuilt with components/ subfolder containing reusable themed widgets
-- [ ] **INFRA-02**: Renderer.zig (1152 LOC) decomposed into Canvas/ subfolder with single-responsibility components
+- [x] **INFRA-02**: Renderer.zig (1152 LOC) decomposed into Canvas/ subfolder with single-responsibility components
 - [ ] **INFRA-03**: Minimal toolbar with File, Edit, View menus only — all stubs removed
 - [x] **INFRA-04**: Module-level `var` state eliminated from GUI files — all persistent state in AppState.gui
 - [x] **INFRA-05**: state.zig merged into types.zig (state is types, not a separate concept)
@@ -155,7 +155,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Pending |
 | INFRA-04 | Phase 1 | Complete |
 | INFRA-05 | Phase 1 | Complete |
