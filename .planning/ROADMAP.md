@@ -36,11 +36,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Toolbar shows only File, Edit, View menus with zero stub or unimplemented entries
   4. Both native (zig build run) and WASM (zig build -Dbackend=web) compile and render the GUI shell without crashes
   5. Zero module-level `var` declarations remain in gui/ files -- all persistent state lives in AppState.gui
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Types foundation: Canvas/types.zig, GuiState sub-structs, Components/ restructure, Arch.md cleanup
+- [ ] 01-02-PLAN.md -- Renderer decomposition: Split Renderer.zig into Canvas/ subfolder, rewire gui/lib.zig
+- [ ] 01-03-PLAN.md -- Toolbar stripping, module-level var migration, allocator fixes, dual backend verification
 
 ### Phase 2: Canvas Foundation
 **Goal**: Users can navigate the schematic canvas with fluid pan, zoom, and grid -- the viewport interaction layer that every editing feature depends on
@@ -207,7 +208,7 @@ Note: Phases 7 and 8 depend only on Phase 1 and can be parallelized with Phases 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. GUI Architecture & Cleanup | 0/2 | Not started | - |
+| 1. GUI Architecture & Cleanup | 0/3 | Planning complete | - |
 | 2. Canvas Foundation | 0/2 | Not started | - |
 | 3. Schematic Rendering | 0/2 | Not started | - |
 | 4. Selection | 0/2 | Not started | - |
