@@ -3,7 +3,7 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const st = @import("state");
-const components = @import("../Components/root.zig");
+const components = @import("../Components/lib.zig");
 
 const AppState = st.AppState;
 

@@ -3,7 +3,7 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const AppState = @import("state").AppState;
-const components = @import("../Components/root.zig");
+const components = @import("../Components/lib.zig");
 
 const CmdBar = components.HorizontalBar(.{ .height = 26 });
 

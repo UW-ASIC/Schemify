@@ -5,7 +5,7 @@ const dvui = @import("dvui");
 const AppState = @import("state").AppState;
 const actions = @import("../Actions.zig");
 const command = @import("commands");
-const components = @import("../Components/root.zig");
+const components = @import("../Components/lib.zig");
 
 const ToolbarBar = components.HorizontalBar(.{ .height = 28 });
 
