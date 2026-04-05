@@ -5,12 +5,12 @@ const dvui = @import("dvui");
 const st = @import("state");
 const AppState = st.AppState;
 const actions = @import("../Actions.zig");
-const Renderer = @import("../Renderer.zig");
+const SymbolRenderer = @import("../Canvas/SymbolRenderer.zig");
 const components = @import("../Components/lib.zig");
 const tc = @import("theme_config");
 
-const FileType = Renderer.FileType;
-const classifyFile = Renderer.classifyFile;
+const FileType = SymbolRenderer.FileType;
+const classifyFile = SymbolRenderer.classifyFile;
 
 const TabBar = components.HorizontalBar(.{ .height = 30 });
 
