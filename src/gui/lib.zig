@@ -15,9 +15,8 @@ const AppState = st.AppState;
 
 const actions = @import("Actions.zig");
 const keybinds = @import("Keybinds.zig");
-const RendererMod = @import("Renderer.zig");
-const Renderer = RendererMod.Renderer;
-const CanvasEvent = RendererMod.CanvasEvent;
+const canvas = @import("Canvas/lib.zig");
+const CanvasEvent = @import("Canvas/types.zig").CanvasEvent;
 
 // Bars
 const toolbar = @import("Bars/ToolBar.zig");
@@ -35,10 +34,6 @@ const context_menu = @import("ContextMenu.zig");
 const keybinds_dlg = @import("Dialogs/KeybindsDialog.zig");
 const find_dlg = @import("Dialogs/FindDialog.zig");
 const props_dlg = @import("Dialogs/PropsDialog.zig");
-
-// ── Module-level state ─────────────────────────────────────────────────── //
-
-var renderer_state: Renderer = .{};
 
 // ── Public API ─────────────────────────────────────────────────────────── //
 
@@ -58,7 +53,7 @@ pub fn frame(app: *AppState) !void {
         {
             var col = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
             defer col.deinit();
-            const canvas_ev = renderer_state.draw(app);
+            const canvas_ev = canvas.draw(app);
             handleCanvasEvent(app, canvas_ev);
             plugin_panels.drawBottomBar(app);
         }
@@ -152,8 +147,8 @@ fn handleInput(app: *AppState) void {
             .key => |k| {
                 // Spacebar hold/release for pan mode.
                 if (k.code == .space and !app.gui.command_mode) {
-                    renderer_state.space_held = (k.action != .up);
-                    if (k.action == .up) renderer_state.dragging = false;
+                    app.gui.canvas.space_held = (k.action != .up);
+                    if (k.action == .up) app.gui.canvas.dragging = false;
                     ev.handled = true;
                     continue;
                 }

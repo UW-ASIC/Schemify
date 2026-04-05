@@ -322,6 +322,14 @@ pub const CtxMenu = struct {
     wire_idx: i32 = -1,
 };
 
+pub const CanvasState = struct {
+    dragging: bool = false,
+    drag_last: [2]f32 = .{ 0, 0 },
+    space_held: bool = false,
+    last_click_time: f64 = 0,
+    last_click_pos: [2]f32 = .{ 0, 0 },
+};
+
 pub const GuiState = struct {
     ctx_menu: CtxMenu = .{},
     keybinds_open: bool = false,
@@ -329,6 +337,7 @@ pub const GuiState = struct {
     command_mode: bool = false,
     command_buf: [128]u8 = [_]u8{0} ** 128,
     command_len: usize = 0,
+    canvas: CanvasState = .{},
     plugin_panels: std.ArrayListUnmanaged(PluginPanel) = .{},
     key_to_panel: [256]i8 = [_]i8{-1} ** 256,
     marketplace: MarketplaceState = .{},
