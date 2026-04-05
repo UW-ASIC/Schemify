@@ -28,3 +28,4 @@ docs/.vitepress/cache/
 zig-lsp-plugin/
 .mcp.json
 .planning/
+.claude/worktrees/
