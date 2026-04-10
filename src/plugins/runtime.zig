@@ -19,6 +19,7 @@ const pi = @import("PluginIF");
 const st = @import("state");
 const Vfs = pi.Vfs;
 const theme_config = @import("theme_config");
+pub const PluginManager = @import("PluginManager.zig").PluginManager;
 
 const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
 
@@ -50,20 +51,34 @@ const PanelState = struct {
     }
 };
 
+// -- LazyStub -----------------------------------------------------------------
+
+const LazyStub = struct {
+    name: []const u8,
+    so_path: []const u8,
+};
+
 // -- LoadedPlugin -------------------------------------------------------------
 
 const LoadedPlugin = struct {
+    const PendingFileResponse = struct {
+        path: []u8,
+        data: []u8,
+    };
+
+    const PendingStateResponse = struct {
+        key: []u8,
+        val: []u8,
+    };
+
     lib: std.DynLib,
     desc: *const pi.Descriptor,
     /// I/O buffer reused across calls; may grow up to MAX_OUT_BUF.
     buf: []u8,
     /// File responses queued from file_read_request; flushed into the next tick input.
     pending_responses: std.ArrayListUnmanaged(PendingFileResponse),
-
-    const PendingFileResponse = struct {
-        path: []u8,
-        data: []u8,
-    };
+    /// State responses queued from get_state; flushed into the next tick input.
+    pending_state_responses: std.ArrayListUnmanaged(PendingStateResponse) = .{},
 
     fn freePendingResponses(self: *LoadedPlugin, alloc: std.mem.Allocator) void {
         for (self.pending_responses.items) |r| {
@@ -71,6 +86,14 @@ const LoadedPlugin = struct {
             if (r.data.len > 0) alloc.free(r.data);
         }
         self.pending_responses.clearRetainingCapacity();
+    }
+
+    fn freePendingStateResponses(self: *LoadedPlugin, alloc: std.mem.Allocator) void {
+        for (self.pending_state_responses.items) |r| {
+            alloc.free(r.key);
+            alloc.free(r.val);
+        }
+        self.pending_state_responses.clearRetainingCapacity();
     }
 };
 
@@ -122,6 +145,7 @@ pub const Runtime = struct {
     plugins: std.ArrayListUnmanaged(LoadedPlugin),
     scratch: [256]u8,
     panel_states: std.ArrayListUnmanaged(PanelState),
+    lazy_stubs: std.ArrayListUnmanaged(LazyStub) = .{},
     /// Arena for plugin metadata strings (panel ids/titles, command names, etc.).
     /// Reset on plugin refresh; freed on deinit.
     meta_arena: std.heap.ArenaAllocator,
@@ -155,15 +179,37 @@ pub const Runtime = struct {
         };
     }
 
-    pub fn loadStartup(self: *Self, app: *st.AppState) void {
+    pub fn loadStartup(self: *Self, app: *st.AppState, manager: ?*const PluginManager) void {
         if (comptime is_wasm) return;
         self.app = app;
-        self.scanAndLoad();
+        if (manager) |m| {
+            for (m.names.items, 0..) |name, i| {
+                const path = m.paths.items[i] orelse continue;
+                if (m.lazys.items[i]) {
+                    self.registerLazyStub(name, path);
+                } else {
+                    self.loadOne(path);
+                }
+            }
+        }
+        self.scanAndLoadLegacy(manager);
     }
 
     pub fn tick(self: *Self, app: *st.AppState, dt: f32) void {
         if (comptime is_wasm) return;
         self.app = app;
+
+        // Clean up .loading placeholder panels left by ensureLoaded().
+        // Real panels were registered by loadOne() via dispatchOutMsgs.
+        var i: usize = 0;
+        while (i < app.gui.plugin_panels.items.len) {
+            if (app.gui.plugin_panels.items[i].load_state == .loading) {
+                _ = app.gui.plugin_panels.swapRemove(i);
+            } else {
+                i += 1;
+            }
+        }
+
         for (self.plugins.items) |*p| self.callProcessWithTick(p, dt);
         self.pending_events.len = 0;
 
@@ -171,6 +217,34 @@ pub const Runtime = struct {
             if (!panel.visible) continue;
             for (self.plugins.items) |*p| self.callProcessDrawPanel(p, panel.panel_id);
         }
+    }
+
+    /// Trigger loading of a lazy plugin by name. Called from GUI when the user
+    /// opens a lazy-pending panel. Sets load_state to .loading; tick() cleans
+    /// up the placeholder panel after loadOne() registers the real panels.
+    pub fn ensureLoaded(self: *Self, app: *st.AppState, plugin_name: []const u8) void {
+        if (comptime is_wasm) return;
+        self.app = app;
+
+        var stub_idx: ?usize = null;
+        for (self.lazy_stubs.items, 0..) |stub, si| {
+            if (std.mem.eql(u8, stub.name, plugin_name)) {
+                stub_idx = si;
+                break;
+            }
+        }
+        const idx = stub_idx orelse return;
+        const stub = self.lazy_stubs.items[idx];
+
+        // Mark placeholder panels as .loading (re-entrancy guard).
+        for (app.gui.plugin_panels.items) |*panel| {
+            if (panel.load_state == .lazy_pending and std.mem.eql(u8, panel.id, plugin_name)) {
+                panel.load_state = .loading;
+            }
+        }
+
+        self.loadOne(stub.so_path);
+        _ = self.lazy_stubs.swapRemove(idx);
     }
 
     pub fn getPanelWidgetList(self: *Runtime, panel_id: u16) *const std.MultiArrayList(ParsedWidget) {
@@ -196,16 +270,38 @@ pub const Runtime = struct {
         if (comptime is_wasm) return;
         self.app = app;
         self.unloadAll();
-        self.scanAndLoad();
+        self.scanAndLoadLegacy(null);
     }
 
     pub fn deinit(self: *Self, app: *st.AppState) void {
         if (comptime is_wasm) return;
         self.app = app;
-        self.unloadAll();
+        // Fast shutdown path: free our own bookkeeping memory so the GPA leak
+        // detector stays clean, but DO NOT call into each plugin's process()
+        // function and DO NOT dlclose() the shared library.
+        //
+        // Why: dlclose() on plugins like SchemifyPython tears down the full
+        // CPython runtime (Py_Finalize, numpy/scipy module destructors, etc.)
+        // which can easily burn 100-500 ms on shutdown. We're exiting the
+        // process anyway, so the OS will reclaim every page when we return.
+        //
+        // Tradeoff: any user-visible side effect a plugin might want to do at
+        // unload time (writing a config file, closing a network connection)
+        // is skipped. None of the in-tree plugins currently rely on this.
+        // If a future plugin needs end-of-session work, it should do it from
+        // a tick/command path instead of unload.
+        for (self.plugins.items) |*p| {
+            p.freePendingResponses(self.alloc);
+            p.pending_responses.deinit(self.alloc);
+            p.freePendingStateResponses(self.alloc);
+            p.pending_state_responses.deinit(self.alloc);
+            if (p.buf.len > 0) self.alloc.free(p.buf);
+            // p.lib.close() intentionally skipped — see comment above.
+        }
         self.plugins.deinit(self.alloc);
         for (self.panel_states.items) |*ps| ps.deinit(self.alloc);
         self.panel_states.deinit(self.alloc);
+        self.lazy_stubs.deinit(self.alloc);
         self.meta_arena.deinit();
         self.* = undefined;
     }
@@ -219,6 +315,8 @@ pub const Runtime = struct {
         var needed: usize = pi.HEADER_SZ + pi.U32_SZ; // tick message
         for (p.pending_responses.items) |r|
             needed += pi.HEADER_SZ + pi.U16_SZ + r.path.len + pi.U32_SZ + r.data.len;
+        for (p.pending_state_responses.items) |sr|
+            needed += pi.HEADER_SZ + pi.U16_SZ + sr.key.len + pi.U16_SZ + sr.val.len;
         for (events) |ev|
             needed += eventSize(ev);
 
@@ -251,6 +349,21 @@ pub const Runtime = struct {
             pos += data_len;
         }
         p.freePendingResponses(self.alloc);
+
+        // Emit pending state responses.
+        for (p.pending_state_responses.items) |sr| {
+            const key_len: u16 = @intCast(@min(sr.key.len, std.math.maxInt(u16)));
+            const val_len: u16 = @intCast(@min(sr.val.len, std.math.maxInt(u16)));
+            writeHeader(in_slice, &pos, .state_response,
+                @intCast(pi.U16_SZ + key_len + pi.U16_SZ + val_len));
+            writeU16(in_slice, &pos, key_len);
+            @memcpy(in_slice[pos .. pos + key_len], sr.key[0..key_len]);
+            pos += key_len;
+            writeU16(in_slice, &pos, val_len);
+            @memcpy(in_slice[pos .. pos + val_len], sr.val[0..val_len]);
+            pos += val_len;
+        }
+        p.freePendingStateResponses(self.alloc);
 
         // Append pending GUI events.
         for (events) |ev| writeEvent(in_slice, &pos, ev);
@@ -376,6 +489,29 @@ pub const Runtime = struct {
                     .cmd_tag = cmd_tag,
                 }) catch {};
             },
+            .get_state => {
+                var pp: usize = 0;
+                const key = readStr(payload, &pp) orelse return;
+                if (std.mem.eql(u8, key, "active_file")) {
+                    const doc = self.app.active() orelse return;
+                    const path = switch (doc.origin) {
+                        .chn_file => |fp| fp,
+                        else => return,
+                    };
+                    const key_dup = self.alloc.dupe(u8, key) catch return;
+                    const val_dup = self.alloc.dupe(u8, path) catch {
+                        self.alloc.free(key_dup);
+                        return;
+                    };
+                    p.pending_state_responses.append(self.alloc, .{
+                        .key = key_dup,
+                        .val = val_dup,
+                    }) catch {
+                        self.alloc.free(key_dup);
+                        self.alloc.free(val_dup);
+                    };
+                }
+            },
             .push_command => {
                 var pp: usize = 0;
                 const cmd_tag = readStr(payload, &pp) orelse return;
@@ -396,7 +532,21 @@ pub const Runtime = struct {
 
     // -- Internal: scan & load ------------------------------------------------
 
-    fn scanAndLoad(self: *Self) void {
+    fn registerLazyStub(self: *Self, name: []const u8, so_path: []const u8) void {
+        const ma = self.meta_arena.allocator();
+        const owned_name = ma.dupe(u8, name) catch return;
+        const owned_path = ma.dupe(u8, so_path) catch return;
+        self.lazy_stubs.append(self.alloc, .{ .name = owned_name, .so_path = owned_path }) catch return;
+        _ = self.app.registerPluginPanelEx(owned_name, owned_name, "", .overlay, 0, 0);
+        const panels = &self.app.gui.plugin_panels;
+        if (panels.items.len > 0) {
+            panels.items[panels.items.len - 1].load_state = .lazy_pending;
+        }
+    }
+
+    /// Scan ~/.config/Schemify/ for plugins NOT already handled by a spec.
+    /// When `manager` is null, loads everything (preserves legacy behaviour).
+    fn scanAndLoadLegacy(self: *Self, manager: ?*const PluginManager) void {
         const home = pi.platform.getEnvVar(self.alloc, "HOME") catch return;
         defer self.alloc.free(home);
 
@@ -407,6 +557,8 @@ pub const Runtime = struct {
         defer listing.deinit(self.alloc);
 
         for (listing.entries) |entry_name| {
+            if (manager) |m| if (m.hasSpec(entry_name)) continue;
+
             var plugin_buf: [4096]u8 = undefined;
             const plugin_dir = std.fmt.bufPrint(&plugin_buf, "{s}/{s}", .{ cfg_dir, entry_name }) catch continue;
             self.loadSoFromDir(plugin_dir);
@@ -488,6 +640,7 @@ pub const Runtime = struct {
             p.lib.close();
         }
         self.plugins.clearRetainingCapacity();
+        self.lazy_stubs.clearRetainingCapacity();
         self.app.clearPluginCommands();
         // Reset the metadata arena — all duped panel/command strings are invalidated
         // along with the panel/command lists cleared above.
