@@ -11,4 +11,17 @@ pub fn build(b: *std.Build) void {
         b.installArtifact(lib);
         helper.addNativeAutoInstallRunStep(b, "Optimizer", sdk_dep, "Optimizer");
     }
+
+    // Unit tests for helper modules (no PluginIF dependency)
+    const test_mod = b.createModule(.{
+        .root_source_file = b.path("src/test_all.zig"),
+        .target = ctx.target,
+        .optimize = ctx.optimize,
+    });
+    const tests = b.addTest(.{
+        .root_module = test_mod,
+    });
+    const run_tests = b.addRunArtifact(tests);
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_tests.step);
 }
