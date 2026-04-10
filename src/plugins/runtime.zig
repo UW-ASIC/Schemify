@@ -17,6 +17,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const pi = @import("PluginIF");
 const st = @import("state");
+const core = @import("core");
 const Vfs = pi.Vfs;
 const theme_config = @import("theme_config");
 pub const PluginManager = @import("PluginManager.zig").PluginManager;
@@ -516,6 +517,13 @@ pub const Runtime = struct {
                 var pp: usize = 0;
                 const cmd_tag = readStr(payload, &pp) orelse return;
                 const cmd_payload = readStr(payload, &pp);
+
+                // run_testbench: handled directly, bypasses the command queue.
+                if (std.mem.eql(u8, cmd_tag, "run_testbench")) {
+                    self.handleRunTestbench(p, cmd_payload orelse "");
+                    return;
+                }
+
                 if (!isCommandAllowed(cmd_tag)) {
                     self.app.log.err("PLUGIN", "push_command: blocked '{s}'", .{cmd_tag});
                     return;
@@ -645,6 +653,154 @@ pub const Runtime = struct {
         // Reset the metadata arena — all duped panel/command strings are invalidated
         // along with the panel/command lists cleared above.
         _ = self.meta_arena.reset(.retain_capacity);
+    }
+
+    // -- Internal: run_testbench ----------------------------------------------
+
+    fn handleRunTestbench(self: *Self, p: *LoadedPlugin, payload: []const u8) void {
+        var tb_path_buf: [4096]u8 = undefined;
+        var tb_path_len: usize = 0;
+
+        var override_keys: [32][128]u8 = undefined;
+        var override_vals: [32][64]u8 = undefined;
+        var override_key_lens: [32]u8 = undefined;
+        var override_val_lens: [32]u8 = undefined;
+        var override_count: usize = 0;
+
+        // Parse payload: "testbench=<path>\n<Inst>.<Prop>=<val>\n..."
+        var line_it = std.mem.splitScalar(u8, payload, '\n');
+        while (line_it.next()) |raw| {
+            const line = std.mem.trim(u8, raw, " \t\r");
+            if (line.len == 0) continue;
+            const eq = std.mem.indexOfScalar(u8, line, '=') orelse continue;
+            const key = line[0..eq];
+            const val = line[eq + 1 ..];
+            if (std.mem.eql(u8, key, "testbench")) {
+                const n = @min(val.len, tb_path_buf.len - 1);
+                @memcpy(tb_path_buf[0..n], val[0..n]);
+                tb_path_len = n;
+            } else if (override_count < 32) {
+                const kn = @min(key.len, 127);
+                const vn = @min(val.len, 63);
+                @memcpy(override_keys[override_count][0..kn], key[0..kn]);
+                @memcpy(override_vals[override_count][0..vn], val[0..vn]);
+                override_key_lens[override_count] = @intCast(kn);
+                override_val_lens[override_count] = @intCast(vn);
+                override_count += 1;
+            }
+        }
+
+        if (tb_path_len == 0) {
+            self.enqueueSimError(p, "run_testbench: missing testbench= field");
+            return;
+        }
+
+        const tb_path = tb_path_buf[0..tb_path_len];
+
+        // Read testbench file.
+        const tb_data = Vfs.readAlloc(self.alloc, tb_path) catch |err| {
+            var msg_buf: [256]u8 = undefined;
+            const msg = std.fmt.bufPrint(&msg_buf, "run_testbench: cannot read {s}: {}", .{ tb_path, err }) catch "read error";
+            self.enqueueSimError(p, msg);
+            return;
+        };
+        defer self.alloc.free(tb_data);
+
+        // Parse testbench.
+        var sch = core.Schemify.readFile(tb_data, self.alloc, &self.app.log);
+        defer sch.deinit();
+
+        // Apply param overrides: "M1.W" -> find instance M1, set prop W.
+        const sch_alloc = sch.alloc();
+        for (0..override_count) |i| {
+            const k = override_keys[i][0..override_key_lens[i]];
+            const v = override_vals[i][0..override_val_lens[i]];
+            const dot = std.mem.indexOfScalar(u8, k, '.') orelse continue;
+            const inst_name = k[0..dot];
+            const prop_name = k[dot + 1 ..];
+            const iname = sch.instances.items(.name);
+            const ips = sch.instances.items(.prop_start);
+            const ipc = sch.instances.items(.prop_count);
+            for (0..sch.instances.len) |ii| {
+                if (!std.mem.eql(u8, iname[ii], inst_name)) continue;
+                const props = sch.props.items[ips[ii]..][0..ipc[ii]];
+                for (props) |*prop| {
+                    if (std.mem.eql(u8, prop.key, prop_name)) {
+                        prop.val = sch_alloc.dupe(u8, v) catch prop.val;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Emit SPICE netlist.
+        const tmp_sp = "/tmp/schemify_opt_run.sp";
+        {
+            const netlist_data = sch.emitSpice(self.alloc, .ngspice, null, .sim) catch |err| {
+                var msg_buf: [128]u8 = undefined;
+                const msg = std.fmt.bufPrint(&msg_buf, "run_testbench: netlist emit failed: {}", .{err}) catch "emit error";
+                self.enqueueSimError(p, msg);
+                return;
+            };
+            defer self.alloc.free(netlist_data);
+            Vfs.writeAll(tmp_sp, netlist_data) catch |err| {
+                var msg_buf: [128]u8 = undefined;
+                const msg = std.fmt.bufPrint(&msg_buf, "run_testbench: write netlist failed: {}", .{err}) catch "write error";
+                self.enqueueSimError(p, msg);
+                return;
+            };
+        }
+
+        // Run ngspice (blocking).
+        const t0 = std.time.milliTimestamp();
+        var child = std.process.Child.init(
+            &.{ "ngspice", "-b", "-o", "/tmp/schemify_opt.log", tmp_sp },
+            self.alloc,
+        );
+        child.stdin_behavior = .Ignore;
+        child.stdout_behavior = .Ignore;
+        child.stderr_behavior = .Ignore;
+        child.spawn() catch |err| {
+            var msg_buf: [128]u8 = undefined;
+            const msg = std.fmt.bufPrint(&msg_buf, "run_testbench: spawn ngspice failed: {}", .{err}) catch "spawn error";
+            self.enqueueSimError(p, msg);
+            return;
+        };
+        _ = child.wait() catch {};
+        const elapsed = std.time.milliTimestamp() - t0;
+
+        // Parse .meas results from ngspice log.
+        const log_data = Vfs.readAlloc(self.alloc, "/tmp/schemify_opt.log") catch &[_]u8{};
+        defer if (log_data.len > 0) self.alloc.free(log_data);
+
+        var result_buf: [4096]u8 = undefined;
+        var result_pos: usize = 0;
+
+        const header = std.fmt.bufPrint(result_buf[result_pos..], "valid=1\nelapsed_ms={d}\n", .{elapsed}) catch "";
+        result_pos += header.len;
+
+        var log_it = std.mem.splitScalar(u8, log_data, '\n');
+        while (log_it.next()) |raw| {
+            const line = std.mem.trim(u8, raw, " \t\r");
+            const eq = std.mem.indexOfScalar(u8, line, '=') orelse continue;
+            const name = std.mem.trim(u8, line[0..eq], " \t");
+            const rest = std.mem.trim(u8, line[eq + 1 ..], " \t");
+            const val_end = std.mem.indexOfAnyPos(u8, rest, 0, " \t") orelse rest.len;
+            const val_str = rest[0..val_end];
+            if (name.len == 0 or val_str.len == 0) continue;
+            const entry = std.fmt.bufPrint(result_buf[result_pos..], "{s}={s}\n", .{ name, val_str }) catch break;
+            result_pos += entry.len;
+        }
+
+        const result_data = self.alloc.dupe(u8, result_buf[0..result_pos]) catch return;
+        enqueueFileResponse(p, self.alloc, "__sim_result__", result_data, true);
+    }
+
+    fn enqueueSimError(self: *Self, p: *LoadedPlugin, msg: []const u8) void {
+        var buf: [256]u8 = undefined;
+        const result = std.fmt.bufPrint(&buf, "valid=0\nerror={s}\n", .{msg}) catch "valid=0\n";
+        const data = self.alloc.dupe(u8, result) catch return;
+        enqueueFileResponse(p, self.alloc, "__sim_result__", data, true);
     }
 };
 
@@ -848,6 +1004,7 @@ const allowed_plugin_commands = [_][]const u8{
     "toggle_colorscheme", "toggle_fill_rects",   "toggle_text_in_symbols", "toggle_symbol_details",
     "toggle_crosshair",   "toggle_show_netlist", "snap_halve",             "snap_double",
     "select_all",         "select_none",         "plugins_refresh",
+    "run_testbench", // optimizer: synchronous SPICE sim runner
 };
 
 fn isCommandAllowed(cmd_tag: []const u8) bool {
