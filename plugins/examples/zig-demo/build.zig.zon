@@ -1,0 +1,11 @@
+.{
+    .name = .zig_demo,
+    .version = "0.1.0",
+    .fingerprint = 0x1e283c434a0d591f,
+    .dependencies = .{
+        .schemify_sdk = .{
+            .path = "../../..",
+        },
+    },
+    .paths = .{""},
+}
