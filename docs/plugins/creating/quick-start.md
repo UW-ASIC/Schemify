@@ -101,7 +101,7 @@ notepad-plugin/
     .version = "0.1.0",
     .dependencies = .{
         .schemify = .{
-            .path = "../../",  // Path to Schemify root
+            .path = "../../..",  // Path to Schemify root
         },
     },
     .paths = .{"."},
@@ -115,7 +115,7 @@ notepad-plugin/
     .version = "0.1.0",
     .dependencies = .{
         .schemify = .{
-            .path = "../../",  // Path to Schemify root
+            .path = "../../..",  // Path to Schemify root
         },
     },
     .paths = .{"."},
