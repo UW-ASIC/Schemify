@@ -1,0 +1,11 @@
+.{
+    .name = .python_demo,
+    .version = "0.1.0",
+    .fingerprint = 0x33fd6e1a28d7b3d2,
+    .dependencies = .{
+        .schemify_sdk = .{
+            .path = "../../..",
+        },
+    },
+    .paths = .{""},
+}
