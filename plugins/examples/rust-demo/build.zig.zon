@@ -1,0 +1,11 @@
+.{
+    .name = .rust_demo,
+    .version = "0.1.0",
+    .fingerprint = 0xdc9abdce0966c537,
+    .dependencies = .{
+        .schemify_sdk = .{
+            .path = "../../..",
+        },
+    },
+    .paths = .{""},
+}

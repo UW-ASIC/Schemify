@@ -1,0 +1,11 @@
+[package]
+name    = "rust-demo"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name       = "rust_demo"
+crate-type = ["cdylib"]
+
+[dependencies]
+schemify-plugin = { path = "../../../tools/sdk/bindings/rust/schemify-plugin" }
