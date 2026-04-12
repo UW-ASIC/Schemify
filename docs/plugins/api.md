@@ -95,6 +95,7 @@ The runtime locates it by looking up the name stored in `EXPORT_SYMBOL`.
 pub const EXPORT_SYMBOL: [*:0]const u8 = "schemify_plugin";
 
 pub const Descriptor = extern struct {
+    abi_version: u32 = ABI_VERSION,   // must equal 6; host rejects mismatches
     name:        [*:0]const u8,
     version_str: [*:0]const u8,
     process:     ProcessFn,
