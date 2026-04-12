@@ -1,0 +1,11 @@
+.{
+    .name = .go_demo,
+    .version = "0.1.0",
+    .fingerprint = 0x679a483caca62f26,
+    .dependencies = .{
+        .schemify_sdk = .{
+            .path = "../../..",
+        },
+    },
+    .paths = .{""},
+}
