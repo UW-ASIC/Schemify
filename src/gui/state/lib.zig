@@ -2,7 +2,7 @@
 //! Methods that operate on these types live in their respective modules.
 
 const std = @import("std");
-const toml = @import("toml.zig");
+const toml = @import("toml");
 const cmd = @import("commands");
 const core = @import("core");
 const utility = @import("utility");

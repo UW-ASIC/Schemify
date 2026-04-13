@@ -21,7 +21,8 @@ const module_defs = [_]Def{
     .{ "core", "src/core/Schemify.zig", &.{"utility"} },
     .{ "PluginIF", "src/PluginIF.zig", &.{ "core", "utility", "dvui" } },
     .{ "commands", "src/commands/command.zig", &.{ "state", "core", "utility", "dvui" } },
-    .{ "state", "src/state.zig", &.{ "utility", "commands", "PluginIF", "core" } },
+    .{ "toml", "src/toml.zig", &.{"utility"} },
+    .{ "state", "src/gui/state/lib.zig", &.{ "utility", "commands", "PluginIF", "core", "toml" } },
     .{ "installer", "src/plugins/installer.zig", &.{"utility"} },
 
     .{ "theme_config", "src/gui/Theme.zig", &.{"dvui"} },
