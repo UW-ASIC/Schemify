@@ -8,7 +8,7 @@ const std = @import("std");
 
 // -- Runtime & Installer ------------------------------------------------------
 
-pub const Runtime = @import("runtime.zig").Runtime;
+pub const Runtime = @import("Runtime.zig").Runtime;
 
 const installer = @import("installer.zig");
 pub const Installer = installer.Installer;
@@ -128,6 +128,6 @@ comptime {
     _ = @import("Reader.zig");
     _ = @import("Writer.zig");
     _ = @import("Framework.zig");
-    _ = @import("runtime.zig");
+    _ = @import("Runtime.zig");
     _ = @import("installer.zig");
 }

@@ -25,7 +25,7 @@ const module_defs = [_]Def{
     .{ "installer", "src/plugins/installer.zig", &.{"utility"} },
 
     .{ "theme_config", "src/gui/Theme.zig", &.{"dvui"} },
-    .{ "runtime", "src/plugins/runtime.zig", &.{ "PluginIF", "state", "core", "theme_config", "commands" } },
+    .{ "runtime", "src/plugins/Runtime.zig", &.{ "PluginIF", "state", "core", "theme_config", "commands" } },
     .{ "cli", "src/cli.zig", &.{ "core", "installer", "utility", "state" } },
     .{ "debug_server", "src/debug_server.zig", &.{ "state", "dvui" } },
 };
