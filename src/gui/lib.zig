@@ -14,7 +14,7 @@ const AppState = st.AppState;
 // ── Sub-module imports ──────────────────────────────────────────────────── //
 
 const actions = @import("Actions.zig");
-const keybinds = @import("Keybinds.zig");
+const keybinds = @import("Keybinds/lib.zig");
 const canvas = @import("Canvas/lib.zig");
 const CanvasEvent = @import("Canvas/types.zig").CanvasEvent;
 
@@ -25,12 +25,12 @@ const command_bar = @import("Bars/CommandBar.zig");
 
 // Panels & browsers
 const plugin_panels = @import("PluginPanels.zig");
-const marketplace = @import("Marketplace.zig");
-const file_explorer = @import("FileExplorer.zig");
-const library_browser = @import("LibraryBrowser.zig");
+const marketplace = @import("Panels/Marketplace.zig");
+const file_explorer = @import("Panels/FileExplorer.zig");
+const library_browser = @import("Panels/LibraryBrowser.zig");
 
 // Dialogs
-const context_menu = @import("ContextMenu.zig");
+const context_menu = @import("Panels/ContextMenu.zig");
 const keybinds_dlg = @import("Dialogs/KeybindsDialog.zig");
 const find_dlg = @import("Dialogs/FindDialog.zig");
 const props_dlg = @import("Dialogs/PropsDialog.zig");

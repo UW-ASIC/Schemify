@@ -18,7 +18,7 @@ const std = @import("std");
 const dvui = @import("dvui");
 const st = @import("state");
 const core = @import("core");
-const actions = @import("Actions.zig");
+const actions = @import("../Actions.zig");
 
 const AppState = st.AppState;
 const primitives = core.primitives;

@@ -61,7 +61,7 @@ fn appDeinit() void {
     if (comptime builtin.mode == .Debug) {
         debug_server.stop();
     }
-    @import("gui/FileExplorer.zig").reset(&app);
+    @import("gui/Panels/FileExplorer.zig").reset(&app);
     plugins.deinit(&app);
     app.deinit();
 }

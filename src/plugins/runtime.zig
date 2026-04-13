@@ -180,36 +180,15 @@ pub const Runtime = struct {
         };
     }
 
-    pub fn loadStartup(self: *Self, app: *st.AppState, manager: ?*const PluginManager) void {
+    pub fn loadStartup(self: *Self, app: *st.AppState) void {
         if (comptime is_wasm) return;
         self.app = app;
-        if (manager) |m| {
-            for (m.names.items, 0..) |name, i| {
-                const path = m.paths.items[i] orelse continue;
-                if (m.lazys.items[i]) {
-                    self.registerLazyStub(name, path);
-                } else {
-                    self.loadOne(path);
-                }
-            }
-        }
-        self.scanAndLoadLegacy(manager);
+        self.scanAndLoadLegacy(null);
     }
 
     pub fn tick(self: *Self, app: *st.AppState, dt: f32) void {
         if (comptime is_wasm) return;
         self.app = app;
-
-        // Clean up .loading placeholder panels left by ensureLoaded().
-        // Real panels were registered by loadOne() via dispatchOutMsgs.
-        var i: usize = 0;
-        while (i < app.gui.plugin_panels.items.len) {
-            if (app.gui.plugin_panels.items[i].load_state == .loading) {
-                _ = app.gui.plugin_panels.swapRemove(i);
-            } else {
-                i += 1;
-            }
-        }
 
         for (self.plugins.items) |*p| self.callProcessWithTick(p, dt);
         self.pending_events.len = 0;

@@ -3,7 +3,7 @@
 const dvui = @import("dvui");
 const st = @import("state");
 const command = @import("commands");
-const actions = @import("Actions.zig");
+const actions = @import("../Actions.zig");
 
 const AppState = st.AppState;
 

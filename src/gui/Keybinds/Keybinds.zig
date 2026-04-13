@@ -6,7 +6,7 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const command = @import("commands");
-const actions = @import("Actions.zig");
+const actions = @import("../Actions.zig");
 
 // ── Types ─────────────────────────────────────────────────────────────────── //
 
