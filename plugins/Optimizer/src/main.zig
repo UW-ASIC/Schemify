@@ -18,17 +18,38 @@ const MAX_SAMPLES = lhc.MAX_SAMPLES;
 
 // ── Widget IDs ────────────────────────────────────────────────────────────── //
 
+// Action buttons
 const WID_RUN: u32 = 1;
 const WID_STOP: u32 = 2;
 const WID_RESET: u32 = 3;
 const WID_RESCAN: u32 = 4;
+// Collapsible section headers (start)
 const WID_SEC_TBS: u32 = 10;
 const WID_SEC_PARAMS: u32 = 11;
 const WID_SEC_OBJS: u32 = 12;
 const WID_SEC_SET: u32 = 13;
 const WID_SEC_LOG: u32 = 14;
+// Collapsible section footers (end) — must not overlap the start IDs above
+const WID_SEC_TBS_END: u32 = 15;
+const WID_SEC_PARAMS_END: u32 = 16;
+const WID_SEC_OBJS_END: u32 = 17;
+const WID_SEC_SET_END: u32 = 18;
+const WID_SEC_LOG_END: u32 = 19;
+// Slider controls
 const WID_MAX_ITER: u32 = 20;
 const WID_LHC_SMP: u32 = 21;
+// Structural/display widget IDs (non-interactive)
+const WID_TITLE_LABEL: u32 = 50;
+const WID_STATUS_LABEL: u32 = 51;
+const WID_BTN_ROW_BEGIN: u32 = 52;
+const WID_BTN_ROW_END: u32 = 53;
+const WID_TOP_SEP: u32 = 54;
+const WID_ERR_LABEL: u32 = 55;
+const WID_ERR_SEP: u32 = 56;
+const WID_BEST_SEP: u32 = 57;
+const WID_BEST_LABEL: u32 = 58;
+// Per-param and per-objective interactive bases (must not overlap each other
+// or any of the IDs above; each range holds MAX_PARAMS / MAX_OBJECTIVES slots)
 const WID_PARAM_ENABLE_BASE: u32 = 100;
 const WID_OBJ_KIND_BASE: u32 = 200;
 
@@ -75,6 +96,7 @@ const State = struct {
     sec_log_open: bool = true,
 
     chn_dirty: bool = false,
+    chn_loaded: bool = false,
 
     fn activePath(s: *const State) []const u8 {
         return s.active_file[0..s.active_file_len];
@@ -111,17 +133,21 @@ fn logLine(s: *State, comptime fmt: []const u8, args: anytype) void {
 fn requestStateAndFile(s: *State, w: *P.Writer) void {
     s.status = .loading;
     s.tbs_pending = 0;
+    s.chn_loaded = false;
     w.getState("active_file");
+    w.getState("spice_links");
 }
 
-fn pushRunTestbench(s: *State, w: *P.Writer, sample_idx: usize) void {
+fn pushRunSpice(s: *State, w: *P.Writer, sample_idx: usize) void {
     var buf: [4096]u8 = undefined;
     var fbs = std.io.fixedBufferStream(&buf);
     const wr = fbs.writer();
 
     if (s.cfg.tb_count == 0) return;
-    wr.print("testbench={s}\n", .{s.cfg.tbs[0].getPath()}) catch return;
+    // First line: the testbench path (link_name)
+    wr.print("{s}\n", .{s.cfg.tbs[0].getPath()}) catch return;
 
+    // Remaining lines: DUT instance overrides "Inst.Prop=val"
     var param_idx: usize = 0;
     for (s.cfg.params[0..s.cfg.param_count]) |*p| {
         if (!p.enabled) continue;
@@ -131,7 +157,7 @@ fn pushRunTestbench(s: *State, w: *P.Writer, sample_idx: usize) void {
         param_idx += 1;
     }
 
-    w.pushCommand("run_testbench", buf[0..fbs.pos]);
+    w.pushCommand("run_spice", buf[0..fbs.pos]);
     s.status = .sim_pending;
     s.current_sample = sample_idx;
 }
@@ -219,6 +245,28 @@ fn onStateResponse(s: *State, key: []const u8, val: []const u8, w: *P.Writer) vo
         }
         s.setActivePath(val);
         w.fileReadRequest(val);
+    } else if (std.mem.eql(u8, key, "spice_links")) {
+        // Populate cfg.tbs from newline-separated paths returned by the host.
+        s.cfg.tb_count = 0;
+        var it = std.mem.splitScalar(u8, val, '\n');
+        while (it.next()) |raw| {
+            const path = std.mem.trim(u8, raw, " \t\r");
+            if (path.len == 0) continue;
+            if (s.cfg.tb_count >= MAX_TBS) break;
+            s.cfg.tbs[s.cfg.tb_count].setPath(path);
+            s.cfg.tb_count += 1;
+        }
+        // If .chn is already loaded, kick off tb measure reads now.
+        if (s.chn_loaded and s.cfg.tb_count > 0 and s.tbs_pending == 0) {
+            s.status = .loading;
+            s.tbs_pending = s.cfg.tb_count;
+            for (s.cfg.tbs[0..s.cfg.tb_count]) |*tb| {
+                w.fileReadRequest(tb.getPath());
+            }
+        } else if (s.chn_loaded and s.cfg.tb_count == 0) {
+            s.status = .ready;
+        }
+        w.requestRefresh();
     }
 }
 
@@ -233,17 +281,29 @@ fn onFileResponse(s: *State, path: []const u8, data: []const u8, w: *P.Writer) v
         @memcpy(s.chn_buf[0..n], data[0..n]);
         s.chn_len = n;
 
+        // Preserve tb list already set by spice_links — config.parse would overwrite it.
+        const saved_tb_count = s.cfg.tb_count;
+        const saved_tbs = s.cfg.tbs;
+
         const had_plugin = config.parse(data, &s.cfg);
         if (!had_plugin) {
             parseInstancesFromChn(s, data);
         }
 
-        if (s.cfg.tb_count > 0) {
+        // Restore authoritative tb list from host index.
+        s.cfg.tb_count = saved_tb_count;
+        s.cfg.tbs = saved_tbs;
+
+        s.chn_loaded = true;
+
+        // Request tb files for measure discovery if spice_links already populated them.
+        if (s.cfg.tb_count > 0 and s.tbs_pending == 0) {
+            s.status = .loading;
             s.tbs_pending = s.cfg.tb_count;
             for (s.cfg.tbs[0..s.cfg.tb_count]) |*tb| {
                 w.fileReadRequest(tb.getPath());
             }
-        } else {
+        } else if (s.cfg.tb_count == 0 and s.tbs_pending == 0) {
             s.status = .ready;
         }
         w.requestRefresh();
@@ -312,7 +372,7 @@ fn onSimResult(s: *State, data: []const u8, w: *P.Writer) void {
 
     const next = s.current_sample + 1;
     if (next < s.cfg.lhc_samples and s.iteration < s.cfg.max_iter) {
-        pushRunTestbench(s, w, next);
+        pushRunSpice(s, w, next);
     } else {
         s.status = .done;
         w.setStatus("Optimizer: done");
@@ -346,7 +406,7 @@ fn onButton(s: *State, widget_id: u32, w: *P.Writer) void {
             s.stop_requested = false;
             s.log.clear();
             logLine(s, "Starting: {d} params, {d} samples", .{ n_enabled, s.cfg.lhc_samples });
-            pushRunTestbench(s, w, 0);
+            pushRunSpice(s, w, 0);
             w.setStatus("Optimizer: running");
             w.requestRefresh();
         },
@@ -364,12 +424,11 @@ fn onButton(s: *State, widget_id: u32, w: *P.Writer) void {
             w.requestRefresh();
         },
         WID_RESCAN => {
-            if (s.cfg.tb_count > 0) {
-                s.tbs_pending = s.cfg.tb_count;
+            if (s.chn_loaded) {
+                s.cfg.tb_count = 0;
+                s.tbs_pending = 0;
                 s.status = .loading;
-                for (s.cfg.tbs[0..s.cfg.tb_count]) |*tb| {
-                    w.fileReadRequest(tb.getPath());
-                }
+                w.getState("spice_links");
             }
         },
         else => {
@@ -538,27 +597,27 @@ fn parseTbMeasures(s: *State, tb: *config.TbEntry, data: []const u8) void {
 // ── Panel draw ────────────────────────────────────────────────────────────── //
 
 fn drawPanel(s: *State, w: *P.Writer) void {
-    w.label("Circuit Optimizer", 0);
+    w.label("Circuit Optimizer", WID_TITLE_LABEL);
     var hdr_buf: [64]u8 = undefined;
     const hdr = std.fmt.bufPrint(&hdr_buf, "Status: {s}  Iter: {d}/{d}", .{
         @tagName(s.status), s.iteration, s.cfg.max_iter,
     }) catch "...";
-    w.label(hdr, 1);
+    w.label(hdr, WID_STATUS_LABEL);
 
-    w.beginRow(2);
+    w.beginRow(WID_BTN_ROW_BEGIN);
     switch (s.status) {
         .ready, .done, .idle => w.button("Run", WID_RUN),
         .sim_pending => w.button("Stop", WID_STOP),
         else => {},
     }
     w.button("Reset", WID_RESET);
-    w.endRow(3);
+    w.endRow(WID_BTN_ROW_END);
 
-    w.separator(4);
+    w.separator(WID_TOP_SEP);
 
     if (s.status == .err) {
-        w.label(s.errText(), 5);
-        w.separator(6);
+        w.label(s.errText(), WID_ERR_LABEL);
+        w.separator(WID_ERR_SEP);
     }
 
     // Testbenches section
@@ -577,16 +636,19 @@ fn drawPanel(s: *State, w: *P.Writer) void {
         }
         w.button("Rescan", WID_RESCAN);
     }
-    w.collapsibleEnd(WID_SEC_TBS + 1);
+    w.collapsibleEnd(WID_SEC_TBS_END);
 
     // Parameters section
+    // Per-param structural IDs: inst label = 500 + i*4, row begin = 501 + i*4,
+    // row end = 502 + i*4.  These are safe: MAX_PARAMS * 4 = 64 slots starting
+    // at 500, well clear of WID_OBJ_KIND_BASE (200) and its range.
     w.collapsibleStart("Parameters", s.sec_params_open, WID_SEC_PARAMS);
     if (s.sec_params_open) {
         var last_inst: [config.MAX_NAME]u8 = [_]u8{0} ** config.MAX_NAME;
         var last_inst_len: usize = 0;
         for (s.cfg.params[0..s.cfg.param_count], 0..) |*p, i| {
             if (!std.mem.eql(u8, p.instName(), last_inst[0..last_inst_len])) {
-                w.label(p.instName(), @intCast(50 + i * 4));
+                w.label(p.instName(), @intCast(500 + i * 4));
                 const n = @min(p.instName().len, config.MAX_NAME);
                 @memcpy(last_inst[0..n], p.instName()[0..n]);
                 last_inst_len = n;
@@ -595,11 +657,11 @@ fn drawPanel(s: *State, w: *P.Writer) void {
             const row = std.fmt.bufPrint(&row_buf, "  {s}  {e}~{e}", .{
                 p.propName(), p.min, p.max,
             }) catch "...";
-            w.beginRow(@intCast(51 + i * 4));
+            w.beginRow(@intCast(501 + i * 4));
             w.checkbox(p.enabled, row, WID_PARAM_ENABLE_BASE + @as(u32, @intCast(i)));
-            w.endRow(@intCast(52 + i * 4));
+            w.endRow(@intCast(502 + i * 4));
         }
-        if (s.cfg.param_count == 0) w.label("No parameters found", 99);
+        if (s.cfg.param_count == 0) w.label("No parameters found", 599);
 
         var has_best = false;
         for (s.cfg.params[0..s.cfg.param_count]) |*p| {
@@ -609,7 +671,7 @@ fn drawPanel(s: *State, w: *P.Writer) void {
             }
         }
         if (has_best) {
-            w.separator(199);
+            w.separator(WID_BEST_SEP);
             var best_buf: [256]u8 = undefined;
             var bfbs = std.io.fixedBufferStream(&best_buf);
             const bw = bfbs.writer();
@@ -618,54 +680,57 @@ fn drawPanel(s: *State, w: *P.Writer) void {
                 if (p.best_val == 0) continue;
                 bw.print("{s}={e} ", .{ p.propName(), p.best_val }) catch {};
             }
-            w.label(best_buf[0..bfbs.pos], 200);
+            w.label(best_buf[0..bfbs.pos], WID_BEST_LABEL);
         }
     }
-    w.collapsibleEnd(WID_SEC_PARAMS + 1);
+    w.collapsibleEnd(WID_SEC_PARAMS_END);
 
     // Objectives section
+    // Per-objective structural IDs: row begin = 700 + i*3, label = 701 + i*3,
+    // row end = 702 + i*3.  These start at 700, clear of WID_OBJ_KIND_BASE
+    // (200) + MAX_OBJECTIVES (16) = 216.
     w.collapsibleStart("Objectives", s.sec_objs_open, WID_SEC_OBJS);
     if (s.sec_objs_open) {
         for (s.cfg.objs[0..s.cfg.obj_count], 0..) |*o, i| {
             var obj_buf: [128]u8 = undefined;
             const obj_row = std.fmt.bufPrint(&obj_buf, "{s}", .{o.getName()}) catch "...";
-            w.beginRow(@intCast(210 + i * 3));
-            w.label(obj_row, @intCast(211 + i * 3));
+            w.beginRow(@intCast(700 + i * 3));
+            w.label(obj_row, @intCast(701 + i * 3));
             w.button(o.kind.label(), WID_OBJ_KIND_BASE + @as(u32, @intCast(i)));
-            w.endRow(@intCast(212 + i * 3));
+            w.endRow(@intCast(702 + i * 3));
         }
-        if (s.cfg.obj_count == 0) w.label("No objectives (rescan testbenches)", 299);
+        if (s.cfg.obj_count == 0) w.label("No objectives (rescan testbenches)", 799);
     }
-    w.collapsibleEnd(WID_SEC_OBJS + 1);
+    w.collapsibleEnd(WID_SEC_OBJS_END);
 
     // Settings section
     w.collapsibleStart("Settings", s.sec_set_open, WID_SEC_SET);
     if (s.sec_set_open) {
-        w.beginRow(300);
-        w.label("Max iters", 301);
+        w.beginRow(800);
+        w.label("Max iters", 801);
         w.slider(@floatFromInt(s.cfg.max_iter), 10, 200, WID_MAX_ITER);
-        w.endRow(302);
-        w.beginRow(303);
-        w.label("LHC samples", 304);
+        w.endRow(802);
+        w.beginRow(803);
+        w.label("LHC samples", 804);
         w.slider(@floatFromInt(s.cfg.lhc_samples), 5, @floatFromInt(MAX_SAMPLES), WID_LHC_SMP);
-        w.endRow(305);
+        w.endRow(805);
     }
-    w.collapsibleEnd(WID_SEC_SET + 1);
+    w.collapsibleEnd(WID_SEC_SET_END);
 
     // Log section
     w.collapsibleStart("Log", s.sec_log_open, WID_SEC_LOG);
     if (s.sec_log_open) {
         if (s.log.len() == 0) {
-            w.label("No log entries yet", 400);
+            w.label("No log entries yet", 900);
         } else {
             const n = s.log.len();
             const start = if (n > 30) n - 30 else 0;
             for (start..n) |i| {
-                w.label(s.log.get(i), @intCast(400 + i));
+                w.label(s.log.get(i), @intCast(900 + i));
             }
         }
     }
-    w.collapsibleEnd(WID_SEC_LOG + 1);
+    w.collapsibleEnd(WID_SEC_LOG_END);
 }
 
 // ── ABI export ────────────────────────────────────────────────────────────── //

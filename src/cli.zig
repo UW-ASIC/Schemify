@@ -3,7 +3,7 @@
 //! process so the GUI never starts.
 
 const std = @import("std");
-const Installer = @import("installer");
+const Installer = @import("installer/lib.zig").Installer;
 const st = @import("state");
 const utility = @import("utility");
 const Logger = utility.Logger;
@@ -69,12 +69,6 @@ fn parseOptionalFlagThenPath(args: []const []const u8, start: usize, flag: []con
     return out;
 }
 
-/// Return the per-user plugin base directory: `$HOME/.config/Schemify`.
-pub fn userPluginBase(allocator: std.mem.Allocator) (error{NoHomeDir} || std.mem.Allocator.Error)![]u8 {
-    const home = std.posix.getenv("HOME") orelse return error.NoHomeDir;
-    return std.fs.path.join(allocator, &.{ home, ".config", "Schemify" });
-}
-
 /// Parse CLI args into a command-like action for easier testing.
 /// Expects `args` to include argv[0] as the first item.
 pub fn parseArgs(args: []const []const u8) ParsedArgs {
@@ -103,7 +97,7 @@ pub fn parseArgs(args: []const []const u8) ParsedArgs {
 }
 
 fn pluginBaseOrNull(allocator: std.mem.Allocator) ?[]u8 {
-    return userPluginBase(allocator) catch {
+    return utility.platform.pluginConfigDir(allocator) catch {
         errPrint("error: cannot resolve $HOME\n", .{});
         return null;
     };
@@ -137,15 +131,15 @@ pub fn dispatch() bool {
             return true;
         },
         .plugin_install => |p| {
-            runPluginInstall(p.url, p.web);
+            runPluginInstall(allocator, p.url, p.web);
             return true;
         },
         .plugin_list => {
-            runPluginList();
+            runPluginList(allocator);
             return true;
         },
         .plugin_remove => |name| {
-            runPluginRemove(name);
+            runPluginRemove(allocator, name);
             return true;
         },
         .err_missing_install_url => {
@@ -157,11 +151,11 @@ pub fn dispatch() bool {
             std.process.exit(1);
         },
         .export_svg => |path| {
-            runExportSvg(path);
+            runExportSvg(allocator, path);
             return true;
         },
         .netlist => |p| {
-            runNetlist(p.path, p.xyce);
+            runNetlist(allocator, p.path, p.xyce);
             return true;
         },
         .err_missing_file => {
@@ -206,11 +200,7 @@ pub fn printHelp() void {
     ) catch {};
 }
 
-pub fn runPluginInstall(url: []const u8, web: bool) void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
+pub fn runPluginInstall(allocator: std.mem.Allocator, url: []const u8, web: bool) void {
     const opts: Installer.InstallOptions = .{ .target = if (web) .web else .native };
 
     const path = Installer.install(allocator, url, opts) catch |e| {
@@ -228,11 +218,7 @@ pub fn runPluginInstall(url: []const u8, web: bool) void {
     }
 }
 
-pub fn runPluginList() void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
+pub fn runPluginList(allocator: std.mem.Allocator) void {
     const base = pluginBaseOrNull(allocator) orelse return;
     defer allocator.free(base);
 
@@ -254,11 +240,7 @@ pub fn runPluginList() void {
     if (count == 0) outPrint("  (none)\n", .{});
 }
 
-pub fn runPluginRemove(name: []const u8) void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
+pub fn runPluginRemove(allocator: std.mem.Allocator, name: []const u8) void {
     const base = pluginBaseOrNull(allocator) orelse return;
     defer allocator.free(base);
 
@@ -292,10 +274,7 @@ fn svgOutputPath(path: []const u8, buf: *[512]u8) ?[]const u8 {
     };
 }
 
-pub fn runExportSvg(path: []const u8) void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn runExportSvg(allocator: std.mem.Allocator, path: []const u8) void {
     var log = Logger.init(.info);
 
     var doc = openDocOrNull(allocator, &log, path) orelse return;
@@ -365,10 +344,7 @@ fn writeSvgFromDoc(doc: *const st.Document, file: std.fs.File) !void {
     try file.writeAll("</svg>\n");
 }
 
-pub fn runNetlist(path: []const u8, xyce: bool) void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn runNetlist(allocator: std.mem.Allocator, path: []const u8, xyce: bool) void {
     var log = Logger.init(.info);
 
     var doc = openDocOrNull(allocator, &log, path) orelse return;

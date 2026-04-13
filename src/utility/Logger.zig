@@ -8,6 +8,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const types = @import("types.zig");
 
 const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
 
@@ -15,65 +16,13 @@ const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
 /// `min` gates emission so hot paths pay nothing for suppressed levels.
 /// `seq` survives `clear()` so GUI panels can detect new entries by delta.
 pub const Logger = struct {
-    pub const RING_CAP = 64;
-
-    /// Maximum characters stored per message field (msg / src).
-    /// Sized so that @sizeOf(Logger.Entry) == 168.
-    ///   seq(4) + level(1) + msg_len(1) + src_len(1) + _pad(1) + MSG_CAP(128) + SRC_CAP(32) = 168
-    pub const MSG_CAP = 128;
-    pub const SRC_CAP = 32;
-
-    /// Severity levels in ascending order. Gates emission via Logger.min.
-    pub const Level = enum(u8) {
-        trace,
-        debug,
-        info,
-        warn,
-        err,
-        fatal,
-
-        /// Three-letter abbreviation for compact log output ("TRC", "DBG", …).
-        pub fn sym(self: Level) *const [3]u8 {
-            return &sym_table[@intFromEnum(self)];
-        }
-    };
-
-    /// One log record stored by value in the ring buffer.
-    /// `extern struct` guarantees C-compatible layout for direct memory inspection.
-    pub const Entry = extern struct {
-        seq: u32,
-        level: Level,
-        msg_len: u8,
-        src_len: u8,
-        _pad: u8 = 0,
-        msg_buf: [MSG_CAP]u8,
-        src_buf: [SRC_CAP]u8,
-
-        /// Slice the message text without copying.
-        pub fn msg(self: *const Entry) []const u8 {
-            return self.msg_buf[0..self.msg_len];
-        }
-
-        /// Slice the source tag without copying.
-        pub fn src(self: *const Entry) []const u8 {
-            return self.src_buf[0..self.src_len];
-        }
-    };
-
-    // Comptime level-symbol table: one indexed load instead of a runtime switch.
-    const sym_table: [6][3]u8 = blk: {
-        const fields = @typeInfo(Level).@"enum".fields;
-        var t: [fields.len][3]u8 = undefined;
-        for (fields, 0..) |f, i| {
-            const name = f.name;
-            t[i] = [3]u8{
-                std.ascii.toUpper(name[0]),
-                std.ascii.toUpper(name[1]),
-                std.ascii.toUpper(name[2]),
-            };
-        }
-        break :blk t;
-    };
+    // Re-export shared types so callers can use Logger.Entry / Logger.Level /
+    // Logger.RING_CAP without knowing about types.zig.
+    pub const RING_CAP = types.RING_CAP;
+    pub const MSG_CAP = types.Entry.MSG_CAP;
+    pub const SRC_CAP = types.Entry.SRC_CAP;
+    pub const Level = types.Level;
+    pub const Entry = types.Entry;
 
     min: Level,
     seq: u32 = 0,

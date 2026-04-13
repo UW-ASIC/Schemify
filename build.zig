@@ -20,15 +20,13 @@ const module_defs = [_]Def{
     .{ "utility", "src/utility/lib.zig", &.{} },
     .{ "core", "src/core/Schemify.zig", &.{"utility"} },
     .{ "PluginIF", "src/PluginIF.zig", &.{ "core", "utility", "dvui" } },
-    .{ "commands", "src/commands/command.zig", &.{ "state", "core", "utility", "dvui" } },
-    .{ "toml", "src/toml.zig", &.{"utility"} },
-    .{ "state", "src/gui/state/lib.zig", &.{ "utility", "commands", "PluginIF", "core", "toml" } },
-    .{ "installer", "src/plugins/installer.zig", &.{"utility"} },
+    .{ "commands", "src/commands/lib.zig", &.{ "state", "core", "utility", "dvui" } },
+    .{ "state", "src/gui/state/lib.zig", &.{ "utility", "commands", "PluginIF", "core" } },
+    .{ "installer", "src/plugins/installer/lib.zig", &.{"utility"} },
 
     .{ "theme_config", "src/gui/Theme.zig", &.{"dvui"} },
-    .{ "runtime", "src/plugins/Runtime.zig", &.{ "PluginIF", "state", "core", "theme_config", "commands" } },
+    .{ "runtime", "src/plugins/Runtime.zig", &.{ "PluginIF", "state", "theme_config", "commands", "utility", "installer", "core" } },
     .{ "cli", "src/cli.zig", &.{ "core", "installer", "utility", "state" } },
-    .{ "debug_server", "src/debug_server.zig", &.{ "state", "dvui" } },
 };
 
 // ── Test suites ───────────────────────────────────────────────────────────────
@@ -49,7 +47,8 @@ pub fn build(b: *std.Build) void {
     const is_web = backend == .web;
     const target = if (is_web) b.resolveTargetQuery(wasm32) else b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const spice = build_dep.SpiceConfig{};
+    // TODO: restore when addSpice* functions are ported
+    // const spice = build_dep.SpiceConfig{};
 
     // dvui — native uses raylib, web uses wasm backend
     const dvui_dep = if (is_web)
@@ -66,7 +65,8 @@ pub fn build(b: *std.Build) void {
     // Module graph — two-pass: create all modules first, then wire imports.
     var mods = std.StringHashMap(*std.Build.Module).init(b.allocator);
     mods.put("dvui", dvui_mod) catch @panic("OOM");
-    if (!is_web) addSpiceMods(b, target, optimize, spice, &mods);
+    // TODO: restore when addSpiceMods is ported
+    // if (!is_web) addSpiceMods(b, target, optimize, spice, &mods);
     for (&module_defs) |def| {
         const mod = b.addModule(def[0], .{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
         mods.put(def[0], mod) catch @panic("OOM");
@@ -78,13 +78,14 @@ pub fn build(b: *std.Build) void {
     // ── Executable ────────────────────────────────────────────────────────────
     const exe_mod = b.createModule(.{ .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
     exe_mod.addOptions("build_options", build_opts);
-    addImports(exe_mod, &mods, &.{ "dvui", "utility", "core", "PluginIF", "commands", "state", "cli", "runtime", "theme_config", "debug_server" });
+    addImports(exe_mod, &mods, &.{ "dvui", "utility", "core", "PluginIF", "commands", "state", "cli", "runtime", "theme_config" });
 
     const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
     exe.root_module.strip = optimize != .Debug;
     if (!is_web) exe.use_lld = false;
     if (is_web) exe.entry = .disabled;
-    if (!is_web) addSpiceRPaths(exe, spice);
+    // TODO: restore when addSpiceRPaths is ported
+    // if (!is_web) addSpiceRPaths(exe, spice);
     b.installArtifact(exe);
 
     // ── Lint: ban direct std.fs / std.posix usage outside utility/ and cli/ ──
@@ -143,53 +144,6 @@ pub fn build(b: *std.Build) void {
                 b.step("core", "Build and test core module").dependOn(&test_run.step);
             }
         }
-
-        // ── get_size: print @sizeOf for every struct in src/ ─────────────
-        const size_step = b.step("get_size", "Print @sizeOf for every struct in src/");
-        {
-            var smods = std.StringHashMap(*std.Build.Module).init(b.allocator);
-            smods.put("dvui", dvui_mod) catch @panic("OOM");
-            addSpiceMods(b, target, optimize, build_dep.SpiceConfig{ .enable_ngspice = false, .enable_xyce = false }, &smods);
-            for (&module_defs) |def| {
-                const sm = b.createModule(.{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
-                smods.put(def[0], sm) catch @panic("OOM");
-            }
-            for (&module_defs) |def| {
-                addImports(smods.get(def[0]).?, &smods, def[2]);
-            }
-
-            var size_outputs: std.ArrayList(std.Build.LazyPath) = .{};
-
-            var src_dir = std.fs.cwd().openDir("src", .{ .iterate = true }) catch @panic("cannot open src/");
-            defer src_dir.close();
-            var walker = src_dir.walk(b.allocator) catch @panic("OOM");
-            defer walker.deinit();
-            while (walker.next() catch null) |entry| {
-                if (entry.kind != .file or !std.mem.endsWith(u8, entry.path, ".zig")) continue;
-                // Only compile files that actually contain a size test.
-                const contents = src_dir.readFileAlloc(b.allocator, entry.path, 1 << 20) catch continue;
-                if (std.mem.indexOf(u8, contents, "Expose struct size") == null) continue;
-                const rel = b.fmt("src/{s}", .{entry.path});
-                const m = b.createModule(.{ .root_source_file = b.path(rel), .target = target, .optimize = optimize });
-                // Wire all stub modules — files only import what they use.
-                var it = smods.iterator();
-                while (it.next()) |kv| m.addImport(kv.key_ptr.*, kv.value_ptr.*);
-                m.addOptions("build_options", build_opts);
-                const t = b.addTest(.{
-                    .root_module = m,
-                    .filters = &[_][]const u8{"Expose struct size"},
-                    .test_runner = .{ .path = b.path("test/size_runner.zig"), .mode = .simple },
-                });
-                const size_run = b.addRunArtifact(t);
-                size_run.setEnvironmentVariable("SIZE_SOURCE_FILE", rel);
-                size_outputs.append(b.allocator, size_run.captureStdOut()) catch @panic("OOM");
-            }
-
-            // Collect all per-file totals, sort highest → lowest, print.
-            const sort_cmd = b.addSystemCommand(&.{ "sh", "-c", "sort -rn \"$@\" | cut -f2-", "--" });
-            for (size_outputs.items) |lp| sort_cmd.addFileArg(lp);
-            size_step.dependOn(&sort_cmd.step);
-        }
     }
 
     // ── Web: install assets + run_local dev server ────────────────────────────
@@ -242,59 +196,4 @@ fn addImports(
     names: []const []const u8,
 ) void {
     for (names) |n| mod.addImport(n, mods.get(n).?);
-}
-
-/// Create and wire ngspice / xyce / spice modules; insert them into `mods`.
-/// Only called for native targets — WASM cannot link libngspice/libxyce.
-fn addSpiceMods(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    comptime cfg: build_dep.SpiceConfig,
-    mods: *std.StringHashMap(*std.Build.Module),
-) void {
-    const ngspice = b.createModule(.{ .root_source_file = b.path("deps/ngspice.zig"), .target = target, .optimize = optimize });
-    const xyce = b.createModule(.{ .root_source_file = b.path("deps/xyce.zig"), .target = target, .optimize = optimize });
-    const spice = b.createModule(.{ .root_source_file = b.path("deps/lib.zig"), .target = target, .optimize = optimize });
-    spice.addImport("ngspice", ngspice);
-    spice.addImport("xyce", xyce);
-
-    if (cfg.enable_ngspice) {
-        const inc = cfg.ngspice_include_path orelse (cfg.ngspice_src ++ "/src/include");
-        const lib = cfg.ngspice_lib_path orelse (cfg.ngspice_src ++ "/src/.libs");
-        ngspice.addIncludePath(.{ .cwd_relative = inc });
-        ngspice.addLibraryPath(.{ .cwd_relative = lib });
-        ngspice.linkSystemLibrary("ngspice", .{ .preferred_link_mode = .static });
-        ngspice.link_libc = true;
-    }
-
-    if (cfg.enable_xyce) {
-        const inc = cfg.xyce_dir ++ "/" ++ cfg.xyce_install_subdir ++ "/include";
-        const lib = cfg.xyce_dir ++ "/" ++ cfg.xyce_install_subdir ++ "/lib";
-        const shim = cfg.xyce_dir ++ "/xyce_c_api.cpp";
-        xyce.addCSourceFile(.{
-            .file = .{ .cwd_relative = shim },
-            .flags = &.{ "-std=c++17", "-fPIC", "-O2", b.fmt("-I{s}", .{inc}) },
-        });
-        xyce.addIncludePath(.{ .cwd_relative = cfg.xyce_dir });
-        xyce.addLibraryPath(.{ .cwd_relative = lib });
-        xyce.linkSystemLibrary("xyce", .{ .preferred_link_mode = .static });
-        xyce.link_libcpp = true;
-        xyce.link_libc = true;
-    }
-
-    mods.put("ngspice", ngspice) catch @panic("OOM");
-    mods.put("xyce", xyce) catch @panic("OOM");
-    mods.put("spice", spice) catch @panic("OOM");
-}
-
-/// Add simulator shared-library RPATHs to `exe` so it finds them at runtime.
-fn addSpiceRPaths(exe: *std.Build.Step.Compile, comptime cfg: build_dep.SpiceConfig) void {
-    if (cfg.enable_ngspice) {
-        const lib = cfg.ngspice_lib_path orelse (cfg.ngspice_src ++ "/src/.libs");
-        exe.addRPath(.{ .cwd_relative = lib });
-    }
-    if (cfg.enable_xyce) {
-        exe.addRPath(.{ .cwd_relative = cfg.xyce_dir ++ "/" ++ cfg.xyce_install_subdir ++ "/lib" });
-    }
 }

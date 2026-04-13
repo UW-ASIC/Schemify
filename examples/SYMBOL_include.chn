@@ -1,27 +1,70 @@
 chn 1.0
 
-SYMBOL SYMBOL_include
+SYMBOL untitled
 
   pins [12]:
-    A[2]  in
-    A[1]  in
-    A[0]  in
-    Z  out
-    B  in
-    Y[5]  out
-    Y[4]  out
-    Y[3]  out
-    Y[2]  out
-    C  in
-    vcc  in
-    VSS  in
+    A[2]  in  x=-150  y=-40
+    A[1]  in  x=-150  y=-40
+    A[0]  in  x=-150  y=-40
+    Z  out  x=150  y=-40
+    B  in  x=-150  y=-20
+    Y[5]  out  x=150  y=-20
+    Y[4]  out  x=150  y=-20
+    Y[3]  out  x=150  y=-20
+    Y[2]  out  x=150  y=-20
+    C  in  x=-150  y=0
+    vcc  in  x=-150  y=20
+    VSS  in  x=-150  y=40
 
   params [1]:
     template = name=x1
 
   spice_prefix: X
 
+  drawing:
+    line -130 -50 130 -50
+    line -130 50 130 50
+    line -130 -50 -130 50
+    line 130 -50 130 50
+    line -150 -40 -130 -40
+    line 130 -40 150 -40
+    line -150 -20 -130 -20
+    line 130 -20 150 -20
+    line -150 0 -130 0
+    line -150 20 -130 20
+    line -150 40 -130 40
+    pin_positions:
+      A[2]: (-150, -40)
+      A[1]: (-150, -40)
+      A[0]: (-150, -40)
+      Z: (150, -40)
+      B: (-150, -20)
+      Y[5]: (150, -20)
+      Y[4]: (150, -20)
+      Y[3]: (150, -20)
+      Y[2]: (150, -20)
+      C: (-150, 0)
+      vcc: (-150, 20)
+      VSS: (-150, 40)
+
 SCHEMATIC
+
+
+  input_pin [7]{name, x, y, rot, flip, lab}:
+    A[2]  -150  -40  0  0  A[2]
+    A[1]  -150  -40  0  0  A[1]
+    A[0]  -150  -40  0  0  A[0]
+    B  -120  20  0  0  B
+    C  -120  40  0  0  C
+    vcc  -120  60  0  0  vcc
+    VSS  -120  80  0  0  VSS
+
+  output_pin [5]{name, x, y, rot, flip, lab}:
+    Z  120  0  0  0  Z
+    Y[5]  150  -20  0  0  Y[5]
+    Y[4]  150  -20  0  0  Y[4]
+    Y[3]  150  -20  0  0  Y[3]
+    Y[2]  150  -20  0  0  Y[2]
 
   wires [7]:
     -120 0 -120 0 A[2:0]

@@ -46,6 +46,45 @@ pub const LineIterator = struct {
     }
 };
 
+/// Skip leading ASCII whitespace (space, tab, carriage return).
+/// Returns slice starting at first non-whitespace byte.
+pub fn skipWhitespace(s: []const u8) []const u8 {
+    var i: usize = 0;
+    while (i + VEC_LEN <= s.len) {
+        const chunk: Vec = s[i..][0..VEC_LEN].*;
+        const spaces = chunk == @as(Vec, @splat(' '));
+        const tabs   = chunk == @as(Vec, @splat('\t'));
+        const crs    = chunk == @as(Vec, @splat('\r'));
+        const mask: u16 = @bitCast(spaces | tabs | crs);
+        if (mask != 0xFFFF) {
+            return s[i + @ctz(~mask)..];
+        }
+        i += VEC_LEN;
+    }
+    while (i < s.len and (s[i] == ' ' or s[i] == '\t' or s[i] == '\r')) i += 1;
+    return s[i..];
+}
+
+/// Find first byte matching any of `needles` (up to 4 bytes) using SIMD.
+/// Returns index or null if not found.
+pub fn findAnyByte(haystack: []const u8, comptime needles: []const u8) ?usize {
+    comptime std.debug.assert(needles.len >= 1 and needles.len <= 4);
+    var i: usize = 0;
+    while (i + VEC_LEN <= haystack.len) {
+        const chunk: Vec = haystack[i..][0..VEC_LEN].*;
+        var mask: u16 = 0;
+        inline for (needles) |n| {
+            mask |= @as(u16, @bitCast(chunk == @as(Vec, @splat(n))));
+        }
+        if (mask != 0) return i + @ctz(mask);
+        i += VEC_LEN;
+    }
+    while (i < haystack.len) : (i += 1) {
+        inline for (needles) |n| if (haystack[i] == n) return i;
+    }
+    return null;
+}
+
 /// Heuristic output-size estimate for CHN writer pre-allocation.
 pub fn estimateCHNSize(s: anytype) usize {
     return 64 +

@@ -1,24 +1,43 @@
 chn 1.0
 
-SYMBOL xcross
+SYMBOL untitled
 
   pins [2]:
-    A  inout
-    B  inout
+    A  inout  x=-80  y=-40
+    B  inout  x=80  y=-40
 
   params [1]:
     template = name=x1
 
   spice_prefix: X
 
+  drawing:
+    line -80 -40 -60 -40
+    line 60 -40 80 -40
+    line -80 0 -60 0
+    line 60 0 80 0
+    line 60 40 80 40
+    line 60 80 80 80
+    line -25 55 25 55
+    line -25 70 25 70
+    line -25 -25 25 -10
+    line -25 -10 25 -25
+    pin_positions:
+      A: (-80, -40)
+      B: (80, -40)
+
 SCHEMATIC
 
-  resistors [1]{name, x, y, rot, flip, value, footprint, device, verilog_ignore, vhdl_ignore, m}:
-    R1  150  -50  0  0  1k  1206  resistor  true  true  1
 
-  nets [2]:
-    A  -> R1.P
-    B  -> R1.M
+  inout_pin [2]{name, x, y, rot, flip, lab}:
+    A  190  -80  0  0  A
+    B  190  -20  0  0  B
+
+  resistors [1]{name, x, y, rot, flip, value, footprint, device, vhdl_ignore, m}:
+    R1  150  -50  0  0  1k  1206  resistor  true  1
+
+  hdl_blocks [1]:
+    
 
   wires [4]:
     150 -80 190 -80

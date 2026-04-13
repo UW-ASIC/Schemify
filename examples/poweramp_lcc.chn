@@ -1,11 +1,11 @@
 chn_testbench 1.0
 
-TESTBENCH poweramp_lcc
+TESTBENCH untitled
 
   vsource [4]{name, x, y, rot, flip, value, xvalue}:
     V1  1880  -1360  0  0  dc 50 pwl 0 0 1m 50  -
     V0  1880  -1300  0  0  dc 50 pwl 0 0 1m 50  -
-    V3  2200  -1040  0  0  dc 0 sin 0 1 \{frequ\} 1m  dc 0 pulse -.1 .1 1m .1u .1u 10.1u 20u
+    V3  2200  -1040  0  0  dc 0 sin 0 1 {frequ} 1m  dc 0 pulse -.1 .1 1m .1u .1u 10.1u 20u
     Vin  2200  -980  0  0  0  pwl 0 .1 1m .1 1.01m 0
 
   resistors [14]{name, x, y, rot, flip, m, value}:
@@ -25,8 +25,8 @@ TESTBENCH poweramp_lcc
     R13  210  990  0  0  1  100k
 
   vcvs [2]{name, x, y, rot, flip, value}:
-    E3  1940  -1070  0  0  \{gain*0.99\}
-    E0  1940  -990  0  0  \{-gain*0.99\}
+    E3  1940  -1070  0  0  {gain*0.99}
+    E0  1940  -990  0  0  {-gain*0.99}
 
   capacitors [6]{name, x, y, rot, flip, m, value}:
     C3  2070  -1290  0  0  1  100u
@@ -45,28 +45,16 @@ TESTBENCH poweramp_lcc
     x0  mos_power_ampli.sch  x=310  y=1440
     x1  mos_power_ampli.sch  x=310  y=-120
 
-  nets [21]:
-    net1  -> V1.p, R11.M
-    net5  -> V1.m, V0.p, vcurrvss.plus
-    net2  -> V0.m, R9.M
-    OUTM  -> R1.P, R19.P, x1.OUT
-    OUTP  -> R1.M, R2.P, x0.OUT
-    REFP  -> E3.p
-    VSS  -> E3.m, E3.cm, C3.p, R7.M, E0.m, E0.cm, C6.m, R5.M, C1.m, Vin.m, vcurrvss.minus, C2.m, x0.VSS, x1.VSS
-    IN  -> E3.cp, E0.cp, C5.m, C4.m, R10.P
-    VNN  -> C3.m, vcurrvnn.minus, x0.VNN, x1.VNN
-    net3  -> R11.P, vcurrvpp.plus
-    net4  -> R9.P, vcurrvnn.plus
-    FBN  -> R19.M, R0.P, R8.M, x1.MINUS
-    net6  -> R0.M, C5.p
-    VPP  -> R6.P, R4.P, R8.P, R13.P, vcurrvpp.minus, C2.p, x0.VPP, x1.VPP
-    INX  -> R6.M, R7.P, C4.p, x0.PLUS
-    REFM  -> E0.p
-    net7  -> C6.p, R3.M
-    FB  -> R2.M, R3.P, R13.M, x0.MINUS
-    IN_INT  -> V3.p, R10.M
-    net8  -> V3.m, Vin.p
-    VSSX  -> R4.M, R5.P, C1.p, x1.PLUS
+  code_blocks [2]:
+    COMMANDS  code  simulator=ngspice  only_toplevel=false  value=.option ITL4=20000 ITL5=0 vvss vss 0 dc 0  .temp 30  .param frequ=5k .param gain=45 .option savecurrents  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in simulation directory. .include \\"models_poweramp.txt\\" .control save all op write poweramp_lcc.raw set appendwrite tran  8e-7 0.02 uic * .FOUR 20k v(outm,outp) * .probe i(*)  plot outp outm save p(r*) p(v*) write poweramp_lcc.raw .endc 
+    COMMANDS1  code  simulator=xyce  only_toplevel=false  value=vvss vss 0 dc 0   .param frequ=5k .param gain=45  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in simulation directory. .include \\"models_poweramp.txt\\" .tran  8e-7 0.07 uic * .op .print tran format=raw file=poweramp_lcc_xyce.raw v(*) i(*)  + v(x1:*) v(x0:*) i(x1:*) i(x0:*) + id(x0:*) ig(x0:*) is(x0:*) ib(x0:*) + ib(x0:*) ic(x0:*) ie(x0:*) + id(x1:*) ig(x1:*) is(x0:*) ib(x1:*) + ib(x1:*) ic(x1:*) ie(x1:*) * .print dc format=raw file=poweramp_op.raw v(*) i(*) v(x1:*) v(x0:*) i(x1:*) i(x0:*)  
+
+  annotations [5]:
+    p42  probe  x=1990  y=-1100  analysis=tran
+    p43  probe  x=2000  y=-1020  analysis=tran
+    p44  probe  x=2280  y=-1100  analysis=tran
+    p45  probe  x=2110  y=-1410  analysis=tran
+    p46  probe  x=2110  y=-1250  analysis=tran
 
   wires [114]:
     1880 -1410 1880 -1390

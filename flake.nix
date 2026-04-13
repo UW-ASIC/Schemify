@@ -15,7 +15,25 @@
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        # Pin ngspice to 43 — versions 44+ have a regression where binned
+        # MOSFET models (.model nfet_01v8.0, .1, …) fail scoped resolution,
+        # breaking sky130 and gf180 PDK simulations.
+        ngspice43overlay = final: prev: {
+          libngspice = prev.libngspice.overrideAttrs (old: {
+            version = "43";
+            src = prev.fetchurl {
+              url = "mirror://sourceforge/ngspice/ngspice-43.tar.gz";
+              hash = "sha256-FN1qbwhTHyBRwTrmN5CkVwi9Q/PneIamqEiYwpexNpk=";
+            };
+            patches = [ ];
+          });
+          # ngspice CLI derives from libngspice (withNgshared = false),
+          # so it picks up the pinned version automatically.
+        };
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ ngspice43overlay ];
+        };
         lib = pkgs.lib;
 
         py = pkgs.python3;
@@ -74,8 +92,9 @@
 
         # ── Runtime libraries (what the built executable needs) ────
         # dvui uses raylib with X11/OpenGL backend (see build.zig)
+        # libglvnd provides libGL.so + libGLX.so + libEGL.so (NixOS needs this instead of libGL)
         runtimeLibs = [
-          pkgs.libGL
+          pkgs.libglvnd
           pkgs.libx11
           pkgs.libxcursor
           pkgs.libxrandr
@@ -89,8 +108,14 @@
       {
         # ══════════════════════════════════════════════════════════
         #  devShells.default — full build environment
+        #
+        #  mkShell sets NIX_CFLAGS_COMPILE with proper -I flags that
+        #  zig understands (buildFHSEnv.env used -idirafter which zig
+        #  silently ignores, causing X11 headers to be missing).
         # ══════════════════════════════════════════════════════════
         devShells.default = pkgs.mkShell {
+          name = "schemify-dev";
+
           nativeBuildInputs = [
             pkgs.pkg-config
             pkgs.zig
@@ -106,50 +131,39 @@
             pkgs.flex
             # Xyce / Trilinos
             pkgs.gfortran
-            # ── Digital EDA tools ──────────────────────────────────
-            # Required at build-time (tests) AND at runtime (subprocess calls
-            # from verilatorHarness.zig and synthesisHandler.zig).
+            # SPICE simulation (pinned to 43.x via overlay)
+            pkgs.ngspice
+            # Digital EDA tools
             pkgs.verilator
             pkgs.yosys
             pkgs.xschem
-
-            # ── Docs toolchain ─────────────────────────────────────
-            # bun: run `cd docs && bun install && bun run dev` to preview locally
+            # Docs toolchain
             pkgs.bun
-          ];
-
-          buildInputs = runtimeLibs ++ [
+            # Python environment
             python-env
-            # NGSpice build deps
-            pkgs.readline
-            pkgs.libffi
-            # Xyce / Trilinos build deps
-            pkgs.fftw
-            pkgs.suitesparse
-            pkgs.lapack
-            pkgs.blas
-            pkgs.openmpi
           ];
 
-          LD_LIBRARY_PATH = lib.makeLibraryPath (
+          buildInputs =
             runtimeLibs
             ++ [
+              # NGSpice shared lib (pinned to 43.x via overlay)
+              pkgs.libngspice
+              # NGSpice / Xyce build deps
+              pkgs.readline
+              pkgs.libffi
               pkgs.fftw
               pkgs.suitesparse
               pkgs.lapack
               pkgs.blas
-            ]
-          );
-
-          PDK_ROOT = "$HOME/.volare";
-          PDK = "sky130A";
+              pkgs.openmpi
+            ];
 
           shellHook = ''
             export PDK_ROOT="$HOME/.volare"
             export PDK="sky130A"
+            export LD_LIBRARY_PATH="${lib.makeLibraryPath (runtimeLibs ++ [ pkgs.fftw pkgs.suitesparse pkgs.lapack pkgs.blas ])}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
             echo "Zig $(zig version), ZLS $(zls --version)"
             echo "Python $(python3 --version | cut -d' ' -f2)"
-            echo "volare $(volare --version 2>&1 | head -1)"
             echo ""
             echo "Schemify Development Environment"
             echo "  zig build                - build native"

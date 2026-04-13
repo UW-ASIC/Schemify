@@ -191,37 +191,40 @@ class ThemesPlugin(schemify.Plugin):
             w.label(_USER_THEMES_DIR, id=4)
         else:
             current_name = self._theme_names[self._current_idx] if self._theme_names else EMPTY_THEME_NAME
-            w.label(f"Active: {current_name}", id=5)
-            w.separator(id=6)
+            w.label(f"Active: {current_name}", id=2)
+            w.separator(id=3)
 
-            widget_id = WID_THEME_BASE
+            # Category labels use IDs 5-8 (4 categories max, all safely below
+            # WID_THEME_BASE=10). IDs 0,1 are the header; 2,3 are Active+separator.
+            # Theme buttons use WID_THEME_BASE + idx (10, 11, ...).
+            label_id = 5
             for category_name, entries in self._theme_entries_by_category().items():
                 if not entries:
                     continue
-                w.label(f"-- {category_name} --", id=widget_id)
-                widget_id += 1
+                w.label(f"-- {category_name} --", id=label_id)
+                label_id += 1
                 for idx, name in entries:
                     theme = self._themes[name]
                     dark_tag = " (dark)" if theme.get("dark", True) else " (light)"
                     marker = "> " if idx == self._current_idx else "  "
                     w.button(f"{marker}{name}{dark_tag}", id=WID_THEME_BASE + idx)
 
-        w.separator(id=207)
-        w.label(f"User themes: {USER_THEME_HINT}", id=208)
-        w.label("Add .json files and reload plugin.", id=209)
+        w.separator(id=205)
+        w.label(f"User themes: {USER_THEME_HINT}", id=206)
+        w.label("Add .json files and reload plugin.", id=207)
 
-        w.separator(id=210)
-        w.label("Shape Presets", id=211)
+        w.separator(id=208)
+        w.label("Shape Presets", id=209)
         for idx, (label, _corner_radius) in enumerate(SHAPE_PRESETS):
             w.button(label, id=WID_SHAPE_PRESET_BASE + idx)
 
-        w.separator(id=220)
-        w.label("Wire Width", id=221)
+        w.separator(id=218)
+        w.label("Wire Width", id=219)
         for idx, (label, _wire_width) in enumerate(WIRE_WIDTHS):
             w.button(label, id=WID_WIRE_WIDTH_BASE + idx)
 
-        w.separator(id=230)
-        w.label("Tab Style", id=231)
+        w.separator(id=228)
+        w.label("Tab Style", id=229)
         for idx, (label, _tab_shape) in enumerate(TAB_STYLES):
             w.button(label, id=WID_TAB_STYLE_BASE + idx)
 

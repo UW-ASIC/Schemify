@@ -1,10 +1,10 @@
 chn 1.0
 
-SYMBOL cmos_inv
+SYMBOL untitled
 
   pins [2]:
-    Z  out
-    A  in
+    Z  out  x=40  y=0
+    A  in  x=-40  y=0
 
   params [4]:
     type = subcircuit
@@ -14,7 +14,26 @@ SYMBOL cmos_inv
 
   spice_prefix: X
 
+  drawing:
+    line -40 0 -28 0
+    line -28 -20 -28 20
+    line -28 -20 16 0
+    line -28 20 16 0
+    line 26 0 40 0
+    arc 90 -410 14 135 360
+    arc 21 0 5 180 360
+    pin_positions:
+      Z: (40, 0)
+      A: (-40, 0)
+
 SCHEMATIC
+
+
+  input_pin [1]{name, x, y, rot, flip, lab}:
+    A  80  -320  0  0  A
+
+  output_pin [1]{name, x, y, rot, flip, lab}:
+    Z  370  -230  0  0  Z
 
   pmos [1]{name, x, y, rot, flip, model, w, l, m}:
     M2  120  -350  0  0  p  WP  LLP  1
@@ -28,15 +47,6 @@ SCHEMATIC
   vsource [2]{name, x, y, rot, flip, savecurrent}:
     V1  140  -260  0  0  -
     Vmeas  300  -230  3  0  true
-
-  nets [7]:
-    net1  -> M2.d, V1.plus
-    A  -> M2.g, M1.g
-    VDD  -> M2.s, M2.b
-    D  -> M1.d, R1.M, V1.minus
-    0  -> M1.s, M1.b
-    net2  -> R1.P, Vmeas.plus
-    Z  -> Vmeas.minus
 
   wires [22]:
     80 -230 80 -170

@@ -1,21 +1,53 @@
 chn 1.0
 
-SYMBOL LM5134A
+SYMBOL untitled
 
   pins [6]:
-    VDD  inout
-    PILOT  inout
-    OUT  inout
-    IN  inout
-    INB  inout
-    VSS  inout
+    VDD  inout  x=-80  y=-120
+    PILOT  inout  x=-80  y=0
+    OUT  inout  x=-80  y=120
+    IN  inout  x=80  y=-120
+    INB  inout  x=80  y=0
+    VSS  inout  x=80  y=120
 
   params [1]:
     template = name=x1
 
   spice_prefix: X
 
+  drawing:
+    line -60 130 60 130
+    line -60 -130 -60 130
+    line 60 -130 60 130
+    line -80 -120 -60 -120
+    line 60 -120 80 -120
+    line -80 0 -60 0
+    line 60 0 80 0
+    line 60 120 80 120
+    line -80 120 -60 120
+    line -60 -130 -20 -130
+    line -20 -130 -10 -120
+    line -10 -120 10 -120
+    line 10 -120 20 -130
+    line 20 -130 60 -130
+    pin_positions:
+      VDD: (-80, -120)
+      PILOT: (-80, 0)
+      OUT: (-80, 120)
+      IN: (80, -120)
+      INB: (80, 0)
+      VSS: (80, 120)
+
 SCHEMATIC
+
+
+  inout_pin [6]{name, x, y, rot, flip, lab}:
+    VDD  -500  20  0  0  VDD
+    PILOT  -500  40  0  0  PILOT
+    OUT  -500  60  0  0  OUT
+    IN  -200  20  0  0  IN
+    INB  -200  40  0  0  INB
+    VSS  -200  60  0  0  VSS
 
   wires [6]:
     -500 20 -500 20 VDD

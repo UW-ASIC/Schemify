@@ -19,6 +19,8 @@ const std = @import("std");
 const dvui = @import("dvui");
 const st = @import("state");
 
+const components = @import("Components/lib.zig");
+
 const AppState = st.AppState;
 const MktStatus = st.MktStatus;
 const MarketplaceEntry = st.MarketplaceEntry;
@@ -29,24 +31,17 @@ const MODAL_MIN_WIDTH: f32 = 680;
 const MODAL_MIN_HEIGHT: f32 = 480;
 const LEFT_PANEL_MIN_WIDTH: f32 = 250;
 
-// ── Helpers ──────────────────────────────────────────────────────────────── //
-
-/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
-fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
-    return @ptrCast(wr);
-}
-
 // ── Public API ────────────────────────────────────────────────────────────── //
 
 /// Called every frame from lib.zig. No-ops when marketplace is hidden.
 pub fn draw(app: *AppState) void {
-    const mkt = &app.gui.marketplace;
+    const mkt = &app.gui.cold.marketplace;
     if (!mkt.visible) return;
 
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = true,
         .open_flag = &mkt.visible,
-        .rect = winRectPtr(&app.gui.marketplace_win.win_rect),
+        .rect = components.winRectPtr(&app.gui.cold.marketplace_win.win_rect),
     }, .{
         .min_size_content = .{ .w = MODAL_MIN_WIDTH, .h = MODAL_MIN_HEIGHT },
     });

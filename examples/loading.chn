@@ -1,30 +1,27 @@
 chn_testbench 1.0
 
-TESTBENCH loading
+TESTBENCH untitled
 
   instances [7]:
-    x4  pump  x=250  y=-680  conduct=1.0/20000.0  val=4.5
-    x3  real_capa  x=450  y=-540  cap=30.0
-    x1  real_capa  x=830  y=-540  cap=100.0
-    x6  real_capa  x=1230  y=-540  cap=20.0
-    x7  pump  x=250  y=-800  conduct=1.0/40000.0  val=3.0
-    x8  switch_rreal  x=630  y=-790  del=2 ns
-    x9  real_capa  x=350  y=-880  cap=40.0
+    x4  pump.chn  x=250  y=-680  conduct=1.0/20000.0  val=4.5
+    x3  real_capa.chn  x=450  y=-540  cap=30.0
+    x1  real_capa.chn  x=830  y=-540  cap=100.0
+    x6  real_capa.chn  x=1230  y=-540  cap=20.0
+    x7  pump.chn  x=250  y=-800  conduct=1.0/40000.0  val=3.0
+    x8  switch_rreal.chn  x=630  y=-790  del=2 ns
+    x9  real_capa.chn  x=350  y=-880  cap=40.0
 
   instances [2]:
     x5  switch_rreal.sch  x=660  y=-670  del=2 ns
     x2  switch_rreal.sch  x=1050  y=-670  del=2 ns
 
-  nets [9]:
-    VX  -> x4.USC, x5.A, x3.USC
-    ING  -> x4.ING
-    SW  -> x5.ENAB
-    VXS  -> x5.B, x1.USC, x2.A, x8.B
-    SW1  -> x2.ENAB
-    SP  -> x2.B, x6.USC
-    VX2  -> x7.USC, x8.A, x9.USC
-    ING1  -> x7.ING
-    SW2  -> x8.ENAB
+  code_blocks [1]:
+    CODE  code  value=-- these assignments are done to have the voltage values available -- in the waveform file V_VX <= VX.value; V_VX2 <= VX2.value; V_VXS <= VXS.value; V_SP <= SP.value;   process begin ING<='0'; ING1<='0'; SW <= '0'; SW1<='0'; SW2<='0'; --VX <= rreal'(4.5,10.0,0.0); --VX2 <= rreal'(3.0, 5.0, 0.0); wait for 200 ns; ING1<='1'; wait for 200 ns; ING<='1'; wait for 200 ns; SW<='1'; wait for 200 ns; SW2<='1'; wait for 200 ns; SW1<='1'; wait for 200 ns; SW1<='0'; wait for 200 ns; SW2<='0'; wait for 200 ns; SW1<='1'; wait for 200 ns; SW<='1'; wait for 200 ns; ING <='0'; wait for 200 ns; SW1<= '0'; wait for 200 ns; SW<='1'; wait for 200 ns; ING<='1'; wait for 200 ns; SW <= '0'; wait for 200 ns; SW1<= '1'; wait for 200 ns; ING<='1'; wait for 200 ns; SW<='0'; wait for 200 ns; SW1<='0'; wait for 200 ns; SW<='1'; wait for 200 ns; SW1<='1'; wait for 200 ns; SW1<='0'; wait for 200 ns; SW1<='1'; wait for 200 ns;    wait; end process;   
+
+  hdl_blocks [3]:
+    
+    
+    
 
   wires [29]:
     830 -680 900 -680

@@ -134,57 +134,57 @@ const EmbeddedPrim = struct {
 /// All standard primitives.  Order determines position in `parsed_prims`.
 const embedded_files = [_]EmbeddedPrim{
     // ── Passives ──
-    .{ .file = @embedFile("resistor.chn_prim") },
-    .{ .file = @embedFile("resistor3.chn_prim") },
-    .{ .file = @embedFile("capacitor.chn_prim") },
-    .{ .file = @embedFile("inductor.chn_prim") },
+    .{ .file = @embedFile("primitives/resistor.chn_prim") },
+    .{ .file = @embedFile("primitives/resistor3.chn_prim") },
+    .{ .file = @embedFile("primitives/capacitor.chn_prim") },
+    .{ .file = @embedFile("primitives/inductor.chn_prim") },
 
     // ── Diodes ──
-    .{ .file = @embedFile("diode.chn_prim") },
-    .{ .file = @embedFile("zener.chn_prim") },
+    .{ .file = @embedFile("primitives/diode.chn_prim") },
+    .{ .file = @embedFile("primitives/zener.chn_prim") },
 
     // ── MOSFETs ──
-    .{ .file = @embedFile("nmos3.chn_prim") },
-    .{ .file = @embedFile("pmos3.chn_prim") },
-    .{ .file = @embedFile("nmos.chn_prim"), .kind_override = "nmos4" },
-    .{ .file = @embedFile("pmos.chn_prim"), .kind_override = "pmos4" },
+    .{ .file = @embedFile("primitives/nmos3.chn_prim") },
+    .{ .file = @embedFile("primitives/pmos3.chn_prim") },
+    .{ .file = @embedFile("primitives/nmos.chn_prim"), .kind_override = "nmos4" },
+    .{ .file = @embedFile("primitives/pmos.chn_prim"), .kind_override = "pmos4" },
 
     // ── BJTs ──
-    .{ .file = @embedFile("npn.chn_prim") },
-    .{ .file = @embedFile("pnp.chn_prim") },
+    .{ .file = @embedFile("primitives/npn.chn_prim") },
+    .{ .file = @embedFile("primitives/pnp.chn_prim") },
 
     // ── JFETs ──
-    .{ .file = @embedFile("njfet.chn_prim") },
-    .{ .file = @embedFile("pjfet.chn_prim") },
+    .{ .file = @embedFile("primitives/njfet.chn_prim") },
+    .{ .file = @embedFile("primitives/pjfet.chn_prim") },
 
     // ── Independent sources ──
-    .{ .file = @embedFile("vsource.chn_prim") },
-    .{ .file = @embedFile("isource.chn_prim") },
-    .{ .file = @embedFile("ammeter.chn_prim") },
-    .{ .file = @embedFile("behavioral.chn_prim") },
+    .{ .file = @embedFile("primitives/vsource.chn_prim") },
+    .{ .file = @embedFile("primitives/isource.chn_prim") },
+    .{ .file = @embedFile("primitives/ammeter.chn_prim") },
+    .{ .file = @embedFile("primitives/behavioral.chn_prim") },
 
     // ── Controlled sources ──
-    .{ .file = @embedFile("vcvs.chn_prim") },
-    .{ .file = @embedFile("vccs.chn_prim") },
-    .{ .file = @embedFile("ccvs.chn_prim") },
-    .{ .file = @embedFile("cccs.chn_prim") },
+    .{ .file = @embedFile("primitives/vcvs.chn_prim") },
+    .{ .file = @embedFile("primitives/vccs.chn_prim") },
+    .{ .file = @embedFile("primitives/ccvs.chn_prim") },
+    .{ .file = @embedFile("primitives/cccs.chn_prim") },
 
     // ── Switches ──
-    .{ .file = @embedFile("vswitch.chn_prim") },
-    .{ .file = @embedFile("iswitch.chn_prim") },
+    .{ .file = @embedFile("primitives/vswitch.chn_prim") },
+    .{ .file = @embedFile("primitives/iswitch.chn_prim") },
 
     // ── Transmission line / coupling ──
-    .{ .file = @embedFile("tline.chn_prim") },
-    .{ .file = @embedFile("coupling.chn_prim") },
+    .{ .file = @embedFile("primitives/tline.chn_prim") },
+    .{ .file = @embedFile("primitives/coupling.chn_prim") },
 
     // ── Non-electrical / UI ──
-    .{ .file = @embedFile("gnd.chn_prim"), .non_electrical = true, .injected_net = "0" },
-    .{ .file = @embedFile("vdd.chn_prim"), .non_electrical = true, .injected_net = "VDD" },
-    .{ .file = @embedFile("lab_pin.chn_prim"), .non_electrical = true },
-    .{ .file = @embedFile("input_pin.chn_prim"), .non_electrical = true },
-    .{ .file = @embedFile("output_pin.chn_prim"), .non_electrical = true },
-    .{ .file = @embedFile("inout_pin.chn_prim"), .non_electrical = true },
-    .{ .file = @embedFile("probe.chn_prim"), .non_electrical = true },
+    .{ .file = @embedFile("primitives/gnd.chn_prim"), .non_electrical = true, .injected_net = "0" },
+    .{ .file = @embedFile("primitives/vdd.chn_prim"), .non_electrical = true, .injected_net = "VDD" },
+    .{ .file = @embedFile("primitives/lab_pin.chn_prim"), .non_electrical = true },
+    .{ .file = @embedFile("primitives/input_pin.chn_prim"), .non_electrical = true },
+    .{ .file = @embedFile("primitives/output_pin.chn_prim"), .non_electrical = true },
+    .{ .file = @embedFile("primitives/inout_pin.chn_prim"), .non_electrical = true },
+    .{ .file = @embedFile("primitives/probe.chn_prim"), .non_electrical = true },
 };
 
 // ============================================================
@@ -728,4 +728,36 @@ test "all prims with drawing have segments or circles or arcs or rects" {
     for (&parsed_prims) |*p| {
         try std.testing.expect(p.hasDrawing());
     }
+}
+
+test "input_pin has 6 segments and 1 pin position" {
+    const p = findByName("input_pin") orelse return error.NotFound;
+    try std.testing.expect(p.non_electrical);
+    try std.testing.expectEqual(@as(u8, 6), p.segment_count);
+    try std.testing.expectEqual(@as(u8, 1), p.pin_pos_count);
+    try std.testing.expectEqualStrings("p", p.pinPositions()[0].nameSlice());
+    try std.testing.expectEqual(@as(i16, 0), p.pinPositions()[0].x);
+    try std.testing.expectEqual(@as(i16, 0), p.pinPositions()[0].y);
+}
+
+test "output_pin has 6 segments and 1 pin position" {
+    const p = findByName("output_pin") orelse return error.NotFound;
+    try std.testing.expect(p.non_electrical);
+    try std.testing.expectEqual(@as(u8, 6), p.segment_count);
+    try std.testing.expectEqual(@as(u8, 1), p.pin_pos_count);
+}
+
+test "inout_pin has 7 segments and 1 pin position" {
+    const p = findByName("inout_pin") orelse return error.NotFound;
+    try std.testing.expect(p.non_electrical);
+    try std.testing.expectEqual(@as(u8, 7), p.segment_count);
+    try std.testing.expectEqual(@as(u8, 1), p.pin_pos_count);
+}
+
+test "lab_pin has 5 segments, 1 circle, and 1 pin position" {
+    const p = findByName("lab_pin") orelse return error.NotFound;
+    try std.testing.expect(p.non_electrical);
+    try std.testing.expectEqual(@as(u8, 5), p.segment_count);
+    try std.testing.expectEqual(@as(u8, 1), p.circle_count);
+    try std.testing.expectEqual(@as(u8, 1), p.pin_pos_count);
 }

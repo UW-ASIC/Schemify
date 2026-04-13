@@ -9,12 +9,11 @@ const Writer = @import("Writer.zig");
 const PanelLayout = types.PanelLayout;
 const Descriptor = types.Descriptor;
 const ABI_VERSION = types.ABI_VERSION;
+const WidgetKind = types.WidgetKind;
 
 const Framework = @This();
 
 // -- Widget descriptor --------------------------------------------------------
-
-pub const WidgetKind = enum { slider, button, label, label_fmt, checkbox, separator, progress };
 
 /// Comptime widget specification. All string fields are comptime constants.
 pub const WidgetSpec = union(WidgetKind) {

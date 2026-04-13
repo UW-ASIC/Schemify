@@ -1,10 +1,8 @@
 [plugin]
-name        = "EasyPDKLoader"
+name        = "PDKLoader"
 version     = "0.1.0"
 author      = "UWASIC"
-entry       = "libEasyPDKLoader.so"
-description = "Native plugin embedding Python to import PDK xschem libraries via the volare PDK manager and emit .chn / .chn_tb schematics."
-tags        = ["PDK", "xschem", "volare", "import"]
-
-[build]
-apt_deps = ["python3-dev"]
+entry       = "libPDKLoader.so"
+description = "Process Design Kit loader. Resolves PDK paths, fetches sky130/gf180 via Volare, and registers device libraries for the active project."
+tags        = ["pdk", "sky130", "gf180", "devices"]
+scope       = "project"

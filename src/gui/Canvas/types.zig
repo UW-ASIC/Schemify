@@ -12,7 +12,16 @@ pub const Palette = theme.Palette;
 pub const RenderViewport = struct {
     cx: f32,
     cy: f32,
+    /// Total scale = user zoom × dvui natural screen scale. Used for all
+    /// world→pixel geometry and stroke widths.
     scale: f32,
+    /// Just the dvui natural screen scale of the canvas widget (≈1.0 on a
+    /// standard display, ~2.0 on HiDPI). Held separately so text rendering
+    /// can pass `rs.s = rs_s` and a logical font size to dvui — that lets
+    /// dvui's font cache key on `logical_size × rs_s`, which only changes
+    /// in integer steps when we quantize the logical size, killing the
+    /// per-frame atlas churn that caused text jitter on zoom.
+    rs_s: f32,
     pan: [2]f32,
     bounds: dvui.Rect.Physical,
 };
@@ -21,7 +30,14 @@ pub const CanvasEvent = union(enum) {
     none,
     click: Point,
     double_click: Point,
-    right_click: struct { pixel: Vec2, world: Point },
+    right_click: struct {
+        pixel: Vec2,
+        world: Point,
+        /// Hit-tested instance index at the click position, or `-1` for none.
+        inst_idx: i32 = -1,
+        /// Hit-tested wire index at the click position, or `-1` for none.
+        wire_idx: i32 = -1,
+    },
 };
 
 /// Bundles allocator + viewport + palette for Canvas sub-renderers.

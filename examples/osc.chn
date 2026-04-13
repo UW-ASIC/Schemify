@@ -1,6 +1,6 @@
 chn_testbench 1.0
 
-TESTBENCH osc
+TESTBENCH untitled
 
   npn [1]{name, x, y, rot, flip, model, area}:
     Q1  360  -270  0  0  q2n2222a  1
@@ -20,13 +20,8 @@ TESTBENCH osc
     R1  380  -130  0  1  1  1k
     R2  380  -370  0  1  1  2
 
-  nets [6]:
-    OUT  -> Q1.C, C1.p, R2.M
-    B  -> Q1.B, V1.p
-    E  -> Q1.E, C1.m, R1.P, C2.p
-    VCC  -> V2.p, L1.m
-    VSS  -> V2.m, V1.m, R1.M, C2.m
-    net1  -> L1.p, R2.P
+  code_blocks [1]:
+    STIMULI  code  value=.option RUNLVL=6 post vvss vss 0 dc 0 .save all .temp 30  ** models are generally not free: you must download ** SPICE models for active devices  ** (https://www.centralsemi.com/docs/csm/2N2222A.LIB) ** and put them  into the below  ** referenced file in simulation directory. .include \\"models_osc.txt\\"   .tran 1n 100u  .probe tran i1(Q1) i2(Q1) i3(Q1) i(L1) i(c1) i(c2) i(r1) i(r2) i(r3) 
 
   wires [19]:
     240 -270 340 -270

@@ -2,21 +2,21 @@
 //! Plugin and Props handlers are inlined here (they are trivial stubs);
 //! all other groups are delegated to their own file.
 
-const cmd       = @import("command.zig");
+const cmd       = @import("utils/command.zig");
 const Command   = cmd.Command;
 const Immediate = cmd.Immediate;
 const Undoable  = cmd.Undoable;
 
-const view      = @import("View.zig");
-const selection = @import("Selection.zig");
-const clipboard = @import("Clipboard.zig");
-const edit      = @import("Edit.zig");
-const wire      = @import("Wire.zig");
-const file      = @import("File.zig");
-const hierarchy = @import("Hierarchy.zig");
-const netlist   = @import("Netlist.zig");
-const sim       = @import("Sim.zig");
-const undo      = @import("Undo.zig");
+const view      = @import("handlers/View.zig");
+const selection = @import("handlers/Selection.zig");
+const clipboard = @import("handlers/Clipboard.zig");
+const edit      = @import("handlers/Edit.zig");
+const wire      = @import("handlers/Wire.zig");
+const file      = @import("handlers/File.zig");
+const hierarchy = @import("handlers/Hierarchy.zig");
+const netlist   = @import("handlers/Netlist.zig");
+const sim       = @import("handlers/Sim.zig");
+const undo      = @import("handlers/Undo.zig");
 
 /// Union of every error a handler may return. No anyerror.
 pub const DispatchError =
@@ -72,7 +72,7 @@ fn dispatchImmediate(imm: Immediate, state: anytype) DispatchError!void {
 
         // Edit (immediate subset)
         .align_to_grid, .move_interactive, .move_interactive_stretch,
-        .move_interactive_insert, .escape_mode,
+        .move_interactive_insert, .escape_mode, .insert_primitive,
         => try edit.handleImmediate(imm, state),
 
         // Wire placement

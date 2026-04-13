@@ -1,6 +1,6 @@
 chn_testbench 1.0
 
-TESTBENCH greycnt
+TESTBENCH untitled
 
   behavioral [14]{name, x, y, rot, flip}:
     x2  660  -470  0  0
@@ -19,49 +19,32 @@ TESTBENCH greycnt
     x13  1060  -150  0  0
 
   instances [16]:
-    l2  bus_tap  x=1240  y=-140  rot=3  lab=[0]
-    l4  bus_tap  x=1240  y=-220  rot=3  lab=[1]
-    l5  bus_tap  x=1240  y=-300  rot=3  lab=[2]
-    l6  bus_tap  x=1240  y=-380  rot=3  lab=[3]
-    l7  bus_tap  x=1240  y=-460  rot=3  lab=[4]
-    l8  bus_tap  x=1240  y=-540  rot=3  lab=[5]
-    l9  bus_tap  x=1240  y=-620  rot=3  lab=[6]
-    l10  bus_tap  x=1240  y=-700  rot=3  lab=[7]
-    l11  bus_tap  x=560  y=-120  rot=1  flip=1  lab=[0]
-    l12  bus_tap  x=560  y=-200  rot=1  flip=1  lab=[1]
-    l13  bus_tap  x=560  y=-280  rot=1  flip=1  lab=[2]
-    l14  bus_tap  x=560  y=-360  rot=1  flip=1  lab=[3]
-    l15  bus_tap  x=560  y=-440  rot=1  flip=1  lab=[4]
-    l18  bus_tap  x=560  y=-520  rot=1  flip=1  lab=[5]
-    l19  bus_tap  x=560  y=-600  rot=1  flip=1  lab=[6]
-    l20  bus_tap  x=560  y=-680  rot=1  flip=1  lab=[7]
+    l2  bus_tap.chn  x=1240  y=-140  rot=3  lab=[0]
+    l4  bus_tap.chn  x=1240  y=-220  rot=3  lab=[1]
+    l5  bus_tap.chn  x=1240  y=-300  rot=3  lab=[2]
+    l6  bus_tap.chn  x=1240  y=-380  rot=3  lab=[3]
+    l7  bus_tap.chn  x=1240  y=-460  rot=3  lab=[4]
+    l8  bus_tap.chn  x=1240  y=-540  rot=3  lab=[5]
+    l9  bus_tap.chn  x=1240  y=-620  rot=3  lab=[6]
+    l10  bus_tap.chn  x=1240  y=-700  rot=3  lab=[7]
+    l11  bus_tap.chn  x=560  y=-120  rot=1  flip=1  lab=[0]
+    l12  bus_tap.chn  x=560  y=-200  rot=1  flip=1  lab=[1]
+    l13  bus_tap.chn  x=560  y=-280  rot=1  flip=1  lab=[2]
+    l14  bus_tap.chn  x=560  y=-360  rot=1  flip=1  lab=[3]
+    l15  bus_tap.chn  x=560  y=-440  rot=1  flip=1  lab=[4]
+    l18  bus_tap.chn  x=560  y=-520  rot=1  flip=1  lab=[5]
+    l19  bus_tap.chn  x=560  y=-600  rot=1  flip=1  lab=[6]
+    l20  bus_tap.chn  x=560  y=-680  rot=1  flip=1  lab=[7]
 
-  nets [25]:
-    B[4]  -> x2.Z, x7.B
-    net2  -> x2.A, x3.B, l18.tap
-    net3  -> x2.B, x5.A, l15.tap
-    B[5]  -> x3.Z, x8.B
-    net1  -> x3.A, x14.B, l19.tap
-    B[6]  -> x14.Z, x9.B
-    net4  -> x14.A, l20.tap
-    B[1]  -> x1.Z, x10.B
-    net6  -> x1.A, x4.B, l13.tap
-    net7  -> x1.B, x6.A, l12.tap
-    B[2]  -> x4.Z, x11.B
-    net5  -> x4.A, x5.B, l14.tap
-    B[3]  -> x5.Z, x12.B
-    B[0]  -> x6.Z, x13.B
-    net8  -> x6.B, l11.tap
-    net11  -> x7.Z, x12.A, l7.tap
-    net10  -> x7.A, x8.Z, l8.tap
-    net9  -> x8.A, x9.Z, l9.tap
-    net16  -> x9.A, l10.tap
-    net14  -> x10.Z, x13.A, l4.tap
-    net13  -> x10.A, x11.Z, l5.tap
-    net12  -> x11.A, x12.Z, l6.tap
-    net15  -> x13.Z, l2.tap
-    C[7:0]  -> l2.bus, l4.bus, l5.bus, l6.bus, l7.bus, l8.bus, l9.bus, l10.bus
-    A[7:0]  -> l11.bus, l12.bus, l13.bus, l14.bus, l15.bus, l18.bus, l19.bus, l20.bus
+  code_blocks [2]:
+    COMMANDS  code  simulator=ngspice  only_toplevel=false  value=* ngspice commands .options save all .control     tran 1n 2000n   remzerovec   write greycnt.raw .endc  * to generate following file copy .../share/doc/xschem/examples/stimuli.greycnt * to the simulation directory and run simulation -> Utile Stimuli Editor (GUI),  * and press 'Translate' .include stimuli_greycnt.cir  .model nmos nmos level=49 version=3.3.0 vth0=0.8 .model pmos pmos level=49 version=3.3.0 vth0=-0.8 
+    COMMANDS1  code  simulator=xyce  only_toplevel=false  value=* Xyce commands VGND GND 0 0 .tran 0.1n 2000n .print tran format=raw + file=greycnt.raw v(*) i(*)  * to generate following file copy .../share/doc/xschem/examples/stimuli.greycnt * to the simulation directory and run simulation -> Utile Stimuli Editor (GUI),  * and press 'Translate' .include stimuli_greycnt.cir  .model nmos nmos level=49 version=3.3.0 vth0=0.8 .model pmos pmos level=49 version=3.3.0 vth0=-0.8  
+
+  hdl_blocks [4]:
+    s1  timestep=1ps  precision=1ps
+    v1  delay=1
+    v0  delay=1
+    
 
   wires [87]:
     720 -630 830 -630

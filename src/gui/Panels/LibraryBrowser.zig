@@ -19,23 +19,17 @@ const dvui = @import("dvui");
 const st = @import("state");
 const core = @import("core");
 const actions = @import("../Actions.zig");
+const components = @import("../Components/lib.zig");
 
 const AppState = st.AppState;
 const primitives = core.primitives;
-
-// ── Helpers ──────────────────────────────────────────────────────────────── //
-
-/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
-fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
-    return @ptrCast(wr);
-}
 
 // ── Public API ───────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
     if (!app.open_library_browser) return;
 
-    const lb_state = &app.gui.library_browser;
+    const lb_state = &app.gui.cold.library_browser;
 
     if (app.rescan_library_browser) {
         lb_state.selected_prim = -1;
@@ -45,7 +39,7 @@ pub fn draw(app: *AppState) void {
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = false,
         .open_flag = &app.open_library_browser,
-        .rect = winRectPtr(&lb_state.win_rect),
+        .rect = components.winRectPtr(&lb_state.win_rect),
     }, .{
         .min_size_content = .{ .w = 380, .h = 300 },
     });
@@ -150,7 +144,7 @@ pub fn draw(app: *AppState) void {
 }
 
 fn placeSelected(app: *AppState) void {
-    const lb_state = &app.gui.library_browser;
+    const lb_state = &app.gui.cold.library_browser;
     if (lb_state.selected_prim < 0 or @as(usize, @intCast(lb_state.selected_prim)) >= primitives.prim_count) {
         app.status_msg = "Select a device first";
         return;

@@ -17,19 +17,15 @@ const FindWindow = components.FloatingWindow(.{
 // ── Helpers ────────────────────────────────────────────────────────���─────── //
 
 /// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
-fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
-    return @ptrCast(wr);
-}
-
 // ── Public API ───────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
-    const fd = &app.gui.find_dialog;
-    FindWindow.draw(winRectPtr(&fd.win_rect), &fd.is_open, drawContents, app);
+    const fd = &app.gui.cold.find_dialog;
+    FindWindow.draw(components.winRectPtr(&fd.win_rect), &fd.is_open, drawContents, app);
 }
 
 fn drawContents(app: *AppState) void {
-    const fd = &app.gui.find_dialog;
+    const fd = &app.gui.cold.find_dialog;
 
     // Search input.
     dvui.labelNoFmt(@src(), "Search:", .{}, .{ .id_extra = 0 });

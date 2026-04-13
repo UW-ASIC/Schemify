@@ -1,24 +1,3 @@
-[submodule "plugins/XSchemDropIN/examples/xschem_sky130"]
-	path = plugins/XSchemDropIN/examples/xschem_sky130
-	url = https://github.com/StefanSchippers/xschem_sky130
-	shallow = true
-
-[submodule "plugins/XSchemDropIN/examples/sky130_schematics"]
-	path = plugins/XSchemDropIN/examples/sky130_schematics
-	url = https://github.com/sifferman/sky130_schematics
-	shallow = true
-
-[submodule "deps/ngspice"]
-	path = deps/ngspice
-	url = https://git.code.sf.net/p/ngspice/ngspice
-	shallow = true
-
-[submodule "deps/Xyce/src"]
-	path = deps/Xyce/src
-	url = https://github.com/Xyce/Xyce.git
-	shallow = true
-
-[submodule "deps/Xyce/Trilinos"]
-	path = deps/Xyce/Trilinos
-	url = https://github.com/trilinos/Trilinos.git
-	shallow = true
+[submodule "plugins/PDKLoader/dep/volare"]
+	path = plugins/PDKLoader/dep/volare
+	url = https://github.com/efabless/volare.git

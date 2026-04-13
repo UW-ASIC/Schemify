@@ -1,79 +1,65 @@
-chn 1.0
+chn_testbench 1.0
 
-SYMBOL test_short_option
-
-  pins [2]:
-    NET_A  inout
-    NET_C  inout
-
-SCHEMATIC
+TESTBENCH untitled
 
   instances [10]:
-    x2  devices/short  x=630  y=-380  rot=1  spice_ignore=tcleval([if \{$IGNORE == 1\} \{return \{false\}\} else \{return \{true\}\}])
-    x5  devices/short  x=630  y=-570  rot=1  spice_ignore=tcleval([if \{$IGNORE == 1\} \{return \{true\}\} else \{return \{false\}\}])
-    x1  devices/short  x=1090  y=-450  rot=1  spice_ignore=tcleval([if \{$IGNORE == 0\} \{return \{true\}\} else \{return \{false\}\}])
-    x10  sky130_tests/lvnand  x=1080  y=-370  WidthN=1  LenN=0.15  WidthP=1  LenP=0.15  m=1  spice_ignore=tcleval([if \{$IGNORE == 0\} \{return \{false\}\} else \{return \{true\}\}])
-    x12  sky130_tests/not  x=640  y=-470  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
-    x3  sky130_tests/not  x=640  y=-280  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1  spice_ignore=tcleval([if \{$IGNORE == 1\} \{return \{true\}\} else \{return \{false\}\}])
-    x6  sky130_tests/not  x=870  y=-470  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
-    x7  sky130_tests/not  x=870  y=-280  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1  spice_ignore=tcleval([if \{$IGNORE == 1\} \{return \{false\}\} else \{return \{short\}\}])
-    x4  sky130_tests/not  x=1540  y=-810  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1  spice_ignore=tcleval([if \{$IGNORE == 0\} \{return \{false\}\} else \{return \{short\}\}])
-    x8  sky130_tests/not  x=1740  y=-810  m=1  VCCPIN=VCC  VSSPIN=VSS  W_N=0.5  L_N=1  W_P=1  L_P=1
+    x2  short.chn  x=330  y=-390  rot=1
+    x5  short.chn  x=330  y=-580  rot=1
+    x3  inv_ngspice.chn  x=570  y=-480  ROUT=1000
+    x6  inv_ngspice.chn  x=570  y=-290  ROUT=1000
+    x7  inv_ngspice.chn  x=340  y=-480  ROUT=1000
+    x8  inv_ngspice.chn  x=340  y=-290  ROUT=1000
+    x4  and_ngspice.chn  x=790  y=-380  ROUT=1000
+    x1  short.chn  x=790  y=-460  rot=1
+    x10  inv_ngspice.chn  x=1520  y=-590  ROUT=1000
+    x11  inv_ngspice.chn  x=1720  y=-590  ROUT=1000
 
-  vsource [2]{name, x, y, rot, flip, spice_ignore}:
-    Vopt1  390  -410  3  0  tcleval([if \{$IGNORE == 0\} \{return \{true\}\} else \{return \{short\}\}])
-    Vopt2  390  -470  3  0  tcleval([if \{$IGNORE == 1\} \{return \{true\}\} else \{return \{short\}\}])
+  vsource [2]{name, x, y, rot, flip}:
+    Vopt2  90  -480  3  0
+    Vopt1  90  -420  3  0
 
-  nets [8]:
-    NET_A  -> x2.A, x2.A, x3.y, x3.a, x7.a
-    net1  -> x5.A, x5.A, x12.y, x12.a, x6.a, Vopt1.minus, Vopt2.minus
-    NET_E  -> x1.A, x1.A, x10.A, x10.Y, x6.y
-    NET_B  -> x10.B, x7.y, x4.a
-    net2  -> x4.y, x8.a
-    NET_F  -> x8.y
-    NET_D  -> Vopt1.plus
-    NET_C  -> Vopt2.plus
-
-  wires [42]:
-    430 -280 480 -280
-    780 -280 830 -280
-    480 -380 480 -280
-    780 -380 780 -280
-    480 -380 600 -380
-    660 -380 780 -380
-    420 -470 480 -470
-    780 -470 830 -470
-    480 -570 480 -470
-    780 -570 780 -470
-    480 -570 600 -570
-    660 -570 780 -570
-    680 -470 780 -470
-    480 -470 600 -470
-    680 -280 780 -280
-    480 -280 600 -280
-    910 -470 960 -470
-    960 -450 960 -390
-    960 -390 1030 -390
-    960 -350 1030 -350
-    960 -350 960 -280
-    910 -280 960 -280
-    1170 -370 1210 -370
-    960 -450 1060 -450
-    1120 -450 1170 -450
-    1170 -450 1170 -370
-    960 -470 960 -450
-    1150 -370 1170 -370
-    1580 -810 1700 -810
-    1780 -810 1840 -810
-    1230 -810 1500 -810
-    420 -410 460 -410
-    460 -470 460 -410
-    430 -280 430 -280 NET_A
-    390 -190 390 -190 NET_A
-    960 -280 960 -280 NET_B
-    360 -470 360 -470 NET_C
-    390 -160 390 -160 NET_C
-    1840 -810 1840 -810 NET_F
-    1230 -810 1230 -810 NET_B
-    360 -410 360 -410 NET_D
-    1170 -420 1170 -420 NET_E
+  wires [44]:
+    130 -290 180 -290
+    480 -290 530 -290
+    180 -390 180 -290
+    480 -390 480 -290
+    180 -390 300 -390
+    360 -390 480 -390
+    160 -480 180 -480
+    480 -480 530 -480
+    180 -580 180 -480
+    480 -580 480 -480
+    180 -580 300 -580
+    360 -580 480 -580
+    380 -480 480 -480
+    180 -480 300 -480
+    380 -290 480 -290
+    180 -290 300 -290
+    610 -480 660 -480
+    660 -460 660 -400
+    660 -400 750 -400
+    660 -360 750 -360
+    660 -360 660 -290
+    610 -290 660 -290
+    980 -380 1020 -380
+    660 -460 760 -460
+    820 -460 980 -460
+    980 -460 980 -380
+    660 -480 660 -460
+    120 -420 160 -420
+    160 -480 160 -420
+    1560 -590 1680 -590
+    120 -480 160 -480
+    1760 -590 1820 -590
+    1210 -590 1480 -590
+    850 -380 980 -380
+    130 -290 130 -290 NET_A
+    100 -190 100 -190 NET_D
+    660 -290 660 -290 NET_B
+    60 -480 60 -480 NET_C
+    100 -170 100 -170 NET_C
+    60 -420 60 -420 NET_D
+    920 -380 920 -380 NET_E
+    1820 -590 1820 -590 NET_F
+    1210 -590 1210 -590 NET_B
+    100 -210 100 -210 NET_A

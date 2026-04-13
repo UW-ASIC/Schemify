@@ -1,9 +1,9 @@
 chn_testbench 1.0
 
-TESTBENCH test_ne555
+TESTBENCH untitled
 
   instances [1]:
-    x1  ne555  x=490  y=-220  tclcommand=textwindow $netlist_dir/model_test_ne555.txt
+    x1  ne555.chn  x=490  y=-220  tclcommand=textwindow $netlist_dir/model_test_ne555.txt
 
   resistors [2]{name, x, y, rot, flip, m, value}:
     r3  130  -180  0  0  1  2k
@@ -15,13 +15,8 @@ TESTBENCH test_ne555
   vsource [1]{name, x, y, rot, flip, value}:
     v1  130  -360  0  1  5
 
-  nets [6]:
-    VSS  -> x1.GND, c6.m, v1.m
-    TRIG  -> x1.TRIG, x1.THRES, r3.M, c6.p
-    OUT  -> x1.OUT
-    VSUPPLY  -> x1.RESETB, x1.VCC, v1.p, r5.P
-    CTRL  -> x1.CTRL
-    DIS  -> x1.DIS, r3.P, r5.M
+  code_blocks [1]:
+    STIMULI  code  value=.option SCALE=1e-6 PARHIER=LOCAL RUNLVL=6 post MODMONTE=1 .option sampling_method = SRS * .option method=gear vvss vss 0 dc 0  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in netlist/simulation directory. .temp 30 * .include \\"model_test_ne555.txt\\"  .control   save all   tran 0.1u 1m uic   write test_ne555.raw .endc 
 
   wires [16]:
     130 -150 200 -150

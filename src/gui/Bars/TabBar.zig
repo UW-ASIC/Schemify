@@ -80,8 +80,8 @@ fn drawContents(app: *AppState) void {
     const show_sch = file_type != .prim_only;
     const show_sym = file_type != .tb_only;
 
-    const sch_active = app.gui.view_mode == .schematic;
-    const sym_active = app.gui.view_mode == .symbol;
+    const sch_active = app.gui.hot.view_mode == .schematic;
+    const sym_active = app.gui.hot.view_mode == .symbol;
     const sch_style: dvui.Theme.Style.Name = if (sch_active) .highlight else .control;
     const sym_style: dvui.Theme.Style.Name = if (sym_active) .highlight else .control;
 

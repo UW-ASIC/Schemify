@@ -15,18 +15,11 @@ const KeybindsWindow = components.FloatingWindow(.{
     .modal = false,
 });
 
-// ── Helpers ──────────────────────────────────────────────────────────────── //
-
-/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
-fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
-    return @ptrCast(wr);
-}
-
 // ── Public API ────────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
-    const kd = &app.gui.keybinds_dialog;
-    KeybindsWindow.draw(winRectPtr(&kd.win_rect), &kd.open, drawContents, app);
+    const kd = &app.gui.cold.keybinds_dialog;
+    KeybindsWindow.draw(components.winRectPtr(&kd.win_rect), &kd.open, drawContents, app);
 }
 
 fn drawContents(app: *AppState) void {
@@ -54,6 +47,6 @@ fn drawContents(app: *AppState) void {
     }
 
     if (dvui.button(@src(), "Close [Esc]", .{}, .{})) {
-        app.gui.keybinds_dialog.open = false;
+        app.gui.cold.keybinds_dialog.open = false;
     }
 }

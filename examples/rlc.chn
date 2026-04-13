@@ -1,6 +1,6 @@
 chn_testbench 1.0
 
-TESTBENCH rlc
+TESTBENCH untitled
 
   capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
     C1  150  -510  0  0  1  50nF  1206  ceramic capacitor
@@ -17,12 +17,8 @@ TESTBENCH rlc
   vsource [1]{name, x, y, rot, flip}:
     Vmeas  350  -310  0  0
 
-  nets [5]:
-    A  -> C1.p, R1.P
-    B  -> C1.m, L1.p
-    D  -> R1.M, Vmeas.plus
-    C  -> L1.m, V1.p
-    0  -> V1.m, Vmeas.minus
+  code_blocks [1]:
+    STIMULI  code  only_toplevel=true  value=.control       save all   tran 10n 800u uic   let pow = i(v1) * v(a,b)   meas tran cap_avg_pow avg pow from=600u to=800u   write  rlc.raw .endc 
 
   wires [13]:
     150 -480 150 -380

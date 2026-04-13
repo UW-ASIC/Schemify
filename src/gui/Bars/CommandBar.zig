@@ -26,9 +26,9 @@ pub fn draw(app: *AppState) void {
 }
 
 fn drawContents(app: *AppState) void {
-    if (app.gui.command_mode) {
+    if (app.gui.hot.command_mode) {
         var cmd_buf: [260]u8 = undefined;
-        const cmd_text = std.fmt.bufPrint(&cmd_buf, ":{s}▌", .{app.gui.command_buf[0..app.gui.command_len]}) catch ":";
+        const cmd_text = std.fmt.bufPrint(&cmd_buf, ":{s}▌", .{app.gui.cold.command_buf[0..app.gui.hot.command_len]}) catch ":";
         dvui.labelNoFmt(@src(), cmd_text, .{}, .{ .style = .highlight });
         _ = dvui.spacer(@src(), .{ .expand = .horizontal });
         dvui.labelNoFmt(@src(), "Enter to run • Esc to cancel", .{}, .{ .id_extra = 1 });
@@ -59,7 +59,7 @@ fn drawContents(app: *AppState) void {
     _ = dvui.separator(@src(), .{ .id_extra = 11 });
     {
         var view_buf: [24]u8 = undefined;
-        const view_name = std.fmt.bufPrint(&view_buf, "{s}", .{@tagName(app.gui.view_mode)}) catch "sch";
+        const view_name = std.fmt.bufPrint(&view_buf, "{s}", .{@tagName(app.gui.hot.view_mode)}) catch "sch";
         dvui.labelNoFmt(@src(), view_name, .{}, .{ .id_extra = 4 });
     }
 

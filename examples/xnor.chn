@@ -1,18 +1,42 @@
 chn 1.0
 
-SYMBOL xnor
+SYMBOL untitled
 
   pins [3]:
-    Z  out
-    A  in
-    B  in
+    Z  out  x=60  y=0
+    A  in  x=-40  y=-20
+    B  in  x=-40  y=20
 
   params [1]:
     template = name=x1 risedel=400 falldel=300
 
   spice_prefix: X
 
+  drawing:
+    line 45 0 60 0
+    line -40 -20 -27 -20
+    line -40 20 -27 20
+    line -25 -30 -5 -30
+    line -25 30 -5 30
+    arc 40 0 5 180 360
+    arc -10 18 48 22 63
+    arc -5 -11 41 270 75
+    arc -65 0 50 323 74
+    arc -73 0 50 323 74
+    pin_positions:
+      Z: (60, 0)
+      A: (-40, -20)
+      B: (-40, 20)
+
 SCHEMATIC
+
+
+  input_pin [2]{name, x, y, rot, flip, lab}:
+    A  90  -330  0  0  A
+    B  490  -240  0  0  B
+
+  output_pin [1]{name, x, y, rot, flip, lab}:
+    Z  700  -330  0  0  Z
 
   nmos [5]{name, x, y, rot, flip, model, w, l, m}:
     M1  330  -130  0  0  nmos  10u  1u  1
@@ -27,17 +51,6 @@ SCHEMATIC
     M8  510  -420  0  0  pmos  10u  1u  1
     M9  510  -360  0  0  pmos  10u  1u  1
     M10  630  -360  0  0  pmos  10u  1u  1
-
-  nets [9]:
-    net2  -> M1.d, M5.s
-    A  -> M1.g, M3.g, M6.g, M8.g
-    GND  -> M1.s, M1.b, M2.s, M2.b, M3.b, M4.b, M5.b
-    net3  -> M2.d, M3.s, M4.s
-    net1  -> M2.g, M5.d, M6.d, M7.d, M10.g
-    Z  -> M3.d, M4.d, M9.d, M10.d
-    B  -> M4.g, M5.g, M7.g, M9.g
-    VDD  -> M6.s, M6.b, M7.s, M7.b, M8.s, M8.b, M9.b, M10.s, M10.b
-    net4  -> M8.d, M9.s
 
   wires [58]:
     350 -280 350 -260

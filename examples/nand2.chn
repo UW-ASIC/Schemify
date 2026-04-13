@@ -1,18 +1,56 @@
 chn 1.0
 
-SYMBOL nand2
+SYMBOL untitled
 
   pins [3]:
-    Z  out
-    A  in
-    B  in
+    Z  out  x=50  y=0
+    A  in  x=-50  y=-20
+    B  in  x=-50  y=20
 
   params [1]:
     template = name=x1 WP=8u LP=1u WN=5u LLN=1u
 
   spice_prefix: X
 
+  drawing:
+    line -50 -20 -35 -20
+    line 25 -3 25 3
+    line 25 -3 28 -5
+    line 28 -5 33 -5
+    line 33 -5 35 -3
+    line 35 -3 35 3
+    line 33 5 35 3
+    line 28 5 33 5
+    line 25 3 28 5
+    line 35 0 50 0
+    line -35 -30 -35 30
+    line -35 -30 -10 -30
+    line -35 30 -10 30
+    line -50 20 -35 20
+    line 3 -28 13 -23
+    line -10 -30 3 -28
+    line 3 28 13 23
+    line -10 30 3 28
+    line 13 23 20 15
+    line 20 15 24 8
+    line 24 8 25 0
+    line 13 -23 20 -15
+    line 20 -15 24 -8
+    line 24 -8 25 0
+    pin_positions:
+      Z: (50, 0)
+      A: (-50, -20)
+      B: (-50, 20)
+
 SCHEMATIC
+
+
+  input_pin [2]{name, x, y, rot, flip, lab}:
+    A  160  -310  0  0  A
+    B  160  -190  0  0  B
+
+  output_pin [1]{name, x, y, rot, flip, lab}:
+    Z  500  -380  0  0  Z
 
   nmos [2]{name, x, y, rot, flip, model, w, l, m}:
     m1  270  -310  0  0  CMOSN  WN  LLN  1
@@ -21,14 +59,6 @@ SCHEMATIC
   pmos [2]{name, x, y, rot, flip, model, w, l, m}:
     m2  270  -440  0  0  CMOSP  WP  LP  1
     m2  420  -440  0  0  CMOSP  WP  LP  1
-
-  nets [6]:
-    Z  -> m1.d, m2.d, m2.d
-    A  -> m1.g, m2.g
-    net1  -> m1.s, m1.d
-    VSS  -> m1.b, m1.s, m1.b
-    B  -> m1.g, m2.g
-    VCC  -> m2.s, m2.b, m2.s, m2.b
 
   wires [29]:
     160 -310 250 -310

@@ -187,11 +187,11 @@ pub fn enqueue(app: *AppState, cmd: command.Command, ok_msg: []const u8) void {
 pub fn runGuiCommand(app: *AppState, gui_cmd: GuiCommand) void {
     switch (gui_cmd) {
         .view_schematic => {
-            app.gui.view_mode = .schematic;
+            app.gui.hot.view_mode = .schematic;
             app.status_msg = "Schematic view";
         },
         .view_symbol => {
-            app.gui.view_mode = .symbol;
+            app.gui.hot.view_mode = .symbol;
             app.status_msg = "Symbol view";
         },
         .file_new => {
@@ -257,7 +257,7 @@ pub fn runVimCommand(app: *AppState, line: []const u8) void {
     }
 
     // Plugin-registered commands
-    for (app.gui.plugin_commands.items) |pc| {
+    for (app.gui.cold.plugin_commands.items) |pc| {
         if (!std.mem.eql(u8, pc.id, name)) continue;
         enqueue(app, .{ .immediate = .{ .plugin_command = .{ .tag = pc.id, .payload = rest } } }, pc.display_name);
         return;

@@ -1,5 +1,7 @@
 name = "Schemify Examples"
+pdk = "sky130_fd_sc_hd"
 
 [paths]
 chn = ["examples/*"]
 chn_tb = ["examples/*"]
+chn_prim = ["src/core/devices/*"]

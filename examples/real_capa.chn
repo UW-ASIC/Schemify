@@ -1,16 +1,36 @@
 chn 1.0
 
-SYMBOL real_capa
+SYMBOL untitled
 
   pins [1]:
-    USC  inout
+    USC  inout  x=0  y=-30
 
   params [1]:
     template = name=x1 cap=10.0
 
   spice_prefix: X
 
+  drawing:
+    line 0 5 0 30
+    line 0 -30 0 -5
+    line -10 -5 10 -5
+    line -10 5 10 5
+    line 3 -23 8 -23
+    line 5 -25 5 -20
+    line -5 30 5 30
+    line 0 35 5 30
+    line -5 30 0 35
+    pin_positions:
+      USC: (0, -30)
+
 SCHEMATIC
+
+
+  inout_pin [1]{name, x, y, rot, flip, lab}:
+    USC  50  -80  0  0  USC
+
+  hdl_blocks [1]:
+    
 
   wires [1]:
     50 -80 50 -80 USC

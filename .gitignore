@@ -29,3 +29,8 @@ zig-lsp-plugin/
 .mcp.json
 .planning/
 .claude/worktrees/
+
+# Claude
+.omc/
+.planning/
+.claude/

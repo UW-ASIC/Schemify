@@ -3,31 +3,27 @@
 //! build.zig points at Schemify.zig as the module entry point, so
 //! Schemify.zig does the actual re-exports that external consumers see
 //! via `@import("core")`.  This file exists as the conventional module
-//! root, listing all sub-files and providing module-level tests.
+//! root and lists all submodules.
 //!
-//! Sub-files:
-//!   types.zig     — All shared/simple data types (public within module).
-//!   Schemify.zig  — Core schematic data model (module entry point + re-exports).
-//!   Devices.zig   — Device cell library and PDK.
-//!   SpiceIF.zig   — SPICE backend interface.
-//!   Netlist.zig   — Netlist emission.
-//!   Reader.zig    — .chn file reader.
-//!   Writer.zig    — .chn file writer.
-//!   HdlParser.zig — Verilog/VHDL parser.
-//!   YosysJson.zig — Yosys JSON parser.
-//!   Synthesis.zig — Yosys synthesis invocation.
-//!   Toml.zig      — Config.toml parser.
-//!
-//! Tests in this file are only runnable through `zig build test` (not
-//! standalone `zig test`) because sub-files depend on external modules
-//! defined in build.zig ("utility", etc.).
+//! Submodules:
+//!   digital/       — HDL parsing and synthesis
+//!   simulation/    — SPICE interface and netlist emission
+//!   fileio/        — Reader, Writer, TOML config
+//!   devices/       — Device cell library and primitives
 
 const std = @import("std");
+
+// ── Submodule libs ───────────────────────────────────────────────────────────
+
+const digital = @import("digital/lib.zig");
+const simulation = @import("simulation/lib.zig");
+const fileio = @import("fileio/lib.zig");
+const devices = @import("devices/lib.zig");
+
+// ── Re-exports ─────────────────────────────────────────────────────────────
+
+// Types from types.zig
 const types = @import("types.zig");
-
-// ── Re-exports ──────────────────────────────────────────────────────────────
-const schemify = @import("Schemify.zig");
-
 pub const PinDir = types.PinDir;
 pub const Line = types.Line;
 pub const Rect = types.Rect;
@@ -49,38 +45,44 @@ pub const PinRef = types.PinRef;
 pub const SymData = types.SymData;
 pub const SourceMode = types.SourceMode;
 pub const HdlLanguage = types.HdlLanguage;
-pub const BehavioralModel = types.BehavioralModel;
-pub const SynthesizedModel = types.SynthesizedModel;
-pub const DigitalConfig = types.DigitalConfig;
 pub const ComponentDesc = types.ComponentDesc;
 pub const DiagLevel = types.DiagLevel;
 pub const Diagnostic = types.Diagnostic;
 pub const LogLevel = types.LogLevel;
-pub const LibInclude = types.LibInclude;
 pub const DeviceKind = types.DeviceKind;
+
+// From Schemify.zig
+const schemify = @import("Schemify.zig");
 pub const Schemify = schemify.Schemify;
 pub const primitives = schemify.primitives;
 pub const SpiceBackend = schemify.SpiceBackend;
 pub const NetlistMode = schemify.NetlistMode;
 pub const pdk = schemify.pdk;
-pub const Toml = @import("Toml.zig");
+
+// From submodules
+pub const HdlParser = digital.HdlParser;
+pub const YosysJson = digital.YosysJson;
+pub const Synthesis = digital.Synthesis;
+pub const SpiceIF = simulation.SpiceIF;
+pub const Netlist = simulation.Netlist;
+pub const Reader = fileio.Reader;
+pub const Writer = fileio.Writer;
+pub const Toml = fileio.Toml;
+pub const Devices = devices.Devices;
 
 // ── Comptime imports ensure all sub-file tests are pulled into `zig build test` ──
 
 comptime {
     _ = types;
-    _ = @import("Devices.zig");
-    _ = @import("SpiceIF.zig");
-    _ = @import("Netlist.zig");
-    _ = @import("Reader.zig");
-    _ = @import("Writer.zig");
-    _ = @import("HdlParser.zig");
-    _ = @import("YosysJson.zig");
-    _ = @import("Synthesis.zig");
-    _ = @import("Toml.zig");
+    _ = @import("helpers.zig");
+    _ = @import("Schemify.zig");
+    _ = digital;
+    _ = simulation;
+    _ = fileio;
+    _ = devices;
 }
 
-// ── Module-level tests ───────────────────────────────────────────────────────
+// ── Module-level tests ──────────────────────────────────────────────────────
 
 test "types re-export consistency" {
     try std.testing.expect(@sizeOf(types.Line) > 0);

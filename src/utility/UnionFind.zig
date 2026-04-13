@@ -2,6 +2,11 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const UnionFind = struct {
+    // HashMap is intentional here: keys are sparse u64 coordinate values packed
+    // from (x, y) pairs by NetMap.pointKey(). They are not dense integers, so a
+    // flat []u32 array indexed by node ID would waste memory and require an
+    // extra indirection layer. The HashMap gives O(1) amortised lookup with
+    // acceptable overhead for the schematic sizes this tool targets.
     parent: std.AutoHashMapUnmanaged(u64, u64) = .{},
     a: Allocator,
 

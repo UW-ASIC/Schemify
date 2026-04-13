@@ -9,6 +9,7 @@ const std = @import("std");
 const P = @import("PluginIF");
 const F = P.Framework;
 const ei = @import("easyimport");
+const core = @import("core");
 
 const Allocator = std.mem.Allocator;
 
@@ -210,6 +211,52 @@ fn handleBrowse(s: *State, w: *P.Writer) void {
     w.requestRefresh();
 }
 
+/// Write one converted result to disk as a .chn file.
+/// Adds a PLUGIN EasyImport block recording the original source paths,
+/// then serialises the Schemify and writes it alongside the .sch file.
+fn writeResultToChn(a: Allocator, project_dir: []const u8, r: *ei.ConvertResult) bool {
+    const rel_sch = r.sch_path orelse return false;
+
+    // Strip .sch extension; output extension depends on stype
+    const base = if (std.mem.endsWith(u8, rel_sch, ".sch"))
+        rel_sch[0 .. rel_sch.len - 4]
+    else
+        rel_sch;
+    const ext: []const u8 = switch (r.schemify.stype) {
+        .primitive => ".chn_prim",
+        .testbench => ".chn_tb",
+        .component => ".chn",
+    };
+    const rel_out = std.fmt.allocPrint(a, "{s}{s}", .{ base, ext }) catch return false;
+    defer a.free(rel_out);
+    const out_path = std.fs.path.join(a, &.{ project_dir, rel_out }) catch return false;
+    defer a.free(out_path);
+
+    // Ensure parent directory exists
+    if (std.fs.path.dirname(out_path)) |dir| {
+        std.fs.cwd().makePath(dir) catch {};
+    }
+
+    // Record provenance in a PLUGIN EasyImport block
+    var entries_buf: [2]core.Prop = undefined;
+    var entry_count: usize = 0;
+    if (r.sch_path) |sp| {
+        entries_buf[entry_count] = .{ .key = "sch_path", .val = sp };
+        entry_count += 1;
+    }
+    if (r.sym_path) |sp| {
+        entries_buf[entry_count] = .{ .key = "sym_path", .val = sp };
+        entry_count += 1;
+    }
+    r.schemify.addPluginBlock("EasyImport", entries_buf[0..entry_count]) catch return false;
+
+    // Serialise and write
+    const bytes = r.schemify.writeFile(a, null) orelse return false;
+    defer a.free(bytes);
+    std.fs.cwd().writeFile(.{ .sub_path = out_path, .data = bytes }) catch return false;
+    return true;
+}
+
 fn handleConvert(s: *State, w: *P.Writer) void {
     const a = std.heap.page_allocator;
 
@@ -232,9 +279,14 @@ fn handleConvert(s: *State, w: *P.Writer) void {
     };
     defer results.deinit();
 
-    s.converted_count = @intCast(results.results.len);
+    var written: u32 = 0;
+    for (results.results) |*r| {
+        if (writeResultToChn(a, s.pathSlice(), r)) written += 1;
+    }
+
+    s.converted_count = written;
     s.status = .done;
-    s.setMsgFmt("Converted {d} schematics", .{results.results.len});
+    s.setMsgFmt("Converted {d} schematics", .{written});
     w.setStatus("EasyImport: conversion complete");
     w.requestRefresh();
 }

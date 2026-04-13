@@ -376,6 +376,9 @@ pub const WidgetTag = enum(u8) {
     collapsible_end,
 };
 
+/// Widget kind for plugin-side declarative widget specs.
+pub const WidgetKind = enum { slider, button, label, label_fmt, checkbox, separator, progress };
+
 /// Flat widget record -- all variants share the same struct so MultiArrayList
 /// can separate hot fields (tag, widget_id) from cold string/float data.
 ///

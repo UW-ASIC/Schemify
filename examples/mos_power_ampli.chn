@@ -1,14 +1,14 @@
 chn 1.0
 
-SYMBOL mos_power_ampli
+SYMBOL untitled
 
   pins [6]:
-    MINUS  in
-    PLUS  in
-    VSS  in
-    OUT  out
-    VPP  in
-    VNN  in
+    MINUS  in  x=-150  y=-40
+    PLUS  in  x=-150  y=-20
+    VSS  in  x=-150  y=0
+    OUT  out  x=150  y=-40
+    VPP  in  x=-150  y=20
+    VNN  in  x=-150  y=40
 
   params [3]:
     type = subcircuit
@@ -17,7 +17,44 @@ SYMBOL mos_power_ampli
 
   spice_prefix: X
 
+  drawing:
+    line 270 -540 340 -470
+    line 270 -410 340 -470
+    line -130 -50 130 -50
+    line -130 50 130 50
+    line -130 -50 -130 50
+    line 130 -50 130 50
+    line -150 -40 -130 -40
+    line -150 -20 -130 -20
+    line -150 0 -130 0
+    line 130 -40 150 -40
+    line -150 20 -130 20
+    line -150 40 -130 40
+    rect 1400 -260 1660 -130
+    rect 960 -980 1094 -893
+    rect 1400 -440 1660 -260
+    rect 1400 -620 1660 -440
+    rect 960 -1050 1094 -987
+    pin_positions:
+      MINUS: (-150, -40)
+      PLUS: (-150, -20)
+      VSS: (-150, 0)
+      OUT: (150, -40)
+      VPP: (-150, 20)
+      VNN: (-150, 40)
+
 SCHEMATIC
+
+
+  input_pin [5]{name, x, y, rot, flip, lab}:
+    MINUS  0  -570  0  0  MINUS
+    PLUS  0  -620  0  0  PLUS
+    VSS  0  -180  0  0  VSS
+    VPP  0  -1270  0  0  VPP
+    VNN  0  -140  0  0  VNN
+
+  output_pin [1]{name, x, y, rot, flip, lab}:
+    OUT  1390  -680  0  0  OUT
 
   nmos [2]{name, x, y, rot, flip, model, m, program, url}:
     xm2  1090  -530  0  0  irf540  1  evince  https://www.vishay.com/docs/91021/irf540.pdf
@@ -79,46 +116,19 @@ SCHEMATIC
     D1  1240  -1240  0  0  d1n758  1  http://www.futurlec.com/Datasheet/Diodes/1N746-1N759.pdf
     D2  150  -270  2  0  1N746  1  http://www.futurlec.com/Datasheet/Diodes/1N746-1N759.pdf
 
-  nets [39]:
-    net1  -> xm2.d, vd.minus
-    GB  -> xm2.g, R7.P, R11.P
-    SB  -> xm2.s, R7.M, v0.plus
-    VPP  -> xm1.d, R2.P, R4.P, D0.p, D1.p, R1.P
-    GA  -> xm1.g, R0.P, Q11.C
-    SA  -> xm1.s, R0.M, vu.plus
-    E2  -> R2.M, v2.plus
-    VBOOST  -> R3.P, R9.P, C12.p, D0.m, D1.m, R15.P
-    E1  -> R3.M, Q1.E
-    C5  -> Q5.C, Q7.E
-    PLUS  -> Q5.B
-    E9  -> Q5.E, Q9.E, R5.P
-    net8  -> Q4.C, v7.plus
-    net2  -> Q4.B, Q1.C, Q1.B, v6.plus
-    E4  -> Q4.E, R9.M
-    C6  -> Q6.C, R12.P
-    C2  -> Q6.B, Q2.C, Q2.B, R13.P
-    net5  -> Q6.E, v1.minus
-    E6  -> R4.M, v1.plus
-    OUTI  -> vd.plus, vu.minus, R18.M, v5.minus, v8.plus
-    net4  -> Q2.E, v2.minus
-    C9  -> Q9.C, R13.M, Q7.B
-    MINUS  -> Q9.B
-    net6  -> R11.M, v4.minus
-    C8  -> Q8.C, v4.plus
-    VSS  -> Q8.B, D2.p, R10.M, C3.m
-    E8  -> Q8.E, R12.M
-    net3  -> C12.m, R18.P
-    B1  -> R14.P, Q11.B, R15.M
-    net7  -> R14.M, v5.plus
-    E11  -> Q11.E, v7.minus
-    net9  -> R5.M, R6.P
-    net10  -> R6.M, v3.plus
-    B3  -> D2.m, Q3.B, R1.M, C3.p
-    C3  -> Q3.C, v3.minus
-    E3  -> Q3.E, R10.P
-    C7  -> Q7.C, v6.minus
-    VNN  -> v0.minus
-    OUT  -> v8.minus
+  code_blocks [1]:
+    STIMULI  code  only_toplevel=true  value=.option PARHIER=LOCAL RUNLVL=6 post MODMONTE=1 warn maxwarn=6000 .option sampling_method = SRS ingold=1 .option method=gear .option savecurrents .temp 30    vvss vss 0 dc 0  vvpp vpp 0 dc 50 vvnn vnn 0 dc -50  rfb1 vpp minus 100k rfb2 out minus 100k rfb3 minus vdc '100k/43'   vvdc vdc 0 dc 21.3 eref vref 0 plus vdc 45  vplus plus vdc dc 0  evboost vboost 0 vol='v(out)>=40 ? v(out)+10 : 50' rload out 0 4  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in simulation directory. .include \\"models_poweramp.txt\\" .dc vplus '-1.5' '1.5' 0.1 .save all .op *.probe dc v(plus,vdc) 
+
+  annotations [9]:
+    p37  probe_diff  x=860  y=-500
+    p38  probe_diff  x=860  y=-820  voltage=3.68
+    p40  probe  x=1010  y=-850  voltage=3.543
+    p56  probe  x=1000  y=-530  voltage=-46.18
+    p57  probe  x=420  y=-880  voltage=48.06
+    p58  probe  x=280  y=-1040  voltage=47.27
+    p59  probe  x=180  y=-810  voltage=47.27
+    p62  probe  x=1020  y=-1210  voltage=49.04
+    p60  probe  x=790  y=-690  analysis=tran  voltage=-0.1364
 
   wires [124]:
     180 -590 180 -550

@@ -52,8 +52,6 @@ pub const Line = struct {
 };
 
 pub const Rect = struct {
-    // pointer/slice first (8-byte alignment on 64-bit), then i32, then u8
-    image_data: ?[]const u8 = null,
     x0: i32,
     y0: i32,
     x1: i32,
@@ -276,7 +274,7 @@ pub const DigitalConfig = struct {
 
 // ── DeviceKind (re-exported from Devices.zig) ────────────────────────────────
 
-pub const DeviceKind = @import("Devices.zig").DeviceKind;
+pub const DeviceKind = @import("devices/Devices.zig").DeviceKind;
 
 // ── Helper types used by Devices.zig (private to module) ─────────────────────
 
@@ -285,14 +283,6 @@ pub const ParamDefault = struct {
     val: []const u8,
 };
 
-pub const DeviceEntry = struct {
-    kind: DeviceKind,
-    pins: []const []const u8 = &.{},
-    model_keyword: ?[]const u8 = null,
-    injected_net: ?[]const u8 = null,
-    prefix: u8 = 0,
-    non_electrical: bool = false,
-};
 
 pub const NameEntry = struct {
     name: []const u8,
@@ -395,7 +385,7 @@ pub const PinChange = struct {
 };
 
 pub const SyncReport = struct {
-    pins_added: []const @import("HdlParser.zig").HdlPin,
+    pins_added: []const @import("digital/HdlParser.zig").HdlPin,
     pins_removed: []const []const u8,
     pins_modified: []const PinChange,
     symbol_updated: bool,

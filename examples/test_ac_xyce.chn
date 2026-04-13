@@ -1,6 +1,6 @@
 chn_testbench 1.0
 
-TESTBENCH test_ac_xyce
+TESTBENCH untitled
 
   nmos [5]{name, x, y, rot, flip, model, w, l, m}:
     m1  430  -150  0  0  cmosn  5u  2u  1
@@ -34,18 +34,8 @@ TESTBENCH test_ac_xyce
   capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
     C1  800  -190  0  0  1  1  1206  ceramic capacitor
 
-  nets [11]:
-    D  -> m1.d, m4.s, m5.s, e2.cp
-    GN  -> m1.g, m3.d, m3.g, IBIAS.m
-    0  -> m1.s, m1.b, VVCC.m, m3.s, m3.b, IBIAS.p, m4.b, m5.b, VPLUS.m, e1.m, e1.cm, e2.m, e2.cm, m7.b, R2.M, C1.m
-    DIFFOUT  -> mtop_2nd.d, m5.d, e1.cp, m7.g, L1.p
-    net1  -> mtop_2nd.g, m4.d, mtop_1st.d, mtop_1st.g
-    VCC  -> mtop_2nd.s, mtop_2nd.b, VVCC.p, mtop_1st.s, mtop_1st.b
-    PLUS  -> m4.g, VPLUS.p
-    MINUS  -> m5.g, VLOOP.p
-    DIFFOUT_L  -> e1.p, m7.d
-    D_L  -> e2.p, m7.s
-    net2  -> VLOOP.m, R2.P, L1.m, C1.p
+  code_blocks [1]:
+    STIMULI  code  only_toplevel=true  value=  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in netlist/simulation directory. ** http://bwrcs.eecs.berkeley.edu/Classes/icdesign/ee241_s00/ASSIGNMENTS/TSMC035-n96g-params.txt .include \\"models_cmos_example.txt\\"  .control .ac dec 10 1000 10G  ** ngspice * .save all  ** xyce, not needed if -r given om cmdline * .print tran format=raw v(diffout) v(plus) v(minus) 
 
   wires [81]:
     30 -240 30 -210

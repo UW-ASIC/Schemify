@@ -5,7 +5,6 @@ This plugin intends to import ANY project from any other schematic software.
 Currently supported backends:
 
 - XSchem
-- Cadence Virtuoso
 
 #### How to use:
 

@@ -54,6 +54,7 @@ pub fn build(b: *std.Build) void {
     if (!ctx.is_web) {
         const plugin_lib = helper.addNativePluginLibrary(b, ctx, "XSchemDropIN", "src/main.zig");
         plugin_lib.root_module.addImport("easyimport", lib_mod);
+        plugin_lib.root_module.addImport("core", ctx.core_mod);
         b.installArtifact(plugin_lib);
         helper.addNativeAutoInstallRunStep(b, "XSchemDropIN", sdk_dep, "EasyImport");
     }

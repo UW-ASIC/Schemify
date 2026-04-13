@@ -57,7 +57,7 @@ listed `.wasm` file.
 
 ## `plugin.toml`
 
-Every plugin should ship a `plugin.toml` describing itself:
+Every plugin ships a `plugin.toml` describing itself:
 
 ```toml
 [plugin]
@@ -66,10 +66,16 @@ version     = "0.1.0"
 author      = "Your Name"
 description = "A brief description."
 entry       = "libMyPlugin.so"
+scope       = "user"   # or "project"
 ```
 
-This file is not currently parsed by the host at runtime but is used by
-package managers and the Schemify plugin registry.
+| `scope` value | Meaning |
+|---|---|
+| `user` | Intended for `~/.config/Schemify/plugins.toml` — personal tools, themes, utilities |
+| `project` | Intended for a project's `Config.toml` — PDK loaders, team-specific tools |
+
+This is a hint for users and package managers; the host does not enforce it.
+See [Configuring Plugins](./configuring) for how to activate plugins in each config file.
 
 ## Verifying installation
 

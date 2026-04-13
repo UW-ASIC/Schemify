@@ -1,12 +1,12 @@
 chn_testbench 1.0
 
-TESTBENCH poweramp
+TESTBENCH untitled
 
   instances [4]:
-    V1  vsource  x=60  y=-1160  value=dc 'VPP' + pwl 0 0 1m 'VPP'
-    V0  vsource  x=60  y=-1100  value=dc 'VPP' + pwl 0 0 1m 'VPP'
-    V3  vsource  x=870  y=-1100  xvalue=dc 0 pulse -.1 .1 1m .1u .1u 10.1u 20u  value=dc 0 sin 0 1 \{frequ\} 1m
-    Vin  vsource  x=870  y=-1040  value=0  xvalue=pwl 0 .1 1m .1 1.01m 0
+    V1  vsource.sym  x=60  y=-1160  value=dc 'VPP' + pwl 0 0 1m 'VPP'
+    V0  vsource.sym  x=60  y=-1100  value=dc 'VPP' + pwl 0 0 1m 'VPP'
+    V3  vsource.sym  x=870  y=-1100  xvalue=dc 0 pulse -.1 .1 1m .1u .1u 10.1u 20u  value=dc 0 sin 0 1 {frequ} 1m
+    Vin  vsource.sym  x=870  y=-1040  value=0  xvalue=pwl 0 .1 1m .1 1.01m 0
 
   resistors [14]{name, x, y, rot, flip, m, value}:
     R1  860  -490  0  1  1  8
@@ -25,8 +25,8 @@ TESTBENCH poweramp
     R13  400  -490  0  1  1  50k
 
   vcvs [2]{name, x, y, rot, flip, value}:
-    E3  610  -1170  0  0  \{gain*0.99\}
-    E0  610  -1090  0  0  \{-gain*0.99\}
+    E3  610  -1170  0  0  {gain*0.99}
+    E0  610  -1090  0  0  {-gain*0.99}
 
   capacitors [6]{name, x, y, rot, flip, m, value}:
     C3  310  -1090  0  0  1  100u
@@ -37,36 +37,26 @@ TESTBENCH poweramp
     C2  320  -1170  0  0  1  100u
 
   instances [2]:
-    x1  mos_power_ampli  x=500  y=-660
-    x0  mos_power_ampli  x=500  y=-200
+    x1  mos_power_ampli.chn  x=500  y=-660
+    x0  mos_power_ampli.chn  x=500  y=-200
 
   vsource [3]{name, x, y, rot, flip}:
     vcurrvpp  260  -1210  3  0
     vcurrvnn  260  -1050  3  0
     vcurrvss  260  -1130  3  0
 
-  nets [21]:
-    VPPI  -> V1.p, R11.M
-    net3  -> V1.m, V0.p, vcurrvss.plus
-    VNNI  -> V0.m, R9.M
-    OUTM  -> R1.P, R19.P, x1.OUT
-    OUTP  -> R1.M, x0.OUT, R2.P
-    REFP  -> E3.p
-    VSS  -> E3.m, E3.cm, C3.p, x1.VSS, x0.VSS, R7.M, E0.m, E0.cm, C6.m, R5.M, C1.m, Vin.m, vcurrvss.minus, C2.m
-    IN  -> E3.cp, E0.cp, C5.m, C4.m, R10.P
-    VNN  -> C3.m, x1.VNN, x0.VNN, vcurrvnn.minus
-    net1  -> R11.P, vcurrvpp.plus
-    net2  -> R9.P, vcurrvnn.plus
-    FBN  -> R19.M, R0.P, x1.MINUS, R8.M
-    net4  -> R0.M, C5.p
-    VSSX  -> x1.PLUS, R4.M, R5.P, C1.p
-    VPP  -> x1.VPP, x0.VPP, R6.P, R4.P, R8.P, R13.P, vcurrvpp.minus, C2.p
-    FB  -> x0.MINUS, R2.M, R3.P, R13.M
-    INX  -> x0.PLUS, R6.M, R7.P, C4.p
-    REFM  -> E0.p
-    net5  -> C6.p, R3.M
-    IN_INT  -> V3.p, R10.M
-    net6  -> V3.m, Vin.p
+  code_blocks [2]:
+    NGSPICE  code  simulator=ngspice  only_toplevel=false  value=.option ITL4=20000 ITL5=0 vvss vss 0 dc 0  .param VPP=50 .temp 30 .param frequ=15k .param gain=45 .option savecurrents  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in simulation directory. .include \\"models_poweramp.txt\\" .control save all op write poweramp.raw set appendwrite tran  2e-7 0.025 uic * .FOUR 20k v(outm,outp) * .probe i(*)  save p(r*) p(v*) write poweramp.raw quit 0 .endc 
+    COMMANDS1  code  simulator=xyce  only_toplevel=false  value=vvss vss 0 dc 0  .temp 30 .param VPP=50 .param frequ=5k .param gain=45  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in simulation directory. .include \\"models_poweramp.txt\\" .tran  8e-7 0.07 uic * .op .print tran format=raw file=poweramp_xyce.raw v(*) i(*)  + v(x1:*) v(x0:*) i(x1:*) i(x0:*) * .print dc format=raw file=poweramp_op.raw v(*) i(*) v(x1:*) v(x0:*) i(x1:*) i(x0:*)  
+
+  annotations [7]:
+    p40  probe  x=710  y=-860  analysis=tran
+    p41  probe  x=710  y=-400  analysis=tran
+    p42  probe  x=660  y=-1200  analysis=tran
+    p43  probe  x=670  y=-1120  analysis=tran
+    p44  probe  x=950  y=-1200  analysis=tran
+    p45  probe  x=350  y=-1210  analysis=tran
+    p46  probe  x=350  y=-1050  analysis=tran
 
   wires [103]:
     60 -1210 60 -1190

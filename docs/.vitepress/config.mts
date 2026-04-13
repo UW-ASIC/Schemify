@@ -68,6 +68,7 @@ export default defineConfig({
         text: 'Using Plugins',
         items: [
           { text: 'Installing Plugins',  link: '/plugins/using/installing' },
+          { text: 'Configuring Plugins', link: '/plugins/using/configuring' },
         ],
       },
       {

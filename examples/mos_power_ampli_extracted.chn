@@ -1,21 +1,51 @@
 chn 1.0
 
-SYMBOL mos_power_ampli_extracted
+SYMBOL untitled
 
   pins [6]:
-    MINUS  in
-    PLUS  in
-    VSS  in
-    OUT  out
-    VPP  in
-    VNN  in
+    MINUS  in  x=-150  y=-40
+    PLUS  in  x=-150  y=-20
+    VSS  in  x=-150  y=0
+    OUT  out  x=150  y=-40
+    VPP  in  x=-150  y=20
+    VNN  in  x=-150  y=40
 
   params [1]:
     template = name=x1
 
   spice_prefix: X
 
+  drawing:
+    line -130 -50 130 -50
+    line -130 50 130 50
+    line -130 -50 -130 50
+    line 130 -50 130 50
+    line -150 -40 -130 -40
+    line -150 -20 -130 -20
+    line -150 0 -130 0
+    line 130 -40 150 -40
+    line -150 20 -130 20
+    line -150 40 -130 40
+    pin_positions:
+      MINUS: (-150, -40)
+      PLUS: (-150, -20)
+      VSS: (-150, 0)
+      OUT: (150, -40)
+      VPP: (-150, 20)
+      VNN: (-150, 40)
+
 SCHEMATIC
+
+
+  input_pin [5]{name, x, y, rot, flip, lab}:
+    MINUS  140  -210  0  0  MINUS
+    PLUS  140  -190  0  0  PLUS
+    VSS  140  -170  0  0  VSS
+    VPP  140  -150  0  0  VPP
+    VNN  140  -130  0  0  VNN
+
+  output_pin [1]{name, x, y, rot, flip, lab}:
+    OUT  210  -160  0  0  OUT
 
   wires [6]:
     140 -190 140 -190 PLUS

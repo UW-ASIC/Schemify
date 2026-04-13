@@ -1,6 +1,6 @@
 chn_testbench 1.0
 
-TESTBENCH test_jfet
+TESTBENCH untitled
 
   njfet [1]{name, x, y, rot, flip, model, area, m}:
     J1  320  -220  0  0  2N3459  1  1
@@ -18,16 +18,9 @@ TESTBENCH test_jfet
     E1  340  -540  0  0  -1
     E2  150  -610  0  0  -1
 
-  nets [9]:
-    net1  -> J1.d, Vdrain.minus
-    net2  -> J1.g, Vgate.plus
-    GND  -> J1.s, J2.d, E1.m, E1.cm, E2.m, E2.cm
-    G  -> Vgate.minus, E2.cp
-    D  -> Vdrain.plus, E1.cp
-    net4  -> J2.s, Vdrain1.plus
-    net3  -> J2.g, Vgate1.plus
-    G1  -> Vgate1.minus, E2.p
-    D1  -> Vdrain1.minus, E1.p
+  code_blocks [2]:
+    COMMANDS  code  only_toplevel=false  value=VG G 0 dc 0 VD D 0 dc 0  .options savecurrents .control   save all   dc VD 0 20 0.01 VG 0 -1 -0.1   write test_jfet.raw   quit 0 .endc 
+    MODEL  code  only_toplevel=false  value=.MODEL 2N3459 NJF(VTO=-1.4 BETA=1.265m BETATCE=-0.5 LAMBDA=4m RD=1 RS=1 CGS=2.916p CGD=2.8p PB=0.5 IS=114.5f XTI=3 AF=1 FC=0.5 N=1 NR=2) .model 2N2609 PJF (Beta=3.2m Betatce=-500m Rd=1 Rs=1 Lambda=18.5m Vto=-1.408 Vtotc=-2.5m Is=461.5f Isr=4.402p N=1 Nr=2 Xti=3 Alpha=32.54u Vk=393.2 Cgd=6.5p M=278.9m Pb=1 Fc=500m Cgs=9p Kf=0.2062f Af=1)
 
   wires [24]:
     340 -300 340 -250

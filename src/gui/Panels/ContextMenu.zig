@@ -1,4 +1,9 @@
 //! Right-click context menu for instances, wires, and canvas.
+//!
+//! Renders a compact dvui `floatingMenu` (popup) anchored at the cursor.
+//! dvui handles outside-click dismissal via the focus chain — we mirror
+//! that into `app.gui.cold.ctx_menu.open` by tracking the menu's subwindow id
+//! across frames.
 
 const dvui = @import("dvui");
 const st = @import("state");
@@ -34,38 +39,71 @@ const canvas_items: []const MenuItem = &.{
     .{ .label = "Insert from Library", .cmd = .{ .immediate = .insert_from_library }, .status = "Insert from library" },
 };
 
+// ── Internal state ────────────────────────────────────────────────────────── //
+
+/// Subwindow id of the floating menu, captured the frame after it opens.
+/// `null` until the first draw completes. Used to detect outside-click
+/// dismissal: if the menu is `open` but the focused subwindow id no longer
+/// matches, dvui's focus chain has moved away and the menu should close.
+var menu_subwindow_id: ?dvui.Id = null;
+
 // ── Public API ────────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
-    if (!app.gui.ctx_menu.open) return;
-
-    var fw = dvui.floatingWindow(@src(), .{}, .{ .min_size_content = .{ .w = 180, .h = 160 } });
-    defer fw.deinit();
-
-    if (app.gui.ctx_menu.inst_idx >= 0) {
-        dvui.labelNoFmt(@src(), "Instance", .{}, .{ .style = .highlight });
-        drawItems(app, instance_items);
-    } else if (app.gui.ctx_menu.wire_idx >= 0) {
-        dvui.labelNoFmt(@src(), "Wire", .{}, .{ .style = .highlight });
-        drawItems(app, wire_items);
-    } else {
-        dvui.labelNoFmt(@src(), "Canvas", .{}, .{ .style = .highlight });
-        drawItems(app, canvas_items);
+    if (!app.gui.cold.ctx_menu.open) {
+        menu_subwindow_id = null;
+        return;
     }
 
-    _ = dvui.separator(@src(), .{ .id_extra = 99 });
-    if (dvui.button(@src(), "Cancel", .{}, .{ .id_extra = 99 })) {
-        app.gui.ctx_menu.open = false;
+    // Anchor at the cursor in natural-pixel space (floatingMenu's units).
+    const inv_scale = 1.0 / dvui.windowNaturalScale();
+    const anchor: dvui.Point.Natural = .{
+        .x = app.gui.cold.ctx_menu.pixel_x * inv_scale,
+        .y = app.gui.cold.ctx_menu.pixel_y * inv_scale,
+    };
+    const from = dvui.Rect.Natural.fromPoint(anchor);
+
+    var fm = dvui.floatingMenu(@src(), .{ .from = from }, .{});
+    defer fm.deinit();
+
+    const this_id = fm.data().id;
+
+    // Detect outside-click dismissal: once we've recorded our subwindow id
+    // (set the frame after the menu first opens so dvui has had a chance to
+    // focus it), a focus change away means dvui closed us via its own focus
+    // chain — mirror that into our open flag.
+    if (menu_subwindow_id) |our_id| {
+        if (dvui.focusedSubwindowId() != our_id) {
+            app.gui.cold.ctx_menu.open = false;
+            menu_subwindow_id = null;
+            return; // defer fm.deinit() still runs and closes the chain
+        }
+    }
+
+    // Cache our subwindow id so the next frame can detect outside-click.
+    menu_subwindow_id = this_id;
+
+    if (app.gui.cold.ctx_menu.inst_idx >= 0) {
+        drawItems(app, fm, instance_items);
+    } else if (app.gui.cold.ctx_menu.wire_idx >= 0) {
+        drawItems(app, fm, wire_items);
+    } else {
+        drawItems(app, fm, canvas_items);
     }
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────── //
 
-fn drawItems(app: *AppState, items: []const MenuItem) void {
+fn drawItems(app: *AppState, fm: *dvui.FloatingMenuWidget, items: []const MenuItem) void {
     for (items, 0..) |item, i| {
-        if (dvui.button(@src(), item.label, .{}, .{ .id_extra = @intCast(i) })) {
+        if (dvui.menuItemLabel(@src(), item.label, .{}, .{
+            .id_extra = i,
+            .expand = .horizontal,
+        }) != null) {
             actions.enqueue(app, item.cmd, item.status);
-            app.gui.ctx_menu.open = false;
+            fm.close();
+            app.gui.cold.ctx_menu.open = false;
+            menu_subwindow_id = null;
         }
     }
 }

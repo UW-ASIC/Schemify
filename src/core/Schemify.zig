@@ -5,210 +5,93 @@ const List = std.ArrayListUnmanaged;
 
 const utility = @import("utility");
 const UnionFindType = utility.UnionFind;
-const Devices = @import("Devices.zig");
-const HdlParser = @import("HdlParser.zig");
+pub const Devices = @import("devices/Devices.zig");
+pub const HdlParser = @import("digital/HdlParser.zig");
+pub const Toml = @import("fileio/Toml.zig");
 const log = utility;
+
+const types = @import("types.zig");
 
 pub const DeviceKind = Devices.DeviceKind;
 pub const primitives = Devices.primitives;
-pub const SpiceBackend = @import("SpiceIF.zig").Backend;
-pub const NetlistMode = @import("SpiceIF.zig").NetlistMode;
+pub const SpiceBackend = @import("simulation/SpiceIF.zig").Backend;
+pub const NetlistMode = @import("simulation/SpiceIF.zig").NetlistMode;
 pub const pdk = &Devices.global_pdk;
 
-pub const PinDir = enum(u8) {
-    input,
-    output,
-    inout,
-    power,
-    ground,
+// ── Type aliases from types.zig ───────────────────────────────────────────── //
+pub const PinDir = types.PinDir;
+pub const Line = types.Line;
+pub const Rect = types.Rect;
+pub const Circle = types.Circle;
+pub const Arc = types.Arc;
+pub const Wire = types.Wire;
+pub const Text = types.Text;
+pub const Pin = types.Pin;
+pub const Instance = types.Instance;
+pub const Prop = types.Prop;
+pub const Conn = types.Conn;
+pub const Net = types.Net;
+pub const ConnKind = types.ConnKind;
+pub const NetConn = types.NetConn;
+pub const NetMap = types.NetMap;
+pub const SifyType = types.SifyType;
+pub const SymDataPin = types.SymDataPin;
+pub const PinRef = types.PinRef;
+pub const SymData = types.SymData;
+pub const SourceMode = types.SourceMode;
+pub const HdlLanguage = types.HdlLanguage;
+pub const BehavioralModel = types.BehavioralModel;
+pub const SynthesizedModel = types.SynthesizedModel;
+pub const DigitalConfig = types.DigitalConfig;
 
-    pub fn fromStr(s: []const u8) PinDir {
-        if (s.len == 0) return .inout;
-        return switch (s[0]) {
-            'i' => if (s.len >= 5 and s[1] == 'n' and s[2] == 'o') .inout
-                else if (s.len == 2 and s[1] == 'o') .inout
-                else .input,
-            'o' => .output,
-            'p' => .power,
-            'g' => .ground,
-            else => .inout,
-        };
-    }
+/// Self-reference so test files can alias: `const sch = core.sch;`
+pub const sch = @This();
 
-    pub fn toStr(self: PinDir) []const u8 {
-        return switch (self) {
-            .input  => "i",
-            .output => "o",
-            .inout  => "io",
-            .power  => "p",
-            .ground => "g",
-        };
-    }
-};
 
-// ── DOD element structs ──────────────────────────────────────────────────── //
+// ── FileType ─────────────────────────────────────────────────────────────── //
 
-pub const Line   = struct { layer: u8, x0: i32, y0: i32, x1: i32, y1: i32 };
-pub const Rect   = struct {
-    layer: u8, x0: i32, y0: i32, x1: i32, y1: i32,
-    image_data: ?[]const u8 = null,
-};
-pub const Circle = struct { layer: u8, cx: i32, cy: i32, radius: i32 };
-pub const Arc    = struct { layer: u8, cx: i32, cy: i32, radius: i32, start_angle: i16, sweep_angle: i16 };
+pub const FileType = enum {
+    chn,
+    chn_prim,
+    chn_tb,
+    xschem_sch,
+    unknown,
 
-pub const Wire = struct {
-    x0: i32, y0: i32, x1: i32, y1: i32,
-    net_name: ?[]const u8 = null,
-    bus: bool = false,
-};
-
-pub const Text = struct { content: []const u8, x: i32, y: i32, layer: u8 = 4, size: u8 = 10, rotation: u2 = 0 };
-pub const Pin  = struct { name: []const u8, x: i32, y: i32, dir: PinDir = .inout, num: ?u16 = null, width: u16 = 1 };
-
-pub const Instance = struct {
-    name:       []const u8,
-    symbol:     []const u8,
-    kind:       DeviceKind = .unknown,
-    x: i32, y: i32,
-    rot:        u2   = 0,
-    flip:       bool = false,
-    prop_start: u32  = 0,
-    prop_count: u16  = 0,
-    conn_start: u32  = 0,
-    conn_count: u16  = 0,
-    spice_line: ?[]const u8 = null,
-};
-
-pub const Prop = struct { key: []const u8, val: []const u8 };
-pub const Conn = struct { pin: []const u8, net: []const u8 };
-pub const Net  = struct { name: []const u8 };
-
-pub const ConnKind = enum(u8) {
-    instance_pin,
-    wire_endpoint,
-    label,
-
-    const tag_table = std.StaticStringMap(ConnKind).initComptime(.{
-        .{ "ip", .instance_pin },
-        .{ "we", .wire_endpoint },
-        .{ "lb", .label },
-    });
-
-    pub fn toTag(self: ConnKind) []const u8 {
-        return switch (self) {
-            .instance_pin  => "ip",
-            .wire_endpoint => "we",
-            .label         => "lb",
-        };
-    }
-
-    pub fn fromTag(s: []const u8) ConnKind {
-        return tag_table.get(s) orelse .label;
+    pub fn fromPath(path: []const u8) FileType {
+        if (std.mem.endsWith(u8, path, ".chn_prim")) return .chn_prim;
+        if (std.mem.endsWith(u8, path, ".chn_tb")) return .chn_tb;
+        if (std.mem.endsWith(u8, path, ".chn")) return .chn;
+        if (std.mem.endsWith(u8, path, ".sch")) return .xschem_sch;
+        return .unknown;
     }
 };
 
-pub const NetConn = struct {
-    net_id:       u32,
-    kind:         ConnKind,
-    ref_a:        i32,
-    ref_b:        i32,
-    pin_or_label: ?[]const u8 = null,
-};
+// ── Transform ────────────────────────────────────────────────────────────── //
 
-pub const NetMap = struct {
-    root_to_name:  std.AutoHashMapUnmanaged(u64, []const u8),
-    point_to_root: std.AutoHashMapUnmanaged(u64, u64),
+/// Rotation + flip transform applied to schematic instances.
+pub const Transform = struct {
+    rot: u2 = 0,
+    flip: bool = false,
 
-    pub fn init() NetMap {
-        return .{ .root_to_name = .{}, .point_to_root = .{} };
-    }
+    pub const identity: Transform = .{ .rot = 0, .flip = false };
 
-    pub fn deinit(self: *NetMap, a: Allocator) void {
-        self.root_to_name.deinit(a);
-        self.point_to_root.deinit(a);
-    }
-
-    pub fn pointKey(x: i32, y: i32) u64 {
-        const ux: u64 = @as(u32, @bitCast(x));
-        const uy: u64 = @as(u32, @bitCast(y));
-        return (ux << 32) | uy;
-    }
-
-    pub fn getNetName(self: *const NetMap, x: i32, y: i32) ?[]const u8 {
-        const root = self.point_to_root.get(pointKey(x, y)) orelse return null;
-        return self.root_to_name.get(root);
+    /// Compose two transforms: `self` applied first, then `other`.
+    pub fn compose(self: Transform, other: Transform) Transform {
+        const new_rot: u2 = @truncate(@as(u8, self.rot) +% @as(u8, other.rot));
+        const new_flip = self.flip != other.flip;
+        return .{ .rot = new_rot, .flip = new_flip };
     }
 };
 
-pub const SifyType = enum(u2) { primitive, component, testbench };
+// ── Shape ─────────────────────────────────────────────────────────────────── //
 
-pub const SymDataPin = struct {
-    name: []const u8,
-    x: i32,
-    y: i32,
-    props: []const Prop = &.{},
-};
-
-pub const PinRef = struct {
-    name: []const u8,
-    dir: PinDir = .inout,
-    x: i32 = 0,
-    y: i32 = 0,
-    propag: bool = true,
-};
-
-pub const SymData = struct {
-    pins: []const PinRef = &.{},
-    props: []const Prop = &.{},
-    format: ?[]const u8 = null,
-    lvs_format: ?[]const u8 = null,
-    template: ?[]const u8 = null,
-};
-
-pub const SourceMode = enum { @"inline", file };
-
-pub const HdlLanguage = enum {
-    verilog,
-    vhdl,
-    xspice,
-    xyce_digital,
-
-    pub fn fromStr(s: []const u8) ?HdlLanguage {
-        if (std.mem.eql(u8, s, "verilog")) return .verilog;
-        if (std.mem.eql(u8, s, "vhdl")) return .vhdl;
-        if (std.mem.eql(u8, s, "xspice")) return .xspice;
-        if (std.mem.eql(u8, s, "xyce_digital")) return .xyce_digital;
-        return null;
-    }
-
-    pub fn toStr(self: HdlLanguage) []const u8 {
-        return switch (self) {
-            .verilog => "verilog",
-            .vhdl => "vhdl",
-            .xspice => "xspice",
-            .xyce_digital => "xyce_digital",
-        };
-    }
-};
-
-pub const BehavioralModel = struct {
-    source: ?[]const u8 = null,
-    mode: SourceMode = .file,
-    top_module: ?[]const u8 = null,
-};
-
-pub const SynthesizedModel = struct {
-    source: ?[]const u8 = null,
-    mode: SourceMode = .file,
-    liberty: ?[]const u8 = null,
-    mapping: ?[]const u8 = null,
-    supply_map: List(Prop) = .{},
-};
-
-pub const DigitalConfig = struct {
-    language: HdlLanguage = .verilog,
-    behavioral: BehavioralModel = .{},
-    synthesized: SynthesizedModel = .{},
+/// A discriminated union of all drawable primitive shapes.
+pub const Shape = union(enum) {
+    line: struct { start: [2]i32, end: [2]i32 },
+    rect: struct { min: [2]i32, max: [2]i32 },
+    arc: struct { center: [2]i32, radius: i32, start_angle: i16, sweep_angle: i16 },
+    circle: struct { center: [2]i32, radius: i32 },
+    other: void,
 };
 
 fn isAutoNetName(name: []const u8) bool {
@@ -229,6 +112,48 @@ fn netNameRank(name: []const u8) u8 {
     return 3;
 }
 
+/// Plugin-authored data block, serialised as a top-level `PLUGIN <name>` section.
+/// Unknown plugin blocks are preserved on read and re-emitted on write (round-trip).
+/// If the owning plugin is not installed the runtime ignores the block; the data
+/// is still kept so saving the file does not lose it.
+pub const PluginBlock = struct {
+    /// Canonical plugin identifier — no spaces (e.g. `"circuit_visionary"`).
+    name:    []const u8,
+    /// Arbitrary key-value pairs stored by the plugin.
+    entries: List(Prop) = .{},
+};
+
+// ── Schemify Public Mutation Interface ───────────────────────────────────── //
+//
+// ALL mutations to a Schemify must go through the methods listed below.
+// Do NOT write to struct fields directly from gui/ or plugin code.
+//
+// INSERT  (append, arena-dupes all strings):
+//   drawLine / drawRect / drawCircle / drawArc   — symbol geometry
+//   drawText / drawPin                            — text annotations and pins
+//   addWire(Wire)                                 — net wire segment
+//   addComponent(ComponentDesc)                   — placed component instance
+//   setName / setStype                            — schematic metadata
+//   setSpiceBody / setSpiceSymDef                 — raw SPICE body / symbol def
+//   addSymProp / addGlobal / addPluginBlock       — symbol props, globals, plugin data
+//
+// REMOVE  (by 0-based index; uses swapRemove — index of last element changes):
+//   removeInstance(idx) / removeWire(idx)
+//   removeLine(idx) / removeRect(idx) / removeCircle(idx)
+//   removeArc(idx) / removeText(idx) / removePin(idx)
+//
+// EDIT  (mutate a single field of an existing element):
+//   moveInstance(idx, dx, dy)              — translate by delta
+//   setInstancePos(idx, x, y)              — set absolute position
+//   setInstanceTransform(idx, rot, flip)   — set rotation / flip
+//
+// READ  (const access — fields may be read freely, but not written):
+//   .instances.len / .wires.len / etc.
+//   .instances.get(i) / .wires.get(i) / etc.
+//   .props.items[prop_start..][0..prop_count]
+//   bounds(inst_pad)  — world-space AABB
+//   resolveNets()     — rebuild net connectivity (call after bulk mutations)
+
 pub const Schemify = struct {
     name: []const u8 = "",
 
@@ -248,8 +173,8 @@ pub const Schemify = struct {
     sym_props: List(Prop) = .{},
     sym_data: List(SymData) = .{},
     globals: List([]const u8) = .{},
+    plugin_blocks: List(PluginBlock) = .{},
 
-    verilog_body: ?[]const u8 = null,
     spice_body:   ?[]const u8 = null,
     /// When set, contains the SPICE definition for this symbol (e.g., ".include foo.cir").
     /// Used instead of inline subcircuit expansion during hierarchy resolution.
@@ -266,6 +191,11 @@ pub const Schemify = struct {
 
     arena: std.heap.ArenaAllocator,
     logger: ?*log.Logger = null,
+
+    /// Per-instance prim lookup cache, parallel to instances MAL.
+    /// Allocated from the arena; rebuilt when prim_cache_dirty is true.
+    prim_cache: []?*const primitives.PrimEntry = &.{},
+    prim_cache_dirty: bool = true,
 
     // ── Lifecycle ────────────────────────────────────────────────────────── //
 
@@ -284,21 +214,21 @@ pub const Schemify = struct {
     // ── Delegation to Reader / Writer / Netlist ──────────────────────────── //
 
     pub fn readFile(data: []const u8, backing: Allocator, logger: ?*log.Logger) Schemify {
-        return @import("Reader.zig").Reader.readCHN(data, backing, logger);
+        return @import("fileio/Reader.zig").Reader.readCHN(data, backing, logger);
     }
 
     pub fn writeFile(self: *Schemify, a: Allocator, logger: ?*log.Logger) ?[]u8 {
-        return @import("Writer.zig").Writer.writeCHN(a, self, logger);
+        return @import("fileio/Writer.zig").Writer.writeCHN(a, self, logger);
     }
 
     pub fn emitSpice(
         self: *const Schemify,
         gpa: Allocator,
-        backend: @import("SpiceIF.zig").Backend,
+        backend: @import("simulation/SpiceIF.zig").Backend,
         pdk_: ?*const Devices.Pdk,
-        mode: @import("SpiceIF.zig").NetlistMode,
+        mode: @import("simulation/SpiceIF.zig").NetlistMode,
     ) ![]u8 {
-        return @import("Netlist.zig").Netlist.emitSpice(self, gpa, backend, pdk_, mode);
+        return @import("simulation/Netlist.zig").Netlist.emitSpice(self, gpa, backend, pdk_, mode);
     }
 
     // ── Net resolution ───────────────────────────────────────────────────── //
@@ -722,6 +652,26 @@ pub const Schemify = struct {
                 }
             }
         }
+
+        // Register global nets: instances backed by a primitive with injected_net
+        // (e.g. vdd, gnd) use the wire-resolved net name at their position so that
+        // renamed power nets (e.g. VCC instead of VDD) are captured correctly.
+        {
+            const isym = self.instances.items(.symbol);
+            const ikind3 = self.instances.items(.kind);
+            const gix = self.instances.items(.x);
+            const giy = self.instances.items(.y);
+            for (0..self.instances.len) |i| {
+                const prim = primLookup(isym[i], ikind3[i]) orelse continue;
+                if (prim.injected_net == null) continue;
+                const k = NetMap.pointKey(gix[i], giy[i]);
+                uf.makeSet(k);
+                const root = uf.find(k);
+                const nid = root_to_id.get(root) orelse continue;
+                if (nid < self.nets.items.len)
+                    self.addGlobal(self.nets.items[nid].name) catch {};
+            }
+        }
     }
 
     // ── Builder: Geometry Primitives ─────────────────────────────────────── //
@@ -852,6 +802,15 @@ pub const Schemify = struct {
         });
     }
 
+    /// Add a global net name (e.g. "VDD", "GND"). Deduplicates — safe to call multiple times.
+    pub fn addGlobal(self: *Schemify, name: []const u8) !void {
+        for (self.globals.items) |g| {
+            if (std.mem.eql(u8, g, name)) return;
+        }
+        const a = self.alloc();
+        try self.globals.append(a, try a.dupe(u8, name));
+    }
+
     pub fn appendSymData(self: *Schemify, data: SymData) !void {
         const a = self.alloc();
         // Dupe pins with their names into the arena.
@@ -882,574 +841,211 @@ pub const Schemify = struct {
         });
     }
 
-    pub fn clearPins(self: *Schemify) void {
-        self.pins = .{};
+    // ── Mutation interface: metadata setters ─────────────────────────────── //
+
+    pub fn setSpiceBody(self: *Schemify, body: []const u8) void {
+        self.spice_body = body;
     }
 
-    pub fn addGlobal(self: *Schemify, name: []const u8) !void {
+    pub fn setSpiceSymDef(self: *Schemify, def: []const u8) void {
+        self.spice_sym_def = def;
+    }
+
+    /// Append a named plugin data block (e.g. provenance records from EasyImport).
+    /// All strings are duped into the arena.
+    pub fn addPluginBlock(self: *Schemify, name: []const u8, entries: []const Prop) !void {
         const a = self.alloc();
-        for (self.globals.items) |existing| {
-            if (std.mem.eql(u8, existing, name)) return;
-        }
-        try self.globals.append(a, try a.dupe(u8, name));
-    }
-
-    // ── Validation ────────────────────────────────────────────────────── //
-
-    pub const DiagLevel = enum { @"error", warning, info };
-
-    pub const Diagnostic = struct {
-        level: DiagLevel,
-        code: []const u8, // e.g. "hdl_pin_mismatch"
-        message: []const u8, // human-readable description
-    };
-
-    /// Validate the digital configuration of this Schemify.
-    /// Returns a slice of diagnostics allocated on the arena.
-    /// If there is no digital section, returns an empty slice.
-    pub fn validateDigital(self: *Schemify) []const Diagnostic {
-        const digital = self.digital orelse return &.{};
-        const a = self.alloc();
-
-        var diags = List(Diagnostic){};
-
-        // no_behavioral_source: digital section present but no behavioral model
-        if (digital.behavioral.source == null) {
-            diags.append(a, .{
-                .level = .@"error",
-                .code = "no_behavioral_source",
-                .message = "digital section present but no behavioral model source specified",
-            }) catch {};
-        }
-
-        // no_synthesized_source: component with digital but no synth model
-        if (self.stype == .component and digital.synthesized.source == null) {
-            diags.append(a, .{
-                .level = .warning,
-                .code = "no_synthesized_source",
-                .message = "digital block in component has no synthesized model source; layout mode will fail",
-            }) catch {};
-        }
-
-        // hdl_pin_mismatch: compare inline HDL ports against symbol pins
-        if (digital.behavioral.source) |source| {
-            if (digital.behavioral.mode == .@"inline") {
-                const lang = digital.language;
-                if (lang == .verilog or lang == .vhdl) {
-                    const parse_result = if (lang == .verilog)
-                        HdlParser.parseVerilog(source, digital.behavioral.top_module, a)
-                    else
-                        HdlParser.parseVhdl(source, digital.behavioral.top_module, a);
-
-                    if (parse_result) |hdl_mod| {
-                        const pin_names = self.pins.items(.name);
-                        const pin_count = self.pins.len;
-                        const hdl_pins = hdl_mod.pins;
-
-                        // Check for count mismatch
-                        if (hdl_pins.len != pin_count) {
-                            const msg = std.fmt.allocPrint(a,
-                                "symbol has {d} pin(s) but HDL source declares {d} port(s)",
-                                .{ pin_count, hdl_pins.len },
-                            ) catch "pin count mismatch between symbol and HDL source";
-                            diags.append(a, .{
-                                .level = .warning,
-                                .code = "hdl_pin_mismatch",
-                                .message = msg,
-                            }) catch {};
-                        } else {
-                            // Same count — check for name mismatches
-                            for (hdl_pins) |hp| {
-                                var found = false;
-                                for (pin_names[0..pin_count]) |sn| {
-                                    if (std.mem.eql(u8, sn, hp.name)) {
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                if (!found) {
-                                    const msg = std.fmt.allocPrint(a,
-                                        "HDL port '{s}' not found in symbol pins",
-                                        .{hp.name},
-                                    ) catch "HDL port not found in symbol pins";
-                                    diags.append(a, .{
-                                        .level = .warning,
-                                        .code = "hdl_pin_mismatch",
-                                        .message = msg,
-                                    }) catch {};
-                                }
-                            }
-                        }
-                    } else |_| {
-                        // Parse failed — emit a diagnostic about it
-                        diags.append(a, .{
-                            .level = .warning,
-                            .code = "hdl_pin_mismatch",
-                            .message = "could not parse inline HDL source to verify pin match",
-                        }) catch {};
-                    }
-                }
-            }
-            // file mode: skip — validation should be cheap, avoid file I/O
-        }
-
-        return diags.items;
-    }
-
-    /// Validate bus pin widths between an instantiation and the symbol definition.
-    /// `instance_conns` are the connections for this instance.
-    /// `instance_symbol` is the Schemify describing the instantiated symbol.
-    /// Returns a slice of diagnostics allocated on this Schemify's arena.
-    pub fn validateBusPinWidths(
-        self: *Schemify,
-        instance_conns: []const Conn,
-        instance_symbol: *const Schemify,
-    ) []const Diagnostic {
-        // Only relevant if the instantiated symbol has a digital section
-        if (instance_symbol.digital == null) return &.{};
-        const a = self.alloc();
-
-        var diags = List(Diagnostic){};
-
-        const sym_pin_names = instance_symbol.pins.items(.name);
-        const sym_pin_widths = instance_symbol.pins.items(.width);
-        const sym_pin_count = instance_symbol.pins.len;
-
-        for (0..sym_pin_count) |pi| {
-            const expected_width = sym_pin_widths[pi];
-            if (expected_width <= 1) continue; // scalar pin — skip
-
-            const sym_pin_name = sym_pin_names[pi];
-
-            // Find the matching connection in instance_conns
-            for (instance_conns) |conn| {
-                if (!std.mem.eql(u8, conn.pin, sym_pin_name)) continue;
-
-                // Infer effective width from the net name.
-                // Bus nets use bracket notation: "data[7:0]" or "addr[15:0]".
-                const eff_width = inferNetWidth(conn.net);
-                if (eff_width != 0 and eff_width != expected_width) {
-                    const msg = std.fmt.allocPrint(a,
-                        "bus pin '{s}' expects width {d} but connected net '{s}' has effective width {d}",
-                        .{ sym_pin_name, expected_width, conn.net, eff_width },
-                    ) catch "bus pin width mismatch";
-                    diags.append(a, .{
-                        .level = .warning,
-                        .code = "bus_pin_width_mismatch",
-                        .message = msg,
-                    }) catch {};
-                }
-                break;
-            }
-        }
-
-        return diags.items;
-    }
-
-    /// Infer the effective width of a net from its name.
-    /// Returns 0 if the width cannot be determined (scalar or unknown format).
-    /// Recognizes bracket notation: "name[H:L]" -> H - L + 1
-    fn inferNetWidth(net: []const u8) u16 {
-        // Look for "[H:L]" suffix
-        const lbracket = std.mem.lastIndexOfScalar(u8, net, '[') orelse return 0;
-        const rbracket = std.mem.lastIndexOfScalar(u8, net, ']') orelse return 0;
-        if (rbracket <= lbracket) return 0;
-        const inside = net[lbracket + 1 .. rbracket];
-        const colon = std.mem.indexOfScalar(u8, inside, ':') orelse return 0;
-        const hi_str = std.mem.trim(u8, inside[0..colon], " ");
-        const lo_str = std.mem.trim(u8, inside[colon + 1 ..], " ");
-        const hi = std.fmt.parseInt(i32, hi_str, 10) catch return 0;
-        const lo = std.fmt.parseInt(i32, lo_str, 10) catch return 0;
-        const diff = if (hi >= lo) hi - lo + 1 else lo - hi + 1;
-        return if (diff > 0 and diff <= std.math.maxInt(u16)) @intCast(diff) else 0;
-    }
-
-    /// Merge all geometry (lines, rects, arcs, circles, pins) from `src` into
-    /// this Schemify. Strings are duped into the receiver's arena.
-    pub fn mergeSymbolGeometry(self: *Schemify, src: *const Schemify) !void {
-        const a = self.alloc();
-        for (0..src.lines.len) |i| try self.lines.append(a, src.lines.get(i));
-        for (0..src.rects.len) |i| try self.rects.append(a, src.rects.get(i));
-        for (0..src.arcs.len) |i| try self.arcs.append(a, src.arcs.get(i));
-        for (0..src.circles.len) |i| try self.circles.append(a, src.circles.get(i));
-        self.pins = .{};
-        for (0..src.pins.len) |i| {
-            const p = src.pins.get(i);
-            try self.pins.append(a, .{
-                .name = try a.dupe(u8, p.name),
-                .x = p.x,
-                .y = p.y,
-                .dir = p.dir,
-                .num = p.num,
-                .width = p.width,
+        var owned: List(Prop) = .{};
+        for (entries) |e| {
+            try owned.append(a, .{
+                .key = try a.dupe(u8, e.key),
+                .val = try a.dupe(u8, e.val),
             });
         }
-    }
-
-    // ── HDL Symbol Sync ───────────────────────────────────────────────── //
-
-    pub const PinChange = struct {
-        name: []const u8,
-        change: []const u8, // e.g. "width 4 -> 8", "direction in -> out"
-    };
-
-    pub const SyncReport = struct {
-        pins_added: []const HdlParser.HdlPin,
-        pins_removed: []const []const u8,
-        pins_modified: []const PinChange,
-        symbol_updated: bool,
-    };
-
-    pub const HdlMismatch = struct {
-        pin_name: []const u8,
-        issue: []const u8, // "missing in HDL", "missing in symbol", "width mismatch", "direction mismatch"
-    };
-
-    const SyncError = error{
-        NoDigitalConfig,
-        NoBehavioralSource,
-        UnsupportedLanguage,
-        HdlParseError,
-        FileReadError,
-        OutOfMemory,
-    };
-
-    /// Reads the HDL source from the digital config, parses ports, diffs
-    /// against current pins, and updates pins to match.
-    pub fn syncSymbolFromHdl(self: *Schemify) SyncError!SyncReport {
-        const a = self.alloc();
-        const hdl_mod = try self.parseHdlSource();
-
-        // Build lookup of existing pins by name.
-        const pin_names = self.pins.items(.name);
-        const pin_dirs = self.pins.items(.dir);
-        const pin_widths = self.pins.items(.width);
-
-        var existing_map = std.StringHashMapUnmanaged(usize){};
-        existing_map.ensureTotalCapacity(a, @intCast(self.pins.len)) catch return error.OutOfMemory;
-        for (0..self.pins.len) |i| {
-            existing_map.put(a, pin_names[i], i) catch return error.OutOfMemory;
-        }
-
-        // Track which existing pins are matched.
-        var matched = a.alloc(bool, self.pins.len) catch return error.OutOfMemory;
-        @memset(matched, false);
-
-        var added = std.ArrayListUnmanaged(HdlParser.HdlPin){};
-        var modified = std.ArrayListUnmanaged(PinChange){};
-
-        // Diff HDL pins against existing.
-        for (hdl_mod.pins) |hp| {
-            const sym_dir = hdlDirToSymDir(hp.direction);
-            if (existing_map.get(hp.name)) |idx| {
-                matched[idx] = true;
-                // Check for width changes.
-                if (pin_widths[idx] != hp.width) {
-                    const desc = std.fmt.allocPrint(a, "width {d} -> {d}", .{ pin_widths[idx], hp.width }) catch return error.OutOfMemory;
-                    modified.append(a, .{
-                        .name = a.dupe(u8, hp.name) catch return error.OutOfMemory,
-                        .change = desc,
-                    }) catch return error.OutOfMemory;
-                    pin_widths[idx] = hp.width;
-                }
-                // Check for direction changes.
-                if (pin_dirs[idx] != sym_dir) {
-                    const desc = std.fmt.allocPrint(a, "direction {s} -> {s}", .{ pin_dirs[idx].toStr(), sym_dir.toStr() }) catch return error.OutOfMemory;
-                    modified.append(a, .{
-                        .name = a.dupe(u8, hp.name) catch return error.OutOfMemory,
-                        .change = desc,
-                    }) catch return error.OutOfMemory;
-                    pin_dirs[idx] = sym_dir;
-                }
-            } else {
-                // New pin — add it.
-                added.append(a, hp) catch return error.OutOfMemory;
-                self.pins.append(a, .{
-                    .name = a.dupe(u8, hp.name) catch return error.OutOfMemory,
-                    .x = 0,
-                    .y = 0,
-                    .dir = sym_dir,
-                    .num = null,
-                    .width = hp.width,
-                }) catch return error.OutOfMemory;
-            }
-        }
-
-        // Collect removed pins (in symbol but not in HDL).
-        var removed = std.ArrayListUnmanaged([]const u8){};
-        var remove_indices = std.ArrayListUnmanaged(usize){};
-        for (0..matched.len) |i| {
-            if (!matched[i]) {
-                removed.append(a, a.dupe(u8, pin_names[i]) catch return error.OutOfMemory) catch return error.OutOfMemory;
-                remove_indices.append(a, i) catch return error.OutOfMemory;
-            }
-        }
-        // Remove in reverse order to keep indices valid.
-        var ri: usize = remove_indices.items.len;
-        while (ri > 0) {
-            ri -= 1;
-            self.pins.swapRemove(remove_indices.items[ri]);
-        }
-
-        const updated = added.items.len > 0 or removed.items.len > 0 or modified.items.len > 0;
-
-        return SyncReport{
-            .pins_added = added.items,
-            .pins_removed = removed.items,
-            .pins_modified = modified.items,
-            .symbol_updated = updated,
-        };
-    }
-
-    /// Auto-generates drawing geometry (lines, rects, texts) for a digital
-    /// block based on its current pin list. Clears existing drawing data first.
-    pub fn generateDigitalSymbolDrawing(self: *Schemify) !void {
-        const a = self.alloc();
-
-        // Clear existing drawing geometry.
-        self.lines = .{};
-        self.rects = .{};
-        self.texts = .{};
-
-        if (self.pins.len == 0) return;
-
-        // Classify pins by direction.
-        const dirs = self.pins.items(.dir);
-        const names = self.pins.items(.name);
-        const widths = self.pins.items(.width);
-
-        var left_pins = std.ArrayListUnmanaged(usize){};
-        var right_pins = std.ArrayListUnmanaged(usize){};
-
-        for (0..self.pins.len) |i| {
-            switch (dirs[i]) {
-                .input, .power, .ground => left_pins.append(a, i) catch return error.OutOfMemory,
-                .output => right_pins.append(a, i) catch return error.OutOfMemory,
-                .inout => {
-                    // Split inout evenly: fewer side gets the next one.
-                    if (left_pins.items.len <= right_pins.items.len) {
-                        left_pins.append(a, i) catch return error.OutOfMemory;
-                    } else {
-                        right_pins.append(a, i) catch return error.OutOfMemory;
-                    }
-                },
-            }
-        }
-
-        const pin_spacing: i32 = 20;
-        const stub_len: i32 = 10;
-        const layer: u8 = 4;
-
-        const left_count: i32 = @intCast(left_pins.items.len);
-        const right_count: i32 = @intCast(right_pins.items.len);
-        const max_pins: i32 = @max(left_count, right_count);
-
-        // Box height based on max side pin count.
-        const box_height: i32 = (max_pins + 1) * pin_spacing;
-
-        // Box width: minimum 120, wider if name is long.
-        const name_width: i32 = @as(i32, @intCast(self.name.len)) * 8;
-        const box_width: i32 = @max(120, name_width + 40);
-
-        const box_x0: i32 = 0;
-        const box_y0: i32 = 0;
-        const box_x1: i32 = box_width;
-        const box_y1: i32 = box_height;
-
-        // Draw bounding rectangle (4 lines).
-        try self.lines.append(a, .{ .layer = layer, .x0 = box_x0, .y0 = box_y0, .x1 = box_x1, .y1 = box_y0 }); // top
-        try self.lines.append(a, .{ .layer = layer, .x0 = box_x1, .y0 = box_y0, .x1 = box_x1, .y1 = box_y1 }); // right
-        try self.lines.append(a, .{ .layer = layer, .x0 = box_x1, .y0 = box_y1, .x1 = box_x0, .y1 = box_y1 }); // bottom
-        try self.lines.append(a, .{ .layer = layer, .x0 = box_x0, .y0 = box_y1, .x1 = box_x0, .y1 = box_y0 }); // left
-
-        // Center the @name text in the box.
-        const name_text = std.fmt.allocPrint(a, "@{s}", .{self.name}) catch return error.OutOfMemory;
-        try self.texts.append(a, .{
-            .content = name_text,
-            .x = @divTrunc(box_width, 2),
-            .y = @divTrunc(box_height, 2),
-            .layer = layer,
-            .size = 10,
-            .rotation = 0,
+        try self.plugin_blocks.append(a, .{
+            .name = try a.dupe(u8, name),
+            .entries = owned,
         });
-
-        // Place left-side pins (inputs, power, ground, some inout).
-        const pin_xs = self.pins.items(.x);
-        const pin_ys = self.pins.items(.y);
-        for (left_pins.items, 0..) |pi, slot| {
-            const py: i32 = @as(i32, @intCast(slot + 1)) * pin_spacing;
-            const px: i32 = box_x0 - stub_len;
-
-            pin_xs[pi] = px;
-            pin_ys[pi] = py;
-
-            if (isClock(names[pi])) {
-                // Clock triangle marker: small triangle pointing inward at box edge.
-                try self.lines.append(a, .{ .layer = layer, .x0 = box_x0, .y0 = py - 4, .x1 = box_x0 + 6, .y1 = py });
-                try self.lines.append(a, .{ .layer = layer, .x0 = box_x0 + 6, .y0 = py, .x1 = box_x0, .y1 = py + 4 });
-                try self.lines.append(a, .{ .layer = layer, .x0 = box_x0, .y0 = py + 4, .x1 = box_x0, .y1 = py - 4 });
-                // Stub from pin to box edge.
-                try self.lines.append(a, .{ .layer = layer, .x0 = px, .y0 = py, .x1 = box_x0, .y1 = py });
-            } else if (widths[pi] > 1) {
-                // Bus pin: 3 parallel short stubs.
-                try self.lines.append(a, .{ .layer = layer, .x0 = px, .y0 = py - 2, .x1 = box_x0, .y1 = py - 2 });
-                try self.lines.append(a, .{ .layer = layer, .x0 = px, .y0 = py, .x1 = box_x0, .y1 = py });
-                try self.lines.append(a, .{ .layer = layer, .x0 = px, .y0 = py + 2, .x1 = box_x0, .y1 = py + 2 });
-            } else {
-                // Single-line stub.
-                try self.lines.append(a, .{ .layer = layer, .x0 = px, .y0 = py, .x1 = box_x0, .y1 = py });
-            }
-
-            // Pin name label just inside the box.
-            try self.texts.append(a, .{
-                .content = a.dupe(u8, names[pi]) catch return error.OutOfMemory,
-                .x = box_x0 + 4,
-                .y = py,
-                .layer = layer,
-                .size = 8,
-                .rotation = 0,
-            });
-        }
-
-        // Place right-side pins (outputs, some inout).
-        for (right_pins.items, 0..) |pi, slot| {
-            const py: i32 = @as(i32, @intCast(slot + 1)) * pin_spacing;
-            const px: i32 = box_x1 + stub_len;
-
-            pin_xs[pi] = px;
-            pin_ys[pi] = py;
-
-            if (widths[pi] > 1) {
-                // Bus pin: 3 parallel short stubs.
-                try self.lines.append(a, .{ .layer = layer, .x0 = box_x1, .y0 = py - 2, .x1 = px, .y1 = py - 2 });
-                try self.lines.append(a, .{ .layer = layer, .x0 = box_x1, .y0 = py, .x1 = px, .y1 = py });
-                try self.lines.append(a, .{ .layer = layer, .x0 = box_x1, .y0 = py + 2, .x1 = px, .y1 = py + 2 });
-            } else {
-                // Single-line stub.
-                try self.lines.append(a, .{ .layer = layer, .x0 = box_x1, .y0 = py, .x1 = px, .y1 = py });
-            }
-
-            // Pin name label just inside the box (right-aligned).
-            try self.texts.append(a, .{
-                .content = a.dupe(u8, names[pi]) catch return error.OutOfMemory,
-                .x = box_x1 - 4,
-                .y = py,
-                .layer = layer,
-                .size = 8,
-                .rotation = 0,
-            });
-        }
     }
 
-    /// Read-only comparison of symbol pins vs HDL source. Returns mismatches
-    /// without modifying the symbol.
-    pub fn validateHdlPinMatch(self: *Schemify) SyncError![]const HdlMismatch {
-        const a = self.alloc();
-        const hdl_mod = try self.parseHdlSource();
+    // ── Mutation interface: remove by index (swapRemove) ─────────────────── //
 
-        var mismatches = std.ArrayListUnmanaged(HdlMismatch){};
+    pub fn removeInstance(self: *Schemify, idx: u32) void {
+        if (idx >= self.instances.len) return;
+        self.instances.swapRemove(idx);
+        if (idx < self.sym_data.items.len) _ = self.sym_data.swapRemove(idx);
+        self.prim_cache_dirty = true;
+    }
 
-        // Build lookup of existing symbol pins by name.
-        const pin_names = self.pins.items(.name);
-        const pin_dirs = self.pins.items(.dir);
-        const pin_widths = self.pins.items(.width);
+    pub fn removeWire(self: *Schemify, idx: u32) void {
+        if (idx >= self.wires.len) return;
+        self.wires.swapRemove(idx);
+    }
 
-        var sym_map = std.StringHashMapUnmanaged(usize){};
-        sym_map.ensureTotalCapacity(a, @intCast(self.pins.len)) catch return error.OutOfMemory;
-        for (0..self.pins.len) |i| {
-            sym_map.put(a, pin_names[i], i) catch return error.OutOfMemory;
+    pub fn removeLine(self: *Schemify, idx: u32) void {
+        if (idx >= self.lines.len) return;
+        self.lines.swapRemove(idx);
+    }
+
+    pub fn removeRect(self: *Schemify, idx: u32) void {
+        if (idx >= self.rects.len) return;
+        self.rects.swapRemove(idx);
+    }
+
+    pub fn removeCircle(self: *Schemify, idx: u32) void {
+        if (idx >= self.circles.len) return;
+        self.circles.swapRemove(idx);
+    }
+
+    pub fn removeArc(self: *Schemify, idx: u32) void {
+        if (idx >= self.arcs.len) return;
+        self.arcs.swapRemove(idx);
+    }
+
+    pub fn removeText(self: *Schemify, idx: u32) void {
+        if (idx >= self.texts.len) return;
+        self.texts.swapRemove(idx);
+    }
+
+    pub fn removePin(self: *Schemify, idx: u32) void {
+        if (idx >= self.pins.len) return;
+        self.pins.swapRemove(idx);
+    }
+
+    // ── Mutation interface: edit existing elements ────────────────────────── //
+
+    pub fn moveInstance(self: *Schemify, idx: u32, dx: i32, dy: i32) void {
+        if (idx >= self.instances.len) return;
+        self.instances.items(.x)[idx] += dx;
+        self.instances.items(.y)[idx] += dy;
+    }
+
+    pub fn setInstancePos(self: *Schemify, idx: u32, x: i32, y: i32) void {
+        if (idx >= self.instances.len) return;
+        self.instances.items(.x)[idx] = x;
+        self.instances.items(.y)[idx] = y;
+    }
+
+    pub fn setInstanceTransform(self: *Schemify, idx: u32, rot: u2, flip: bool) void {
+        if (idx >= self.instances.len) return;
+        self.instances.items(.rot)[idx] = rot;
+        self.instances.items(.flip)[idx] = flip;
+    }
+
+    /// Set the bus width of a pin (1 = scalar, >1 = bus).
+    /// Handles IPin/Opin/IOPin to support multi-bit ports.
+    pub fn setPinWidth(self: *Schemify, idx: u32, width: u16) void {
+        if (idx >= self.pins.len) return;
+        self.pins.items(.width)[idx] = if (width == 0) 1 else width;
+    }
+
+    // ── Bounding box ─────────────────────────────────────────────────────── //
+
+    pub const Bounds = struct {
+        min_x: f32 = 0,
+        max_x: f32 = 0,
+        min_y: f32 = 0,
+        max_y: f32 = 0,
+        has_data: bool = false,
+
+        inline fn bump(b: *Bounds, x: f32, y: f32) void {
+            if (!b.has_data) {
+                b.* = .{ .min_x = x, .max_x = x, .min_y = y, .max_y = y, .has_data = true };
+                return;
+            }
+            if (x < b.min_x) b.min_x = x;
+            if (x > b.max_x) b.max_x = x;
+            if (y < b.min_y) b.min_y = y;
+            if (y > b.max_y) b.max_y = y;
         }
+    };
 
-        // Track which symbol pins are seen in HDL.
-        var seen = a.alloc(bool, self.pins.len) catch return error.OutOfMemory;
-        @memset(seen, false);
+    /// Compute the world-space bounding box of all drawable elements.
+    /// Covers lines, rects, circles, arcs, wires, pins, texts, and
+    /// instance origins (padded by `inst_pad`).
+    pub fn bounds(self: *const Schemify, inst_pad: f32) Bounds {
+        var b: Bounds = .{};
 
-        // Check each HDL pin against the symbol.
-        for (hdl_mod.pins) |hp| {
-            if (sym_map.get(hp.name)) |idx| {
-                seen[idx] = true;
-                const sym_dir = hdlDirToSymDir(hp.direction);
-                if (pin_widths[idx] != hp.width) {
-                    const desc = std.fmt.allocPrint(a, "width mismatch: symbol={d} hdl={d}", .{ pin_widths[idx], hp.width }) catch return error.OutOfMemory;
-                    mismatches.append(a, .{
-                        .pin_name = a.dupe(u8, hp.name) catch return error.OutOfMemory,
-                        .issue = desc,
-                    }) catch return error.OutOfMemory;
-                }
-                if (pin_dirs[idx] != sym_dir) {
-                    const desc = std.fmt.allocPrint(a, "direction mismatch: symbol={s} hdl={s}", .{ pin_dirs[idx].toStr(), sym_dir.toStr() }) catch return error.OutOfMemory;
-                    mismatches.append(a, .{
-                        .pin_name = a.dupe(u8, hp.name) catch return error.OutOfMemory,
-                        .issue = desc,
-                    }) catch return error.OutOfMemory;
-                }
-            } else {
-                mismatches.append(a, .{
-                    .pin_name = a.dupe(u8, hp.name) catch return error.OutOfMemory,
-                    .issue = "missing in symbol",
-                }) catch return error.OutOfMemory;
+        if (self.lines.len > 0) {
+            const x0 = self.lines.items(.x0);
+            const x1 = self.lines.items(.x1);
+            const y0 = self.lines.items(.y0);
+            const y1 = self.lines.items(.y1);
+            for (0..self.lines.len) |i| {
+                b.bump(@floatFromInt(x0[i]), @floatFromInt(y0[i]));
+                b.bump(@floatFromInt(x1[i]), @floatFromInt(y1[i]));
+            }
+        }
+        if (self.rects.len > 0) {
+            const x0 = self.rects.items(.x0);
+            const x1 = self.rects.items(.x1);
+            const y0 = self.rects.items(.y0);
+            const y1 = self.rects.items(.y1);
+            for (0..self.rects.len) |i| {
+                b.bump(@floatFromInt(x0[i]), @floatFromInt(y0[i]));
+                b.bump(@floatFromInt(x1[i]), @floatFromInt(y1[i]));
+            }
+        }
+        if (self.circles.len > 0) {
+            const cx = self.circles.items(.cx);
+            const cy = self.circles.items(.cy);
+            const cr = self.circles.items(.radius);
+            for (0..self.circles.len) |i| {
+                const fx: f32 = @floatFromInt(cx[i]);
+                const fy: f32 = @floatFromInt(cy[i]);
+                const fr: f32 = @floatFromInt(cr[i]);
+                b.bump(fx - fr, fy - fr);
+                b.bump(fx + fr, fy + fr);
+            }
+        }
+        if (self.arcs.len > 0) {
+            const cx = self.arcs.items(.cx);
+            const cy = self.arcs.items(.cy);
+            const cr = self.arcs.items(.radius);
+            for (0..self.arcs.len) |i| {
+                const fx: f32 = @floatFromInt(cx[i]);
+                const fy: f32 = @floatFromInt(cy[i]);
+                const fr: f32 = @floatFromInt(cr[i]);
+                b.bump(fx - fr, fy - fr);
+                b.bump(fx + fr, fy + fr);
+            }
+        }
+        if (self.wires.len > 0) {
+            const x0 = self.wires.items(.x0);
+            const x1 = self.wires.items(.x1);
+            const y0 = self.wires.items(.y0);
+            const y1 = self.wires.items(.y1);
+            for (0..self.wires.len) |i| {
+                b.bump(@floatFromInt(x0[i]), @floatFromInt(y0[i]));
+                b.bump(@floatFromInt(x1[i]), @floatFromInt(y1[i]));
+            }
+        }
+        if (self.pins.len > 0) {
+            const px = self.pins.items(.x);
+            const py = self.pins.items(.y);
+            for (0..self.pins.len) |i| {
+                b.bump(@floatFromInt(px[i]), @floatFromInt(py[i]));
+            }
+        }
+        if (self.texts.len > 0) {
+            const tx = self.texts.items(.x);
+            const ty = self.texts.items(.y);
+            for (0..self.texts.len) |i| {
+                b.bump(@floatFromInt(tx[i]), @floatFromInt(ty[i]));
+            }
+        }
+        if (self.instances.len > 0) {
+            const ix = self.instances.items(.x);
+            const iy = self.instances.items(.y);
+            for (0..self.instances.len) |i| {
+                const fx: f32 = @floatFromInt(ix[i]);
+                const fy: f32 = @floatFromInt(iy[i]);
+                b.bump(fx - inst_pad, fy - inst_pad);
+                b.bump(fx + inst_pad, fy + inst_pad);
             }
         }
 
-        // Pins in symbol but not in HDL.
-        for (0..self.pins.len) |i| {
-            if (!seen[i]) {
-                mismatches.append(a, .{
-                    .pin_name = a.dupe(u8, pin_names[i]) catch return error.OutOfMemory,
-                    .issue = "missing in HDL",
-                }) catch return error.OutOfMemory;
-            }
-        }
-
-        return mismatches.items;
-    }
-
-    // ── HDL Sync helpers ────────────────────────────────────────────────── //
-
-    /// Parses the HDL source from the digital config, returning the module.
-    fn parseHdlSource(self: *Schemify) SyncError!HdlParser.HdlModule {
-        const dc = self.digital orelse return error.NoDigitalConfig;
-        const raw_source = dc.behavioral.source orelse return error.NoBehavioralSource;
-        const a = self.alloc();
-
-        const source: []const u8 = switch (dc.behavioral.mode) {
-            .file => utility.Vfs.readAlloc(a, raw_source) catch return error.FileReadError,
-            .@"inline" => raw_source,
-        };
-
-        return switch (dc.language) {
-            .verilog => HdlParser.parseVerilog(source, dc.behavioral.top_module, a) catch return error.HdlParseError,
-            .vhdl => HdlParser.parseVhdl(source, dc.behavioral.top_module, a) catch return error.HdlParseError,
-            .xspice, .xyce_digital => error.UnsupportedLanguage,
-        };
-    }
-
-    /// Converts HdlParser.PinDir to Schemify.PinDir (same variants, but distinct types).
-    fn hdlDirToSymDir(hdir: HdlParser.PinDir) PinDir {
-        return switch (hdir) {
-            .input => .input,
-            .output => .output,
-            .inout => .inout,
-            .power => .power,
-            .ground => .ground,
-        };
-    }
-
-    /// Returns true if the pin name matches a clock pattern.
-    fn isClock(name: []const u8) bool {
-        if (name.len == 0) return false;
-        if (std.ascii.eqlIgnoreCase(name, "clk")) return true;
-        if (std.ascii.eqlIgnoreCase(name, "clock")) return true;
-        // Also match names containing "clk" or "clock" as a substring.
-        if (name.len > 3) {
-            var buf: [64]u8 = undefined;
-            const max = @min(name.len, 64);
-            for (0..max) |i| buf[i] = std.ascii.toLower(name[i]);
-            const lower = buf[0..max];
-            if (std.mem.indexOf(u8, lower, "clk") != null) return true;
-            if (std.mem.indexOf(u8, lower, "clock") != null) return true;
-        }
-        return false;
+        return b;
     }
 
     // ── Logging ──────────────────────────────────────────────────────────── //
@@ -1463,6 +1059,132 @@ pub const Schemify = struct {
             .warn => l.warn("schemify", fmt, args),
             .err => l.err("schemify", fmt, args),
         }
+    }
+
+    // ── Prim lookup cache ─────────────────────────────────────────────────── //
+
+    /// Rebuild the per-instance primitive lookup cache.
+    /// Allocates from the Schemify arena (old slice is reclaimed on arena reset).
+    /// Call after any structural mutation: instance append/remove or file load.
+    pub fn rebuildPrimCache(self: *Schemify) void {
+        const n = self.instances.len;
+        self.prim_cache = self.alloc().alloc(?*const primitives.PrimEntry, n) catch &.{};
+        const isymbol = self.instances.items(.symbol);
+        const ikind = self.instances.items(.kind);
+        for (0..self.prim_cache.len) |i| {
+            self.prim_cache[i] = primLookup(isymbol[i], ikind[i]);
+        }
+        self.prim_cache_dirty = false;
+    }
+
+    /// Rebuild sym_data from prim_cache pin positions for instances that lost
+    /// their sym_data during a write/read round-trip. Only fills entries that
+    /// are currently empty (preserves any sym_data populated by the importer).
+    pub fn rebuildSymData(self: *Schemify) void {
+        const n = self.instances.len;
+        if (n == 0) return;
+        const a = self.alloc();
+
+        // Grow sym_data list to match instance count if needed.
+        while (self.sym_data.items.len < n) {
+            self.sym_data.append(a, .{}) catch return;
+        }
+
+        for (0..n) |i| {
+            // Skip instances that already have sym_data (e.g. from EasyImport).
+            if (self.sym_data.items[i].pins.len > 0) continue;
+
+            const prim = if (i < self.prim_cache.len) self.prim_cache[i] else null;
+            const entry = prim orelse continue;
+            const pp = entry.pinPositions();
+            if (pp.len == 0) continue;
+
+            const pins = a.alloc(PinRef, pp.len) catch continue;
+            for (pp, 0..) |p, pi| {
+                pins[pi] = .{
+                    .name = p.nameSlice(),
+                    .x = p.x,
+                    .y = p.y,
+                };
+            }
+            self.sym_data.items[i] = .{ .pins = pins };
+        }
+    }
+
+    fn primLookup(symbol_name: []const u8, kind: DeviceKind) ?*const primitives.PrimEntry {
+        if (kindToPrimName(kind)) |name| {
+            if (primitives.findByNameRuntime(name)) |e| return e;
+        }
+        var base = symbol_name;
+        if (std.mem.startsWith(u8, base, "devices/")) base = base["devices/".len..];
+        if (std.mem.endsWith(u8, base, ".sym")) base = base[0 .. base.len - ".sym".len];
+        if (primitives.findByNameRuntime(base)) |e| return e;
+        const alias_map = std.StaticStringMap([]const u8).initComptime(.{
+            .{ "nmos",         "nmos4"     },
+            .{ "pmos",         "pmos4"     },
+            .{ "resistors",    "resistor"  },
+            .{ "capacitors",   "capacitor" },
+            .{ "inductors",    "inductor"  },
+            .{ "diodes",       "diode"     },
+            .{ "ipin",         "input_pin" },
+            .{ "opin",         "output_pin"},
+            .{ "iopin",        "inout_pin" },
+            .{ "vsource_arith","vsource"   },
+            .{ "parax_cap",    "capacitor" },
+        });
+        if (alias_map.get(base)) |alias| {
+            if (primitives.findByNameRuntime(alias)) |e| return e;
+        }
+        const name_kind = DeviceKind.fromStr(base);
+        if (name_kind != .unknown) {
+            if (kindToPrimName(name_kind)) |n| {
+                if (primitives.findByNameRuntime(n)) |e| return e;
+            }
+        }
+        return null;
+    }
+
+    fn kindToPrimName(kind: DeviceKind) ?[]const u8 {
+        return switch (kind) {
+            .nmos3                                       => "nmos3",
+            .pmos3                                       => "pmos3",
+            .nmos4, .nmos4_depl, .nmos_sub, .nmoshv4,
+            .rnmos4                                      => "nmos4",
+            .pmos4, .pmos_sub, .pmoshv4                 => "pmos4",
+            .resistor, .var_resistor                     => "resistor",
+            .resistor3                                   => "resistor3",
+            .capacitor                                   => "capacitor",
+            .inductor                                    => "inductor",
+            .diode                                       => "diode",
+            .zener                                       => "zener",
+            .vsource, .sqwsource                        => "vsource",
+            .isource                                     => "isource",
+            .ammeter                                     => "ammeter",
+            .behavioral                                  => "behavioral",
+            .npn                                         => "npn",
+            .pnp                                         => "pnp",
+            .njfet                                       => "njfet",
+            .pjfet                                       => "pjfet",
+            .mesfet                                      => "njfet",
+            .vcvs                                        => "vcvs",
+            .vccs                                        => "vccs",
+            .ccvs                                        => "ccvs",
+            .cccs                                        => "cccs",
+            .vswitch                                     => "vswitch",
+            .iswitch                                     => "iswitch",
+            .tline, .tline_lossy                        => "tline",
+            .coupling                                    => "coupling",
+            .gnd                                         => "gnd",
+            .vdd                                         => "vdd",
+            .lab_pin                                     => "lab_pin",
+            .input_pin                                   => "input_pin",
+            .output_pin                                  => "output_pin",
+            .inout_pin                                   => "inout_pin",
+            .probe, .probe_diff                         => "probe",
+            .annotation, .title, .param, .code, .graph,
+            .launcher, .rgb_led, .hdl, .noconn, .subckt,
+            .digital_instance, .generic, .unknown       => null,
+        };
     }
 };
 

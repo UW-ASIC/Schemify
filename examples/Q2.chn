@@ -1,23 +1,40 @@
 chn 1.0
 
-SYMBOL Q2
+SYMBOL untitled
 
   pins [3]:
-    P3  inout
-    P2  inout
-    P1  inout
+    P3  inout  x=20  y=-30
+    P2  inout  x=-20  y=0
+    P1  inout  x=20  y=30
 
   params [1]:
     template = name=x1
 
   spice_prefix: X
 
+  drawing:
+    line 0 -30 0 30
+    line -20 0 -13 0
+    line -20 0 0 0
+    line 0 10 9 19
+    line 0 -10 20 -30
+    pin_positions:
+      P3: (20, -30)
+      P2: (-20, 0)
+      P1: (20, 30)
+
 SCHEMATIC
 
+
+  inout_pin [3]{name, x, y, rot, flip, lab}:
+    P3  440  -720  0  0  P3
+    P2  60  -380  0  0  P2
+    P1  440  -100  0  0  P1
+
   instances [3]:
-    Rcx  res  x=440  y=-630  value=1.716 + TC1=0.113e-2  footprint=1206  device=resistor  m=1
-    Re  res  x=440  y=-190  value=0.443  footprint=1206  device=resistor  m=1
-    Rbx  res  x=190  y=-380  rot=3  flip=1  value=0.463 + TC1=0.14e-2  footprint=1206  device=resistor  m=1
+    Rcx  res.sym  x=440  y=-630  value=1.716 + TC1=0.113e-2  footprint=1206  device=resistor  m=1
+    Re  res.sym  x=440  y=-190  value=0.443  footprint=1206  device=resistor  m=1
+    Rbx  res.sym  x=190  y=-380  rot=3  flip=1  value=0.463 + TC1=0.14e-2  footprint=1206  device=resistor  m=1
 
   npn [1]{name, x, y, rot, flip, model, device, footprint, area}:
     Q1  420  -380  0  0  BJTM1_Q2  BJTM1_Q2  SOT23  4
@@ -30,13 +47,8 @@ SCHEMATIC
     Ccox  310  -560  3  0  1  6.598e-14  1206  ceramic capacitor
     Ceox  250  -290  0  0  1  2.417e-14  1206  ceramic capacitor
 
-  nets [6]:
-    P3  -> Rcx.P
-    C  -> Rcx.M, Q1.C, D1.m, Ccox.m
-    E  -> Re.P, Q1.E, D2.m
-    P1  -> Re.M, Ceox.m
-    P2  -> Rbx.P, D1.p, Ccox.p
-    B  -> Rbx.M, Q1.B, Ceox.p, D2.p
+  code_blocks [1]:
+    MODELS  code  value=* This is the BJT model used in the Agilent MSA-26 model * documented in 5980-2496E.pdf. * Model entered 3.30.2003 by SDB .model BJTM1_Q2   NPN(Bf=1e6 IKF=5.895e-1 ISE=2.838e-19 NE=1.006 +  VAF=44 NF=1 TF=5.37e-12 XTF=20 VTF=0.8 ITF=8.872e-1 PTF=22 +  XTB=0.7 BR=1 IKR=4.4e-2 NC=2 VAR=3.37 NR=1.005 TR=4e-9 +  EG=1.17 IS=1.79e-17 XTI=3 TNOM=21 CJC=3.717e-14 +  VJC=0.6775 MJC=0.3319 XCJC=4.398e-1 FC=0.8 CJE=3.217e-13  +  VJE=0.9907 MJE=0.5063 RB=2.325 IRB=3.272e-4 RBM=2.5e-2 KF=1.026e-24)  * This is a diode model used in the Agilent MSA-26 model * documented in 5980-2496E.pdf. * Model entered 3.30.2003 by SDB .model DIODEM1_Q2   D(IS=5.62e-17 N=1 CJO=9.676e-14  +  VJ=0.729 M=0.44 FC=0.8 TNOM=21)  * This is a diode model used in the Agilent MSA-26 model * documented in 5980-2496E.pdf. * Model entered 3.30.2003 by SDB .model DIODEM2_Q2   D(IS=1e-24 N=1.0029 CJO=9.023e-14  +  VJ=0.8971 M=2.292e-1 FC=0.8 TNOM=21)  
 
   wires [25]:
     440 -160 440 -100

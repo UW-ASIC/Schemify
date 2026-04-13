@@ -1,17 +1,38 @@
 chn 1.0
 
-SYMBOL pump
+SYMBOL untitled
 
   pins [2]:
-    USC  inout
-    ING  in
+    USC  inout  x=90  y=0
+    ING  in  x=-100  y=0
 
   params [1]:
     template = name=x1 val=4.5 conduct=10.0
 
   spice_prefix: X
 
+  drawing:
+    line -80 -10 70 -10
+    line -80 10 70 10
+    line -80 -10 -80 10
+    line 70 -10 70 10
+    line 70 0 90 0
+    line -100 0 -80 0
+    pin_positions:
+      USC: (90, 0)
+      ING: (-100, 0)
+
 SCHEMATIC
+
+
+  inout_pin [1]{name, x, y, rot, flip, lab}:
+    USC  50  -90  0  0  USC
+
+  input_pin [1]{name, x, y, rot, flip, lab}:
+    ING  -80  -90  0  0  ING
+
+  hdl_blocks [1]:
+    
 
   wires [2]:
     50 -90 50 -90 USC

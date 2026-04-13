@@ -183,19 +183,41 @@ pub const Runtime = struct {
     pub fn loadStartup(self: *Self, app: *st.AppState) void {
         if (comptime is_wasm) return;
         self.app = app;
-        self.scanAndLoadLegacy(null);
+        if (manager) |m| {
+            for (m.names.items, 0..) |name, i| {
+                const path = m.paths.items[i] orelse continue;
+                if (m.lazys.items[i]) {
+                    self.registerLazyStub(name, path);
+                } else {
+                    self.loadOne(path);
+                }
+            }
+        }
     }
 
     pub fn tick(self: *Self, app: *st.AppState, dt: f32) void {
         if (comptime is_wasm) return;
         self.app = app;
 
+        // Clean up .loading placeholder panels left by ensureLoaded().
+        // Real panels were registered by loadOne() via dispatchOutMsgs.
+        var i: usize = 0;
+        while (i < app.gui.cold.plugin_panels_state.items.len) {
+            if (app.gui.cold.plugin_panels_state.items[i].load_state == .loading) {
+                _ = app.gui.cold.plugin_panels_state.swapRemove(i);
+                _ = app.gui.cold.plugin_panels_meta.swapRemove(i);
+            } else {
+                i += 1;
+            }
+        }
+
+
         for (self.plugins.items) |*p| self.callProcessWithTick(p, dt);
         self.pending_events.len = 0;
 
-        for (app.gui.plugin_panels.items) |panel| {
-            if (!panel.visible) continue;
-            for (self.plugins.items) |*p| self.callProcessDrawPanel(p, panel.panel_id);
+        for (app.gui.cold.plugin_panels_state.items) |state| {
+            if (!state.visible) continue;
+            for (self.plugins.items) |*p| self.callProcessDrawPanel(p, state.panel_id);
         }
     }
 
@@ -217,9 +239,10 @@ pub const Runtime = struct {
         const stub = self.lazy_stubs.items[idx];
 
         // Mark placeholder panels as .loading (re-entrancy guard).
-        for (app.gui.plugin_panels.items) |*panel| {
-            if (panel.load_state == .lazy_pending and std.mem.eql(u8, panel.id, plugin_name)) {
-                panel.load_state = .loading;
+        const metas = app.gui.cold.plugin_panels_meta.items;
+        for (app.gui.cold.plugin_panels_state.items, 0..) |*pstate, pidx| {
+            if (pstate.load_state == .lazy_pending and std.mem.eql(u8, metas[pidx].id, plugin_name)) {
+                pstate.load_state = .loading;
             }
         }
 
@@ -246,11 +269,11 @@ pub const Runtime = struct {
         self.pending_events.append(.{ .tag = .checkbox_changed, .panel_id = panel_id, .widget_id = widget_id, .val_u8 = if (val) 1 else 0 });
     }
 
-    pub fn refresh(self: *Self, app: *st.AppState) void {
+    pub fn refresh(self: *Self, app: *st.AppState, manager: ?*const PluginManager) void {
         if (comptime is_wasm) return;
         self.app = app;
         self.unloadAll();
-        self.scanAndLoadLegacy(null);
+        self.loadStartup(app, manager);
     }
 
     pub fn deinit(self: *Self, app: *st.AppState) void {
@@ -463,7 +486,7 @@ pub const Runtime = struct {
                 if (payload.len < 2) return;
                 var pp: usize = 2;
                 const cmd_tag = ma.dupe(u8, readStr(payload, &pp) orelse return) catch return;
-                self.app.gui.plugin_keybinds.append(self.alloc, .{
+                self.app.gui.cold.plugin_keybinds.append(self.alloc, .{
                     .key = payload[0],
                     .mods = payload[1],
                     .cmd_tag = cmd_tag,
@@ -490,6 +513,35 @@ pub const Runtime = struct {
                         self.alloc.free(key_dup);
                         self.alloc.free(val_dup);
                     };
+                } else if (std.mem.eql(u8, key, "spice_links")) {
+                    const doc = self.app.active() orelse return;
+                    const path = switch (doc.origin) {
+                        .chn_file => |fp| fp,
+                        else => return,
+                    };
+                    const cell_name = st.TbIndex.normalizeSymbol(path);
+                    const tb_paths = self.app.tb_index.testbenchesFor(cell_name);
+                    var val_buf: [8192]u8 = undefined;
+                    var val_pos: usize = 0;
+                    for (tb_paths) |tb_path| {
+                        if (val_pos + tb_path.len + 1 > val_buf.len) break;
+                        @memcpy(val_buf[val_pos..][0..tb_path.len], tb_path);
+                        val_pos += tb_path.len;
+                        val_buf[val_pos] = '\n';
+                        val_pos += 1;
+                    }
+                    const key_dup = self.alloc.dupe(u8, key) catch return;
+                    const val_dup = self.alloc.dupe(u8, val_buf[0..val_pos]) catch {
+                        self.alloc.free(key_dup);
+                        return;
+                    };
+                    p.pending_state_responses.append(self.alloc, .{
+                        .key = key_dup,
+                        .val = val_dup,
+                    }) catch {
+                        self.alloc.free(key_dup);
+                        self.alloc.free(val_dup);
+                    };
                 }
             },
             .push_command => {
@@ -500,6 +552,12 @@ pub const Runtime = struct {
                 // run_testbench: handled directly, bypasses the command queue.
                 if (std.mem.eql(u8, cmd_tag, "run_testbench")) {
                     self.handleRunTestbench(p, cmd_payload orelse "");
+                    return;
+                }
+
+                // run_spice: two-call API — link_name on first line, overrides after.
+                if (std.mem.eql(u8, cmd_tag, "run_spice")) {
+                    self.handleRunSpice(p, cmd_payload orelse "");
                     return;
                 }
 
@@ -525,49 +583,12 @@ pub const Runtime = struct {
         const owned_path = ma.dupe(u8, so_path) catch return;
         self.lazy_stubs.append(self.alloc, .{ .name = owned_name, .so_path = owned_path }) catch return;
         _ = self.app.registerPluginPanelEx(owned_name, owned_name, "", .overlay, 0, 0);
-        const panels = &self.app.gui.plugin_panels;
-        if (panels.items.len > 0) {
-            panels.items[panels.items.len - 1].load_state = .lazy_pending;
+        const states = &self.app.gui.cold.plugin_panels_state;
+        if (states.items.len > 0) {
+            states.items[states.items.len - 1].load_state = .lazy_pending;
         }
     }
 
-    /// Scan ~/.config/Schemify/ for plugins NOT already handled by a spec.
-    /// When `manager` is null, loads everything (preserves legacy behaviour).
-    fn scanAndLoadLegacy(self: *Self, manager: ?*const PluginManager) void {
-        const home = pi.platform.getEnvVar(self.alloc, "HOME") catch return;
-        defer self.alloc.free(home);
-
-        var cfg_buf: [4096]u8 = undefined;
-        const cfg_dir = std.fmt.bufPrint(&cfg_buf, "{s}/.config/Schemify", .{home}) catch return;
-
-        const listing = Vfs.listDir(self.alloc, cfg_dir) catch return;
-        defer listing.deinit(self.alloc);
-
-        for (listing.entries) |entry_name| {
-            if (manager) |m| if (m.hasSpec(entry_name)) continue;
-
-            var plugin_buf: [4096]u8 = undefined;
-            const plugin_dir = std.fmt.bufPrint(&plugin_buf, "{s}/{s}", .{ cfg_dir, entry_name }) catch continue;
-            self.loadSoFromDir(plugin_dir);
-
-            var lib_buf: [4096]u8 = undefined;
-            const lib_dir = std.fmt.bufPrint(&lib_buf, "{s}/lib", .{plugin_dir}) catch continue;
-            self.loadSoFromDir(lib_dir);
-        }
-    }
-
-    fn loadSoFromDir(self: *Self, dir_path: []const u8) void {
-        if (comptime is_wasm) return;
-        const listing = Vfs.listDir(self.alloc, dir_path) catch return;
-        defer listing.deinit(self.alloc);
-
-        for (listing.entries) |file_name| {
-            if (!std.mem.endsWith(u8, file_name, ".so")) continue;
-            var so_buf: [4096]u8 = undefined;
-            const so_path = std.fmt.bufPrint(&so_buf, "{s}/{s}", .{ dir_path, file_name }) catch continue;
-            self.loadOne(so_path);
-        }
-    }
 
     fn loadOne(self: *Self, so_path: []const u8) void {
         var lib = std.DynLib.open(so_path) catch |err| {
@@ -742,6 +763,210 @@ pub const Runtime = struct {
         child.spawn() catch |err| {
             var msg_buf: [128]u8 = undefined;
             const msg = std.fmt.bufPrint(&msg_buf, "run_testbench: spawn ngspice failed: {}", .{err}) catch "spawn error";
+            self.enqueueSimError(p, msg);
+            return;
+        };
+        _ = child.wait() catch {};
+        const elapsed = std.time.milliTimestamp() - t0;
+
+        // Parse .meas results from ngspice log.
+        const log_data = Vfs.readAlloc(self.alloc, "/tmp/schemify_opt.log") catch &[_]u8{};
+        defer if (log_data.len > 0) self.alloc.free(log_data);
+
+        var result_buf: [4096]u8 = undefined;
+        var result_pos: usize = 0;
+
+        const header = std.fmt.bufPrint(result_buf[result_pos..], "valid=1\nelapsed_ms={d}\n", .{elapsed}) catch "";
+        result_pos += header.len;
+
+        var log_it = std.mem.splitScalar(u8, log_data, '\n');
+        while (log_it.next()) |raw| {
+            const line = std.mem.trim(u8, raw, " \t\r");
+            const eq = std.mem.indexOfScalar(u8, line, '=') orelse continue;
+            const name = std.mem.trim(u8, line[0..eq], " \t");
+            const rest = std.mem.trim(u8, line[eq + 1 ..], " \t");
+            const val_end = std.mem.indexOfAnyPos(u8, rest, 0, " \t") orelse rest.len;
+            const val_str = rest[0..val_end];
+            if (name.len == 0 or val_str.len == 0) continue;
+            const entry = std.fmt.bufPrint(result_buf[result_pos..], "{s}={s}\n", .{ name, val_str }) catch break;
+            result_pos += entry.len;
+        }
+
+        const result_data = self.alloc.dupe(u8, result_buf[0..result_pos]) catch return;
+        enqueueFileResponse(p, self.alloc, "__sim_result__", result_data, true);
+    }
+
+    // -- Internal: run_spice --------------------------------------------------
+
+    fn handleRunSpice(self: *Self, p: *LoadedPlugin, payload: []const u8) void {
+        var link_name_buf: [4096]u8 = undefined;
+        var link_name_len: usize = 0;
+
+        var override_keys: [32][128]u8 = undefined;
+        var override_vals: [32][64]u8 = undefined;
+        var override_key_lens: [32]u8 = undefined;
+        var override_val_lens: [32]u8 = undefined;
+        var override_count: usize = 0;
+
+        // Parse payload: first non-empty line = tb path, rest = "Inst.Prop=val"
+        var got_link = false;
+        var line_it = std.mem.splitScalar(u8, payload, '\n');
+        while (line_it.next()) |raw| {
+            const line = std.mem.trim(u8, raw, " \t\r");
+            if (line.len == 0) continue;
+            if (!got_link) {
+                const n = @min(line.len, link_name_buf.len - 1);
+                @memcpy(link_name_buf[0..n], line[0..n]);
+                link_name_len = n;
+                got_link = true;
+            } else if (override_count < 32) {
+                const eq = std.mem.indexOfScalar(u8, line, '=') orelse continue;
+                const k = line[0..eq];
+                const v = line[eq + 1 ..];
+                const kn = @min(k.len, 127);
+                const vn = @min(v.len, 63);
+                @memcpy(override_keys[override_count][0..kn], k[0..kn]);
+                @memcpy(override_vals[override_count][0..vn], v[0..vn]);
+                override_key_lens[override_count] = @intCast(kn);
+                override_val_lens[override_count] = @intCast(vn);
+                override_count += 1;
+            }
+        }
+
+        if (link_name_len == 0) {
+            self.enqueueSimError(p, "run_spice: missing link name");
+            return;
+        }
+        const link_name = link_name_buf[0..link_name_len];
+
+        // Get active document (DUT).
+        const doc = self.app.active() orelse {
+            self.enqueueSimError(p, "run_spice: no active document");
+            return;
+        };
+        const dut_path = switch (doc.origin) {
+            .chn_file => |fp| fp,
+            else => {
+                self.enqueueSimError(p, "run_spice: active document has no file path");
+                return;
+            },
+        };
+
+        // Validate link_name is a registered testbench for this DUT.
+        const cell_name = st.TbIndex.normalizeSymbol(dut_path);
+        const known_tbs = self.app.tb_index.testbenchesFor(cell_name);
+        var valid = false;
+        for (known_tbs) |tb| {
+            if (std.mem.eql(u8, tb, link_name)) {
+                valid = true;
+                break;
+            }
+        }
+        if (!valid) {
+            var msg_buf: [512]u8 = undefined;
+            const msg = std.fmt.bufPrint(&msg_buf, "run_spice: '{s}' is not a known testbench for '{s}'", .{ link_name, cell_name }) catch "run_spice: unknown testbench";
+            self.enqueueSimError(p, msg);
+            return;
+        }
+
+        // Read and parse DUT schematic.
+        const dut_data = Vfs.readAlloc(self.alloc, dut_path) catch |err| {
+            var msg_buf: [256]u8 = undefined;
+            const msg = std.fmt.bufPrint(&msg_buf, "run_spice: cannot read DUT {s}: {}", .{ dut_path, err }) catch "read error";
+            self.enqueueSimError(p, msg);
+            return;
+        };
+        defer self.alloc.free(dut_data);
+
+        var dut_sch = core.Schemify.readFile(dut_data, self.alloc, &self.app.log);
+        defer dut_sch.deinit();
+
+        // Apply param overrides to DUT instances (correct target vs old handleRunTestbench).
+        const dut_alloc = dut_sch.alloc();
+        for (0..override_count) |i| {
+            const k = override_keys[i][0..override_key_lens[i]];
+            const v = override_vals[i][0..override_val_lens[i]];
+            const dot = std.mem.indexOfScalar(u8, k, '.') orelse continue;
+            const inst_name = k[0..dot];
+            const prop_name = k[dot + 1 ..];
+            const iname = dut_sch.instances.items(.name);
+            const ips = dut_sch.instances.items(.prop_start);
+            const ipc = dut_sch.instances.items(.prop_count);
+            for (0..dut_sch.instances.len) |ii| {
+                if (!std.mem.eql(u8, iname[ii], inst_name)) continue;
+                const props = dut_sch.props.items[ips[ii]..][0..ipc[ii]];
+                for (props) |*prop| {
+                    if (std.mem.eql(u8, prop.key, prop_name)) {
+                        prop.val = dut_alloc.dupe(u8, v) catch prop.val;
+                        break;
+                    }
+                }
+            }
+        }
+
+        dut_sch.resolveNets();
+
+        // Read and parse testbench schematic.
+        const tb_data = Vfs.readAlloc(self.alloc, link_name) catch |err| {
+            var msg_buf: [256]u8 = undefined;
+            const msg = std.fmt.bufPrint(&msg_buf, "run_spice: cannot read testbench {s}: {}", .{ link_name, err }) catch "read error";
+            self.enqueueSimError(p, msg);
+            return;
+        };
+        defer self.alloc.free(tb_data);
+
+        var tb_sch = core.Schemify.readFile(tb_data, self.alloc, &self.app.log);
+        defer tb_sch.deinit();
+        tb_sch.resolveNets();
+
+        // Emit DUT subckt with PDK (provides .subckt block + model includes).
+        const dut_netlist = dut_sch.emitSpice(self.alloc, .ngspice, core.pdk, .sim) catch |err| {
+            var msg_buf: [128]u8 = undefined;
+            const msg = std.fmt.bufPrint(&msg_buf, "run_spice: DUT netlist emit failed: {}", .{err}) catch "emit error";
+            self.enqueueSimError(p, msg);
+            return;
+        };
+        defer self.alloc.free(dut_netlist);
+
+        // Emit testbench body without PDK (avoids duplicate subckt/model block).
+        const tb_netlist = tb_sch.emitSpice(self.alloc, .ngspice, null, .sim) catch |err| {
+            var msg_buf: [128]u8 = undefined;
+            const msg = std.fmt.bufPrint(&msg_buf, "run_spice: TB netlist emit failed: {}", .{err}) catch "emit error";
+            self.enqueueSimError(p, msg);
+            return;
+        };
+        defer self.alloc.free(tb_netlist);
+
+        // Write combined netlist.
+        const tmp_sp = "/tmp/schemify_opt_run.sp";
+        {
+            const combined = std.mem.concat(self.alloc, u8, &.{ dut_netlist, tb_netlist }) catch |err| {
+                var msg_buf: [128]u8 = undefined;
+                const msg = std.fmt.bufPrint(&msg_buf, "run_spice: concat failed: {}", .{err}) catch "concat error";
+                self.enqueueSimError(p, msg);
+                return;
+            };
+            defer self.alloc.free(combined);
+            Vfs.writeAll(tmp_sp, combined) catch |err| {
+                var msg_buf: [128]u8 = undefined;
+                const msg = std.fmt.bufPrint(&msg_buf, "run_spice: write netlist failed: {}", .{err}) catch "write error";
+                self.enqueueSimError(p, msg);
+                return;
+            };
+        }
+
+        // Run ngspice (blocking).
+        const t0 = std.time.milliTimestamp();
+        var child = std.process.Child.init(
+            &.{ "ngspice", "-b", "-o", "/tmp/schemify_opt.log", tmp_sp },
+            self.alloc,
+        );
+        child.stdin_behavior = .Ignore;
+        child.stdout_behavior = .Ignore;
+        child.stderr_behavior = .Ignore;
+        child.spawn() catch |err| {
+            var msg_buf: [128]u8 = undefined;
+            const msg = std.fmt.bufPrint(&msg_buf, "run_spice: spawn ngspice failed: {}", .{err}) catch "spawn error";
             self.enqueueSimError(p, msg);
             return;
         };
@@ -978,19 +1203,27 @@ fn parseWidget(arena: std.mem.Allocator, tag: pi.Tag, payload: []const u8) ?Runt
 
 // -- Command whitelist --------------------------------------------------------
 
-const allowed_plugin_commands = [_][]const u8{
-    "zoom_in",            "zoom_out",            "zoom_fit",               "zoom_reset",
-    "toggle_colorscheme", "toggle_fill_rects",   "toggle_text_in_symbols", "toggle_symbol_details",
-    "toggle_crosshair",   "toggle_show_netlist", "snap_halve",             "snap_double",
-    "select_all",         "select_none",         "plugins_refresh",
-    "run_testbench", // optimizer: synchronous SPICE sim runner
-};
+const ALLOWED_CMDS = std.StaticStringMap(void).initComptime(.{
+    .{ "zoom_in", {} },
+    .{ "zoom_out", {} },
+    .{ "zoom_fit", {} },
+    .{ "zoom_reset", {} },
+    .{ "toggle_colorscheme", {} },
+    .{ "toggle_fill_rects", {} },
+    .{ "toggle_text_in_symbols", {} },
+    .{ "toggle_symbol_details", {} },
+    .{ "toggle_crosshair", {} },
+    .{ "toggle_show_netlist", {} },
+    .{ "snap_halve", {} },
+    .{ "snap_double", {} },
+    .{ "select_all", {} },
+    .{ "select_none", {} },
+    .{ "plugins_refresh", {} },
+    .{ "run_testbench", {} }, // optimizer: synchronous SPICE sim runner
+});
 
 fn isCommandAllowed(cmd_tag: []const u8) bool {
-    inline for (allowed_plugin_commands) |c| {
-        if (std.mem.eql(u8, cmd_tag, c)) return true;
-    }
-    return false;
+    return ALLOWED_CMDS.has(cmd_tag);
 }
 
 // -- Size test ----------------------------------------------------------------

@@ -1,19 +1,21 @@
 .{
-    .name = .EasyPDKLoader,
-    .version = "0.1.0",
-    .fingerprint = 0xe10924fc3b041204,
+    .name                = .PDKLoader,
+    .version             = "0.2.0",
+    .fingerprint         = 0x76bdeeaf7055c437,
     .minimum_zig_version = "0.15.0",
-    .dependencies = .{
+    .dependencies        = .{
         .schemify_sdk = .{
             .path = "../..",
+        },
+        .easyimport = .{
+            .path = "../EasyImport",
         },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
-        "tests",
         "plugin.toml",
-        "README.md",
+        "dep",
     },
 }

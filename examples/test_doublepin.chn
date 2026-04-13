@@ -1,89 +1,42 @@
-chn 1.0
+chn_testbench 1.0
 
-SYMBOL test_doublepin
-
-  pins [5]:
-    RRSSTT  inout
-    CCKK  inout
-    BB  inout
-    AA[3:0]  inout
-    ZZ[22:1]  out
-
-SCHEMATIC
+TESTBENCH untitled
 
   instances [31]:
-    x9  doublepin  x=1230  y=-670
-    x8  doublepin  x=810  y=-670  flip=1
-    x2  doublepin  x=780  y=-880
-    x3  doublepin  x=330  y=-1110
-    x4  doublepin  x=780  y=-1110
-    x5  doublepin  x=330  y=-1340
-    x6  doublepin  x=780  y=-1340
-    x1  doublepin  x=330  y=-880
-    x7  doublepin  x=330  y=-670
-    x10  doublepin  x=1110  y=-460
-    x11  doublepin  x=810  y=-460  flip=1
-    x12  doublepin  x=260  y=-460
-    x13  doublepin  x=1370  y=-1040
-    x14  doublepin  x=1370  y=-1300  flip=1
-    x17[1:0]  doublepin  x=330  y=-230
-    x16[1:0]  doublepin  x=860  y=-230  flip=1
-    x22[1:0]  doublepin  x=1230  y=-230
-    x18  inv_ngspice  x=80  y=-260  ROUT=1000
-    x19  inv_ngspice  x=70  y=-450  ROUT=1000
-    x20  doublepin  x=1590  y=-460
-    x21  doublepin  x=1890  y=-460
-    x15  inv_ngspice  x=770  y=-350  ROUT=1000
-    x23  doublepin  x=1410  y=-870
-    x24  doublepin  x=1910  y=-870  flip=1
-    x25  xcross  x=1900  y=-1370
-    x26  xcross  x=2140  y=-1290
-    x27  xcross  x=1860  y=-1070
-    x28  xcross  x=2020  y=-1070
-    x29  xcross  x=2180  y=-990
-    x30  doublepin  x=2510  y=-980  flip=1
-    x31  xcross  x=2060  y=-1410  rot=2
+    x9  doublepin.chn  x=1230  y=-670
+    x8  doublepin.chn  x=810  y=-670  flip=1
+    x2  doublepin.chn  x=780  y=-880
+    x3  doublepin.chn  x=330  y=-1110
+    x4  doublepin.chn  x=780  y=-1110
+    x5  doublepin.chn  x=330  y=-1340
+    x6  doublepin.chn  x=780  y=-1340
+    x1  doublepin.chn  x=330  y=-880
+    x7  doublepin.chn  x=330  y=-670
+    x10  doublepin.chn  x=1110  y=-460
+    x11  doublepin.chn  x=810  y=-460  flip=1
+    x12  doublepin.chn  x=260  y=-460
+    x13  doublepin.chn  x=1370  y=-1040
+    x14  doublepin.chn  x=1370  y=-1300  flip=1
+    x17[1:0]  doublepin.chn  x=330  y=-230
+    x16[1:0]  doublepin.chn  x=860  y=-230  flip=1
+    x22[1:0]  doublepin.chn  x=1230  y=-230
+    x18  inv_ngspice.chn  x=80  y=-260  ROUT=1000
+    x19  inv_ngspice.chn  x=70  y=-450  ROUT=1000
+    x20  doublepin.chn  x=1590  y=-460
+    x21  doublepin.chn  x=1890  y=-460
+    x15  inv_ngspice.chn  x=770  y=-350  ROUT=1000
+    x23  doublepin.chn  x=1410  y=-870
+    x24  doublepin.chn  x=1910  y=-870  flip=1
+    x25  xcross.chn  x=1900  y=-1370
+    x26  xcross.chn  x=2140  y=-1290
+    x27  xcross.chn  x=1860  y=-1070
+    x28  xcross.chn  x=2020  y=-1070
+    x29  xcross.chn  x=2180  y=-990
+    x30  doublepin.chn  x=2510  y=-980  flip=1
+    x31  xcross.chn  x=2060  y=-1410  rot=2
 
-  nets [39]:
-    AA[3:0]  -> x9.A[3], x9.A[2], x9.A[1], x9.A[0], x9.A[3], x9.A[2], x9.A[1], x9.A[0], x8.A[3], x8.A[2], x8.A[1], x8.A[0], x8.A[3], x8.A[2], x8.A[1], x8.A[0], x2.A[3], x2.A[2], x2.A[1], x2.A[0], x2.A[3], x2.A[2], x2.A[1], x2.A[0], x3.A[3], x3.A[2], x3.A[1], x3.A[0], x3.A[3], x3.A[2], x3.A[1], x3.A[0], x4.A[3], x4.A[2], x4.A[1], x4.A[0], x4.A[3], x4.A[2], x4.A[1], x4.A[0], x5.A[3], x5.A[2], x5.A[1], x5.A[0], x5.A[3], x5.A[2], x5.A[1], x5.A[0], x6.A[3], x6.A[2], x6.A[1], x6.A[0], x6.A[3], x6.A[2], x6.A[1], x6.A[0], x1.A[3], x1.A[2], x1.A[1], x1.A[0], x1.A[3], x1.A[2], x1.A[1], x1.A[0], x7.A[3], x7.A[2], x7.A[1], x7.A[0], x7.A[3], x7.A[2], x7.A[1], x7.A[0], x13.A[3], x13.A[2], x13.A[1], x13.A[0], x13.A[3], x13.A[2], x13.A[1], x13.A[0], x14.A[3], x14.A[2], x14.A[1], x14.A[0], x14.A[3], x14.A[2], x14.A[1], x14.A[0], x23.A[3], x23.A[2], x23.A[1], x23.A[0], x23.A[3], x23.A[2], x23.A[1], x23.A[0], x24.A[3], x24.A[2], x24.A[1], x24.A[0], x24.A[3], x24.A[2], x24.A[1], x24.A[0]
-    BB  -> x9.B, x9.B, x8.B, x8.B, x2.B, x2.B, x3.B, x3.B, x4.B, x4.B, x5.B, x5.B, x6.B, x6.B, x1.B, x1.B, x7.B, x7.B, x13.B, x13.B, x14.B, x14.B, x23.B, x23.B, x24.B, x24.B, x25.A, x25.A, x25.A, x26.A, x26.A, x26.A, x27.A, x27.A, x27.A, x28.B, x28.B, x28.B, x29.B, x29.B, x29.B, x30.RST, x30.RST, x31.B, x31.B, x31.B
-    ZZ[9]  -> x9.Z
-    CCKK  -> x9.CK, x9.CK, x8.CK, x8.CK, x2.CK, x2.CK, x3.CK, x3.CK, x4.CK, x4.CK, x5.CK, x5.CK, x6.CK, x6.CK, x1.CK, x1.CK, x7.CK, x7.CK, x13.CK, x13.CK, x14.CK, x14.CK, x23.CK, x23.CK, x24.CK, x24.CK
-    RRSSTT  -> x9.RST, x9.RST, x8.RST, x8.RST, x2.RST, x2.RST, x3.RST, x3.RST, x4.RST, x4.RST, x5.RST, x5.RST, x6.RST, x6.RST, x1.RST, x1.RST, x7.RST, x7.RST, x13.RST, x13.RST, x14.RST, x14.RST, x23.RST, x23.RST, x24.RST, x24.RST, x25.B, x25.B, x25.B, x26.B, x26.B, x26.B, x27.B, x27.B, x27.B, x28.A, x28.A, x28.A, x29.A, x29.A, x29.A, x30.B, x30.B, x31.A, x31.A, x31.A
-    ZZ[8]  -> x8.Z
-    ZZ[6]  -> x2.Z
-    ZZ[3]  -> x3.Z
-    ZZ[4]  -> x4.Z
-    ZZ[1]  -> x5.Z
-    ZZ[2]  -> x6.Z
-    ZZ[5]  -> x1.Z
-    ZZ[7]  -> x7.Z
-    net3  -> x10.A[3], x10.A[2], x10.A[1], x10.A[0], x10.A[3], x10.A[2], x10.A[1], x10.A[0], x11.A[3], x11.A[2], x11.A[1], x11.A[0], x11.A[3], x11.A[2], x11.A[1], x11.A[0], x12.A[3], x12.A[2], x12.A[1], x12.A[0], x12.A[3], x12.A[2], x12.A[1], x12.A[0], x20.A[3], x20.A[2], x20.A[1], x20.A[0], x20.A[3], x20.A[2], x20.A[1], x20.A[0], x21.A[3], x21.A[2], x21.A[1], x21.A[0], x21.A[3], x21.A[2], x21.A[1], x21.A[0]
-    net4  -> x10.B, x10.B, x11.B, x11.B, x12.B, x12.B, x19.Y, x20.B, x20.B, x21.B, x21.B
-    ZZ[10]  -> x10.Z
-    net2  -> x10.CK, x10.CK, x11.CK, x11.CK, x12.CK, x12.CK, x20.CK, x20.CK, x21.CK, x21.CK
-    net1  -> x10.RST, x10.RST, x11.RST, x11.RST, x12.RST, x12.RST, x20.RST, x20.RST, x21.RST, x21.RST
-    ZZ[11]  -> x11.Z
-    ZZ[12]  -> x12.Z
-    ZZ[13]  -> x13.Z
-    ZZ[14]  -> x14.Z
-    net7  -> x17[1:0].A[3], x17[1:0].A[2], x17[1:0].A[1], x17[1:0].A[0], x17[1:0].A[3], x17[1:0].A[2], x17[1:0].A[1], x17[1:0].A[0], x16[1:0].A[3], x16[1:0].A[2], x16[1:0].A[1], x16[1:0].A[0], x16[1:0].A[3], x16[1:0].A[2], x16[1:0].A[1], x16[1:0].A[0], x22[1:0].A[3], x22[1:0].A[2], x22[1:0].A[1], x22[1:0].A[0], x22[1:0].A[3], x22[1:0].A[2], x22[1:0].A[1], x22[1:0].A[0]
-    net8  -> x17[1:0].B, x17[1:0].B, x16[1:0].B, x16[1:0].B, x22[1:0].B, x22[1:0].B
-    ZZ[17]  -> x17[1:0].Z
-    net6  -> x17[1:0].CK, x17[1:0].CK, x16[1:0].CK, x16[1:0].CK, x22[1:0].CK, x22[1:0].CK, x18.Y
-    net5  -> x17[1:0].RST, x17[1:0].RST, x16[1:0].RST, x16[1:0].RST, x22[1:0].RST, x22[1:0].RST, x15.A
-    ZZ[16]  -> x16[1:0].Z
-    ZZ[15]  -> x22[1:0].Z
-    net9  -> x18.A
-    net10  -> x19.A
-    ZZ[18]  -> x20.Z
-    ZZ[19]  -> x21.Z
-    net11  -> x15.Y
-    ZZ[20]  -> x23.Z
-    ZZ[21]  -> x24.Z
-    net12  -> x30.A[3], x30.A[2], x30.A[1], x30.A[0], x30.A[3], x30.A[2], x30.A[1], x30.A[0]
-    ZZ[22]  -> x30.Z
-    net13  -> x30.CK, x30.CK
+  hdl_blocks [1]:
+    
 
   wires [180]:
     480 -930 630 -930

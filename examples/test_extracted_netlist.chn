@@ -1,6 +1,6 @@
 chn_testbench 1.0
 
-TESTBENCH test_extracted_netlist
+TESTBENCH untitled
 
   resistors [6]{name, x, y, rot, flip, value, footprint, device, m}:
     R1  360  -800  0  0  10k  1206  resistor  1
@@ -11,10 +11,10 @@ TESTBENCH test_extracted_netlist
     RLOAD  1030  -750  0  0  4  1206  resistor  1
 
   instances [4]:
-    VPP  vsource  x=290  y=-230  value=dc 50
-    VNN  vsource  x=290  y=-170  value=dc 50
-    VVSS  vsource  x=660  y=-160  value=0
-    VIN  vsource  x=30  y=-420  value=pwl +   0     0 100u  0 + 110u   2 200u 2 + 210u    0 300u  0 + 310u  -2
+    VPP  vsource.sym  x=290  y=-230  value=dc 50
+    VNN  vsource.sym  x=290  y=-170  value=dc 50
+    VVSS  vsource.sym  x=660  y=-160  value=0
+    VIN  vsource.sym  x=30  y=-420  value=pwl +   0     0 100u  0 + 110u   2 200u 2 + 210u    0 300u  0 + 310u  -2
 
   vsource [3]{name, x, y, rot, flip}:
     vcurrvpp  430  -280  3  0
@@ -26,21 +26,18 @@ TESTBENCH test_extracted_netlist
     C4  360  -740  0  0  1  50u
 
   instances [1]:
-    x1  mos_power_ampli_extracted  x=770  y=-810
+    x1  mos_power_ampli_extracted.chn  x=770  y=-810
 
-  nets [12]:
-    MINUS  -> R1.P, R2.M, R13.M, x1.MINUS
-    C1  -> R1.M, C4.p
-    OUT  -> R2.P, RLOAD.P, x1.OUT
-    net1  -> VPP.p, vcurrvpp.plus
-    net3  -> VPP.m, VNN.p, vcurrvss.plus
-    net2  -> VNN.m, vcurrvnn.plus
-    VPP  -> vcurrvpp.minus, R4.P, R13.P, x1.VPP
-    VNN  -> vcurrvnn.minus, x1.VNN
-    VSS  -> vcurrvss.minus, VVSS.p, VIN.m, R5.M, C4.m, RLOAD.M, x1.VSS
-    0  -> VVSS.m
-    IN  -> VIN.p, C1.m
-    PLUS  -> R4.M, R5.P, C1.p, x1.PLUS
+  code_blocks [1]:
+    STIMULI  code  only_toplevel=true  value=.include \\"models_poweramp.txt\\" .options method=gear savecurrents ITL4=500 ITL5=50000  CHGTOL=1e-15 TRTOL=1 .control save all op write test_extracted_netlist.raw set appendwrite tran  100n 400u  * .FOUR 20k v(outm,outp) * .probe i(*)  write test_extracted_netlist.raw .endc 
+
+  annotations [6]:
+    p45  probe  x=520  y=-280  analysis=tran  voltage=49.93
+    p46  probe  x=520  y=-120  analysis=tran  voltage=-49.93
+    p2  probe  x=970  y=-850  analysis=tran  voltage=-0.1176
+    p13  probe  x=380  y=-850  analysis=tran  voltage=21.07
+    p14  probe  x=120  y=-510  analysis=tran  voltage=0.0000e+00
+    p19  probe  x=550  y=-620  analysis=tran  voltage=21.07
 
   wires [54]:
     360 -850 360 -830

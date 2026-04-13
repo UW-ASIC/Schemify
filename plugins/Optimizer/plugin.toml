@@ -5,3 +5,4 @@ author      = "UWASIC"
 entry       = "libOptimizer.so"
 description = "Bayesian circuit optimization plugin with iterative sweep controls."
 tags        = ["optimization", "bayesian", "analog"]
+scope       = "user"

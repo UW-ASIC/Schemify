@@ -1,7 +1,6 @@
 //! Plugin Interface — ABI v6 (message-passing protocol).
 
 const std = @import("std");
-
 const utility = @import("utility");
 pub const Vfs = utility.Vfs;
 pub const platform = utility.platform;
@@ -26,6 +25,9 @@ pub const PanelLayout = enum(u8) {
 };
 
 pub const LogLevel = enum(u8) { info = 0, warn = 1, err = 2 };
+
+/// Widget kind for plugin-side declarative widget specs.
+pub const WidgetKind = enum { slider, button, label, label_fmt, checkbox, separator, progress };
 
 // -- PanelDef -----------------------------------------------------------------
 
@@ -808,8 +810,6 @@ inline fn strLen(s: []const u8) u16 {
 pub const Framework = struct {
 
     // -- Widget descriptor ----------------------------------------------------
-
-    pub const WidgetKind = enum { slider, button, label, label_fmt, checkbox, separator, progress };
 
     /// Comptime widget specification. All string fields are comptime constants.
     pub const WidgetSpec = union(WidgetKind) {

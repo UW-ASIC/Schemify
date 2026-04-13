@@ -88,7 +88,7 @@ pub fn convert(
 
     // Map S-block (raw SPICE body) from schematic
     if (schematic.s_block) |sb| {
-        sfy.spice_body = sb;
+        sfy.setSpiceBody(sb);
     }
 
     // Generate subckt ports from ipin/opin/iopin instances (if no B 5 pins exist)
@@ -182,14 +182,61 @@ fn mapTexts(sfy: *Schemify, src: *const XSchemFiles) Allocator.Error!void {
 }
 
 fn mapPins(sfy: *Schemify, src: *const XSchemFiles) Allocator.Error!void {
+    const a = sfy.alloc();
     const sl = src.pins.slice();
-    for (0..src.pins.len) |i| {
+    const n = src.pins.len;
+    if (n == 0) return;
+
+    const consumed = try a.alloc(bool, n);
+    defer a.free(consumed);
+    @memset(consumed, false);
+
+    for (0..n) |i| {
+        if (consumed[i]) continue;
+        const name_i = sl.items(.name)[i];
+        const dir_i = sl.items(.direction)[i];
+
+        if (splitBusPin(name_i)) |parts| {
+            var min_idx: u32 = parts.idx;
+            var max_idx: u32 = parts.idx;
+            var count: u32 = 1;
+            for (0..n) |j| {
+                if (j == i or consumed[j]) continue;
+                const pj = splitBusPin(sl.items(.name)[j]) orelse continue;
+                if (!std.mem.eql(u8, parts.base, pj.base)) continue;
+                if (sl.items(.direction)[j] != dir_i) continue;
+                count += 1;
+                if (pj.idx < min_idx) min_idx = pj.idx;
+                if (pj.idx > max_idx) max_idx = pj.idx;
+            }
+            const width = max_idx - min_idx + 1;
+            if (count == width and width > 1) {
+                consumed[i] = true;
+                for (0..n) |j| {
+                    if (j == i or consumed[j]) continue;
+                    const pj = splitBusPin(sl.items(.name)[j]) orelse continue;
+                    if (std.mem.eql(u8, parts.base, pj.base) and
+                        sl.items(.direction)[j] == dir_i) consumed[j] = true;
+                }
+                try sfy.drawPin(.{
+                    .name = parts.base,
+                    .x = f2i(sl.items(.x)[i]),
+                    .y = f2i(sl.items(.y)[i]),
+                    .dir = @enumFromInt(@intFromEnum(dir_i)),
+                    .num = null,
+                    .width = @intCast(width),
+                });
+                continue;
+            }
+        }
+
+        consumed[i] = true;
         try sfy.drawPin(.{
-            .name = sl.items(.name)[i],
+            .name = name_i,
             .x = f2i(sl.items(.x)[i]),
             .y = f2i(sl.items(.y)[i]),
-            .dir = @enumFromInt(@intFromEnum(sl.items(.direction)[i])),
-            .num = if (sl.items(.number)[i]) |n| @intCast(n) else null,
+            .dir = @enumFromInt(@intFromEnum(dir_i)),
+            .num = if (sl.items(.number)[i]) |num| @intCast(num) else null,
         });
     }
 }
@@ -290,7 +337,7 @@ fn mapInstances(sfy: *Schemify, src: *const XSchemFiles, sym_resolver: ?SymResol
                 if (resolved_sym.k_global) {
                     for (props) |p| {
                         if (std.mem.eql(u8, p.key, "lab") and p.val.len > 0) {
-                            try sfy.addGlobal(p.val);
+                            sfy.addGlobal(p.val) catch {};
                             break;
                         }
                     }
@@ -339,7 +386,7 @@ fn mapInstances(sfy: *Schemify, src: *const XSchemFiles, sym_resolver: ?SymResol
 }
 
 /// Convert ipin/opin/iopin instances into subckt port pins.
-/// De-duplicates by lab name so each unique port appears exactly once.
+/// De-duplicates by lab name and collapses sequential bus pins (e.g. A[0]..A[255] → A width=256).
 fn mapPortPins(sfy: *Schemify) Allocator.Error!void {
     const a = sfy.alloc();
     const kinds = sfy.instances.items(.kind);
@@ -348,7 +395,10 @@ fn mapPortPins(sfy: *Schemify) Allocator.Error!void {
     const ixs = sfy.instances.items(.x);
     const iys = sfy.instances.items(.y);
 
-    // Collect unique port names in order, de-duplicating
+    const PortEntry = struct { name: []const u8, dir: core.PinDir, x: i32, y: i32 };
+    var ports = std.ArrayListUnmanaged(PortEntry){};
+    defer ports.deinit(a);
+
     var seen = std.StringHashMapUnmanaged(void){};
     defer seen.deinit(a);
 
@@ -360,18 +410,61 @@ fn mapPortPins(sfy: *Schemify) Allocator.Error!void {
         if (lab.len == 0) continue;
         if (seen.contains(lab)) continue;
         seen.put(a, lab, {}) catch {};
-
-        const dir: core.PinDir = switch (k) {
-            .input_pin => .input,
-            .output_pin => .output,
-            else => .inout,
-        };
-        try sfy.drawPin(.{
+        try ports.append(a, .{
             .name = lab,
+            .dir = switch (k) {
+                .input_pin => .input,
+                .output_pin => .output,
+                else => .inout,
+            },
             .x = ixs[i],
             .y = iys[i],
-            .dir = dir,
         });
+    }
+
+    const consumed = try a.alloc(bool, ports.items.len);
+    defer a.free(consumed);
+    @memset(consumed, false);
+
+    for (0..ports.items.len) |i| {
+        if (consumed[i]) continue;
+        const p = ports.items[i];
+
+        if (splitBusPin(p.name)) |parts| {
+            var min_idx: u32 = parts.idx;
+            var max_idx: u32 = parts.idx;
+            var count: u32 = 1;
+            for (0..ports.items.len) |j| {
+                if (j == i or consumed[j]) continue;
+                const pj = splitBusPin(ports.items[j].name) orelse continue;
+                if (!std.mem.eql(u8, parts.base, pj.base)) continue;
+                if (ports.items[j].dir != p.dir) continue;
+                count += 1;
+                if (pj.idx < min_idx) min_idx = pj.idx;
+                if (pj.idx > max_idx) max_idx = pj.idx;
+            }
+            const width = max_idx - min_idx + 1;
+            if (count == width and width > 1) {
+                consumed[i] = true;
+                for (0..ports.items.len) |j| {
+                    if (j == i or consumed[j]) continue;
+                    const pj = splitBusPin(ports.items[j].name) orelse continue;
+                    if (std.mem.eql(u8, parts.base, pj.base) and ports.items[j].dir == p.dir)
+                        consumed[j] = true;
+                }
+                try sfy.drawPin(.{
+                    .name = parts.base,
+                    .x = p.x,
+                    .y = p.y,
+                    .dir = p.dir,
+                    .width = @intCast(width),
+                });
+                continue;
+            }
+        }
+
+        consumed[i] = true;
+        try sfy.drawPin(.{ .name = p.name, .x = p.x, .y = p.y, .dir = p.dir });
     }
 }
 
@@ -379,7 +472,7 @@ fn mapKBlock(sfy: *Schemify, sym: *const XSchemFiles) Allocator.Error!void {
     if (sym.k_format) |fmt| try sfy.addSymProp("format", fmt);
     if (sym.k_template) |tmpl| try sfy.addSymProp("template", tmpl);
     if (sym.k_type) |kt| try sfy.addSymProp("type", kt);
-    if (sym.k_spice_sym_def) |ssd| sfy.spice_sym_def = ssd;
+    if (sym.k_spice_sym_def) |ssd| sfy.setSpiceSymDef(ssd);
 }
 
 /// Map an XSchem K-block `type` string to a DeviceKind.
@@ -553,6 +646,14 @@ fn isLabelStem(stem: []const u8) bool {
         .{ "iopin", {} },
     });
     return label_stems.has(stem);
+}
+
+/// Split "A[3]" into base="A" and idx=3. Returns null for non-indexed names.
+fn splitBusPin(name: []const u8) ?struct { base: []const u8, idx: u32 } {
+    if (name.len < 4 or name[name.len - 1] != ']') return null;
+    const open = std.mem.lastIndexOfScalar(u8, name, '[') orelse return null;
+    const idx = std.fmt.parseInt(u32, name[open + 1 .. name.len - 1], 10) catch return null;
+    return .{ .base = name[0..open], .idx = idx };
 }
 
 /// Find the value of a property by key in a Prop slice.

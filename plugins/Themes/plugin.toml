@@ -5,6 +5,7 @@ author      = "UWASIC"
 entry       = "libThemes.so"
 description = "Live theme switcher for Schemify. Ships with 7 built-in color themes (dark and light) and supports user-defined themes via ~/.config/Schemify/themes/*.json."
 tags        = ["ui", "themes", "colors", "customization"]
+scope       = "user"
 
 [build]
 apt_deps = []

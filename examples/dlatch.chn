@@ -1,19 +1,43 @@
 chn 1.0
 
-SYMBOL dlatch
+SYMBOL untitled
 
   pins [4]:
-    D  in
-    Q  out
-    G  in
-    VSS  in
+    D  in  x=-90  y=-10
+    Q  out  x=90  y=-10
+    G  in  x=-90  y=10
+    VSS  in  x=-90  y=30
 
   params [1]:
     template = name=x1 VTH=1.5 VHI=3.0
 
   spice_prefix: X
 
+  drawing:
+    line -70 -20 70 -20
+    line -70 40 70 40
+    line -70 -20 -70 40
+    line 70 -20 70 40
+    line -90 -10 -70 -10
+    line 70 -10 90 -10
+    line -90 10 -70 10
+    line -90 30 -70 30
+    pin_positions:
+      D: (-90, -10)
+      Q: (90, -10)
+      G: (-90, 10)
+      VSS: (-90, 30)
+
 SCHEMATIC
+
+
+  input_pin [3]{name, x, y, rot, flip, lab}:
+    D  80  -280  0  0  D
+    G  270  -320  0  0  G
+    VSS  440  -250  0  0  VSS
+
+  output_pin [1]{name, x, y, rot, flip, lab}:
+    Q  480  -280  0  0  Q
 
   vswitch [1]{name, x, y, rot, flip, TABLE}:
     G5  270  -280  1  0  'VTH-0.1' 10G 'VTH+0.1' 10
@@ -24,14 +48,6 @@ SCHEMATIC
   behavioral [2]{name, x, y, rot, flip, TABLE}:
     E5  120  -280  0  0  'VTH-0.1' 0 'VTH+0.1' VHI
     E1  440  -280  0  0  'VTH-0.1' 0 'VTH+0.1' VHI
-
-  nets [6]:
-    G  -> G5.CP
-    net2  -> G5.P, c1.p, E1.A
-    net1  -> G5.M, E5.Z
-    VSS  -> G5.CM, c1.m, E5.VSS, E1.VSS
-    D  -> E5.A
-    Q  -> E1.Z
 
   wires [13]:
     160 -280 240 -280

@@ -1,6 +1,6 @@
 chn_testbench 1.0
 
-TESTBENCH tesla
+TESTBENCH untitled
 
   resistors [4]{name, x, y, rot, flip, m, value}:
     Rs  140  -620  0  1  1  1
@@ -36,16 +36,8 @@ TESTBENCH tesla
   vsource [1]{name, x, y, rot, flip}:
     vmeasure  580  -310  0  0
 
-  nets [9]:
-    VCC  -> Rs.P, Cvcc.p, L1.m, C5.p, D1.m, R1.P, D3.m
-    VCCS  -> Rs.M, Vvcc.p
-    VSS  -> Vvcc.m, Cvcc.m, C1.m, D2.p, Q5.E, D4.p
-    HV  -> C1.p, L2.p, C0.p
-    net2  -> L1.p, R3.P
-    net1  -> L2.m, R0.P
-    FB  -> R0.M, C0.m, D2.m, D1.p, Q5.B, R1.M
-    net3  -> R3.M, C5.m, D3.p, vmeasure.plus, D4.m
-    D  -> Q5.C, vmeasure.minus
+  code_blocks [1]:
+    STIMULI  code  value=.option SCALE=1e-6 PARHIER=LOCAL RUNLVL=6 post MODMONTE=1 .option sampling_method = SRS .option method=gear savecurrents vvss vss 0 dc 0  .save all .save tran @q5[p] ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in simulation directory. .include models_tesla.txt .temp 30  .control tran 40n 1m  uic meas tran iavg AVG i(vvcc) from=950u to=990u save tran p(q5) i(l1) i(l2) write tesla.raw quit 0 .endc 
 
   wires [104]:
     140 -590 140 -540

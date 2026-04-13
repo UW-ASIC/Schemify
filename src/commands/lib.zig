@@ -1,23 +1,24 @@
 //! commands — every schematic mutation is expressed as a Command.
 //! Re-exports the public API for external consumers.
 
-const types = @import("types.zig");
+const utils = @import("utils/lib.zig");
+const handlers = @import("handlers/lib.zig");
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
-pub const Command = types.Command;
-pub const Immediate = types.Immediate;
-pub const Undoable = types.Undoable;
-pub const PlaceDevice = types.PlaceDevice;
-pub const DeleteDevice = types.DeleteDevice;
-pub const MoveDevice = types.MoveDevice;
-pub const SetProp = types.SetProp;
-pub const AddWire = types.AddWire;
-pub const DeleteWire = types.DeleteWire;
-pub const LoadSchematic = types.LoadSchematic;
-pub const SaveSchematic = types.SaveSchematic;
-pub const RunSim = types.RunSim;
-pub const CommandQueue = @import("CommandQueue.zig").CommandQueue;
+pub const Command       = utils.Command;
+pub const Immediate     = utils.Immediate;
+pub const Undoable      = utils.Undoable;
+pub const PlaceDevice   = utils.PlaceDevice;
+pub const DeleteDevice  = utils.DeleteDevice;
+pub const MoveDevice    = utils.MoveDevice;
+pub const SetProp       = utils.SetProp;
+pub const AddWire       = utils.AddWire;
+pub const DeleteWire    = utils.DeleteWire;
+pub const LoadSchematic = utils.LoadSchematic;
+pub const SaveSchematic = utils.SaveSchematic;
+pub const RunSim        = utils.RunSim;
+pub const PrimitiveKind = utils.PrimitiveKind;
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 
@@ -25,19 +26,15 @@ pub const dispatch = @import("Dispatch.zig").dispatch;
 
 // ── History (undo/redo) ──────────────────────────────────────────────────────
 
-pub const History = @import("Undo.zig").History;
-pub const CommandInverse = @import("Undo.zig").CommandInverse;
+pub const History        = handlers.undo.History;
+pub const CommandInverse = handlers.undo.CommandInverse;
+
+// ── CommandQueue ─────────────────────────────────────────────────────────────
+
+pub const CommandQueue = @import("CommandQueue.zig").CommandQueue;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 test {
     @import("std").testing.refAllDecls(@This());
-}
-
-test "Expose struct size for Command" {
-    const print = @import("std").debug.print;
-    print("Command:      {d}B\n", .{@sizeOf(Command)});
-    print("PlaceDevice:  {d}B\n", .{@sizeOf(PlaceDevice)});
-    print("MoveDevice:   {d}B\n", .{@sizeOf(MoveDevice)});
-    print("AddWire:      {d}B\n", .{@sizeOf(AddWire)});
 }

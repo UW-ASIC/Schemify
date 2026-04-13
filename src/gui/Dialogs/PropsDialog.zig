@@ -5,18 +5,12 @@ const dvui = @import("dvui");
 const st = @import("state");
 
 const AppState = st.AppState;
-
-// ── Helpers ──────────────────────────────────────────────────────────────── //
-
-/// Zero-cost cast from *WinRect to *dvui.Rect (identical layout: 4 x f32).
-fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
-    return @ptrCast(wr);
-}
+const components = @import("../Components/lib.zig");
 
 // ── Public API ───────────────────────────────────────────────────────────── //
 
 pub fn draw(app: *AppState) void {
-    const pd = &app.gui.props_dialog;
+    const pd = &app.gui.cold.props_dialog;
     if (!pd.is_open) return;
     const title: [:0]const u8 = if (pd.view_only)
         "Instance Properties (read-only)"
@@ -26,7 +20,7 @@ pub fn draw(app: *AppState) void {
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = true,
         .open_flag = &pd.is_open,
-        .rect = winRectPtr(&pd.win_rect),
+        .rect = components.winRectPtr(&pd.win_rect),
     }, .{
         .min_size_content = .{ .w = 380, .h = 260 },
     });
@@ -37,7 +31,7 @@ pub fn draw(app: *AppState) void {
 }
 
 fn drawContents(app: *AppState) void {
-    const pd = &app.gui.props_dialog;
+    const pd = &app.gui.cold.props_dialog;
 
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,

@@ -10,7 +10,7 @@ const std = @import("std");
 
 pub const Runtime = @import("Runtime.zig").Runtime;
 
-const installer = @import("installer.zig");
+const installer = @import("installer/lib.zig");
 pub const Installer = installer.Installer;
 pub const InstallError = installer.InstallError;
 pub const InstallOptions = installer.InstallOptions;
@@ -45,6 +45,7 @@ pub const Framework = @import("Framework.zig");
 // Widget types
 pub const ParsedWidget = types.ParsedWidget;
 pub const WidgetTag = types.WidgetTag;
+pub const WidgetKind = types.WidgetKind;
 
 // ── Tests ───────────────────────────────────────────────────────────────────
 
@@ -129,5 +130,5 @@ comptime {
     _ = @import("Writer.zig");
     _ = @import("Framework.zig");
     _ = @import("Runtime.zig");
-    _ = @import("installer.zig");
+    _ = @import("installer/lib.zig");
 }

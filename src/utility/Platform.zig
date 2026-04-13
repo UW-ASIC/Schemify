@@ -173,6 +173,13 @@ const native = struct {
     }
 };
 
+/// Return the per-user plugin configuration directory: `$HOME/.config/Schemify`.
+/// Caller owns the returned slice.
+pub fn pluginConfigDir(allocator: std.mem.Allocator) (error{NoHomeDir} || std.mem.Allocator.Error)![]u8 {
+    const home = std.posix.getenv("HOME") orelse return error.NoHomeDir;
+    return std.fs.path.join(allocator, &.{ home, ".config", "Schemify" });
+}
+
 test "Expose struct size for Platform" {
     const print = std.debug.print;
     print("AsyncGet: {d}B\n", .{@sizeOf(AsyncGet)});

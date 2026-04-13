@@ -6,6 +6,4 @@
 
 pub const FloatingWindow = @import("FloatingWindow.zig").FloatingWindow;
 pub const HorizontalBar = @import("HorizontalBar.zig").HorizontalBar;
-pub const ThemedButton = @import("ThemedButton.zig").ThemedButton;
-pub const ThemedPanel = @import("ThemedPanel.zig").ThemedPanel;
-pub const ScrollableList = @import("ScrollableList.zig").ScrollableList;
+pub const winRectPtr = @import("types.zig").winRectPtr;

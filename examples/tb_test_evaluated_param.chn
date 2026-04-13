@@ -1,19 +1,16 @@
 chn_testbench 1.0
 
-TESTBENCH tb_test_evaluated_param
+TESTBENCH untitled
 
   instances [2]:
-    x1  test_evaluated_param  x=750  y=-150  DEL=5  schematic=test_evaluated_param2.sch
-    x2  test_evaluated_param  x=750  y=-250  DEL=2  schematic=test_evaluated_param1.sch
+    x1  test_evaluated_param.chn  x=750  y=-150  DEL=5
+    x2  test_evaluated_param.chn  x=750  y=-250  DEL=2
 
   vsource [1]{name, x, y, rot, flip, value, savecurrent}:
     V1  520  -110  0  0  tcleval(pwl 0 0 10n 0 11n $VCC)  false
 
-  nets [4]:
-    A  -> x1.A, V1.p, x2.A
-    Z2  -> x1.Z
-    GND  -> V1.m
-    Z1  -> x2.Z
+  code_blocks [1]:
+    COMMANDS  code  only_toplevel=false  value=tcleval( .options savecurrents ** following .param is set with a TCL command .param VCC=[set VCC 3] .control   save all   tran 10p 50n   write tb_test_evaluated_param.raw .endc )
 
   wires [10]:
     520 -150 600 -150

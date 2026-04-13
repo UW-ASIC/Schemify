@@ -1,32 +1,48 @@
 chn 1.0
 
-SYMBOL flop
+SYMBOL untitled
 
   pins [4]:
-    D  in
-    Q  out
-    CK  in
-    VSS  in
+    D  in  x=-90  y=-10
+    Q  out  x=90  y=-10
+    CK  in  x=-90  y=10
+    VSS  in  x=-90  y=30
 
   params [1]:
     template = name=x1 VTH=1.5 VHI=3.0
 
   spice_prefix: X
 
+  drawing:
+    line -70 -20 70 -20
+    line -70 40 70 40
+    line -70 -20 -70 40
+    line 70 -20 70 40
+    line -90 -10 -70 -10
+    line 70 -10 90 -10
+    line -90 10 -70 10
+    line -90 30 -70 30
+    pin_positions:
+      D: (-90, -10)
+      Q: (90, -10)
+      CK: (-90, 10)
+      VSS: (-90, 30)
+
 SCHEMATIC
 
-  instances [3]:
-    B5  inv_bsource  x=130  y=-320  TABLE='VTH-0.1' VHI 'VTH+0.1' 0
-    x5  dlatch  x=310  y=-330  VTH=VTH  VHI=VHI
-    x1  dlatch  x=570  y=-330  VTH=VTH  VHI=VHI
 
-  nets [6]:
-    CK  -> B5.A, x1.G
-    net1  -> B5.Z, x5.G
-    VSS  -> B5.VSS, x5.VSS, x1.VSS
-    D  -> x5.D
-    net2  -> x5.Q, x1.D
-    Q  -> x1.Q
+  input_pin [3]{name, x, y, rot, flip, lab}:
+    D  220  -340  0  0  D
+    CK  480  -320  0  0  CK
+    VSS  480  -300  0  0  VSS
+
+  output_pin [1]{name, x, y, rot, flip, lab}:
+    Q  660  -340  0  0  Q
+
+  instances [3]:
+    B5  inv_bsource.chn  x=130  y=-320  TABLE='VTH-0.1' VHI 'VTH+0.1' 0
+    x5  dlatch.chn  x=310  y=-330  VTH=VTH  VHI=VHI
+    x1  dlatch.chn  x=570  y=-330  VTH=VTH  VHI=VHI
 
   wires [13]:
     170 -320 220 -320

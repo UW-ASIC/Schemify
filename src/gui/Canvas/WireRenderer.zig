@@ -22,8 +22,18 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, sel: *const st.Sele
     const prev_clip = dvui.clip(.{ .x = vp.bounds.x, .y = vp.bounds.y, .w = vp.bounds.w, .h = vp.bounds.h });
     defer dvui.clipSet(prev_clip);
 
-    const wire_w: f32 = @max(1.2, 1.8 * vp.scale) * theme.getWireWidth();
-    const wire_w_sel: f32 = @max(1.8, 2.8 * vp.scale) * theme.getWireWidth();
+    const wire_w: f32 = @max(0.8, 1.8 * vp.scale) * theme.getWireWidth();
+    const wire_w_sel: f32 = @max(1.2, 2.8 * vp.scale) * theme.getWireWidth();
+
+    // One batch accumulates every wire segment, geometry line, and rect
+    // outline, then submits them as a single renderTriangles call. On a
+    // schematic with a thousand wires this drops per-frame render commands
+    // for the wire pass from ~3000 (wire + 2 endpoints each) down to 2
+    // (one batch of line quads + one batch of endpoint quads).
+    const cw = dvui.currentWindow();
+    var batch = h.LineBatch.init(cw.lifo());
+    defer batch.deinit();
+    batch.ensureLineCapacity(sch.wires.len + sch.lines.len + sch.rects.len * 4) catch {};
 
     // -- Wires --
     if (sch.wires.len > 0) {
@@ -38,11 +48,9 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, sel: *const st.Sele
             const b = vp_mod.w2p(.{ wx1[i], wy1[i] }, vp);
             const col = if (selected) pal.wire_sel else pal.wire;
             const w = if (selected) wire_w_sel else wire_w;
-            h.strokeLine(a[0], a[1], b[0], b[1], w, col);
-
-            // Endpoint dots
-            h.strokeDot(a, types.wire_endpoint_radius, pal.wire_endpoint);
-            h.strokeDot(b, types.wire_endpoint_radius, pal.wire_endpoint);
+            batch.addLine(a[0], a[1], b[0], b[1], w, col);
+            batch.addDot(a, types.wire_endpoint_radius, pal.wire_endpoint);
+            batch.addDot(b, types.wire_endpoint_radius, pal.wire_endpoint);
         }
     }
 
@@ -55,7 +63,7 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, sel: *const st.Sele
         for (0..sch.lines.len) |i| {
             const a = vp_mod.w2p(.{ lx0[i], ly0[i] }, vp);
             const b = vp_mod.w2p(.{ lx1[i], ly1[i] }, vp);
-            h.strokeLine(a[0], a[1], b[0], b[1], 1.0, pal.symbol_line);
+            batch.addLine(a[0], a[1], b[0], b[1], 1.0, pal.symbol_line);
         }
     }
 
@@ -68,9 +76,13 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, sel: *const st.Sele
         for (0..sch.rects.len) |i| {
             const tl = vp_mod.w2p(.{ rx0[i], ry0[i] }, vp);
             const br = vp_mod.w2p(.{ rx1[i], ry1[i] }, vp);
-            h.strokeRectOutline(tl, br, 1.0, pal.symbol_line);
+            batch.addRectOutline(tl, br, 1.0, pal.symbol_line);
         }
     }
+
+    // Flush all line/rect geometry as one renderTriangles call. Subsequent
+    // draws (endpoints, circles, arcs, labels) are layered on top.
+    batch.flush();
 
     // -- Geometry: Circles --
     if (sch.circles.len > 0) {
@@ -99,7 +111,7 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, sel: *const st.Sele
     }
 
     // -- Net labels on wires --
-    if (vp.scale >= 0.4 and sch.wires.len > 0) {
+    if (vp.scale >= 0.3 and sch.wires.len > 0) {
         const wx0 = sch.wires.items(.x0);
         const wy0 = sch.wires.items(.y0);
         const wx1 = sch.wires.items(.x1);

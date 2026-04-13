@@ -1,11 +1,11 @@
 chn 1.0
 
-SYMBOL switch_rreal
+SYMBOL untitled
 
   pins [3]:
-    ENAB  in
-    B  inout
-    A  inout
+    ENAB  in  x=-150  y=10
+    B  inout  x=150  y=-10
+    A  inout  x=-150  y=-10
 
   params [4]:
     type = subcircuit
@@ -15,7 +15,39 @@ SYMBOL switch_rreal
 
   spice_prefix: X
 
+  drawing:
+    line -110 -20 110 -20
+    line -110 20 110 20
+    line -110 -20 -110 20
+    line 110 -20 110 20
+    line 110 -10 150 -10
+    line -150 -10 -110 -10
+    line -150 10 -110 10
+    line -130 -20 130 -20
+    line -130 20 130 20
+    line -130 -20 -130 20
+    line 130 -20 130 20
+    line -150 10 -130 10
+    line 130 -10 150 -10
+    line -150 -10 -130 -10
+    pin_positions:
+      ENAB: (-150, 10)
+      B: (150, -10)
+      A: (-150, -10)
+
 SCHEMATIC
+
+
+  inout_pin [2]{name, x, y, rot, flip, lab}:
+    B  150  -10  0  0  B
+    A  -150  -10  0  0  A
+
+  input_pin [1]{name, x, y, rot, flip, lab}:
+    ENAB  -150  10  0  0  ENAB
+
+  hdl_blocks [2]:
+    
+    
 
   wires [3]:
     -150 10 -150 10 ENAB

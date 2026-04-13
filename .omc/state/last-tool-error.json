@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"grep -c \\\"<<<<<<\\\" src/state.zig src/gui/Bars/TabBar.zig 2>/dev/null && git add src/state.zig src/gui/Bars/TabBar.zig && git commit --no-verify --no-edit -m \\\"merge: resolve Wave 2 conflic...",
-  "error": "Exit code 1\nsrc/state.zig:0\nsrc/gui/Bars/TabBar.zig:0",
-  "timestamp": "2026-04-05T01:16:34.929Z",
+  "tool_input_preview": "{\"command\":\"git merge worktree-agent-ade1b629 --no-edit 2>&1\",\"description\":\"Merge worktree commits into main\"}",
+  "error": "Exit code 1\nerror: Your local changes to the following files would be overwritten by merge:\n\tbuild.zig\n\tbuild.zig.zon\n\tsrc/gui/ContextMenu.zig\n\tsrc/gui/Dialogs/KeybindsDialog.zig\n\tsrc/gui/FileExplorer.zig\n\tsrc/gui/LibraryBrowser.zig\n\tsrc/gui/Marketplace.zig\n\tsrc/gui/lib.zig\n\tsrc/main.zig\n\tsrc/plugins/lib.zig\n\tsrc/plugins/runtime.zig\n\tsrc/state/AppState.zig\n\tsrc/state/Document.zig\n\tsrc/state/lib.zig\n\tsrc/state/types.zig\nPlease commit your changes or stash them before you merge.\nerror: The followi...",
+  "timestamp": "2026-04-13T22:21:07.638Z",
   "retry_count": 1
 }

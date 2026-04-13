@@ -1,6 +1,6 @@
 chn_testbench 1.0
 
-TESTBENCH poweramp_xyce
+TESTBENCH untitled
 
   vsource [4]{name, x, y, rot, flip, value, xvalue}:
     V1  160  -1200  0  0  pwl 0 0 1m 50  -
@@ -37,28 +37,18 @@ TESTBENCH poweramp_xyce
     C1  150  -680  1  0  1  100n ic=0
 
   instances [2]:
-    x1  mos_power_ampli  x=500  y=-660
-    x0  mos_power_ampli  x=500  y=-200
+    x1  mos_power_ampli.chn  x=500  y=-660
+    x0  mos_power_ampli.chn  x=500  y=-200
 
-  nets [18]:
-    net1  -> V1.p, R11.M
-    VSS  -> V1.m, V0.p, E3.m, E3.cm, C2.m, C3.p, x1.VSS, x0.VSS, R7.M, E0.m, E0.cm, C6.m, R5.M, C1.m, V4.m
-    net2  -> V0.m, R9.M
-    OUTM  -> R1.P, R19.P, x1.OUT
-    OUTP  -> R1.M, x0.OUT, R2.P
-    REFP  -> E3.p
-    IN  -> E3.cp, E0.cp, C5.m, C4.m, R10.P
-    VPP  -> C2.p, R11.P, x1.VPP, x0.VPP, R6.P, R4.P, R8.P, R13.P
-    VNN  -> C3.m, R9.P, x1.VNN, x0.VNN
-    FBN  -> R19.M, R0.P, x1.MINUS, R8.M
-    net3  -> R0.M, C5.p
-    VSSX  -> x1.PLUS, R4.M, R5.P, C1.p
-    FB  -> x0.MINUS, R2.M, R3.P, R13.M
-    INX  -> x0.PLUS, R6.M, R7.P, C4.p
-    REFM  -> E0.p
-    net4  -> C6.p, R3.M
-    IN_INT  -> V3.p, R10.M
-    net5  -> V3.m, V4.p
+  code_blocks [1]:
+    STIMULI  code  only_toplevel=true  value=* .option sampling_method = SRS * .option method=gear vvss vss 0 dc 0   .param frequ=20e3 .param gain=42 * .tran \{2e-3/frequ\} \{1e-3 + 160/frequ\} uic .tran 6e-6 0.06 uic  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in netlist/simulation directory. .include \\"models_poweramp.txt\\" * .save all * .FOUR 20k v(outm,outp) * .probe i(*)  * .probe p(r*) p(v*) 
+
+  annotations [5]:
+    p40  probe  x=730  y=-700  analysis=tran
+    p41  probe  x=740  y=-240  analysis=tran
+    p42  probe  x=670  y=-1250  analysis=tran
+    p43  probe  x=680  y=-1170  analysis=tran
+    p44  probe  x=960  y=-1250  analysis=tran
 
   wires [97]:
     160 -1250 160 -1230

@@ -1,24 +1,36 @@
 chn 1.0
 
-SYMBOL diode_1
+SYMBOL untitled
 
   pins [2]:
-    p  inout
-    m  inout
+    p  inout  x=0  y=-30
+    m  inout  x=0  y=30
 
   params [1]:
     template = name=x1 VTH=0.6 RON=10 ROFF=1G
 
   spice_prefix: X
 
+  drawing:
+    line 0 5 0 30
+    line 0 -30 0 -5
+    line -10 5 10 5
+    line 0 5 10 -5
+    line -10 -5 10 -5
+    line -10 -5 0 5
+    pin_positions:
+      p: (0, -30)
+      m: (0, 30)
+
 SCHEMATIC
+
+
+  inout_pin [2]{name, x, y, rot, flip, lab}:
+    p  110  -240  0  0  p
+    m  110  -20  0  0  m
 
   vswitch [1]{name, x, y, rot, flip, TABLE}:
     G2  110  -120  0  0  'VTH-0.1' ROFF 'VTH+0.1' RON
-
-  nets [2]:
-    p  -> G2.CP, G2.P
-    m  -> G2.M, G2.CM
 
   wires [8]:
     110 -90 110 -20
