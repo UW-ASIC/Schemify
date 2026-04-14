@@ -56,6 +56,19 @@ pub const Selection = struct {
     pub fn isEmpty(self: *const Selection) bool {
         return !hasAny(&self.instances) and !hasAny(&self.wires);
     }
+
+    pub fn deinit(self: *Selection, a: std.mem.Allocator) void {
+        self.instances.deinit(a);
+        self.wires.deinit(a);
+    }
+
+    pub fn ensureCapacity(self: *Selection, a: std.mem.Allocator,
+                          inst_len: usize, wire_len: usize, fill: bool) !void {
+        if (inst_len > self.instances.bit_length)
+            try self.instances.resize(a, inst_len, fill);
+        if (wire_len > self.wires.bit_length)
+            try self.wires.resize(a, wire_len, fill);
+    }
 };
 
 // ── Clipboard ────────────────────────────────────────────────────────────────
@@ -182,6 +195,13 @@ pub const CanvasState = struct {
     /// Index of the instance hit on left-press (drag-to-move candidate).
     /// `-1` means "no potential move".
     move_hit_idx: i32 = -1,
+    /// Rubber-band selection rectangle (world-space).
+    /// Set when a left-drag starts on empty canvas (no instance hit).
+    rubber_band_active: bool = false,
+    /// World-space origin of the rubber-band drag.
+    rubber_band_start: [2]i32 = .{ 0, 0 },
+    /// World-space current corner of the rubber-band drag.
+    rubber_band_end: [2]i32 = .{ 0, 0 },
     // 1-byte
     /// True while a left-button drag is in progress (pan or move).
     dragging: bool = false,
@@ -245,8 +265,39 @@ pub const KeybindsDialogState = struct {
     win_rect: WinRect = .{ .x = 100, .y = 80, .w = 520, .h = 420 },
 };
 
+pub const DigitalBlockDialogState = struct {
+    is_open: bool = false,
+    name_buf: [128]u8 = [_]u8{0} ** 128,
+    name_len: usize = 0,
+    rtl_source_buf: [4096]u8 = [_]u8{0} ** 4096,
+    rtl_source_len: usize = 0,
+    language: u8 = 0,
+    win_rect: WinRect = .{ .x = 150, .y = 120, .w = 600, .h = 500 },
+    /// 0 = from scratch (.chn_prim), 1 = library template (.chn/.chn_tb)
+    block_mode: u8 = 0,
+    /// 0 = inline source, 1 = file reference
+    source_mode: u8 = 0,
+    /// 0 = device, 1 = stimulus
+    is_stimulus: u8 = 0,
+    /// 0 = behavioral only, 1 = post-synthesis only, 2 = both (user picks at sim time)
+    sim_preference: u8 = 0,
+    /// File path for RTL source (when source_mode == 1)
+    rtl_file_path_buf: [512]u8 = [_]u8{0} ** 512,
+    rtl_file_path_len: usize = 0,
+    /// File path for Yosys synthesized SPICE (optional)
+    synth_file_path_buf: [512]u8 = [_]u8{0} ** 512,
+    synth_file_path_len: usize = 0,
+};
+
 pub const MarketplaceWinState = struct {
     win_rect: WinRect = .{ .x = 80, .y = 50, .w = 820, .h = 560 },
+};
+
+pub const SpiceCodeDialogState = struct {
+    is_open: bool = false,
+    buf: [8192]u8 = [_]u8{0} ** 8192,
+    buf_len: usize = 0,
+    win_rect: WinRect = .{ .x = 100, .y = 80, .w = 700, .h = 500 },
 };
 
 // ── GUI / Plugin types ───────────────────────────────────────────────────────
@@ -314,9 +365,11 @@ pub const GuiStateCold = struct {
     marketplace:     MarketplaceState    = .{},
     file_explorer:   FileExplorerState   = .{},
     library_browser: LibraryBrowserState = .{},
-    find_dialog:     FindDialogState     = .{},
-    props_dialog:    PropsDialogState    = .{},
-    keybinds_dialog: KeybindsDialogState = .{},
+    find_dialog:          FindDialogState          = .{},
+    props_dialog:         PropsDialogState         = .{},
+    keybinds_dialog:      KeybindsDialogState      = .{},
+    digital_block_dialog: DigitalBlockDialogState  = .{},
+    spice_code_dialog:    SpiceCodeDialogState     = .{},
     marketplace_win: MarketplaceWinState = .{},
     ctx_menu:        CtxMenu            = .{},
     command_buf:     [128]u8            = [_]u8{0} ** 128,
