@@ -20,7 +20,7 @@ pub fn draw(app: *AppState) void {
         actions.enqueue(app, .{ .immediate = .open_spice_code_dialog }, "Opening SPICE code block editor");
     }
 
-    _ = dvui.spacer(@src(), .{ .w = 8 });
+    _ = dvui.spacer(@src(), .{ .expand = .horizontal });
 
     // Digital button — only enabled for .chn_prim files.
     const is_prim = blk: {

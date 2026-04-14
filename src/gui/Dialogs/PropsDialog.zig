@@ -105,7 +105,7 @@ fn drawContents(app: *AppState) void {
 
         if (sd.props.len == 0) {
             dvui.labelNoFmt(@src(), "  (no symbol properties)", .{}, .{
-                .id_extra = sym_id, .style = .@"03",
+                .id_extra = sym_id, .style = .control,
             });
             sym_id +%= 1;
         }
