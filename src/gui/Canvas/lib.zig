@@ -14,6 +14,7 @@ const wire_renderer = @import("WireRenderer.zig");
 const selection_overlay = @import("SelectionOverlay.zig");
 const interaction = @import("Interaction.zig");
 const tb_overlay = @import("TbOverlay.zig");
+const canvas_bar = @import("CanvasBar.zig");
 
 const AppState = st.AppState;
 const RenderContext = types.RenderContext;
@@ -96,6 +97,8 @@ pub fn draw(app: *AppState) CanvasEvent {
         // Wire placement preview overlay.
         if (app.gui.hot.view_mode == .schematic) selection_overlay.drawWirePreview(&ctx, app);
     }
+
+    canvas_bar.draw(app);
 
     return event;
 }
