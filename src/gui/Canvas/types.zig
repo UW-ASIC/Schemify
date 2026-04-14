@@ -38,6 +38,10 @@ pub const CanvasEvent = union(enum) {
         /// Hit-tested wire index at the click position, or `-1` for none.
         wire_idx: i32 = -1,
     },
+    rubber_band_complete: struct {
+        min: Point,
+        max: Point,
+    },
 };
 
 /// Bundles allocator + viewport + palette for Canvas sub-renderers.

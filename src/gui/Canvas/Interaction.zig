@@ -63,7 +63,8 @@ pub fn handleInput(cs: *CanvasState, app: *st.AppState, wd: *dvui.WidgetData, vp
                     },
                     .release => {
                         ev.handled = true;
-                        handleMouseRelease(cs, me.button);
+                        const rel_ev = handleMouseRelease(cs, me.button);
+                        if (rel_ev != .none) result = rel_ev;
                     },
                     .motion => {
                         if (handleMouseMotion(cs, app, mp, vp, snap)) {
@@ -120,6 +121,15 @@ fn handleMousePress(cs: *CanvasState, app: *st.AppState, button: dvui.enums.Butt
                 return .none;
             } else {
                 primeMoveIfOnSelected(cs, app, mp, vp);
+                if (cs.move_hit_idx < 0 and app.tool.active == .select) {
+                    const world = vp_mod.p2w(mp, vp, snap);
+                    cs.rubber_band_start = world;
+                    cs.rubber_band_end = world;
+                    cs.rubber_band_active = false;
+                    cs.move_press_pixel = .{ mp[0], mp[1] };
+                    cs.dragging = true;
+                    cs.drag_last = .{ mp[0], mp[1] };
+                }
                 return handleClick(cs, mp, vp, snap);
             }
         },
@@ -143,14 +153,29 @@ fn handleMousePress(cs: *CanvasState, app: *st.AppState, button: dvui.enums.Butt
 }
 
 /// Handle mouse release: commit drag-to-move or end panning.
-fn handleMouseRelease(cs: *CanvasState, button: dvui.enums.Button) void {
+fn handleMouseRelease(cs: *CanvasState, button: dvui.enums.Button) CanvasEvent {
     if (button == .left) {
+        var result: CanvasEvent = .none;
+        if (cs.rubber_band_active) {
+            const min_x = @min(cs.rubber_band_start[0], cs.rubber_band_end[0]);
+            const min_y = @min(cs.rubber_band_start[1], cs.rubber_band_end[1]);
+            const max_x = @max(cs.rubber_band_start[0], cs.rubber_band_end[0]);
+            const max_y = @max(cs.rubber_band_start[1], cs.rubber_band_end[1]);
+            result = .{ .rubber_band_complete = .{
+                .min = .{ min_x, min_y },
+                .max = .{ max_x, max_y },
+            } };
+        }
+        cs.rubber_band_active = false;
         cs.move_active = false;
         cs.move_hit_idx = -1;
         cs.dragging = false;
+        return result;
     } else if (button == .middle) {
         cs.dragging = false;
+        return .none;
     }
+    return .none;
 }
 
 /// Handle mouse motion: drag-to-move promotion, panning, and sticky grab.
@@ -175,6 +200,20 @@ fn handleMouseMotion(cs: *CanvasState, app: *st.AppState, cur: Vec2, vp: RenderV
     if (cs.dragging) {
         if (cs.space_held) cs.space_drag_happened = true;
         panBy(app, cs, cur, vp);
+        return true;
+    }
+
+    // Rubber-band selection drag.
+    if (cs.dragging and !cs.move_active and cs.move_hit_idx < 0 and app.tool.active == .select) {
+        if (!cs.rubber_band_active) {
+            const press_dx = cur[0] - cs.move_press_pixel[0];
+            const press_dy = cur[1] - cs.move_press_pixel[1];
+            if (press_dx * press_dx + press_dy * press_dy < move_drag_threshold_px * move_drag_threshold_px)
+                return false;
+            cs.rubber_band_active = true;
+        }
+        const world = vp_mod.p2w(cur, vp, snap);
+        cs.rubber_band_end = world;
         return true;
     }
 
