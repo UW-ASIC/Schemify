@@ -96,6 +96,9 @@ pub fn draw(app: *AppState) CanvasEvent {
 
         // Wire placement preview overlay.
         if (app.gui.hot.view_mode == .schematic) selection_overlay.drawWirePreview(&ctx, app);
+
+        // Rubber-band selection rectangle overlay.
+        selection_overlay.drawRubberBand(&ctx, app);
     }
 
     canvas_bar.draw(app);
