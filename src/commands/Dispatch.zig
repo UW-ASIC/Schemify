@@ -96,14 +96,50 @@ fn dispatchImmediate(imm: Immediate, state: anytype) DispatchError!void {
 
         // Netlist
         .netlist_hierarchical, .netlist_flat, .netlist_top_only, .toggle_flat_netlist,
+        .netlist_hierarchical_layout, .netlist_flat_layout, .netlist_top_only_layout,
         => try netlist.handle(imm, state),
 
         // Simulation
         .open_waveform_viewer => try sim.handleImmediate(imm, state),
 
-        // Properties (inlined — stub only)
-        .edit_properties         => state.setStatus("Edit properties (not yet wired to dialog)"),
-        .view_properties         => state.setStatus("View properties (not yet wired to dialog)"),
+        // Digital block dialog
+        .open_digital_block_dialog => state.gui.cold.digital_block_dialog.is_open = true,
+
+        // SPICE code block dialog — seed buffer from active document then open
+        .open_spice_code_dialog => {
+            const sd = &state.gui.cold.spice_code_dialog;
+            sd.buf_len = 0;
+            if (state.active()) |fio| {
+                if (fio.sch.spice_body) |body| {
+                    const copy_len = @min(body.len, sd.buf.len - 1);
+                    @memcpy(sd.buf[0..copy_len], body[0..copy_len]);
+                    sd.buf_len = copy_len;
+                }
+            }
+            sd.is_open = true;
+        },
+
+        // Properties
+        .edit_properties => {
+            const fio = state.active() orelse return;
+            if (fio.selection.instances.bit_length == 0) return;
+            var it = fio.selection.instances.iterator(.{});
+            const idx = it.next() orelse return;
+            const pd = &state.gui.cold.props_dialog;
+            pd.inst_idx = idx;
+            pd.view_only = false;
+            pd.is_open = true;
+        },
+        .view_properties => {
+            const fio = state.active() orelse return;
+            if (fio.selection.instances.bit_length == 0) return;
+            var it = fio.selection.instances.iterator(.{});
+            const idx = it.next() orelse return;
+            const pd = &state.gui.cold.props_dialog;
+            pd.inst_idx = idx;
+            pd.view_only = true;
+            pd.is_open = true;
+        },
         .edit_schematic_metadata => state.setStatus("Edit metadata (use CLI :rename)"),
 
         // Plugin (inlined — stub only)
@@ -129,5 +165,61 @@ fn dispatchUndoable(und: Undoable, state: anytype) DispatchError!void {
         .load_schematic => |p| try file.handleLoad(p, state),
         .save_schematic => |p| try file.handleSave(p, state),
         .run_sim        => |p| try sim.handleRun(p, state),
+
+        .add_digital_block => |p| {
+            const core = @import("core");
+            const fio = state.active() orelse return;
+            const name = p.name_buf[0..p.name_len];
+            const rtl  = p.rtl_source_buf[0..p.rtl_source_len];
+            const lang: core.HdlLanguage = if (p.language == 0) .verilog else .vhdl;
+
+            const rtl_file: ?[]const u8 = if (p.source_mode == 1 and p.rtl_file_path_len > 0)
+                p.rtl_file_path_buf[0..p.rtl_file_path_len]
+            else
+                null;
+            const synth_file: ?[]const u8 = if (p.synth_file_path_len > 0)
+                p.synth_file_path_buf[0..p.synth_file_path_len]
+            else
+                null;
+
+            fio.sch.addDigitalBlockFull(name, rtl, lang, .{
+                .source_mode = if (p.source_mode == 1) .file else .@"inline",
+                .rtl_file_path = rtl_file,
+                .synth_file_path = synth_file,
+                .is_stimulus = p.is_stimulus == 1,
+                .sim_preference = p.sim_preference,
+            }) catch {
+                state.setStatus("Failed to add digital block");
+                return;
+            };
+            fio.dirty = true;
+            state.setStatus("Digital block added");
+        },
+
+        .edit_spice_code => |p| {
+            const fio = state.active() orelse return;
+            const gpa = state.allocator();
+            const new_text = p.buf[0..p.len];
+            // Free old spice_body if it was GPA-allocated.
+            // The arena owns strings loaded from file; we replace with a GPA dupe.
+            // Safe to free only if non-null; arena will handle the rest on deinit.
+            if (fio.sch.spice_body) |old| {
+                // Only free if it came from the GPA (not the arena).  We detect
+                // this by checking whether the pointer falls outside the arena's
+                // memory.  Since we can't do that cheaply, we always dupe and
+                // rely on the arena to clean up on document close.
+                _ = old; // suppress unused warning
+            }
+            if (new_text.len == 0) {
+                fio.sch.spice_body = null;
+            } else {
+                fio.sch.spice_body = gpa.dupe(u8, new_text) catch {
+                    state.setStatus("Out of memory");
+                    return;
+                };
+            }
+            fio.dirty = true;
+            state.setStatus("SPICE code block updated");
+        },
     }
 }

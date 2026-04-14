@@ -34,7 +34,9 @@ const context_menu = @import("Panels/ContextMenu.zig");
 const keybinds_dlg = @import("Dialogs/KeybindsDialog.zig");
 const find_dlg = @import("Dialogs/FindDialog.zig");
 const props_dlg = @import("Dialogs/PropsDialog.zig");
+const digital_block_dlg = @import("Dialogs/DigitalBlockDialog.zig");
 const missing_symbols_panel = @import("Dialogs/MissingSymbolsPanel.zig");
+const spice_code_dlg = @import("Dialogs/SpiceCodeDialog.zig");
 
 // ── Public API ─────────────────────────────────────────────────────────── //
 
@@ -73,6 +75,8 @@ pub fn frame(app: *AppState) !void {
 
     find_dlg.draw(app);
     props_dlg.draw(app);
+    digital_block_dlg.draw(app);
+    spice_code_dlg.draw(app);
     marketplace.draw(app);
     missing_symbols_panel.draw(app);
 }
@@ -124,6 +128,14 @@ fn handleCanvasEvent(app: *AppState, ev: CanvasEvent) void {
             app.gui.cold.ctx_menu.inst_idx = rc.inst_idx;
             app.gui.cold.ctx_menu.wire_idx = rc.wire_idx;
             app.gui.cold.ctx_menu.open = true;
+            // Auto-select the right-clicked instance so Properties command finds it.
+            if (rc.inst_idx >= 0) {
+                const doc = app.active() orelse return;
+                const a = app.allocator();
+                doc.selection.ensureCapacity(a, doc.sch.instances.len, doc.sch.wires.len, false) catch return;
+                doc.selection.clear();
+                doc.selection.instances.set(@intCast(rc.inst_idx));
+            }
         },
     }
 }
