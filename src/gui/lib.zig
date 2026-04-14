@@ -37,6 +37,7 @@ const props_dlg = @import("Dialogs/PropsDialog.zig");
 const digital_block_dlg = @import("Dialogs/DigitalBlockDialog.zig");
 const missing_symbols_panel = @import("Dialogs/MissingSymbolsPanel.zig");
 const spice_code_dlg = @import("Dialogs/SpiceCodeDialog.zig");
+const multi_props_dlg = @import("Dialogs/MultiPropsDialog.zig");
 
 // ── Public API ─────────────────────────────────────────────────────────── //
 
@@ -75,6 +76,7 @@ pub fn frame(app: *AppState) !void {
 
     find_dlg.draw(app);
     props_dlg.draw(app);
+    multi_props_dlg.draw(app);
     digital_block_dlg.draw(app);
     spice_code_dlg.draw(app);
     marketplace.draw(app);
@@ -106,11 +108,15 @@ fn handleCanvasEvent(app: *AppState, ev: CanvasEvent) void {
                 .select => {
                     const doc = app.active() orelse return;
                     if (interaction.hitTestInstance(&doc.sch, pt)) |idx| {
-                        doc.selection.clear();
-                        const a = app.allocator();
-                        doc.selection.instances.resize(a, doc.sch.instances.len, false) catch return;
-                        doc.selection.instances.set(idx);
-                        app.status_msg = "Selected instance";
+                        const already_selected = doc.selection.instances.bit_length > idx and
+                            doc.selection.instances.isSet(idx);
+                        if (!already_selected) {
+                            doc.selection.clear();
+                            const a = app.allocator();
+                            doc.selection.instances.resize(a, doc.sch.instances.len, false) catch return;
+                            doc.selection.instances.set(idx);
+                            app.status_msg = "Selected instance";
+                        }
                     } else {
                         doc.selection.clear();
                         app.status_msg = "Ready";
@@ -135,6 +141,46 @@ fn handleCanvasEvent(app: *AppState, ev: CanvasEvent) void {
                 doc.selection.ensureCapacity(a, doc.sch.instances.len, doc.sch.wires.len, false) catch return;
                 doc.selection.clear();
                 doc.selection.instances.set(@intCast(rc.inst_idx));
+            }
+        },
+        .rubber_band_complete => |rb| {
+            const doc = app.active() orelse return;
+            const a = app.allocator();
+            doc.selection.ensureCapacity(a, doc.sch.instances.len, doc.sch.wires.len, false) catch return;
+            doc.selection.clear();
+
+            const xs = doc.sch.instances.items(.x);
+            const ys = doc.sch.instances.items(.y);
+            var count: usize = 0;
+            for (0..doc.sch.instances.len) |i| {
+                if (xs[i] >= rb.min[0] and xs[i] <= rb.max[0] and
+                    ys[i] >= rb.min[1] and ys[i] <= rb.max[1])
+                {
+                    doc.selection.instances.set(i);
+                    count += 1;
+                }
+            }
+
+            const x0s = doc.sch.wires.items(.x0);
+            const y0s = doc.sch.wires.items(.y0);
+            const x1s = doc.sch.wires.items(.x1);
+            const y1s = doc.sch.wires.items(.y1);
+            for (0..doc.sch.wires.len) |i| {
+                const wx0 = @min(x0s[i], x1s[i]);
+                const wy0 = @min(y0s[i], y1s[i]);
+                const wx1 = @max(x0s[i], x1s[i]);
+                const wy1 = @max(y0s[i], y1s[i]);
+                if (wx0 >= rb.min[0] and wx1 <= rb.max[0] and
+                    wy0 >= rb.min[1] and wy1 <= rb.max[1])
+                {
+                    doc.selection.wires.set(i);
+                }
+            }
+
+            if (count > 0) {
+                app.status_msg = "Selected instances";
+            } else {
+                app.status_msg = "Ready";
             }
         },
     }
