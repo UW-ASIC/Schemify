@@ -289,6 +289,11 @@ pub const DigitalBlockDialogState = struct {
     synth_file_path_len: usize = 0,
 };
 
+pub const MultiPropsDialogState = struct {
+    is_open: bool = false,
+    win_rect: WinRect = .{ .x = 100, .y = 80, .w = 540, .h = 420 },
+};
+
 pub const MarketplaceWinState = struct {
     win_rect: WinRect = .{ .x = 80, .y = 50, .w = 820, .h = 560 },
 };
@@ -371,6 +376,7 @@ pub const GuiStateCold = struct {
     digital_block_dialog: DigitalBlockDialogState  = .{},
     spice_code_dialog:    SpiceCodeDialogState     = .{},
     marketplace_win: MarketplaceWinState = .{},
+    multi_props_dialog:  MultiPropsDialogState     = .{},
     ctx_menu:        CtxMenu            = .{},
     command_buf:     [128]u8            = [_]u8{0} ** 128,
     key_to_panel:    [256]i8            = [_]i8{-1} ** 256,

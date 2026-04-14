@@ -34,6 +34,14 @@ const wire_items: []const MenuItem = &.{
     .{ .label = "Select Connected", .cmd = .{ .immediate = .select_connected }, .status = "Select connected" },
 };
 
+const group_items: []const MenuItem = &.{
+    .{ .label = "Edit All Properties", .cmd = .{ .immediate = .multi_edit_properties }, .status = "Edit all properties" },
+    .{ .label = "Delete [Del]", .cmd = .{ .undoable = .delete_selected }, .status = "Delete" },
+    .{ .label = "Rotate CW [R]", .cmd = .{ .undoable = .rotate_cw }, .status = "Rotate CW (group)" },
+    .{ .label = "Flip H [X]", .cmd = .{ .undoable = .flip_horizontal }, .status = "Flip H (group)" },
+    .{ .label = "Duplicate", .cmd = .{ .undoable = .duplicate_selected }, .status = "Duplicate" },
+};
+
 const canvas_items: []const MenuItem = &.{
     .{ .label = "Paste [Ctrl+V]", .cmd = .{ .immediate = .clipboard_paste }, .status = "Paste" },
     .{ .label = "Insert from Library", .cmd = .{ .immediate = .insert_from_library }, .status = "Insert from library" },
@@ -83,7 +91,17 @@ pub fn draw(app: *AppState) void {
     // Cache our subwindow id so the next frame can detect outside-click.
     menu_subwindow_id = this_id;
 
-    if (app.gui.cold.ctx_menu.inst_idx >= 0) {
+    const multi_selected = blk: {
+        const doc = app.active() orelse break :blk false;
+        if (doc.selection.instances.bit_length == 0) break :blk false;
+        var it = doc.selection.instances.iterator(.{});
+        _ = it.next() orelse break :blk false;
+        break :blk it.next() != null;
+    };
+
+    if (multi_selected and app.gui.cold.ctx_menu.inst_idx >= 0) {
+        drawItems(app, fm, group_items);
+    } else if (app.gui.cold.ctx_menu.inst_idx >= 0) {
         drawItems(app, fm, instance_items);
     } else if (app.gui.cold.ctx_menu.wire_idx >= 0) {
         drawItems(app, fm, wire_items);

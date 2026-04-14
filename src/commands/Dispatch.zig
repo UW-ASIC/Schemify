@@ -130,6 +130,9 @@ fn dispatchImmediate(imm: Immediate, state: anytype) DispatchError!void {
             pd.view_only = false;
             pd.is_open = true;
         },
+        .multi_edit_properties => {
+            state.gui.cold.multi_props_dialog.is_open = true;
+        },
         .view_properties => {
             const fio = state.active() orelse return;
             if (fio.selection.instances.bit_length == 0) return;
