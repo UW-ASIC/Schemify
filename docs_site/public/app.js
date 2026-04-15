@@ -14,7 +14,7 @@ function toggleTheme() {
 }
 
 function initSidebarState() {
-  const shouldClose = localStorage.getItem("sidebar_closed") !== "false";
+  const shouldClose = localStorage.getItem("sidebar_closed") === "true";
   const sidebar = document.querySelector(".sidebar");
   const content = document.querySelector(".content");
   if (shouldClose) {
