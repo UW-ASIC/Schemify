@@ -141,17 +141,18 @@ function renderSidebar(activePath: string): string {
 </aside>`;
 }
 
-function renderLayout(options: { title: string; pageTitle: string; sidebar: string; content: string }): string {
+function renderLayout(options: { title: string; pageTitle: string; sidebar: string; content: string; depth: number }): string {
+  const root = options.depth === 0 ? "." : Array(options.depth).fill("..").join("/");
   return `<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${options.title}</title>
-  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="${root}/style/main.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
-  <script src="/public/app.js" defer></script>
+  <script src="${root}/public/app.js" defer></script>
 </head>
 <body>
   <div class="topbar">
@@ -227,30 +228,37 @@ async function build() {
   // All content pages
   collectPages(CONTENT_DIR, "", pages);
 
+  // Prevent Jekyll from processing the output (required for dirs with special chars)
+  writeFileSync(join(OUT_DIR, ".nojekyll"), "");
+
   let built = 0;
   for (const { mdPath, urlPath } of pages) {
     const md = readFileSync(mdPath, "utf-8");
     const content = await marked(md);
     const pageTitle = urlPath === "/" ? "Schemify Documentation" : formatTitle(basename(mdPath, ".md"));
     const sidebar = renderSidebar(urlPath);
+
+    // Determine output path and depth (for relative asset refs)
+    let outFile: string;
+    let depth: number;
+    if (urlPath === "/") {
+      outFile = join(OUT_DIR, "index.html");
+      depth = 0;
+    } else {
+      const parts = urlPath.split("/").filter(Boolean);
+      depth = parts.length;
+      const outDir = join(OUT_DIR, ...parts);
+      mkdirSync(outDir, { recursive: true });
+      outFile = join(outDir, "index.html");
+    }
+
     const html = renderLayout({
       title: `${pageTitle} — Schemify Docs`,
       pageTitle,
       sidebar,
       content,
+      depth,
     });
-
-    // Determine output path
-    let outFile: string;
-    if (urlPath === "/") {
-      outFile = join(OUT_DIR, "index.html");
-    } else {
-      // Strip encoded segments — keep directory structure matching urlPath
-      const parts = urlPath.split("/").filter(Boolean);
-      const outDir = join(OUT_DIR, ...parts);
-      mkdirSync(outDir, { recursive: true });
-      outFile = join(outDir, "index.html");
-    }
 
     writeFileSync(outFile, html);
     built++;

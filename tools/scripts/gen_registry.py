@@ -36,7 +36,7 @@ except ModuleNotFoundError:
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 
-REPO_ROOT    = Path(__file__).resolve().parent.parent
+REPO_ROOT    = Path(__file__).resolve().parent.parent.parent
 PLUGINS_DIR  = REPO_ROOT / "plugins"
 REGISTRY_OUT = PLUGINS_DIR / "registry.json"
 
