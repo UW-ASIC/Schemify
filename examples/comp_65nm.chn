@@ -1,0 +1,127 @@
+chn 1
+
+SYMBOL comp_65nm
+  pins:
+    PLUS  in  x=-60  y=-30
+    OUT  out  x=60  y=0
+    MINUS  in  x=-60  y=30
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    M1  nmos  x=570  y=-180  sym=nmos4
+      .parameters{ model=nmos  w=4u  l=0.4u  m=1 }
+    p2  lab_pin  x=590  y=-180  flip=1  sym=lab_pin
+    p6  lab_pin  x=590  y=-130  sym=lab_pin
+    M2  nmos  x=350  y=-180  flip=1  sym=nmos4
+      .parameters{ model=nmos  w=4u  l=0.4u  m=1 }
+    p7  lab_pin  x=330  y=-180  sym=lab_pin
+    I0  isource  x=330  y=-260  sym=isource  value=30u
+    p9  lab_pin  x=330  y=-310  sym=lab_pin
+    p16  lab_pin  x=330  y=-130  sym=lab_pin
+    M3  nmos  x=490  y=-270  sym=nmos4
+      .parameters{ model=nmos  w=1.5u  l=0.2u  m=1 }
+    p17  lab_pin  x=510  y=-270  flip=1  sym=lab_pin
+    M4  nmos  x=690  y=-270  flip=1  sym=nmos4
+      .parameters{ model=nmos  w=1.5u  l=0.2u  m=1 }
+    p18  lab_pin  x=670  y=-270  sym=lab_pin  l=0.2u
+    M5  pmos  x=530  y=-410  flip=1  sym=pmos4
+      .parameters{ model=pmos  w=6u  l=0.3u  m=1 }
+    M6  pmos  x=650  y=-410  sym=pmos4
+      .parameters{ model=pmos  w=6u  l=0.3u  m=1 }
+    p21  lab_pin  x=670  y=-460  sym=lab_pin
+    p23  lab_pin  x=510  y=-410  sym=lab_pin
+    p33  lab_pin  x=670  y=-410  flip=1  sym=lab_pin
+    l2  lab_pin  x=500  y=-180  sym=lab_wire
+    p161  ipin  x=100  y=-310  sym=ipin
+    p1  ipin  x=100  y=-260  sym=ipin
+    p20  opin  x=180  y=-290  sym=opin
+    p3  lab_pin  x=710  y=-270  flip=1  sym=lab_pin
+    p4  lab_pin  x=470  y=-270  sym=lab_pin
+    p14  lab_pin  x=1170  y=-290  flip=1  sym=lab_pin
+    M14  pmos  x=780  y=-370  sym=pmos4
+      .parameters{ model=pmos  w=6u  l=0.3u  m=1 }
+    p15  lab_pin  x=800  y=-370  flip=1  sym=lab_pin
+    p22  lab_pin  x=800  y=-460  sym=lab_pin
+    M7  nmos  x=780  y=-180  sym=nmos4
+      .parameters{ model=nmos  w=4u  l=0.4u  m=1 }
+    p5  lab_pin  x=800  y=-180  flip=1  sym=lab_pin
+    p8  lab_pin  x=800  y=-130  flip=1  sym=lab_pin
+    M8  nmos  x=960  y=-180  sym=nmos4
+      .parameters{ model=nmos  w=1u  l=0.4u  m=1 }
+    p10  lab_pin  x=980  y=-180  flip=1  sym=lab_pin
+    p11  lab_pin  x=980  y=-130  flip=1  sym=lab_pin
+    M9  pmos  x=960  y=-370  sym=pmos4
+      .parameters{ model=pmos  w=2u  l=0.4u  m=1 }
+    p12  lab_pin  x=980  y=-370  flip=1  sym=lab_pin
+    p13  lab_pin  x=980  y=-420  sym=lab_pin
+    M10  nmos  x=1110  y=-180  sym=nmos4
+      .parameters{ model=nmos  w=1u  l=0.4u  m=1 }
+    p24  lab_pin  x=1130  y=-180  flip=1  sym=lab_pin
+    p25  lab_pin  x=1130  y=-130  flip=1  sym=lab_pin
+    M11  pmos  x=1110  y=-370  sym=pmos4
+      .parameters{ model=pmos  w=2u  l=0.4u  m=1 }
+    p26  lab_pin  x=1130  y=-370  flip=1  sym=lab_pin
+    p29  lab_pin  x=1130  y=-420  sym=lab_pin
+    M13  nmos  x=960  y=-490  rot=3  sym=nmos4
+      .parameters{ model=nmos  w=2u  l=0.1u  m=1 }
+    p31  lab_pin  x=960  y=-510  rot=3  flip=1  sym=lab_pin
+    M12  nmos  x=960  y=-640  rot=1  sym=nmos4
+      .parameters{ model=nmos  w=2u  l=0.1u  m=1 }
+    p30  lab_pin  x=960  y=-620  rot=1  flip=1  sym=lab_pin
+    C2  capacitor  x=390  y=-170  sym=parax_cap  gnd=0  value=200f  m=1
+    l3  vdd  x=510  y=-460  sym=vdd
+
+  wires:
+    590 -150 590 -130 0
+    370 -180 550 -180 GN1
+    330 -230 330 -210 GN1
+    330 -310 330 -290 VCC
+    330 -150 330 -130 0
+    510 -240 670 -240 net1
+    590 -240 590 -210 net1
+    510 -340 510 -300 net2
+    670 -340 670 -300 net3
+    550 -410 550 -380 net2
+    510 -380 550 -380 net2
+    510 -380 510 -340 net2
+    510 -460 510 -440 net4
+    800 -460 800 -400 VCC
+    670 -370 760 -370 net3
+    330 -210 370 -210 GN1
+    370 -210 370 -180 GN1
+    670 -460 670 -440 VCC
+    550 -410 640 -410 net2
+    800 -150 800 -130 0
+    800 -340 800 -210 net5
+    550 -180 550 -170 GN1
+    550 -170 660 -170 GN1
+    660 -180 660 -170 GN1
+    660 -180 760 -180 GN1
+    670 -380 670 -340 net3
+    1130 -290 1170 -290 OUT
+    800 -290 870 -290 net5
+    980 -150 980 -130 0
+    980 -420 980 -400 VCC
+    940 -370 940 -180 net5
+    980 -340 980 -210 net6
+    870 -290 940 -290 net5
+    1130 -150 1130 -130 0
+    1130 -420 1130 -400 VCC
+    1090 -370 1090 -180 net6
+    1130 -340 1130 -210 OUT
+    980 -290 1090 -290 net6
+    990 -620 990 -510 net6
+    930 -620 930 -510 net5
+    890 -560 930 -560 net5
+    890 -560 890 -290 net5
+    990 -560 1010 -560 net6
+    1010 -560 1030 -560 net6
+    1030 -560 1030 -290 net6
+    960 -660 990 -660 net6
+    990 -660 990 -620 net6
+    930 -510 930 -470 net5
+    930 -470 960 -470 net5

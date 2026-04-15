@@ -1,0 +1,53 @@
+chn_testbench 1
+
+TESTBENCH delta_sigma
+  instances:
+    p33  lab_pin  x=270  y=-720  sym=lab_pin
+    v2  vsource  x=270  y=-660  sym=vsource  value='VCC/2'
+    p34  lab_pin  x=270  y=-630  sym=lab_pin
+    v3  vsource  x=270  y=-510  flip=1  sym=vsource  value=pwl
++ 0.001u 0.34 3u 0.34 
++ 3.001u 0.88 6u 0.88
++ 6.001u 0.97 9u 0.97
+    p1  lab_pin  x=270  y=-480  sym=lab_pin
+    p2  lab_pin  x=270  y=-570  sym=lab_pin
+    v1  vsource  x=520  y=-510  sym=vsource  value=pulse 0 'VCC' 100n 100p 100p 9.9n 20n  xvalue=sin 0.2 1.8 1u 0
+    p6  lab_pin  x=520  y=-480  sym=lab_pin
+    p7  lab_pin  x=520  y=-570  sym=lab_pin
+    v5  vsource  x=390  y=-660  sym=vsource  value='VCC'
+    p17  lab_pin  x=390  y=-630  sym=lab_pin
+    p18  lab_pin  x=390  y=-570  sym=lab_pin
+    v6  vsource  x=390  y=-510  sym=vsource  value=0
+    p19  lab_pin  x=390  y=-480  sym=lab_pin
+    p55  lab_pin  x=520  y=-720  sym=lab_pin
+    v7  vsource  x=520  y=-660  sym=vsource  value=pwl 0 'VCC' 
++ 1u 'VCC' 1.001u 0 3u 0 3.001u 'VCC'
++ 4u 'VCC' 4.001u 0 6u 0 6.001u 'VCC'
++ 7u 'VCC' 7.001u 0 9u 0 9.001u 'VCC'
+    p56  lab_pin  x=520  y=-630  sym=lab_pin
+    l2  vdd  x=390  y=-720  sym=vdd
+    x1  subckt  x=620  y=-190  sym=adc
+    p38  lab_pin  x=700  y=-220  flip=1  sym=lab_pin
+    p39  lab_pin  x=510  y=-220  sym=lab_pin
+    p40  lab_pin  x=510  y=-200  sym=lab_pin
+    p41  lab_pin  x=510  y=-180  sym=lab_pin
+    p42  lab_pin  x=510  y=-160  sym=lab_pin
+
+  nets:
+    CODE[5:0]  -> x1.CODE[5:0]
+    SIG_IN  -> x1.SIG_IN
+    VREF  -> x1.VREF
+    CK  -> x1.CK
+    RST  -> x1.RST
+
+  wires:
+    510 -220 540 -220 SIG_IN
+    510 -200 540 -200 VREF
+    510 -180 540 -180 CK
+    510 -160 540 -160 RST
+    270 -720 270 -690 VREF
+    520 -720 520 -690 RST
+    390 -720 390 -690 VCC
+    270 -570 270 -540 SIG_IN
+    520 -570 520 -540 CK
+    390 -570 390 -540 VSS

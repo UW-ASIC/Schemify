@@ -56,6 +56,7 @@ pub const PrimEntry = struct {
     param_count: usize = 0,
     model_keyword: ?[]const u8 = null,
     spice_format: ?[]const u8 = null,
+    block_type: []const u8 = "",
     non_electrical: bool = false,
     injected_net: ?[]const u8 = null,
 
@@ -185,6 +186,11 @@ const embedded_files = [_]EmbeddedPrim{
     .{ .file = @embedFile("primitives/output_pin.chn_prim"), .non_electrical = true },
     .{ .file = @embedFile("primitives/inout_pin.chn_prim"), .non_electrical = true },
     .{ .file = @embedFile("primitives/probe.chn_prim"), .non_electrical = true },
+
+    // ── Digital / HDL blocks ──
+    .{ .file = @embedFile("primitives/digital_block.chn_prim") },
+    .{ .file = @embedFile("primitives/verilog_a_block.chn_prim") },
+    .{ .file = @embedFile("primitives/spice_block.chn_prim") },
 };
 
 // ============================================================
@@ -309,6 +315,11 @@ fn parsePrim(comptime src: []const u8, comptime meta: EmbeddedPrim) PrimEntry {
         if (comptimeStartsWith(line, "spice_format:")) {
             state = .top;
             result.spice_format = comptimeAfterPrefix(line, "spice_format:");
+            continue;
+        }
+        if (comptimeStartsWith(line, "block_type:")) {
+            state = .top;
+            result.block_type = comptimeAfterPrefix(line, "block_type:");
             continue;
         }
         if (comptimeStartsWith(line, "spice_lib:")) {
@@ -600,7 +611,7 @@ pub fn findByNameRuntime(name: []const u8) ?*const PrimEntry {
 // ============================================================
 
 test "parsed_prims count" {
-    try std.testing.expectEqual(@as(usize, 33), prim_count);
+    try std.testing.expectEqual(@as(usize, 36), prim_count);
 }
 
 test "nmos4 parsed correctly" {
@@ -760,4 +771,26 @@ test "lab_pin has 5 segments, 1 circle, and 1 pin position" {
     try std.testing.expectEqual(@as(u8, 5), p.segment_count);
     try std.testing.expectEqual(@as(u8, 1), p.circle_count);
     try std.testing.expectEqual(@as(u8, 1), p.pin_pos_count);
+}
+
+test "digital_block has block_type digital" {
+    const db = findByName("digital_block") orelse return error.NotFound;
+    try std.testing.expectEqualStrings("digital", db.block_type);
+}
+
+test "verilog_a_block has block_type verilog_a" {
+    const va = findByName("verilog_a_block") orelse return error.NotFound;
+    try std.testing.expectEqualStrings("verilog_a", va.block_type);
+}
+
+test "spice_block has block_type lib" {
+    const sb = findByName("spice_block") orelse return error.NotFound;
+    try std.testing.expectEqualStrings("lib", sb.block_type);
+}
+
+test "existing primitives have empty block_type" {
+    const r = findByName("resistor") orelse return error.NotFound;
+    try std.testing.expectEqualStrings("", r.block_type);
+    const nmos = findByName("nmos4") orelse return error.NotFound;
+    try std.testing.expectEqualStrings("", nmos.block_type);
 }

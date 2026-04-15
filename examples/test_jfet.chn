@@ -1,49 +1,38 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH test_jfet
+  instances:
+    J1  njfet  x=320  y=-220  sym=njfet  model=2N3459  area=1  m=1
+    p1  lab_pin  x=150  y=-220  sym=lab_pin  sig_type=std_logic
+    p2  lab_pin  x=340  y=-420  sym=lab_pin  sig_type=std_logic
+    p3  lab_pin  x=340  y=-110  sym=lab_pin  sig_type=std_logic
+    Vgate  vsource  x=230  y=-220  rot=1  sym=ammeter
+    Vdrain  vsource  x=340  y=-330  sym=ammeter
+    J2  pjfet  x=320  y=-700  sym=pjfet  model=2N2609  area=1  m=1
+    p4  lab_pin  x=150  y=-700  sym=lab_pin  sig_type=std_logic
+    p6  lab_pin  x=340  y=-830  sym=lab_pin  sig_type=std_logic
+    Vgate1  vsource  x=230  y=-700  rot=1  sym=ammeter
+    Vdrain1  vsource  x=340  y=-640  sym=ammeter
+    E1  vcvs  x=340  y=-540  sym=vcvs  value=-1
+    p7  lab_pin  x=300  y=-520  sym=lab_pin  sig_type=std_logic
+    p8  lab_pin  x=300  y=-560  sym=lab_pin  sig_type=std_logic
+    p5  lab_pin  x=340  y=-580  sym=lab_pin  sig_type=std_logic
+    E2  vcvs  x=150  y=-610  sym=vcvs  value=-1
+    p9  lab_pin  x=110  y=-590  sym=lab_pin  sig_type=std_logic
+    p10  lab_pin  x=110  y=-630  sym=lab_pin  sig_type=std_logic
+    p11  lab_pin  x=340  y=-490  sym=lab_pin  sig_type=std_logic
+    p12  lab_pin  x=150  y=-560  sym=lab_pin  sig_type=std_logic
 
-  njfet [1]{name, x, y, rot, flip, model, area, m}:
-    J1  320  -220  0  0  2N3459  1  1
-
-  vsource [4]{name, x, y, rot, flip}:
-    Vgate  230  -220  1  0
-    Vdrain  340  -330  0  0
-    Vgate1  230  -700  1  0
-    Vdrain1  340  -640  0  0
-
-  pjfet [1]{name, x, y, rot, flip, model, area, m}:
-    J2  320  -700  0  0  2N2609  1  1
-
-  vcvs [2]{name, x, y, rot, flip, value}:
-    E1  340  -540  0  0  -1
-    E2  150  -610  0  0  -1
-
-  code_blocks [2]:
-    COMMANDS  code  only_toplevel=false  value=VG G 0 dc 0 VD D 0 dc 0  .options savecurrents .control   save all   dc VD 0 20 0.01 VG 0 -1 -0.1   write test_jfet.raw   quit 0 .endc 
-    MODEL  code  only_toplevel=false  value=.MODEL 2N3459 NJF(VTO=-1.4 BETA=1.265m BETATCE=-0.5 LAMBDA=4m RD=1 RS=1 CGS=2.916p CGD=2.8p PB=0.5 IS=114.5f XTI=3 AF=1 FC=0.5 N=1 NR=2) .model 2N2609 PJF (Beta=3.2m Betatce=-500m Rd=1 Rs=1 Lambda=18.5m Vto=-1.408 Vtotc=-2.5m Is=461.5f Isr=4.402p N=1 Nr=2 Xti=3 Alpha=32.54u Vk=393.2 Cgd=6.5p M=278.9m Pb=1 Fc=500m Cgs=9p Kf=0.2062f Af=1)
-
-  wires [24]:
-    340 -300 340 -250
-    340 -190 340 -110
-    260 -220 300 -220
-    150 -220 200 -220
-    340 -420 340 -360
-    260 -700 300 -700
-    150 -700 200 -700
-    150 -700 150 -640
-    340 -510 340 -490
-    150 -580 150 -560
-    340 -610 340 -570
-    340 -830 340 -730
-    150 -220 150 -220 G
-    340 -420 340 -420 D
-    340 -110 340 -110 GND
-    150 -700 150 -700 G1
-    340 -830 340 -830 GND
-    300 -520 300 -520 GND
-    300 -560 300 -560 D
-    340 -580 340 -580 D1
-    110 -590 110 -590 GND
-    110 -630 110 -630 G
-    340 -490 340 -490 GND
-    150 -560 150 -560 GND
+  wires:
+    340 -300 340 -250 net1
+    340 -190 340 -110 GND
+    260 -220 300 -220 net2
+    150 -220 200 -220 G
+    340 -420 340 -360 D
+    260 -700 300 -700 net3
+    150 -700 200 -700 G1
+    150 -700 150 -640 G1
+    340 -510 340 -490 GND
+    150 -580 150 -560 GND
+    340 -610 340 -570 D1
+    340 -830 340 -730 GND

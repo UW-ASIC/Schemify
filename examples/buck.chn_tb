@@ -1,0 +1,46 @@
+chn_testbench 1
+
+TESTBENCH buck
+  instances:
+    Vin  vsource  x=60  y=-310  sym=vsource  value=DC pwl 0 0 50u 5V
+    l2  gnd  x=60  y=-220  sym=gnd
+    D1  diode  x=360  y=-370  rot=2  sym=diode  model=BAR42  area=1
+    Vpulse  vsource  x=210  y=-320  sym=vsource  value=pulse -0.06 0.14 0 
++ 3.32u 3.32u 1f 6.67u
+    Vset  vsource  x=210  y=-260  sym=vsource  value=3.3
+    Vmeas  vsource  x=490  y=-470  rot=3  sym=ammeter
+    C1  capacitor  x=570  y=-310  sym=capa
+      .parameters{ m=1  value=47u  footprint=1206  device=ceramic capacitor }
+    Vcap  vsource  x=570  y=-370  sym=ammeter
+    Vload  vsource  x=690  y=-370  sym=ammeter
+    Rload  resistor  x=690  y=-310  sym=res
+      .parameters{ value=13.2  footprint=1206  device=resistor  m=1 }
+    L1  inductor  x=430  y=-470  rot=3  flip=1  sym=ind
+      .parameters{ m=1  value=18u  footprint=1206  device=inductor }
+    l3  lab_pin  x=650  y=-470  sym=lab_wire  sig_type=std_logic
+    l4  lab_pin  x=350  y=-470  sym=lab_wire  sig_type=std_logic
+    l5  lab_pin  x=140  y=-470  sym=lab_wire  sig_type=std_logic
+    l6  lab_pin  x=210  y=-360  sym=lab_wire  sig_type=std_logic
+    S1  vswitch  x=210  y=-470  rot=3  sym=switch_ngspice  model=SW1
+
+  wires:
+    60 -470 180 -470 nin
+    60 -470 60 -340 nin
+    210 -230 210 -220 0
+    60 -220 210 -220 0
+    60 -280 60 -220 0
+    210 -430 210 -350 ntriangle
+    360 -340 360 -220 0
+    210 -220 360 -220 0
+    360 -470 360 -400 ndiode
+    240 -470 360 -470 ndiode
+    360 -470 400 -470 ndiode
+    360 -220 570 -220 0
+    570 -280 570 -220 0
+    520 -470 570 -470 nout
+    570 -470 570 -400 nout
+    690 -470 690 -400 nout
+    570 -470 690 -470 nout
+    690 -280 690 -220 0
+    570 -220 690 -220 0
+    230 -430 570 -430 nout

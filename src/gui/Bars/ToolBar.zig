@@ -7,7 +7,7 @@ const AppState = st.AppState;
 const actions = @import("../Actions.zig");
 const command = @import("commands");
 const components = @import("../Components/lib.zig");
-const keybinds = @import("../Keybinds.zig");
+const keybinds = @import("../Keybinds/lib.zig");
 
 const ToolbarBar = components.HorizontalBar(.{ .height = 28 });
 

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Schemify Documentation — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Schemify Documentation</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Schemify Documentation</h1>
+<p><strong>Schemify</strong> is an open-source schematic editor written in <a href="https://ziglang.org/">Zig</a>, targeting mixed-signal IC design workflows where analog schematics coexist with digital RTL blocks.</p>
+<hr>
+<h2>What makes Schemify different?</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>xschem</th>
+<th><strong>Schemify</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Core language</td>
+<td>C + Tcl</td>
+<td>Zig</td>
+</tr>
+<tr>
+<td>Plugin languages</td>
+<td>Tcl only</td>
+<td>Zig, C, C++, Rust, Go, Python, WASM</td>
+</tr>
+<tr>
+<td>Web deployment</td>
+<td>Impossible</td>
+<td><code>zig build -Dbackend=web</code></td>
+</tr>
+<tr>
+<td>Build</td>
+<td>14+ apt packages</td>
+<td><code>zig build</code></td>
+</tr>
+<tr>
+<td>Simulator backends</td>
+<td>ngspice</td>
+<td>ngspice + Xyce</td>
+</tr>
+<tr>
+<td>Undo model</td>
+<td>Full snapshot copy</td>
+<td>Command inverses (fast)</td>
+</tr>
+<tr>
+<td>File format</td>
+<td><code>.sch</code> / <code>.sym</code> (X11 geometry)</td>
+<td><code>.chn</code> (LLM-optimized, lossless)</td>
+</tr>
+</tbody></table>
+<p>Schemify keeps xschem&#39;s design philosophy — keyboard-driven, hierarchy-first, SPICE-native — while replacing the 1988 deployment stack.</p>
+<hr>
+<h2>Quick Start</h2>
+<pre><code class="hljs language-bash"><span class="hljs-comment"># Clone the repo</span>
+git <span class="hljs-built_in">clone</span> https://github.com/UWASIC/Schemify.git
+<span class="hljs-built_in">cd</span> Schemify
+
+<span class="hljs-comment"># Enter Nix dev shell (provides Zig, Verilator, Yosys, ngspice)</span>
+nix develop
+
+<span class="hljs-comment"># Build and run</span>
+zig build run
+
+<span class="hljs-comment"># Run with a project directory</span>
+zig build run -- /path/to/my-project
+</code></pre><p>No Nix? Install <a href="https://ziglang.org/download/">Zig 0.15.2</a> manually and run <code>zig build run</code>.</p>
+<hr>
+<h2>Documentation Sections</h2>
+<ul>
+<li><strong><a href="/1">Getting Started</a> Getting Started/introduction)</strong> — What Schemify is, installation, configuration</li>
+<li><strong><a href="/2">File Format</a> File Format/overview)</strong> — The <code>.chn</code> format specification</li>
+<li><strong><a href="/3">Usage</a> Usage/keyboard-shortcuts)</strong> — Keyboard shortcuts and editor usage</li>
+<li><strong><a href="/4">Developer Guide</a> Developer Guide/architecture)</strong> — Architecture, conventions, contributing</li>
+<li><strong><a href="/5">Plugin System</a> Plugins/overview)</strong> — Building and deploying plugins</li>
+</ul>
+<hr>
+<blockquote>
+<p>[!TIP]
+Already using xschem? See <a href="/1">Schemify vs xschem</a> Getting Started/schemify-vs-xschem) for a detailed comparison and migration guide.</p>
+</blockquote>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

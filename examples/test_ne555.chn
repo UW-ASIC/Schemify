@@ -1,37 +1,35 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH test_ne555
+  instances:
+    x1  subckt  x=490  y=-220  sym=ne555  tclcommand=textwindow $netlist_dir/model_test_ne555.txt
+    r3  resistor  x=130  y=-180  sym=res  m=1  value=2k
+    c6  capacitor  x=130  y=-120  sym=capa  m=1  value=2n
+    v1  vsource  x=130  y=-360  flip=1  sym=vsource  value=5
+    p16  lab_pin  x=130  y=-330  sym=lab_pin
+    p6  lab_pin  x=130  y=-390  flip=1  sym=lab_pin
+    p8  lab_pin  x=570  y=-340  flip=1  sym=lab_pin
+    p9  lab_pin  x=410  y=-340  sym=lab_pin
+    p11  lab_pin  x=410  y=-260  sym=lab_pin
+    p12  lab_pin  x=410  y=-180  sym=lab_pin
+    p15  lab_pin  x=570  y=-180  flip=1  sym=lab_pin
+    p19  lab_pin  x=200  y=-150  flip=1  sym=lab_pin
+    p20  lab_pin  x=130  y=-270  sym=lab_pin
+    p21  lab_pin  x=130  y=-90  sym=lab_pin
+    p14  lab_pin  x=570  y=-100  flip=1  sym=lab_pin
+    p13  lab_pin  x=410  y=-100  sym=lab_pin
+    p17  lab_pin  x=570  y=-260  flip=1  sym=lab_pin
+    r5  resistor  x=130  y=-240  sym=res  m=1  value=2k
+    p18  lab_pin  x=130  y=-210  sym=lab_pin
 
-  instances [1]:
-    x1  ne555.chn  x=490  y=-220  tclcommand=textwindow $netlist_dir/model_test_ne555.txt
+  nets:
+    VSS  -> x1.GND
+    TRIG  -> x1.TRIG, x1.THRES
+    OUT  -> x1.OUT
+    VSUPPLY  -> x1.RESETB, x1.VCC
+    CTRL  -> x1.CTRL
+    DIS  -> x1.DIS
 
-  resistors [2]{name, x, y, rot, flip, m, value}:
-    r3  130  -180  0  0  1  2k
-    r5  130  -240  0  0  1  2k
-
-  capacitors [1]{name, x, y, rot, flip, m, value}:
-    c6  130  -120  0  0  1  2n
-
-  vsource [1]{name, x, y, rot, flip, value}:
-    v1  130  -360  0  1  5
-
-  code_blocks [1]:
-    STIMULI  code  value=.option SCALE=1e-6 PARHIER=LOCAL RUNLVL=6 post MODMONTE=1 .option sampling_method = SRS * .option method=gear vvss vss 0 dc 0  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in netlist/simulation directory. .temp 30 * .include \\"model_test_ne555.txt\\"  .control   save all   tran 0.1u 1m uic   write test_ne555.raw .endc 
-
-  wires [16]:
-    130 -150 200 -150
-    570 -130 570 -100
-    130 -330 130 -330 VSS
-    130 -390 130 -390 VSUPPLY
-    570 -340 570 -340 VSUPPLY
-    410 -340 410 -340 VSS
-    410 -260 410 -260 TRIG
-    410 -180 410 -180 OUT
-    570 -180 570 -180 TRIG
-    200 -150 200 -150 TRIG
-    130 -270 130 -270 VSUPPLY
-    130 -90 130 -90 VSS
-    570 -100 570 -100 CTRL
-    410 -100 410 -100 VSUPPLY
-    570 -260 570 -260 DIS
-    130 -210 130 -210 DIS
+  wires:
+    130 -150 200 -150 TRIG
+    570 -130 570 -100 CTRL

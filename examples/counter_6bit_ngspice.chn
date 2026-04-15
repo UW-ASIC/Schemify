@@ -1,0 +1,43 @@
+chn 1
+
+SYMBOL counter_6bit_ngspice
+  pins:
+    CK  in  x=-80  y=-20
+    COUNT[5:0]  out  x=80  y=-20
+    D  in  x=-80  y=0
+    RST  in  x=-80  y=20
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    l42  lab_pin  x=520  y=-320  flip=1  sym=lab_wire
+    p43  lab_pin  x=460  y=-300  flip=1  sym=lab_pin
+    x2[5:0]  subckt  x=700  y=-300  sym=flip_flop_ngspice
+    p11  lab_pin  x=810  y=-320  flip=1  sym=lab_pin
+    p13  lab_pin  x=640  y=-300  sym=lab_pin
+    p14  lab_pin  x=640  y=-280  sym=lab_pin
+    x1[5:0]  subckt  x=350  y=-310  sym=half_adder_ngspice
+    p5  lab_pin  x=280  y=-300  sym=lab_pin
+    p1  ipin  x=120  y=-120  sym=ipin
+    p2  ipin  x=120  y=-140  sym=ipin
+    p4  opin  x=220  y=-160  sym=opin
+    p6  ipin  x=120  y=-160  sym=ipin
+
+  nets:
+    S[5:0]  -> x2[5:0].D, x1[5:0].S
+    CK  -> x2[5:0].CLK
+    COUNT[5:0]  -> x2[5:0].Q, x1[5:0].A
+    RST  -> x2[5:0].RST
+    COUT[5:0]  -> x1[5:0].COUT
+    COUT[4:0],D  -> x1[5:0].B
+
+  wires:
+    420 -320 640 -320 S[5:0]
+    760 -320 810 -320 COUNT[5:0]
+    800 -350 800 -320 COUNT[5:0]
+    280 -350 800 -350 COUNT[5:0]
+    280 -350 280 -320 COUNT[5:0]
+    420 -300 460 -300 COUT[5:0]

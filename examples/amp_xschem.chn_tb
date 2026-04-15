@@ -1,0 +1,70 @@
+chn_testbench 1
+
+TESTBENCH amp_xschem
+  instances:
+    l1  inductor  x=190  y=-750  rot=1  sym=ind  value=10uH
+    v1  vsource  x=40  y=-700  sym=vsource  value=12
+    l11  gnd  x=40  y=-670  sym=gnd
+    C4  capacitor  x=280  y=-720  flip=1  sym=capa
+      .parameters{ m=1  value=100nF  footprint=1206  device=ceramic capacitor }
+    R1  resistor  x=360  y=-560  sym=res
+      .parameters{ value=6.8k  footprint=1206  device=resistor  m=1 }
+    Q2  npn  x=520  y=-510  sym=npn
+      .parameters{ model=Q2N2219A  device=Q2N5179  footprint=SOT23  area=1 }
+    R2  resistor  x=360  y=-430  sym=res
+      .parameters{ value=1.8k  footprint=1206  device=resistor  m=1 }
+    C5  capacitor  x=630  y=-560  rot=1  flip=1  sym=capa
+      .parameters{ m=1  value=1nF  footprint=1206  device=ceramic capacitor }
+    R3  resistor  x=690  y=-470  sym=res
+      .parameters{ value=120k  footprint=1206  device=resistor  m=1 }
+    l12  gnd  x=690  y=-440  sym=gnd
+    R4  resistor  x=540  y=-430  sym=res
+      .parameters{ value=100  footprint=1206  device=resistor  m=1 }
+    l13  gnd  x=540  y=-400  sym=gnd
+    C6  capacitor  x=240  y=-510  rot=1  flip=1  sym=capa
+      .parameters{ m=1  value=1nF  footprint=1206  device=ceramic capacitor }
+    v2  vsource  x=40  y=-450  sym=vsource  value=dc 0 ac 1
+    l14  gnd  x=40  y=-420  sym=gnd
+    R5  resistor  x=540  y=-700  sym=res
+      .parameters{ value=330  footprint=1206  device=resistor  m=1 }
+    C7  capacitor  x=630  y=-430  flip=1  sym=capa
+      .parameters{ m=1  value=100nF  footprint=1206  device=ceramic capacitor }
+    l15  gnd  x=630  y=-400  sym=gnd
+    l16  gnd  x=360  y=-400  sym=gnd
+    l17  gnd  x=280  y=-690  sym=gnd
+    l18  lab_pin  x=120  y=-750  sym=lab_wire  sig_type=std_logic
+    l19  lab_pin  x=440  y=-750  sym=lab_wire  sig_type=std_logic
+    l20  lab_pin  x=480  y=-510  sym=lab_wire  sig_type=std_logic
+    l21  lab_pin  x=580  y=-470  sym=lab_wire  sig_type=std_logic
+    p2  opin  x=740  y=-560  sym=opin
+    l22  lab_pin  x=540  y=-570  sym=lab_wire  sig_type=std_logic
+    l23  lab_pin  x=40  y=-510  sym=lab_pin  sig_type=std_logic
+    v3  vsource  x=420  y=-510  rot=3  sym=ammeter  current=8.9002e-05
+    v4  vsource  x=360  y=-660  sym=ammeter  current=0.001414
+    v5  vsource  x=540  y=-640  sym=ammeter  current=0.01657
+
+  wires:
+    450 -510 500 -510 B
+    540 -750 540 -730 D
+    360 -750 540 -750 D
+    40 -750 160 -750 VCC
+    40 -750 40 -730 VCC
+    540 -560 540 -540 C
+    540 -560 600 -560 C
+    660 -560 690 -560 OUT
+    690 -560 690 -500 OUT
+    540 -470 540 -460 E
+    630 -470 630 -460 E
+    540 -470 630 -470 E
+    360 -510 360 -460 net1
+    360 -630 360 -590 net2
+    270 -510 360 -510 net1
+    220 -750 360 -750 D
+    540 -480 540 -470 E
+    360 -530 360 -510 net1
+    40 -510 210 -510 IN
+    40 -510 40 -480 IN
+    690 -560 740 -560 OUT
+    360 -510 390 -510 net1
+    360 -750 360 -690 D
+    540 -610 540 -560 C

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conventions — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Conventions</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link active">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Code Conventions</h1>
+<h2>Module Rules</h2>
+<ol>
+<li><p><strong><code>lib.zig</code> is the public surface.</strong> Each directory that forms a logical module exposes exactly one <code>lib.zig</code>. Internal files are not imported directly by outside code.</p>
+</li>
+<li><p><strong><code>types.zig</code> holds shared types.</strong> Types shared within a module live in <code>types.zig</code>. Cross-module types live in the nearest common ancestor&#39;s <code>types.zig</code>.</p>
+</li>
+<li><p><strong>One primary struct per file.</strong> A file named <code>Foo.zig</code> exports exactly one primary <code>pub const Foo = struct { ... }</code>. Helper types used only by <code>Foo</code> may be private.</p>
+</li>
+<li><p><strong>No <code>std.fs</code> outside <code>utility/</code> and <code>cli/</code>.</strong> File system access is banned in core logic and GUI code. Only <code>utility/Vfs.zig</code> and CLI entry points may touch the filesystem. This keeps the WASM backend working.</p>
+</li>
+<li><p><strong>No mutations in GUI code.</strong> GUI code pushes <code>Command</code> values to the command queue. It does not mutate <code>AppState</code> or <code>Document</code> directly.</p>
+</li>
+<li><p><strong>No allocations in render functions.</strong> Frame functions must be allocation-free to avoid per-frame GC pressure. Pre-allocate in init; use scratch buffers for temporaries.</p>
+</li>
+</ol>
+<h2>Naming</h2>
+<table>
+<thead>
+<tr>
+<th>Thing</th>
+<th>Convention</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Types / structs</td>
+<td>PascalCase</td>
+<td><code>Schematic</code>, <code>PlaceInstanceCmd</code></td>
+</tr>
+<tr>
+<td>Functions</td>
+<td>camelCase</td>
+<td><code>emitSpice</code>, <code>renderCanvas</code></td>
+</tr>
+<tr>
+<td>Variables / fields</td>
+<td>camelCase</td>
+<td><code>activeTab</code>, <code>wireCount</code></td>
+</tr>
+<tr>
+<td>Comptime constants</td>
+<td>SCREAMING_SNAKE</td>
+<td><code>ABI_VERSION</code></td>
+</tr>
+<tr>
+<td>Unused parameters</td>
+<td><code>_</code> prefix</td>
+<td><code>fn foo(_unused: u32)</code></td>
+</tr>
+<tr>
+<td>File names (types)</td>
+<td>PascalCase</td>
+<td><code>FileIO.zig</code>, <code>AppState.zig</code></td>
+</tr>
+<tr>
+<td>File names (modules)</td>
+<td>lowercase</td>
+<td><code>state.zig</code>, <code>lib.zig</code></td>
+</tr>
+</tbody></table>
+<h2>Data-Oriented Design</h2>
+<p>Prefer Structure-of-Arrays over Array-of-Structs for hot data:</p>
+<pre><code class="hljs language-zig">// Avoid: strides through full struct to reach x coordinates
+var instances: ArrayList(Instance) = .{};
+for (instances.items) |inst| { _ = inst.x; }
+
+// Prefer: contiguous x array, cache-friendly
+var instances: MultiArrayList(Instance) = .{};
+const xs = instances.items(.x);
+for (xs) |x| { _ = x; }
+</code></pre><p>Separate hot (per-frame) and cold (property editor) data:</p>
+<pre><code class="hljs language-zig">// Hot: rendered every frame
+const InstanceHot = struct { x: i32, y: i32, kind: DeviceKind, rot: u2, flip: bool };
+
+// Cold: accessed only in property dialog
+const InstanceCold = struct { name: []const u8, description: []const u8 };
+</code></pre><h2>Error Handling</h2>
+<pre><code class="hljs language-zig">// Good: explicit error union, caller knows what failed
+pub fn readSchematic(path: []const u8) !Schematic { ... }
+
+// Bad: optional doesn&#x27;t explain failure
+pub fn readSchematic(path: []const u8) ?Schematic { ... }
+
+// Good: propagate with try
+const data = try Vfs.readAlloc(alloc, path);
+
+// Bad: swallow errors silently
+const data = Vfs.readAlloc(alloc, path) catch return .{};
+</code></pre><ul>
+<li>Never <code>catch unreachable</code> in production paths</li>
+<li>Catch only at true boundary points (user input, file I/O, plugin calls)</li>
+<li>Allocator errors are always propagated, never swallowed</li>
+</ul>
+<h2>Allocator Discipline</h2>
+<pre><code class="hljs language-zig">// Pass allocator as parameter — never store globally
+pub fn parseChN(allocator: Allocator, input: []const u8) !Schematic { ... }
+
+// Free immediately after use
+const data = try Vfs.readAlloc(alloc, path);
+defer alloc.free(data);
+
+// Arena for scratch work within a function
+var arena = ArenaAllocator.init(alloc);
+defer arena.deinit();
+const scratch = arena.allocator();
+</code></pre><h2>Adding a Command</h2>
+<p><strong>1.</strong> Add to <code>UndoableAction</code> in <code>commands/lib.zig</code>:</p>
+<pre><code class="hljs language-zig">pub const MyCmd = struct { target_idx: u32, new_val: []const u8 };
+pub const UndoableAction = union(enum) {
+    // ...existing...
+    my_command: MyCmd,
+};
+</code></pre><p><strong>2.</strong> Write handler in <code>commands/handlers/MyCommand.zig</code>:</p>
+<pre><code class="hljs language-zig">pub fn handle(cmd: MyCmd, doc: *Document) !void { ... }
+pub fn undo(cmd: MyCmd, doc: *Document) !void { ... }
+</code></pre><p><strong>3.</strong> Register in <code>commands/Dispatch.zig</code>:</p>
+<pre><code class="hljs language-zig">.my_command =&gt; |cmd| try MyCommand.handle(cmd, doc),
+</code></pre><p><strong>4.</strong> Trigger from GUI:</p>
+<pre><code class="hljs language-zig">actions.enqueue(app, .{ .undoable = .{ .my_command = .{
+    .target_idx = idx,
+    .new_val    = &quot;value&quot;,
+} } }, &quot;My command description&quot;);
+</code></pre><h2>Adding a Plugin Message</h2>
+<p><strong>1.</strong> Add tag to <code>PluginIF.Tag</code> enum — host→plugin tags <code>0x01–0x7F</code>, plugin→host <code>0x80–0xFF</code>.</p>
+<p><strong>2.</strong> Add variant to <code>InMsg</code> or <code>OutMsg</code> union.</p>
+<p><strong>3.</strong> Update <code>Reader.next()</code> to decode the new tag.</p>
+<p><strong>4.</strong> Add <code>Writer</code> method to encode the new message.</p>
+<p><strong>5.</strong> Handle in <code>plugins/Runtime.zig</code>.</p>
+<p><strong>6.</strong> Bump <code>ABI_VERSION</code> only if change is breaking (removed/reordered tags). Adding new tags is backward compatible — unknown tags are skipped by the reader.</p>
+<h2>GUI Frame Rules</h2>
+<pre><code class="hljs language-zig">// Good: read state, emit draw calls + commands
+fn renderToolbar(state: *const AppState, q: *CommandQueue) void {
+    if (dvui.button(&quot;Place Wire&quot;)) {
+        q.push(.{ .undoable = .{ .begin_wire = .{} } });
+    }
+}
+
+// Bad: mutate state directly in render function
+fn renderToolbar(state: *AppState) void {
+    if (dvui.button(&quot;Place Wire&quot;)) {
+        state.active_doc.tool = .wire;  // never do this
+    }
+}
+</code></pre><p>Render functions must be idempotent: calling twice with the same state produces identical output.</p>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

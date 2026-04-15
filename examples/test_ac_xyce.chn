@@ -1,121 +1,112 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH test_ac_xyce
+  instances:
+    p17  lab_pin  x=30  y=-150  sym=lab_pin
+    m1  nmos  x=430  y=-150  sym=nmos4
+      .parameters{ model=cmosn  w=5u  l=2u  m=1 }
+    mtop_2nd  pmos  x=500  y=-400  sym=pmos4
+      .parameters{ model=cmosp  w=5u  l=2u  m=1 }
+    VVCC  vsource  x=30  y=-180  sym=vsource  value=5
+    p1  lab_pin  x=450  y=-90  sym=lab_pin
+    p2  lab_pin  x=60  y=-240  flip=1  sym=lab_pin
+    m3  nmos  x=210  y=-150  flip=1  sym=nmos4
+      .parameters{ model=cmosn  w=5u  l=2u  m=1 }
+    p3  lab_pin  x=190  y=-90  sym=lab_pin
+    IBIAS  isource  x=190  y=-260  sym=isource  value=10u
+    p4  lab_pin  x=190  y=-290  sym=lab_pin
+    m4  nmos  x=360  y=-250  sym=nmos4
+      .parameters{ model=cmosn  w=10u  l=1u  m=1 }
+    p5  lab_pin  x=400  y=-250  flip=1  sym=lab_pin
+    m5  nmos  x=540  y=-250  flip=1  sym=nmos4
+      .parameters{ model=cmosn  w=10u  l=1u  m=1 }
+    p0  lab_pin  x=500  y=-250  sym=lab_pin
+    p6  lab_pin  x=570  y=-400  flip=1  sym=lab_pin
+    mtop_1st  pmos  x=400  y=-400  flip=1  sym=pmos4
+      .parameters{ model=cmosp  w=5u  l=2u  m=1 }
+    p7  lab_pin  x=330  y=-400  sym=lab_pin
+    p8  lab_pin  x=450  y=-490  sym=lab_pin
+    p9  lab_pin  x=320  y=-250  sym=lab_pin
+    p10  lab_pin  x=580  y=-250  flip=1  sym=lab_pin
+    p11  lab_pin  x=900  y=-330  flip=1  sym=lab_pin
+    p13  lab_pin  x=190  y=-200  sym=lab_pin
+    p14  lab_pin  x=30  y=-280  sym=lab_pin
+    VPLUS  vsource  x=30  y=-310  sym=vsource  value=dc 2.5
+    p15  lab_pin  x=60  y=-370  flip=1  sym=lab_pin
+    l18  lab_pin  x=790  y=-570  sym=lab_pin
+    l19  lab_pin  x=790  y=-530  sym=lab_pin
+    l20  lab_pin  x=830  y=-500  sym=lab_pin
+    l21  lab_pin  x=830  y=-600  flip=1  sym=lab_pin
+    e1  vcvs  x=830  y=-550  sym=vcvs  value=1
+    p12  lab_pin  x=750  y=-140  sym=lab_pin
+    p16  lab_pin  x=450  y=-200  sym=lab_pin
+    l2  lab_pin  x=610  y=-570  sym=lab_pin
+    l3  lab_pin  x=610  y=-530  sym=lab_pin
+    l4  lab_pin  x=650  y=-500  sym=lab_pin
+    l5  lab_pin  x=650  y=-600  flip=1  sym=lab_pin
+    e2  vcvs  x=650  y=-550  sym=vcvs  value=1
+    m7  nmos  x=810  y=-420  flip=1  sym=nmos4
+      .parameters{ model=cmosn  w=10u  l=1u  m=1 }
+    l6  lab_pin  x=790  y=-470  sym=lab_pin
+    l7  lab_pin  x=790  y=-370  sym=lab_pin
+    p18  lab_pin  x=790  y=-420  sym=lab_pin
+    VLOOP  vsource  x=690  y=-230  rot=3  sym=vsource  value=dc 0 ac 1 0
+    R2  resistor  x=750  y=-190  sym=res  value=10G  m=1
+    L1  inductor  x=850  y=-250  rot=1  sym=ind
+      .parameters{ m=1  value=100k  footprint=1206  device=inductor }
+    C1  capacitor  x=800  y=-190  sym=capa
+      .parameters{ m=1  value=1  footprint=1206  device=ceramic capacitor }
 
-  nmos [5]{name, x, y, rot, flip, model, w, l, m}:
-    m1  430  -150  0  0  cmosn  5u  2u  1
-    m3  210  -150  0  1  cmosn  5u  2u  1
-    m4  360  -250  0  0  cmosn  10u  1u  1
-    m5  540  -250  0  1  cmosn  10u  1u  1
-    m7  810  -420  0  1  cmosn  10u  1u  1
-
-  pmos [2]{name, x, y, rot, flip, model, w, l, m}:
-    mtop_2nd  500  -400  0  0  cmosp  5u  2u  1
-    mtop_1st  400  -400  0  1  cmosp  5u  2u  1
-
-  vsource [3]{name, x, y, rot, flip, value}:
-    VVCC  30  -180  0  0  5
-    VPLUS  30  -310  0  0  dc 2.5
-    VLOOP  690  -230  3  0  dc 0 ac 1 0
-
-  isource [1]{name, x, y, rot, flip, value}:
-    IBIAS  190  -260  0  0  10u
-
-  vcvs [2]{name, x, y, rot, flip, value}:
-    e1  830  -550  0  0  1
-    e2  650  -550  0  0  1
-
-  resistors [1]{name, x, y, rot, flip, value, m}:
-    R2  750  -190  0  0  10G  1
-
-  inductors [1]{name, x, y, rot, flip, m, value, footprint, device}:
-    L1  850  -250  1  0  1  100k  1206  inductor
-
-  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
-    C1  800  -190  0  0  1  1  1206  ceramic capacitor
-
-  code_blocks [1]:
-    STIMULI  code  only_toplevel=true  value=  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in netlist/simulation directory. ** http://bwrcs.eecs.berkeley.edu/Classes/icdesign/ee241_s00/ASSIGNMENTS/TSMC035-n96g-params.txt .include \\"models_cmos_example.txt\\"  .control .ac dec 10 1000 10G  ** ngspice * .save all  ** xyce, not needed if -r given om cmdline * .print tran format=raw v(diffout) v(plus) v(minus) 
-
-  wires [81]:
-    30 -240 30 -210
-    30 -240 60 -240
-    190 -230 190 -180
-    190 -180 230 -180
-    230 -180 230 -150
-    230 -150 410 -150
-    450 -220 450 -180
-    380 -250 400 -250
-    500 -250 520 -250
-    380 -220 520 -220
-    320 -250 340 -250
-    560 -250 580 -250
-    520 -400 570 -400
-    330 -400 380 -400
-    420 -400 480 -400
-    420 -400 420 -370
-    380 -370 420 -370
-    380 -370 380 -280
-    520 -370 520 -280
-    520 -470 520 -430
-    380 -470 520 -470
-    380 -470 380 -430
-    450 -490 450 -470
-    520 -330 900 -330
-    30 -370 30 -340
-    30 -370 60 -370
-    450 -120 450 -90
-    450 -120 470 -120
-    470 -150 470 -120
-    450 -150 470 -150
-    190 -120 190 -90
-    170 -120 190 -120
-    170 -150 170 -120
-    170 -150 190 -150
-    830 -600 830 -580
-    830 -520 830 -500
-    750 -250 750 -220
-    750 -160 750 -140
-    580 -250 580 -230
-    720 -230 750 -230
-    650 -600 650 -580
-    650 -520 650 -500
-    790 -470 790 -450
-    790 -390 790 -370
-    830 -420 850 -420
-    850 -420 850 -330
-    580 -230 660 -230
-    890 -330 890 -250
-    880 -250 890 -250
-    750 -250 820 -250
-    750 -220 800 -220
-    750 -160 800 -160
-    30 -150 30 -150 0
-    450 -90 450 -90 0
-    60 -240 60 -240 VCC
-    190 -90 190 -90 0
-    190 -290 190 -290 0
-    400 -250 400 -250 0
-    500 -250 500 -250 0
-    570 -400 570 -400 VCC
-    330 -400 330 -400 VCC
-    450 -490 450 -490 VCC
-    320 -250 320 -250 PLUS
-    580 -250 580 -250 MINUS
-    900 -330 900 -330 DIFFOUT
-    190 -200 190 -200 GN
-    30 -280 30 -280 0
-    60 -370 60 -370 PLUS
-    790 -570 790 -570 DIFFOUT
-    790 -530 790 -530 0
-    830 -500 830 -500 0
-    830 -600 830 -600 DIFFOUT_L
-    750 -140 750 -140 0
-    450 -200 450 -200 D
-    610 -570 610 -570 D
-    610 -530 610 -530 0
-    650 -500 650 -500 0
-    650 -600 650 -600 D_L
-    790 -470 790 -470 DIFFOUT_L
-    790 -370 790 -370 D_L
-    790 -420 790 -420 0
+  wires:
+    30 -240 30 -210 VCC
+    30 -240 60 -240 VCC
+    190 -230 190 -180 GN
+    190 -180 230 -180 GN
+    230 -180 230 -150 GN
+    230 -150 410 -150 GN
+    450 -220 450 -180 D
+    380 -250 400 -250 0
+    500 -250 520 -250 0
+    380 -220 520 -220 D
+    320 -250 340 -250 PLUS
+    560 -250 580 -250 MINUS
+    520 -400 570 -400 VCC
+    330 -400 380 -400 VCC
+    420 -400 480 -400 net1
+    420 -400 420 -370 net1
+    380 -370 420 -370 net1
+    380 -370 380 -280 net1
+    520 -370 520 -280 DIFFOUT
+    520 -470 520 -430 VCC
+    380 -470 520 -470 VCC
+    380 -470 380 -430 VCC
+    450 -490 450 -470 VCC
+    520 -330 900 -330 DIFFOUT
+    30 -370 30 -340 PLUS
+    30 -370 60 -370 PLUS
+    450 -120 450 -90 0
+    450 -120 470 -120 0
+    470 -150 470 -120 0
+    450 -150 470 -150 0
+    190 -120 190 -90 0
+    170 -120 190 -120 0
+    170 -150 170 -120 0
+    170 -150 190 -150 0
+    830 -600 830 -580 DIFFOUT_L
+    830 -520 830 -500 0
+    750 -250 750 -220 net2
+    750 -160 750 -140 0
+    580 -250 580 -230 MINUS
+    720 -230 750 -230 net2
+    650 -600 650 -580 D_L
+    650 -520 650 -500 0
+    790 -470 790 -450 DIFFOUT_L
+    790 -390 790 -370 D_L
+    830 -420 850 -420 DIFFOUT
+    850 -420 850 -330 DIFFOUT
+    580 -230 660 -230 MINUS
+    890 -330 890 -250 DIFFOUT
+    880 -250 890 -250 DIFFOUT
+    750 -250 820 -250 net2
+    750 -220 800 -220 net2
+    750 -160 800 -160 0

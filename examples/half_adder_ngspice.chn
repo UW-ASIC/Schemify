@@ -1,0 +1,35 @@
+chn 1
+
+SYMBOL half_adder_ngspice
+  pins:
+    A  in  x=-70  y=-10
+    S  out  x=70  y=-10
+    COUT  out  x=70  y=10
+    B  in  x=-70  y=10
+  params:
+    format = @name @pinlist @symname
+    template = name=x0
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    p1  ipin  x=110  y=-220  sym=ipin
+    p2  ipin  x=110  y=-190  sym=ipin
+    p4  opin  x=210  y=-220  sym=opin
+    p5  opin  x=210  y=-190  sym=opin
+    l6  lab_pin  x=470  y=-270  sym=lab_pin
+    l7  lab_pin  x=470  y=-230  sym=lab_pin
+    p7  lab_pin  x=570  y=-160  flip=1  sym=lab_pin
+    p3  lab_pin  x=470  y=-180  sym=lab_pin
+    p6  lab_pin  x=470  y=-140  sym=lab_pin
+    l3  lab_pin  x=570  y=-250  flip=1  sym=lab_pin
+    x1  subckt  x=510  y=-250  sym=xor_ngspice  ROUT=1000
+    x2  subckt  x=510  y=-160  sym=and_ngspice  ROUT=1000
+
+  nets:
+    S  -> x1.Y
+    A  -> x1.A, x2.A
+    B  -> x1.B, x2.B
+    COUT  -> x2.Y
+
+  wires:

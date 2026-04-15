@@ -1,0 +1,90 @@
+chn 1
+
+SYMBOL opamp_65nm
+  pins:
+    PLUS  in  x=-60  y=-30
+    OUT  out  x=60  y=0
+    MINUS  in  x=-60  y=30
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    M1  nmos  x=640  y=-220  sym=nmos4
+      .parameters{ model=nmos  w=4u  l=0.4u  m=1 }
+    p2  lab_pin  x=660  y=-220  flip=1  sym=lab_pin
+    p6  lab_pin  x=660  y=-170  sym=lab_pin
+    M2  nmos  x=420  y=-220  flip=1  sym=nmos4
+      .parameters{ model=nmos  w=4u  l=0.4u  m=1 }
+    p7  lab_pin  x=400  y=-220  sym=lab_pin
+    I0  isource  x=400  y=-300  sym=isource  value=30u
+    p9  lab_pin  x=400  y=-350  sym=lab_pin
+    p16  lab_pin  x=400  y=-170  sym=lab_pin
+    M3  nmos  x=560  y=-310  sym=nmos4
+      .parameters{ model=nmos  w=1.5u  l=0.2u  m=1 }
+    p17  lab_pin  x=580  y=-310  flip=1  sym=lab_pin
+    M4  nmos  x=760  y=-310  flip=1  sym=nmos4
+      .parameters{ model=nmos  w=1.5u  l=0.2u  m=1 }
+    p18  lab_pin  x=740  y=-310  sym=lab_pin
+    M5  pmos  x=600  y=-450  flip=1  sym=pmos4
+      .parameters{ model=pmos  w=6u  l=0.3u  m=1 }
+    p19  lab_pin  x=580  y=-500  sym=lab_pin
+    M6  pmos  x=720  y=-450  sym=pmos4
+      .parameters{ model=pmos  w=6u  l=0.3u  m=1 }
+    p21  lab_pin  x=740  y=-500  sym=lab_pin
+    p23  lab_pin  x=580  y=-450  sym=lab_pin
+    p33  lab_pin  x=740  y=-450  flip=1  sym=lab_pin
+    l2  lab_pin  x=570  y=-220  sym=lab_wire
+    p161  ipin  x=280  y=-420  sym=ipin
+    p1  ipin  x=280  y=-280  sym=ipin
+    p20  opin  x=1070  y=-330  sym=opin
+    p3  lab_pin  x=780  y=-310  flip=1  sym=lab_pin
+    p4  lab_pin  x=540  y=-310  sym=lab_pin
+    M8  pmos  x=920  y=-410  sym=pmos4
+      .parameters{ model=pmos  w=6u  l=0.4u  m=1 }
+    p15  lab_pin  x=940  y=-410  flip=1  sym=lab_pin
+    p22  lab_pin  x=940  y=-500  sym=lab_pin
+    M7  nmos  x=920  y=-220  sym=nmos4
+      .parameters{ model=nmos  w=4u  l=0.4u  m=1 }
+    p5  lab_pin  x=940  y=-220  flip=1  sym=lab_pin
+    p8  lab_pin  x=940  y=-170  flip=1  sym=lab_pin
+    R1  resistor  x=880  y=-340  rot=1  sym=res
+      .parameters{ value=5k  footprint=1206  device=resistor  m=1 }
+    C1  capacitor  x=820  y=-340  rot=3  sym=capa
+      .parameters{ m=1  value=150f  footprint=1206  device=ceramic capacitor }
+    C2  capacitor  x=460  y=-210  sym=parax_cap  gnd=0  value=200f  m=1
+    p11  lab_pin  x=660  y=-260  sym=lab_pin
+    p12  lab_pin  x=740  y=-380  sym=lab_pin
+
+  wires:
+    660 -190 660 -170 0
+    440 -220 620 -220 GN1
+    400 -270 400 -250 GN1
+    400 -350 400 -330 VCC
+    400 -190 400 -170 0
+    580 -280 740 -280 S
+    660 -280 660 -250 S
+    580 -380 580 -340 net1
+    740 -380 740 -340 G
+    620 -450 620 -420 net1
+    580 -420 620 -420 net1
+    580 -420 580 -380 net1
+    580 -500 580 -480 VCC
+    940 -330 1070 -330 OUT
+    940 -500 940 -440 VCC
+    740 -410 900 -410 G
+    400 -250 440 -250 GN1
+    440 -250 440 -220 GN1
+    740 -500 740 -480 VCC
+    620 -450 710 -450 net1
+    940 -190 940 -170 0
+    940 -380 940 -250 OUT
+    620 -220 620 -210 GN1
+    620 -210 730 -210 GN1
+    730 -220 730 -210 GN1
+    730 -220 900 -220 GN1
+    740 -420 740 -380 G
+    790 -410 790 -340 G
+    910 -340 940 -340 OUT

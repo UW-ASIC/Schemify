@@ -1,0 +1,25 @@
+chn_prim 1.0
+
+SYMBOL output_pin
+  desc: Output port (hierarchical)
+
+  pins [1]:
+    p  out
+
+  params [1]:
+    lab = ""
+
+  drawing:
+    lines:
+      # Pin stub from connection point (0,0) to body (mirror of input_pin)
+      (0,0) (-4,0)
+      # Pentagon arrow pointing LEFT (signal flows OUT of design)
+      # Flat back at x=-4, point at x=-28
+      (-4,-8) (-4,8)
+      (-4,8) (-20,8)
+      (-20,8) (-28,0)
+      (-28,0) (-20,-8)
+      (-20,-8) (-4,-8)
+    text: (-16,0) "@lab"
+    pin_positions:
+      p: (0,0)

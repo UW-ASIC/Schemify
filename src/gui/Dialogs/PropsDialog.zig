@@ -131,68 +131,7 @@ fn drawContents(app: *AppState) void {
     _ = dvui.separator(@src(), .{ .id_extra = 200 });
 
     // ── Digital block properties ─────────────────────────────────────────
-    if (fio.sch.digital) |dig| {
-        dvui.labelNoFmt(@src(), "Digital Block:", .{}, .{ .id_extra = 210, .style = .control });
-
-        {
-            var lang_buf: [64]u8 = undefined;
-            const lang_str = std.fmt.bufPrint(&lang_buf, "  Language: {s}", .{
-                dig.language.toStr(),
-            }) catch "  Language: ?";
-            dvui.labelNoFmt(@src(), lang_str, .{}, .{ .id_extra = 211 });
-        }
-
-        {
-            const role = if (dig.is_stimulus) "Stimulus" else "Device";
-            var role_buf: [32]u8 = undefined;
-            const role_str = std.fmt.bufPrint(&role_buf, "  Role: {s}", .{role}) catch "  Role: ?";
-            dvui.labelNoFmt(@src(), role_str, .{}, .{ .id_extra = 212 });
-        }
-
-        // RTL source info
-        if (dig.behavioral.source) |src| {
-            var rtl_info_buf: [128]u8 = undefined;
-            const mode_str = if (dig.behavioral.mode == .@"inline") "inline" else "file";
-            const rtl_info = std.fmt.bufPrint(&rtl_info_buf, "  RTL Source ({s}): {d} chars", .{
-                mode_str, src.len,
-            }) catch "  RTL Source: present";
-            dvui.labelNoFmt(@src(), rtl_info, .{}, .{ .id_extra = 213 });
-
-            if (dig.behavioral.file_path) |fp| {
-                var fp_buf: [256]u8 = undefined;
-                const fp_str = std.fmt.bufPrint(&fp_buf, "  RTL File: {s}", .{fp}) catch "  RTL File: ?";
-                dvui.labelNoFmt(@src(), fp_str, .{}, .{ .id_extra = 214 });
-            }
-        }
-
-        // Synthesized SPICE info
-        if (dig.synthesized.source) |src| {
-            var synth_buf: [128]u8 = undefined;
-            const synth_info = std.fmt.bufPrint(&synth_buf, "  Synth SPICE: {d} chars", .{
-                src.len,
-            }) catch "  Synth SPICE: present";
-            dvui.labelNoFmt(@src(), synth_info, .{}, .{ .id_extra = 220 });
-        } else if (dig.synthesized.file_path) |fp| {
-            var sfp_buf: [256]u8 = undefined;
-            const sfp_str = std.fmt.bufPrint(&sfp_buf, "  Synth SPICE File: {s}", .{fp}) catch "  Synth File: ?";
-            dvui.labelNoFmt(@src(), sfp_str, .{}, .{ .id_extra = 221 });
-        } else {
-            dvui.labelNoFmt(@src(), "  Synth SPICE: (none)", .{}, .{ .id_extra = 222 });
-        }
-
-        // Sim preference
-        {
-            const pref = switch (dig.sim_preference) {
-                0 => "Behavioral only",
-                1 => "Post-synthesis only",
-                2 => "Both (user chooses)",
-                else => "Unknown",
-            };
-            var pref_buf: [64]u8 = undefined;
-            const pref_str = std.fmt.bufPrint(&pref_buf, "  Simulation: {s}", .{pref}) catch "  Simulation: ?";
-            dvui.labelNoFmt(@src(), pref_str, .{}, .{ .id_extra = 230 });
-        }
-    }
+    // TODO: digital block support not yet implemented in data model
 
     _ = dvui.spacer(@src(), .{ .expand = .vertical });
     _ = dvui.separator(@src(), .{ .id_extra = 300 });

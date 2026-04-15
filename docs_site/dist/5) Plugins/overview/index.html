@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overview — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Overview</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link active">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Plugin Overview</h1>
+<p>Schemify&#39;s plugin system lets you extend the editor without forking it. Plugins run as shared libraries (<code>.so</code>) on native, or as WebAssembly modules (<code>.wasm</code>) in the browser. The same source compiles to both targets.</p>
+<h2>What Plugins Can Do</h2>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Add a dockable panel or overlay</td>
+<td><code>w.registerPanel(...)</code> in <code>.load</code></td>
+</tr>
+<tr>
+<td>Set the editor status bar text</td>
+<td><code>w.setStatus(msg)</code></td>
+</tr>
+<tr>
+<td>Write structured log messages</td>
+<td><code>w.log(level, tag, msg)</code></td>
+</tr>
+<tr>
+<td>Read and write project files</td>
+<td><code>Plugin.Vfs</code></td>
+</tr>
+<tr>
+<td>Trigger a UI redraw</td>
+<td><code>w.requestRefresh()</code></td>
+</tr>
+<tr>
+<td>Place devices / wires</td>
+<td><code>w.placeDevice(...)</code> / <code>w.addWire(...)</code></td>
+</tr>
+<tr>
+<td>Persist per-plugin key/value state</td>
+<td><code>w.setState(key, val)</code> / <code>w.getState(key)</code></td>
+</tr>
+<tr>
+<td>Push commands to the host queue</td>
+<td><code>w.pushCommand(tag, payload)</code></td>
+</tr>
+<tr>
+<td>Register keyboard shortcuts</td>
+<td><code>w.registerKeybind(key, mods, tag)</code></td>
+</tr>
+<tr>
+<td>Query schematic instances and nets</td>
+<td><code>w.queryInstances()</code> / <code>w.queryNets()</code></td>
+</tr>
+</tbody></table>
+<h2>Plugin Lifecycle</h2>
+<pre><code>Runtime                             Plugin
+  │                                   │
+  │── process([load msg]) ───────────►│  registers panels, sets status
+  │                                   │
+  │   ... per frame ...               │
+  │── process([tick msg]) ───────────►│  background work, state updates
+  │── process([draw_panel msg]) ──────►│  emits ui_* widget messages
+  │                                   │
+  │── process([unload msg]) ─────────►│  cleanup
+</code></pre><p>Return value = bytes written to output buffer. If buffer too small → return <code>maxInt(usize)</code>, host retries with doubled buffer.</p>
+<h2>Language Support</h2>
+<table>
+<thead>
+<tr>
+<th>Language</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Zig</strong></td>
+<td>Direct import of <code>PluginIF</code></td>
+</tr>
+<tr>
+<td><strong>C / C++</strong></td>
+<td><code>schemify_plugin.h</code> header + <code>addCPlugin</code> / <code>addCppPlugin</code></td>
+</tr>
+<tr>
+<td><strong>Rust</strong></td>
+<td><code>schemify-plugin</code> crate; <code>export_plugin!</code> macro</td>
+</tr>
+<tr>
+<td><strong>Python</strong></td>
+<td>Pure <code>.py</code> files; <code>addPythonPlugin</code> deploys them</td>
+</tr>
+<tr>
+<td><strong>TinyGo</strong></td>
+<td><code>schemify</code> package; <code>RunPlugin</code> entry point</td>
+</tr>
+</tbody></table>
+<p>The ABI boundary is a plain C <code>extern struct</code> — any language that emits C-compatible shared-library exports works.</p>
+<h2>Deployment</h2>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>Output</th>
+<th>Install location</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Native (Linux)</td>
+<td><code>lib&lt;Name&gt;.so</code></td>
+<td><code>~/.config/Schemify/&lt;Name&gt;/</code></td>
+</tr>
+<tr>
+<td>Native (macOS)</td>
+<td><code>lib&lt;Name&gt;.dylib</code></td>
+<td><code>~/.config/Schemify/&lt;Name&gt;/</code></td>
+</tr>
+<tr>
+<td>Web (WASM)</td>
+<td><code>&lt;Name&gt;.wasm</code></td>
+<td><code>plugins/</code> dir, loaded by <code>plugin_host.js</code></td>
+</tr>
+</tbody></table>
+<p><code>zig build run</code> (via <code>addNativeAutoInstallRunStep</code>) copies the build output to the install directory and launches the host.</p>
+<h2>Included Plugins</h2>
+<h3>EasyImport</h3>
+<p>Imports xschem <code>.sch</code>/<code>.sym</code> files, Virtuoso schematics, and TCL-based symbol libraries into Schemify&#39;s <code>.chn</code> format. Primary migration path for existing xschem projects.</p>
+<pre><code class="hljs language-bash"><span class="hljs-comment"># From CLI</span>
+schemify --cli import-xschem ./inverter.sch
+<span class="hljs-comment"># From UI: Plugins → EasyImport → Import XSchem File</span>
+</code></pre><h3>PDKLoader (Volare)</h3>
+<p>Install and switch PDKs (SKY130, GF180, IHP-SG13G2) from inside the editor. Talks to the Volare registry. Manages <code>$PDK</code> path configuration.</p>
+<pre><code>Panel: PDK Manager (right sidebar)
+Commands: :pdk install sky130, :pdk switch gf180
+</code></pre><h3>Optimizer</h3>
+<p>Bayesian optimization of circuit parameters. Given a schematic and a target metric (e.g., maximize phase margin), iteratively sweeps parameters and re-simulates.</p>
+<pre><code>Panel: Optimizer (right sidebar)
+Workflow: select target metric → set param ranges → run → view convergence plot
+</code></pre><h3>Themes</h3>
+<p>Live theme switching via JSON theme files. Overrides colors, fonts, and spacing without restarting. Ships with built-in themes: Default Light, Default Dark, Tokyonight, Gruvbox, Catppuccin.</p>
+<pre><code>Panel: Theme Switcher (overlay)
+Command: :theme tokyonight
+</code></pre><h3>GitBlame</h3>
+<p>Shows git commit info for components — who last changed each instance&#39;s properties and when. Useful for design review.</p>
+<pre><code>Hover instance → tooltip shows: &quot;R1.value changed by alice@... 3 days ago&quot;
+</code></pre><h2>Minimal Plugin</h2>
+<pre><code class="hljs language-zig">const Plugin = @import(&quot;PluginIF&quot;);
+
+export fn schemify_process(
+    in_ptr:  [*]const u8, in_len:  usize,
+    out_ptr: [*]u8,       out_cap: usize,
+) usize {
+    var r = Plugin.Reader.init(in_ptr[0..in_len]);
+    var w = Plugin.Writer.init(out_ptr[0..out_cap]);
+
+    while (r.next()) |msg| {
+        switch (msg) {
+            .load =&gt; {
+                w.registerPanel(.{
+                    .id      = &quot;demo&quot;,
+                    .title   = &quot;Demo Panel&quot;,
+                    .vim_cmd = &quot;demo&quot;,
+                    .layout  = .right_sidebar,
+                    .keybind = &#x27;d&#x27;,
+                });
+                w.setStatus(&quot;demo plugin loaded&quot;);
+            },
+            .draw_panel =&gt; {
+                w.label(&quot;Hello from plugin!&quot;, 0);
+            },
+            else =&gt; {},
+        }
+    }
+
+    return if (w.overflow()) std.math.maxInt(usize) else w.pos;
+}
+
+export const schemify_plugin: Plugin.Descriptor = .{
+    .name        = &quot;demo&quot;,
+    .version_str = &quot;0.1.0&quot;,
+    .process     = schemify_process,
+};
+</code></pre><h2>Plugin Examples</h2>
+<p>Language examples in <code>plugins/examples/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Directory</th>
+<th>Language</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>zig-demo/</code></td>
+<td>Zig</td>
+</tr>
+<tr>
+<td><code>c-demo/</code></td>
+<td>C</td>
+</tr>
+<tr>
+<td><code>cpp-demo/</code></td>
+<td>C++</td>
+</tr>
+<tr>
+<td><code>rust-demo/</code></td>
+<td>Rust</td>
+</tr>
+<tr>
+<td><code>python-demo/</code></td>
+<td>Python</td>
+</tr>
+<tr>
+<td><code>go-demo/</code></td>
+<td>TinyGo</td>
+</tr>
+</tbody></table>
+<p>Each demonstrates: message parsing, panel registration, widget drawing, state persistence.</p>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

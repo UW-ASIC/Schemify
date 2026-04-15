@@ -1,21 +1,20 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH test_backannotated_subckt
+  instances:
+    p1  lab_pin  x=680  y=-170  flip=1  sym=lab_pin
+    p2  lab_pin  x=380  y=-170  sym=lab_pin
+    V1  vsource  x=140  y=-160  sym=vsource  value=pwl 0 0 10n 0 11n 5
+    l2  lab_pin  x=140  y=-100  sym=lab_pin  sig_type=std_logic
+    p3  lab_pin  x=160  y=-210  flip=1  sym=lab_pin
+    x1  subckt  x=530  y=-170  sym=rcline
+      .parameters{ L=1e-4  W=0.5e-6  Res=240000.00000000003  Cap=5.000000000000001e-14 }
 
-  vsource [1]{name, x, y, rot, flip, value}:
-    V1  140  -160  0  0  pwl 0 0 10n 0 11n 5
+  nets:
+    OUT  -> x1.OUT
+    IN  -> x1.IN
 
-  instances [1]:
-    x1  rcline.chn  x=530  y=-170  L=1e-4  W=0.5e-6
-
-  code_blocks [1]:
-    STIMULI  code  only_toplevel=false  value=.control   save all   tran 0.1n 50n   write test_backannotated_subckt.raw .endc 
-
-  wires [7]:
-    140 -130 140 -100
-    140 -210 160 -210
-    140 -210 140 -190
-    680 -170 680 -170 OUT
-    380 -170 380 -170 IN
-    140 -100 140 -100 0
-    160 -210 160 -210 IN
+  wires:
+    140 -130 140 -100 0
+    140 -210 160 -210 IN
+    140 -210 140 -190 IN

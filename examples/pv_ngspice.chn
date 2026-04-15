@@ -1,0 +1,64 @@
+chn 1
+
+SYMBOL pv_ngspice
+  pins:
+    plus  inout  x=0  y=-30
+    minus  inout  x=0  y=30
+    fade  in  x=-40  y=0
+  params:
+    format = @name @pinlist @symname area=@area isc=@isc n=@n rs=@rs rp=@rp m=@m
+    template = name=X1 isc=6 area=1 n=36 rs=0.002 rp=40 m=1
+    type = subcircuit
+  drawing:
+    rect 920 -580 1420 -190
+    rect 920 -820 1420 -580
+
+SCHEMATIC
+  instances:
+    p2  iopin  x=640  y=-500  rot=2  flip=1  sym=iopin
+    p2  ipin  x=100  y=-840  rot=2  flip=1  sym=ipin
+    Vf  vsource  x=140  y=-750  rot=3  sym=ammeter
+    p1  iopin  x=640  y=-880  rot=2  flip=1  sym=iopin
+    Vm  vsource  x=640  y=-590  rot=2  sym=ammeter  savecurrent=true
+    Vp  vsource  x=640  y=-830  rot=2  sym=ammeter  savecurrent=true
+    D1  diode  x=210  y=-700  sym=diode  model=DPANEL  area='area'
+    Rp  resistor  x=340  y=-700  sym=res
+      .parameters{ value='rp'  footprint=1206  device=resistor  m=1 }
+    Rs  resistor  x=470  y=-750  rot=1  sym=res
+      .parameters{ value='rs'  footprint=1206  device=resistor  m=1  hide_texts=true }
+    l2  lab_pin  x=80  y=-650  rot=2  flip=1  sym=lab_pin  sig_type=std_logic
+    F1  cccs  x=540  y=-700  rot=2  sym=cccs  vnam=e1  value=1
+    E1  vcvs  x=640  y=-710  sym=vcvs  value='n'
+    p3  lab_pin  x=260  y=-750  sym=lab_wire  sig_type=std_logic
+    p4  lab_pin  x=560  y=-750  sym=lab_wire  sig_type=std_logic
+    Vf1  vsource  x=130  y=-840  rot=3  sym=ammeter
+    p5  lab_pin  x=160  y=-840  flip=1  sym=lab_pin  sig_type=std_logic
+    B1  behavioral  x=110  y=-700  rot=2  sym=bsource  VAR=I  FUNC=v(f) * isc
+    Vr  vsource  x=310  y=-750  rot=3  sym=ammeter
+    Vm1  vsource  x=400  y=-750  rot=3  sym=ammeter  savecurrent=true
+    p6  lab_pin  x=640  y=-770  sym=lab_wire  sig_type=std_logic
+    p7  lab_pin  x=640  y=-640  sym=lab_wire  sig_type=std_logic
+
+  wires:
+    640 -560 640 -500 minus
+    640 -880 640 -860 plus
+    210 -750 210 -730 A
+    170 -750 210 -750 A
+    600 -690 600 -650 0
+    600 -750 600 -730 B
+    540 -750 540 -730 B
+    640 -680 640 -620 im
+    640 -800 640 -740 ip
+    110 -750 110 -730 net1
+    110 -650 600 -650 0
+    80 -650 110 -650 0
+    110 -670 110 -650 0
+    210 -670 210 -650 0
+    340 -670 340 -650 0
+    540 -670 540 -650 0
+    340 -750 340 -730 net2
+    340 -750 370 -750 net2
+    210 -750 280 -750 A
+    430 -750 440 -750 net3
+    530 -750 600 -750 B
+    500 -750 530 -750 B

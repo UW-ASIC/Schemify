@@ -1,25 +1,24 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH tb_test_evaluated_param
+  instances:
+    x1  subckt  x=750  y=-150  sym=test_evaluated_param2  DEL=5
+    p1  lab_pin  x=950  y=-150  flip=1  sym=lab_pin
+    V1  vsource  x=520  y=-110  sym=vsource  value=pwl 0 0 10n 0 11n 3  savecurrent=false
+    l2  gnd  x=520  y=-80  sym=gnd
+    p2  lab_pin  x=520  y=-150  sym=lab_pin
+    x2  subckt  x=750  y=-250  sym=test_evaluated_param1  DEL=2
+    p3  lab_pin  x=950  y=-250  flip=1  sym=lab_pin
 
-  instances [2]:
-    x1  test_evaluated_param.chn  x=750  y=-150  DEL=5
-    x2  test_evaluated_param.chn  x=750  y=-250  DEL=2
+  nets:
+    A  -> x1.A, x2.A
+    Z2  -> x1.Z
+    Z1  -> x2.Z
 
-  vsource [1]{name, x, y, rot, flip, value, savecurrent}:
-    V1  520  -110  0  0  tcleval(pwl 0 0 10n 0 11n $VCC)  false
-
-  code_blocks [1]:
-    COMMANDS  code  only_toplevel=false  value=tcleval( .options savecurrents ** following .param is set with a TCL command .param VCC=[set VCC 3] .control   save all   tran 10p 50n   write tb_test_evaluated_param.raw .endc )
-
-  wires [10]:
-    520 -150 600 -150
-    520 -150 520 -140
-    900 -150 950 -150
-    900 -250 950 -250
-    520 -250 600 -250
-    520 -250 520 -150
-    950 -150 950 -150 Z2
-    520 -80 520 -80 GND
-    520 -150 520 -150 A
-    950 -250 950 -250 Z1
+  wires:
+    520 -150 600 -150 A
+    520 -150 520 -140 A
+    900 -150 950 -150 Z2
+    900 -250 950 -250 Z1
+    520 -250 600 -250 A
+    520 -250 520 -150 A

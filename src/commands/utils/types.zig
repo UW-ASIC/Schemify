@@ -137,7 +137,6 @@ pub const Immediate = union(enum) {
     undo,
     redo,
 
-    open_digital_block_dialog,
     open_spice_code_dialog,
 };
 
@@ -163,31 +162,7 @@ pub const Undoable = union(enum) {
     nudge_right,
     nudge_up,
     nudge_down,
-    add_digital_block: struct {
-        name_buf: [128]u8,
-        name_len: usize,
-        rtl_source_buf: [4096]u8,
-        rtl_source_len: usize,
-        language: u8,
-        /// 0 = from scratch, 1 = library template
-        block_mode: u8 = 0,
-        /// 0 = inline, 1 = file reference
-        source_mode: u8 = 0,
-        /// 0 = device, 1 = stimulus
-        is_stimulus: u8 = 0,
-        /// 0 = behavioral, 1 = post-synth, 2 = both
-        sim_preference: u8 = 0,
-        /// RTL file path (source_mode == 1)
-        rtl_file_path_buf: [512]u8 = [_]u8{0} ** 512,
-        rtl_file_path_len: usize = 0,
-        /// Synthesized SPICE file path (optional)
-        synth_file_path_buf: [512]u8 = [_]u8{0} ** 512,
-        synth_file_path_len: usize = 0,
-    },
-    edit_spice_code: struct {
-        buf: [8192]u8,
-        len: usize,
-    },
+    edit_spice_code: []const u8,
 };
 
 // ── Top-level Command discriminant ────────────────────────────────────────────

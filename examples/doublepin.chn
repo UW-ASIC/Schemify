@@ -1,96 +1,37 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [8]:
-    A[3]  in  x=-150  y=-10
-    A[2]  in  x=-150  y=-10
-    A[1]  in  x=-150  y=-10
-    A[0]  in  x=-150  y=-10
+SYMBOL doublepin
+  pins:
+    A[3:0]  in  x=-150  y=-10
     B  in  x=-150  y=10
-    CK  in  x=-150  y=-30
-    RST  in  x=-150  y=-50
     Z  out  x=150  y=50
-
-  params [1]:
+    A[3:0]  in  x=150  y=-10
+    CK  in  x=-150  y=-30
+    CK  in  x=150  y=-30
+    RST  in  x=-150  y=-50
+    RST  in  x=150  y=-50
+    B  in  x=150  y=10
+  params:
+    format = @name @@A[3:0] @@B @@CK @@RST @@Z @symname
     template = name=x1
-
-  spice_prefix: X
-
-  drawing:
-    line -130 -60 130 -60
-    line -130 60 130 60
-    line -130 -60 -130 60
-    line 130 -60 130 60
-    line 130 -10 150 -10
-    line -150 -10 -130 -10
-    line -150 10 -130 10
-    line -150 -30 -130 -30
-    line 130 -30 150 -30
-    line -150 -50 -130 -50
-    line 130 -50 150 -50
-    line 130 10 150 10
-    line 130 50 150 50
-    line -140 -55 -135 -50
-    line -140 -45 -135 -50
-    line -140 -35 -135 -30
-    line -140 -25 -135 -30
-    line -140 -15 -135 -10
-    line -140 -5 -135 -10
-    line -140 5 -135 10
-    line -140 15 -135 10
-    line 135 -50 140 -55
-    line 135 -50 140 -45
-    line 135 -30 140 -35
-    line 135 -30 140 -25
-    line 135 -10 140 -15
-    line 135 -10 140 -5
-    line 135 10 140 5
-    line 135 10 140 15
-    line 135 45 140 50
-    line 135 55 140 50
-    pin_positions:
-      A[3]: (-150, -10)
-      A[2]: (-150, -10)
-      A[1]: (-150, -10)
-      A[0]: (-150, -10)
-      B: (-150, 10)
-      CK: (-150, -30)
-      RST: (-150, -50)
-      Z: (150, 50)
+    type = subcircuit
 
 SCHEMATIC
+  instances:
+    p1  ipin  x=210  y=-280  sym=ipin
+    p3  ipin  x=210  y=-190  sym=ipin
+    p4  opin  x=810  y=-250  sym=opin
+    p5  ipin  x=330  y=-150  sym=ipin
+    p7  ipin  x=360  y=-240  sym=ipin
+      unknown  x=380  y=-480  sym=use
+    l2  lab_pin  x=580  y=-280  flip=1  sym=lab_pin  sig_type=std_logic
+    x2[3:0]  unknown  x=470  y=-260  sym=latch  delay=200 ps  del=200
+    l3  lab_pin  x=540  y=-240  flip=1  sym=lab_pin  sig_type=std_logic
 
-
-  input_pin [7]{name, x, y, rot, flip, lab}:
-    A[3]  -150  -10  0  0  A[3]
-    A[2]  -150  -10  0  0  A[2]
-    A[1]  -150  -10  0  0  A[1]
-    A[0]  -150  -10  0  0  A[0]
-    B  210  -190  0  0  B
-    CK  360  -240  0  0  CK
-    RST  330  -150  0  0  RST
-
-  output_pin [1]{name, x, y, rot, flip, lab}:
-    Z  810  -250  0  0  Z
-
-  instances [1]:
-    x2[3:0]  latch.chn  x=470  y=-260  delay=200 ps  del=200
-
-  hdl_blocks [1]:
-    
-
-  wires [13]:
-    360 -240 400 -240
-    210 -190 400 -190
-    210 -280 400 -280
-    540 -280 580 -280
-    330 -150 470 -150
-    470 -210 470 -150
-    210 -280 210 -280 A[3:0]
-    210 -190 210 -190 B
-    810 -250 810 -250 Z
-    330 -150 330 -150 RST
-    360 -240 360 -240 CK
-    580 -280 580 -280 Z,NC1,NC2,NC3
-    540 -240 540 -240 NC4,NC5,NC6,NC7
+  wires:
+    360 -240 400 -240 CK
+    210 -190 400 -190 B
+    210 -280 400 -280 A[3:0]
+    540 -280 580 -280 Z,NC1,NC2,NC3
+    330 -150 470 -150 RST
+    470 -210 470 -150 RST

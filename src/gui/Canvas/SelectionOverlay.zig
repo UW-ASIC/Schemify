@@ -9,7 +9,7 @@ const h = @import("draw_helpers.zig");
 
 const RenderContext = types.RenderContext;
 
-/// Draw the wire-placement preview overlay (start-point marker).
+/// Draw the wire-placement preview overlay (start-point marker + live Manhattan preview).
 pub fn drawWirePreview(ctx: *const RenderContext, app: *st.AppState) void {
     const vp = ctx.vp;
     const pal = ctx.pal;
@@ -19,6 +19,18 @@ pub fn drawWirePreview(ctx: *const RenderContext, app: *st.AppState) void {
     h.strokeDot(start, types.wire_preview_dot_radius, pal.wire_preview);
     h.strokeLine(start[0] - types.wire_preview_arm, start[1], start[0] + types.wire_preview_arm, start[1], 1.5, pal.wire_preview);
     h.strokeLine(start[0], start[1] - types.wire_preview_arm, start[0], start[1] + types.wire_preview_arm, 1.5, pal.wire_preview);
+
+    // Live preview: draw manhattan-constrained line to current cursor.
+    const cur = app.gui.hot.canvas.cursor_world;
+    const dx: u64 = @abs(@as(i64, cur[0]) - ws[0]);
+    const dy: u64 = @abs(@as(i64, cur[1]) - ws[1]);
+    const end_world: types.Point = if (dx >= dy)
+        .{ cur[0], ws[1] } // horizontal
+    else
+        .{ ws[0], cur[1] }; // vertical
+    const end = vp_mod.w2p(end_world, vp);
+    h.strokeLine(start[0], start[1], end[0], end[1], 1.5, pal.wire_preview);
+    h.strokeDot(end, types.wire_endpoint_radius, pal.wire_preview);
 }
 
 /// Draw the rubber-band selection rectangle when active.

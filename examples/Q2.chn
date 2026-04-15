@@ -1,78 +1,57 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [3]:
+SYMBOL Q2
+  pins:
     P3  inout  x=20  y=-30
     P2  inout  x=-20  y=0
     P1  inout  x=20  y=30
-
-  params [1]:
+  params:
+    format = @name @pinlist @symname
     template = name=x1
-
-  spice_prefix: X
-
-  drawing:
-    line 0 -30 0 30
-    line -20 0 -13 0
-    line -20 0 0 0
-    line 0 10 9 19
-    line 0 -10 20 -30
-    pin_positions:
-      P3: (20, -30)
-      P2: (-20, 0)
-      P1: (20, 30)
+    type = subcircuit
 
 SCHEMATIC
+  instances:
+    Rcx  resistor  x=440  y=-630  sym=res
+      .parameters{ value=1.716
++ TC1=0.113e-2  footprint=1206  device=resistor  m=1 }
+    Re  resistor  x=440  y=-190  sym=res
+      .parameters{ value=0.443  footprint=1206  device=resistor  m=1 }
+    Rbx  resistor  x=190  y=-380  rot=3  flip=1  sym=res
+      .parameters{ value=0.463 
++ TC1=0.14e-2  footprint=1206  device=resistor  m=1 }
+    Q1  npn  x=420  y=-380  sym=npn
+      .parameters{ model=BJTM1_Q2  device=BJTM1_Q2  footprint=SOT23  area=4 }
+    D1  diode  x=310  y=-460  rot=3  sym=diode  model=DiodeM1_Q2  area=1
+    Ccox  capacitor  x=310  y=-560  rot=3  sym=capa
+      .parameters{ m=1  value=6.598e-14  footprint=1206  device=ceramic capacitor }
+    p1  iopin  x=440  y=-720  sym=iopin
+    p2  iopin  x=440  y=-100  sym=iopin
+    Ceox  capacitor  x=250  y=-290  sym=capa
+      .parameters{ m=1  value=2.417e-14  footprint=1206  device=ceramic capacitor }
+    p3  iopin  x=60  y=-380  flip=1  sym=iopin
+    D2  diode  x=340  y=-290  sym=diode  model=DiodeM2_Q2  area=1
+    l2  lab_pin  x=440  y=-430  flip=1  sym=lab_pin  sig_type=std_logic
+    l3  lab_pin  x=440  y=-310  flip=1  sym=lab_pin  sig_type=std_logic
+    l4  lab_pin  x=300  y=-380  flip=1  sym=lab_wire  sig_type=std_logic
 
-
-  inout_pin [3]{name, x, y, rot, flip, lab}:
-    P3  440  -720  0  0  P3
-    P2  60  -380  0  0  P2
-    P1  440  -100  0  0  P1
-
-  instances [3]:
-    Rcx  res.sym  x=440  y=-630  value=1.716 + TC1=0.113e-2  footprint=1206  device=resistor  m=1
-    Re  res.sym  x=440  y=-190  value=0.443  footprint=1206  device=resistor  m=1
-    Rbx  res.sym  x=190  y=-380  rot=3  flip=1  value=0.463 + TC1=0.14e-2  footprint=1206  device=resistor  m=1
-
-  npn [1]{name, x, y, rot, flip, model, device, footprint, area}:
-    Q1  420  -380  0  0  BJTM1_Q2  BJTM1_Q2  SOT23  4
-
-  diodes [2]{name, x, y, rot, flip, model, area}:
-    D1  310  -460  3  0  DiodeM1_Q2  1
-    D2  340  -290  0  0  DiodeM2_Q2  1
-
-  capacitors [2]{name, x, y, rot, flip, m, value, footprint, device}:
-    Ccox  310  -560  3  0  1  6.598e-14  1206  ceramic capacitor
-    Ceox  250  -290  0  0  1  2.417e-14  1206  ceramic capacitor
-
-  code_blocks [1]:
-    MODELS  code  value=* This is the BJT model used in the Agilent MSA-26 model * documented in 5980-2496E.pdf. * Model entered 3.30.2003 by SDB .model BJTM1_Q2   NPN(Bf=1e6 IKF=5.895e-1 ISE=2.838e-19 NE=1.006 +  VAF=44 NF=1 TF=5.37e-12 XTF=20 VTF=0.8 ITF=8.872e-1 PTF=22 +  XTB=0.7 BR=1 IKR=4.4e-2 NC=2 VAR=3.37 NR=1.005 TR=4e-9 +  EG=1.17 IS=1.79e-17 XTI=3 TNOM=21 CJC=3.717e-14 +  VJC=0.6775 MJC=0.3319 XCJC=4.398e-1 FC=0.8 CJE=3.217e-13  +  VJE=0.9907 MJE=0.5063 RB=2.325 IRB=3.272e-4 RBM=2.5e-2 KF=1.026e-24)  * This is a diode model used in the Agilent MSA-26 model * documented in 5980-2496E.pdf. * Model entered 3.30.2003 by SDB .model DIODEM1_Q2   D(IS=5.62e-17 N=1 CJO=9.676e-14  +  VJ=0.729 M=0.44 FC=0.8 TNOM=21)  * This is a diode model used in the Agilent MSA-26 model * documented in 5980-2496E.pdf. * Model entered 3.30.2003 by SDB .model DIODEM2_Q2   D(IS=1e-24 N=1.0029 CJO=9.023e-14  +  VJ=0.8971 M=2.292e-1 FC=0.8 TNOM=21)  
-
-  wires [25]:
-    440 -160 440 -100
-    440 -350 440 -220
-    440 -600 440 -410
-    440 -720 440 -660
-    340 -560 440 -560
-    340 -460 440 -460
-    140 -460 280 -460
-    140 -560 140 -460
-    140 -560 280 -560
-    220 -380 400 -380
-    140 -380 160 -380
-    140 -460 140 -380
-    340 -240 440 -240
-    340 -260 340 -240
-    250 -140 440 -140
-    250 -260 250 -140
-    250 -380 250 -320
-    340 -380 340 -320
-    60 -380 140 -380
-    440 -720 440 -720 P3
-    440 -100 440 -100 P1
-    60 -380 60 -380 P2
-    440 -430 440 -430 C
-    440 -310 440 -310 E
-    300 -380 300 -380 B
+  wires:
+    440 -160 440 -100 P1
+    440 -350 440 -220 E
+    440 -600 440 -410 C
+    440 -720 440 -660 P3
+    340 -560 440 -560 C
+    340 -460 440 -460 C
+    140 -460 280 -460 P2
+    140 -560 140 -460 P2
+    140 -560 280 -560 P2
+    220 -380 400 -380 B
+    140 -380 160 -380 P2
+    140 -460 140 -380 P2
+    340 -240 440 -240 E
+    340 -260 340 -240 E
+    250 -140 440 -140 P1
+    250 -260 250 -140 P1
+    250 -380 250 -320 B
+    340 -380 340 -320 B
+    60 -380 140 -380 P2

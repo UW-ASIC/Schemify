@@ -1,49 +1,29 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [2]:
+SYMBOL rcline
+  pins:
     OUT  out  x=150  y=0
     IN  in  x=-150  y=0
-
-  params [1]:
+  params:
+    format = tcleval(@name @pinlist @symname [ calc_rc @L @W ])
     template = name=x1 Res=1e4 Cap=1e-6
-
-  spice_prefix: X
-
-  drawing:
-    line -130 -20 130 -20
-    line -130 20 130 20
-    line -130 -20 -130 20
-    line 130 -20 130 20
-    line 130 0 150 0
-    line -150 0 -130 0
-    pin_positions:
-      OUT: (150, 0)
-      IN: (-150, 0)
+    type = subcircuit
 
 SCHEMATIC
+  instances:
+    p1  ipin  x=170  y=-180  sym=ipin
+    p2  opin  x=420  y=-180  sym=opin
+    C1  capacitor  x=290  y=-100  sym=capa
+      .parameters{ m=1  value='Cap/2'  footprint=1206  device=ceramic capacitor }
+    R1  resistor  x=340  y=-180  rot=3  sym=res
+      .parameters{ value='Res/2'  footprint=1206  device=resistor  m=1 }
+    R2  resistor  x=240  y=-180  rot=3  sym=res
+      .parameters{ value='Res/2'  footprint=1206  device=resistor  m=1 }
+    l1  lab_pin  x=290  y=-40  sym=lab_pin  sig_type=std_logic
 
-
-  input_pin [1]{name, x, y, rot, flip, lab}:
-    IN  170  -180  0  0  IN
-
-  output_pin [1]{name, x, y, rot, flip, lab}:
-    OUT  420  -180  0  0  OUT
-
-  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
-    C1  290  -100  0  0  1  'Cap/2'  1206  ceramic capacitor
-
-  resistors [2]{name, x, y, rot, flip, value, footprint, device, m}:
-    R1  340  -180  3  0  'Res/2'  1206  resistor  1
-    R2  240  -180  3  0  'Res/2'  1206  resistor  1
-
-  wires [8]:
-    370 -180 420 -180
-    270 -180 310 -180
-    170 -180 210 -180
-    290 -180 290 -130
-    290 -70 290 -40
-    170 -180 170 -180 IN
-    420 -180 420 -180 OUT
-    290 -40 290 -40 0
+  wires:
+    370 -180 420 -180 OUT
+    270 -180 310 -180 net1
+    170 -180 210 -180 IN
+    290 -180 290 -130 net1
+    290 -70 290 -40 0

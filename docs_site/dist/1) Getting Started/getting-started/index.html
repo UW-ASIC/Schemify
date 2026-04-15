@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Getting Started — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Getting Started</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link active">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Getting Started</h1>
+<h2>Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Minimum version</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Zig</td>
+<td>0.15.2</td>
+<td>included in the Nix shell</td>
+</tr>
+<tr>
+<td>Verilator</td>
+<td>5.x</td>
+<td>for digital co-simulation</td>
+</tr>
+<tr>
+<td>Yosys</td>
+<td>0.38+</td>
+<td>for RTL synthesis</td>
+</tr>
+<tr>
+<td>ngspice</td>
+<td>42+</td>
+<td>for analog simulation</td>
+</tr>
+</tbody></table>
+<h2>Quick Start (Nix)</h2>
+<pre><code class="hljs language-bash"><span class="hljs-comment"># Clone the repository</span>
+git <span class="hljs-built_in">clone</span> https://github.com/UWASIC/Schemify.git
+<span class="hljs-built_in">cd</span> Schemify
+
+<span class="hljs-comment"># Enter the development shell (provides Zig, Verilator, Yosys, …)</span>
+nix develop
+
+<span class="hljs-comment"># Build and run</span>
+zig build run
+
+<span class="hljs-comment"># Run with a project directory</span>
+zig build run -- /path/to/my-project
+</code></pre><h2>Quick Start (Manual)</h2>
+<p>If you prefer not to use Nix, install Zig 0.15.2 manually and ensure <code>verilator</code> and <code>yosys</code> are on your <code>$PATH</code>.</p>
+<pre><code class="hljs language-bash">zig build        <span class="hljs-comment"># build only</span>
+zig build run    <span class="hljs-comment"># build + run</span>
+zig build <span class="hljs-built_in">test</span>   <span class="hljs-comment"># run all tests</span>
+</code></pre><h2>Web Build</h2>
+<pre><code class="hljs language-bash">zig build -Dbackend=web
+<span class="hljs-comment"># Output: zig-out/web/</span>
+<span class="hljs-comment"># Serve with any static file server</span>
+</code></pre><h2>Opening a Project</h2>
+<p>Schemify looks for a <code>Config.toml</code> in the directory passed as the first argument (or the current directory if none is given):</p>
+<pre><code class="hljs language-bash"><span class="hljs-comment"># Opens the project defined in ~/designs/inverter/Config.toml</span>
+schemify ~/designs/inverter
+</code></pre><h2>CLI Usage</h2>
+<p>Schemify has a first-class headless CLI — no display, no Tcl, no virtual framebuffer.</p>
+<pre><code class="hljs language-bash"><span class="hljs-comment"># Generate SPICE netlist</span>
+schemify --netlist output.spice schematic.chn
+
+<span class="hljs-comment"># Generate Xyce-compatible netlist</span>
+schemify --netlist --xyce output.spice schematic.chn
+
+<span class="hljs-comment"># Export SVG render</span>
+schemify --export-svg render.svg schematic.chn
+
+<span class="hljs-comment"># Install a plugin</span>
+schemify --plugin-install https://example.com/plugin.wasm
+</code></pre><h2>First Project</h2>
+<p>Create a directory with a <code>Config.toml</code>:</p>
+<pre><code class="hljs language-toml"><span class="hljs-attr">name</span> = <span class="hljs-string">&quot;My First Design&quot;</span>
+<span class="hljs-attr">pdk</span>  = <span class="hljs-string">&quot;sky130&quot;</span>
+
+<span class="hljs-section">[paths]</span>
+<span class="hljs-attr">chn</span>    = [<span class="hljs-string">&quot;top.chn&quot;</span>]
+<span class="hljs-attr">chn_tb</span> = [<span class="hljs-string">&quot;tb.chn_tb&quot;</span>]
+</code></pre><p>Then run <code>schemify .</code> inside that directory.</p>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

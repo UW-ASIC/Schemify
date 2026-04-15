@@ -1,119 +1,111 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH classD_amp
+  instances:
+    xm2  nmos  x=440  y=-770  sym=nmos3
+      .parameters{ model=irf540  m=1  program=evince  url=https://www.vishay.com/docs/91021/irf540.pdf }
+    xm1  nmos  x=440  y=-1090  sym=nmos3
+      .parameters{ model=irf540  m=1  program=xdg-open  url=https://www.vishay.com/docs/91021/irf540.pdf }
+    p18  lab_pin  x=460  y=-640  sym=lab_pin
+    vd  vsource  x=460  y=-870  sym=ammeter
+    vu  vsource  x=460  y=-970  sym=ammeter
+    p27  lab_pin  x=460  y=-1160  sym=lab_pin
+    p3  lab_pin  x=460  y=-910  sym=lab_pin
+    x1  subckt  x=550  y=-370  rot=2  flip=1  sym=comp_ngspice  OFFSET=5  AMPLITUDE=10
+    p6  lab_pin  x=750  y=-370  flip=1  sym=lab_pin
+    VVPP  vsource  x=70  y=-540  sym=vsource  value=40
+    p9  lab_pin  x=70  y=-490  sym=lab_pin
+    p10  lab_pin  x=70  y=-590  sym=lab_pin
+    VVNN  vsource  x=190  y=-540  sym=vsource  value=-40
+    p11  lab_pin  x=190  y=-490  sym=lab_pin
+    p12  lab_pin  x=190  y=-590  sym=lab_pin
+    VVSS  vsource  x=70  y=-400  sym=vsource  value=0
+    p13  lab_pin  x=70  y=-350  sym=lab_pin
+    p14  lab_pin  x=70  y=-450  sym=lab_pin
+    R2  resistor  x=310  y=-1090  rot=1  flip=1  sym=res  m=1  value=2
+    R3  resistor  x=310  y=-770  rot=1  flip=1  sym=res  m=1  value=2
+    C3  capacitor  x=370  y=-1080  sym=parax_cap  gnd=0  value=20f  m=1
+    C1  capacitor  x=370  y=-760  sym=parax_cap  gnd=0  value=20f  m=1
+    C2  capacitor  x=610  y=-910  sym=parax_cap  gnd=0  value=10n  m=1
+    l19  lab_pin  x=410  y=-1090  sym=lab_wire
+    l2  lab_pin  x=410  y=-770  sym=lab_wire
+    V6  vsource  x=440  y=-180  sym=vsource  value=pulse 0 {VCC} 0 5u 5u 5p 10u
+    p19  lab_pin  x=440  y=-130  sym=lab_pin
+    p20  lab_pin  x=440  y=-230  sym=lab_pin
+    V7  vsource  x=280  y=-180  sym=vsource  value=SIN ( 5 4 2000 0 0 0 )
+    p21  lab_pin  x=280  y=-130  sym=lab_pin
+    p22  lab_pin  x=280  y=-230  sym=lab_pin
+    C4  capacitor  x=660  y=-360  sym=parax_cap  gnd=0  value=200f  m=1
+    L3  inductor  x=710  y=-920  rot=1  sym=ind
+      .parameters{ m=1  value=0.03m  footprint=1206  device=inductor }
+    C5  capacitor  x=780  y=-860  sym=capa
+      .parameters{ m=1  value=20u  footprint=1206  device=ceramic capacitor }
+    p4  lab_pin  x=940  y=-920  flip=1  sym=lab_pin
+    p7  lab_pin  x=780  y=-810  sym=lab_pin
+    R4  resistor  x=900  y=-860  flip=1  sym=res  m=1  value=8
+    p8  lab_pin  x=900  y=-810  sym=lab_pin
+    x2  subckt  x=550  y=-520  sym=comp_ngspice  OFFSET=5  AMPLITUDE=10
+    p1  lab_pin  x=750  y=-520  flip=1  sym=lab_pin
+    C6  capacitor  x=660  y=-510  sym=parax_cap  gnd=0  value=200f  m=1
+    Voffs  vsource  x=440  y=-460  sym=vsource  value=0.1
+    p2  lab_pin  x=440  y=-490  sym=lab_pin
+    Voffs1  vsource  x=440  y=-310  rot=2  flip=1  sym=vsource  value=0.1
+    p5  lab_pin  x=440  y=-340  sym=lab_pin
+    p17  lab_pin  x=440  y=-280  sym=lab_pin
+    p23  lab_pin  x=440  y=-430  sym=lab_pin
+    E1  vcvs  x=220  y=-1050  sym=vcvs  value=1
+    E2  vcvs  x=220  y=-730  sym=vcvs  value=1
+    p15  lab_pin  x=180  y=-710  sym=lab_pin
+    p16  lab_pin  x=180  y=-1030  sym=lab_pin
+    p24  lab_pin  x=180  y=-1070  sym=lab_pin
+    p25  lab_pin  x=180  y=-750  sym=lab_pin
 
-  instances [2]:
-    xm2  nmos3.sym  x=440  y=-770  model=irf540  m=1  program=evince  url=https://www.vishay.com/docs/91021/irf540.pdf  device_model=.SUBCKT irf540 1 2 3 M1 9 7 8 8 MM L=100u W=100u * Default values used in MM: * The voltage-dependent capacitances are * not included. Other default values are: * RS=0 RD=0 LD=0 CBD=0 CBS=0 CGBO=0 .MODEL MM NMOS LEVEL=1 IS=1e-32 +VTO=3.56362 LAMBDA=0.00291031 KP=25.0081 +CGSO=1.60584e-05 CGDO=4.25919e-07 RS 8 3 0.0317085 D1 3 1 MD .MODEL MD D IS=1.02194e-10 RS=0.00968022 N=1.21527 BV=100 +IBV=0.00025 EG=1.2 XTI=3.03885 TT=1e-07 +CJO=1.81859e-09 VJ=1.1279 M=0.449161 FC=0.5 RDS 3 1 4e+06 RD 9 1 0.0135649 RG 2 7 5.11362 D2 4 5 MD1 * Default values used in MD1: * RS=0 EG=1.11 XTI=3.0 TT=0 * BV=infinite IBV=1mA .MODEL MD1 D IS=1e-32 N=50 +CJO=2.49697e-09 VJ=0.5 M=0.9 FC=1e-08 D3 0 5 MD2 * Default values used in MD2: * EG=1.11 XTI=3.0 TT=0 CJO=0 * BV=infinite IBV=1mA .MODEL MD2 D IS=1e-10 N=0.4 RS=3e-06 RL 5 10 1 FI2 7 9 VFI2 -1 VFI2 4 0 0 EV16 10 0 9 7 1 CAP 11 10 2.49697e-09 FI1 7 9 VFI1 -1 VFI1 11 6 0 RCAP 6 10 1 D4 0 6 MD3 * Default values used in MD3: * EG=1.11 XTI=3.0 TT=0 CJO=0 * RS=0 BV=infinite IBV=1mA .MODEL MD3 D IS=1e-10 N=0.4 .ENDS 
-    xm1  nmos3.sym  x=440  y=-1090  model=irf540  m=1  program=xdg-open  url=https://www.vishay.com/docs/91021/irf540.pdf  device_model=.SUBCKT irf540 1 2 3 M1 9 7 8 8 MM L=100u W=100u * Default values used in MM: * The voltage-dependent capacitances are * not included. Other default values are: * RS=0 RD=0 LD=0 CBD=0 CBS=0 CGBO=0 .MODEL MM NMOS LEVEL=1 IS=1e-32 +VTO=3.56362 LAMBDA=0.00291031 KP=25.0081 +CGSO=1.60584e-05 CGDO=4.25919e-07 RS 8 3 0.0317085 D1 3 1 MD .MODEL MD D IS=1.02194e-10 RS=0.00968022 N=1.21527 BV=100 +IBV=0.00025 EG=1.2 XTI=3.03885 TT=1e-07 +CJO=1.81859e-09 VJ=1.1279 M=0.449161 FC=0.5 RDS 3 1 4e+06 RD 9 1 0.0135649 RG 2 7 5.11362 D2 4 5 MD1 * Default values used in MD1: * RS=0 EG=1.11 XTI=3.0 TT=0 * BV=infinite IBV=1mA .MODEL MD1 D IS=1e-32 N=50 +CJO=2.49697e-09 VJ=0.5 M=0.9 FC=1e-08 D3 0 5 MD2 * Default values used in MD2: * EG=1.11 XTI=3.0 TT=0 CJO=0 * BV=infinite IBV=1mA .MODEL MD2 D IS=1e-10 N=0.4 RS=3e-06 RL 5 10 1 FI2 7 9 VFI2 -1 VFI2 4 0 0 EV16 10 0 9 7 1 CAP 11 10 2.49697e-09 FI1 7 9 VFI1 -1 VFI1 11 6 0 RCAP 6 10 1 D4 0 6 MD3 * Default values used in MD3: * EG=1.11 XTI=3.0 TT=0 CJO=0 * RS=0 BV=infinite IBV=1mA .MODEL MD3 D IS=1e-10 N=0.4 .ENDS 
+  nets:
+    REFD  -> x1.PLUS
+    DRIVED  -> x1.OUT
+    IN  -> x1.MINUS, x2.PLUS
+    DRIVEU  -> x2.OUT
+    REFU  -> x2.MINUS
 
-  vsource [2]{name, x, y, rot, flip}:
-    vd  460  -870  0  0
-    vu  460  -970  0  0
-
-  instances [7]:
-    x1  comp_ngspice.chn  x=550  y=-370  rot=2  flip=1  OFFSET=5  AMPLITUDE=10
-    C3  parax_cap.chn  x=370  y=-1080  gnd=0  value=20f  m=1
-    C1  parax_cap.chn  x=370  y=-760  gnd=0  value=20f  m=1
-    C2  parax_cap.chn  x=610  y=-910  gnd=0  value=10n  m=1
-    C4  parax_cap.chn  x=660  y=-360  gnd=0  value=200f  m=1
-    x2  comp_ngspice.chn  x=550  y=-520  OFFSET=5  AMPLITUDE=10
-    C6  parax_cap.chn  x=660  y=-510  gnd=0  value=200f  m=1
-
-  vsource [7]{name, x, y, rot, flip, value}:
-    VVPP  70  -540  0  0  40
-    VVNN  190  -540  0  0  -40
-    VVSS  70  -400  0  0  0
-    V6  440  -180  0  0  pulse 0 {VCC} 0 5u 5u 5p 10u
-    V7  280  -180  0  0  SIN ( 5 4 2000 0 0 0 )
-    Voffs  440  -460  0  0  0.1
-    Voffs1  440  -310  2  1  0.1
-
-  resistors [3]{name, x, y, rot, flip, m, value}:
-    R2  310  -1090  1  1  1  2
-    R3  310  -770  1  1  1  2
-    R4  900  -860  0  1  1  8
-
-  inductors [1]{name, x, y, rot, flip, m, value, footprint, device}:
-    L3  710  -920  1  0  1  0.03m  1206  inductor
-
-  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
-    C5  780  -860  0  0  1  20u  1206  ceramic capacitor
-
-  vcvs [2]{name, x, y, rot, flip, value}:
-    E1  220  -1050  0  0  1
-    E2  220  -730  0  0  1
-
-  code_blocks [2]:
-    COMMANDS  code  simulator=ngspice  only_toplevel=false  value=.param VCC=10 VGATE=10 .control save all tran 100n 2000u uic write classD_amp.raw quit 0 .endc 
-    COMMANDS1  code  simulator=xyce  only_toplevel=false  value=.param VCC=10 VGATE=10 .tran 100n 2000u uic .print tran format=raw + file=classD_amp.raw v(*) i(*) 
-
-  wires [69]:
-    460 -1020 460 -1000
-    460 -920 460 -900
-    460 -840 460 -800
-    460 -1060 460 -1020
-    460 -700 460 -640
-    460 -940 460 -920
-    460 -1160 460 -1120
-    220 -1020 460 -1020
-    340 -1090 420 -1090
-    220 -700 460 -700
-    340 -770 420 -770
-    610 -370 750 -370
-    70 -510 70 -490
-    70 -590 70 -570
-    190 -510 190 -490
-    190 -590 190 -570
-    70 -370 70 -350
-    70 -450 70 -430
-    220 -1090 280 -1090
-    220 -770 280 -770
-    440 -150 440 -130
-    280 -150 280 -130
-    780 -920 780 -890
-    740 -920 780 -920
-    460 -740 460 -700
-    460 -920 680 -920
-    780 -830 780 -810
-    900 -830 900 -810
-    900 -920 900 -890
-    900 -920 940 -920
-    780 -920 900 -920
-    280 -400 490 -400
-    280 -400 280 -210
-    610 -520 750 -520
-    440 -490 490 -490
-    440 -340 490 -340
-    280 -550 490 -550
-    280 -550 280 -400
-    440 -230 440 -210
-    220 -1090 220 -1080
-    220 -770 220 -760
-    460 -640 460 -640 VNN
-    460 -1160 460 -1160 VPP
-    460 -910 460 -910 OUT
-    750 -370 750 -370 DRIVED
-    70 -490 70 -490 VSS
-    70 -590 70 -590 VPP
-    190 -490 190 -490 VSS
-    190 -590 190 -590 VNN
-    70 -350 70 -350 0
-    70 -450 70 -450 VSS
-    410 -1090 410 -1090 GU_I
-    410 -770 410 -770 GD_I
-    440 -130 440 -130 VSS
-    440 -230 440 -230 REF
-    280 -130 280 -130 VSS
-    280 -230 280 -230 IN
-    940 -920 940 -920 OUT_LPF
-    780 -810 780 -810 VSS
-    900 -810 900 -810 VSS
-    750 -520 750 -520 DRIVEU
-    440 -490 440 -490 REFU
-    440 -340 440 -340 REFD
-    440 -280 440 -280 REF
-    440 -430 440 -430 REF
-    180 -710 180 -710 VSS
-    180 -1030 180 -1030 VSS
-    180 -1070 180 -1070 DRIVEU
-    180 -750 180 -750 DRIVED
+  wires:
+    460 -1020 460 -1000 net1
+    460 -920 460 -900 OUT
+    460 -840 460 -800 net2
+    460 -1060 460 -1020 net1
+    460 -700 460 -640 VNN
+    460 -940 460 -920 OUT
+    460 -1160 460 -1120 VPP
+    220 -1020 460 -1020 net1
+    340 -1090 420 -1090 GU_I
+    220 -700 460 -700 VNN
+    340 -770 420 -770 GD_I
+    610 -370 750 -370 DRIVED
+    70 -510 70 -490 VSS
+    70 -590 70 -570 VPP
+    190 -510 190 -490 VSS
+    190 -590 190 -570 VNN
+    70 -370 70 -350 0
+    70 -450 70 -430 VSS
+    220 -1090 280 -1090 net3
+    220 -770 280 -770 net4
+    440 -150 440 -130 VSS
+    280 -150 280 -130 VSS
+    780 -920 780 -890 OUT_LPF
+    740 -920 780 -920 OUT_LPF
+    460 -740 460 -700 VNN
+    460 -920 680 -920 OUT
+    780 -830 780 -810 VSS
+    900 -830 900 -810 VSS
+    900 -920 900 -890 OUT_LPF
+    900 -920 940 -920 OUT_LPF
+    780 -920 900 -920 OUT_LPF
+    280 -400 490 -400 IN
+    280 -400 280 -210 IN
+    610 -520 750 -520 DRIVEU
+    440 -490 490 -490 REFU
+    440 -340 490 -340 REFD
+    280 -550 490 -550 IN
+    280 -550 280 -400 IN
+    440 -230 440 -210 REF
+    220 -1090 220 -1080 net3
+    220 -770 220 -760 net4

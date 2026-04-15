@@ -1,0 +1,116 @@
+chn_testbench 1
+
+TESTBENCH MSA-2643
+  instances:
+    x1  subckt  x=580  y=-430  sym=Q1
+    x2  subckt  x=680  y=-370  sym=Q2
+    Vin  vsource  x=70  y=-140  sym=vsource  value=dc 0 ac 1 0 SIN 0 0.1 1G 0 0
+    Rth_in  resistor  x=120  y=-390  rot=3  sym=res
+      .parameters{ value=50  footprint=1206  device=resistor  m=1 }
+    Cin  capacitor  x=210  y=-390  rot=3  sym=capa
+      .parameters{ m=1  value=39p  footprint=1206  device=ceramic capacitor }
+    l2  gnd  x=70  y=-110  sym=gnd
+    L1  inductor  x=430  y=-390  rot=3  sym=ind
+      .parameters{ m=1  value=0.833n  footprint=1206  device=inductor }
+    Cpara1  capacitor  x=380  y=-260  sym=capa
+      .parameters{ m=1  value=0.158p  footprint=1206  device=ceramic capacitor }
+    L4  inductor  x=430  y=-170  rot=3  sym=ind
+      .parameters{ m=1  value=0.386n  footprint=1206  device=inductor }
+    l3  gnd  x=240  y=-110  sym=gnd
+    R1  resistor  x=500  y=-520  sym=res
+      .parameters{ value=560  footprint=1206  device=resistor  m=1 }
+    R2  resistor  x=500  y=-260  sym=res
+      .parameters{ value=660  footprint=1206  device=resistor  m=1 }
+    R3  resistor  x=600  y=-260  sym=res
+      .parameters{ value=250  footprint=1206  device=resistor  m=1 }
+    R4  resistor  x=700  y=-260  sym=res
+      .parameters{ value=5  footprint=1206  device=resistor  m=1 }
+    C1  capacitor  x=770  y=-260  sym=capa
+      .parameters{ m=1  value=4p  footprint=1206  device=ceramic capacitor }
+    L6  inductor  x=830  y=-170  rot=3  sym=ind
+      .parameters{ m=1  value=0.313n  footprint=1206  device=inductor }
+    Cpara2  capacitor  x=890  y=-260  sym=capa
+      .parameters{ m=1  value=0.155p  footprint=1206  device=ceramic capacitor }
+    L7  inductor  x=830  y=-590  rot=3  sym=ind
+      .parameters{ m=1  value=0.407n  footprint=1206  device=inductor }
+    l4  gnd  x=1050  y=-110  flip=1  sym=gnd
+    Vpwr  vsource  x=1100  y=-140  sym=vsource  value=dc 5
+    l5  gnd  x=1100  y=-110  sym=gnd
+    Rc  resistor  x=1100  y=-260  sym=res
+      .parameters{ value=50  footprint=1206  device=resistor  m=1 }
+    Lc  inductor  x=1100  y=-420  sym=ind
+      .parameters{ m=1  value=47n  footprint=1206  device=inductor }
+    Cout  capacitor  x=1150  y=-590  rot=3  sym=capa
+      .parameters{ m=1  value=39p  footprint=1206  device=ceramic capacitor }
+    RL  resistor  x=1220  y=-500  sym=res
+      .parameters{ value=50  footprint=1206  device=resistor  m=1 }
+    l6  gnd  x=1220  y=-470  sym=gnd
+    p1  opin  x=1260  y=-590  sym=opin
+    l7  lab_pin  x=530  y=-430  flip=1  sym=lab_wire
+    l8  lab_pin  x=620  y=-370  flip=1  sym=lab_wire
+    l9  lab_pin  x=550  y=-590  flip=1  sym=lab_wire
+    l10  lab_pin  x=730  y=-320  flip=1  sym=lab_wire
+    l11  lab_pin  x=510  y=-170  flip=1  sym=lab_wire
+    l12  lab_pin  x=900  y=-590  flip=1  sym=lab_wire
+    l13  lab_pin  x=310  y=-390  flip=1  sym=lab_wire
+    p2  ipin  x=50  y=-390  sym=ipin
+    Rparax1  resistor  x=330  y=-170  rot=1  sym=res
+      .parameters{ value=0.1  footprint=1206  device=resistor  m=1 }
+    Rparax2  resistor  x=940  y=-170  rot=1  sym=res
+      .parameters{ value=0.1  footprint=1206  device=resistor  m=1 }
+    vmeasure  vsource  x=1100  y=-510  rot=2  sym=ammeter  current=0.02882
+
+  wires:
+    500 -430 560 -430 B1
+    500 -430 500 -390 B1
+    460 -390 500 -390 B1
+    380 -390 380 -290 VIN_IN
+    380 -390 400 -390 VIN_IN
+    150 -390 180 -390 net1
+    70 -390 70 -170 Vin
+    70 -390 90 -390 Vin
+    380 -170 400 -170 net2
+    380 -230 380 -170 net2
+    360 -170 380 -170 net2
+    240 -170 240 -110 0
+    500 -490 500 -430 B1
+    500 -390 500 -290 B1
+    500 -230 500 -170 GND_IN
+    460 -170 500 -170 GND_IN
+    600 -370 600 -290 B2
+    600 -230 600 -170 GND_IN
+    500 -170 600 -170 GND_IN
+    600 -370 660 -370 B2
+    700 -590 700 -400 C
+    500 -590 500 -550 C
+    500 -590 700 -590 C
+    700 -320 700 -290 E2
+    700 -230 700 -170 GND_IN
+    600 -170 700 -170 GND_IN
+    700 -320 770 -320 E2
+    770 -320 770 -290 E2
+    770 -230 770 -170 GND_IN
+    700 -170 770 -170 GND_IN
+    770 -170 800 -170 GND_IN
+    700 -590 800 -590 C
+    890 -590 890 -290 VCC_IN
+    860 -590 890 -590 VCC_IN
+    890 -230 890 -170 net3
+    970 -170 1050 -170 0
+    1050 -170 1050 -110 0
+    240 -390 380 -390 VIN_IN
+    600 -400 600 -370 B2
+    700 -340 700 -320 E2
+    860 -170 890 -170 net3
+    600 -590 600 -460 C
+    1100 -230 1100 -170 net4
+    1100 -390 1100 -290 net5
+    1100 -480 1100 -450 net6
+    890 -590 1100 -590 VCC_IN
+    1100 -590 1120 -590 VCC_IN
+    1180 -590 1260 -590 Vout
+    1220 -590 1220 -530 Vout
+    50 -390 70 -390 Vin
+    240 -170 300 -170 0
+    890 -170 910 -170 net3
+    1100 -590 1100 -540 VCC_IN

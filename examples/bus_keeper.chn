@@ -1,0 +1,35 @@
+chn 1
+
+SYMBOL bus_keeper
+  pins:
+    A  inout  x=160  y=-300
+  params:
+    format = @name @pinlist @symname WN_FB=@WN_FB WP_FB=@WP_FB
+    template = name=X1 WN_FB=1u WP_FB=2u
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    X2  subckt  x=150  y=-70  sym=cmos_inv
+      .parameters{ WN=15u  WP=45u  LLN=3u  LLP=3u }
+    X1  subckt  x=580  y=-460  flip=1  sym=cmos_inv
+      .parameters{ WN=WN_FB  WP=WP_FB  LLN=3u  LLP=3u }
+    p1  iopin  x=160  y=-300  flip=1  sym=iopin
+    C1  capacitor  x=550  y=-270  sym=capa
+      .parameters{ m=1  value=10f  footprint=1206  device=ceramic capacitor }
+    l2  gnd  x=550  y=-200  sym=gnd
+    l3  lab_pin  x=550  y=-550  sym=lab_pin  sig_type=std_logic
+
+  nets:
+    Y  -> X2.Z, X1.A
+    A  -> X2.A, X1.Z
+
+  wires:
+    190 -690 190 -300 A
+    550 -690 550 -300 Y
+    550 -240 550 -200 0
+    190 -300 210 -300 A
+    520 -300 550 -300 Y
+    520 -690 550 -690 Y
+    190 -690 210 -690 A
+    160 -300 190 -300 A

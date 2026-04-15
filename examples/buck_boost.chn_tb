@@ -1,0 +1,51 @@
+chn_testbench 1
+
+TESTBENCH buck_boost
+  instances:
+    RLOAD  resistor  x=780  y=-150  sym=res
+      .parameters{ value=30  footprint=1206  device=resistor  m=1 }
+    l6  lab_pin  x=800  y=-330  rot=2  sym=lab_pin
+    l2  lab_pin  x=780  y=-100  sym=lab_pin
+    C1  capacitor  x=680  y=-150  sym=capa
+      .parameters{ m=1  value=20u ic=42  footprint=1206  device=ceramic capacitor }
+    l7  lab_pin  x=680  y=-100  sym=lab_pin
+    l10  lab_pin  x=420  y=-330  flip=1  sym=lab_wire
+    l11  lab_pin  x=80  y=-330  sym=lab_pin
+    vbatt  vsource  x=780  y=-210  flip=1  sym=ammeter
+    p3  ipin  x=-50  y=-430  sym=ipin
+    vdiode  vsource  x=370  y=-330  rot=1  sym=ammeter
+    XD2  diode  x=530  y=-330  rot=1  sym=diode
+      .parameters{ model=STPST15H100SB  area=1  hide_texts=true  attach=XD2 }
+    l3  lab_pin  x=80  y=-100  sym=lab_pin
+    l8  inductor  x=300  y=-210  sym=ind  value=50u ic=5  hide_texts=true  attach=l8
+    Rind1  resistor  x=300  y=-150  sym=res
+      .parameters{ value=0.05  footprint=1206  device=resistor  m=1  hide_texts=true  attach=Rind1 }
+    l4  lab_pin  x=150  y=-430  flip=1  sym=lab_wire
+    x1  subckt  x=70  y=-430  sym=buf_ngspice  RUP=10  RDOWN=10
+    VSUPPLY  vsource  x=80  y=-200  sym=vsource  value=12  savecurrent=false
+    l12  lab_pin  x=300  y=-100  sym=lab_pin
+    XM1  pmos  x=150  y=-350  rot=3  flip=1  sym=pmos3  model=irf5305  m=1
+    vm1  vsource  x=250  y=-330  rot=3  flip=1  sym=ammeter
+    vind  vsource  x=300  y=-280  flip=1  sym=ammeter
+
+  wires:
+    780 -330 800 -330 BATT
+    780 -120 780 -100 0
+    680 -330 680 -180 BATT
+    680 -120 680 -100 0
+    780 -330 780 -240 BATT
+    680 -330 780 -330 BATT
+    400 -330 500 -330 DIODE
+    110 -430 150 -430 G1
+    -50 -430 30 -430 PWM1
+    80 -170 80 -100 0
+    80 -330 80 -230 SUPPLY
+    300 -250 300 -240 net1
+    300 -120 300 -100 0
+    560 -330 680 -330 BATT
+    80 -330 120 -330 SUPPLY
+    150 -430 150 -370 G1
+    300 -330 340 -330 net2
+    280 -330 300 -330 net2
+    180 -330 220 -330 net3
+    300 -330 300 -310 net2

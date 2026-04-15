@@ -1,73 +1,47 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [2]:
+SYMBOL cmos_inv
+  pins:
     Z  out  x=40  y=0
     A  in  x=-40  y=0
-
-  params [4]:
-    type = subcircuit
-    function0 = 1 ~
+  params:
     format = @name @pinlist @symname WN=@WN WP=@WP LLN=@LLN LLP=@LLP m=@m
     template = name=X1 WN=15u WP=45u LLN=3u LLP=3u m=1
-
-  spice_prefix: X
-
+    type = subcircuit
   drawing:
-    line -40 0 -28 0
-    line -28 -20 -28 20
-    line -28 -20 16 0
-    line -28 20 16 0
-    line 26 0 40 0
     arc 90 -410 14 135 360
-    arc 21 0 5 180 360
-    pin_positions:
-      Z: (40, 0)
-      A: (-40, 0)
 
 SCHEMATIC
+  instances:
+    p2  opin  x=370  y=-230  sym=opin
+    p1  ipin  x=60  y=-230  sym=ipin  goto=0
+    l1  vdd  x=140  y=-400  sym=vdd
+    l2  lab_pin  x=140  y=-120  sym=lab_pin  sig_type=std_logic
+    M2  pmos  x=120  y=-350  sym=pmos4
+      .parameters{ model=p  w=WP  l=LLP  m=1 }
+    M1  nmos  x=120  y=-170  sym=nmos4
+      .parameters{ model=n  w=WN  l=LLN  m=1 }
+    l3  lab_pin  x=200  y=-170  flip=1  sym=lab_pin  sig_type=std_logic
+    l4  lab_pin  x=200  y=-350  flip=1  sym=lab_pin  sig_type=std_logic
+    R1  resistor  x=210  y=-230  rot=1  sym=res
+      .parameters{ value=10  footprint=1206  device=resistor  m=1 }
+    l6  lab_pin  x=140  y=-220  flip=1  sym=lab_pin  sig_type=std_logic
+    l7  lab_pin  x=80  y=-320  flip=1  sym=lab_pin  sig_type=std_logic
+    V1  vsource  x=140  y=-260  sym=ammeter
+    Vmeas  vsource  x=300  y=-230  rot=3  sym=ammeter  savecurrent=true
 
-
-  input_pin [1]{name, x, y, rot, flip, lab}:
-    A  80  -320  0  0  A
-
-  output_pin [1]{name, x, y, rot, flip, lab}:
-    Z  370  -230  0  0  Z
-
-  pmos [1]{name, x, y, rot, flip, model, w, l, m}:
-    M2  120  -350  0  0  p  WP  LLP  1
-
-  nmos [1]{name, x, y, rot, flip, model, w, l, m}:
-    M1  120  -170  0  0  n  WN  LLN  1
-
-  resistors [1]{name, x, y, rot, flip, value, footprint, device, m}:
-    R1  210  -230  1  0  10  1206  resistor  1
-
-  vsource [2]{name, x, y, rot, flip, savecurrent}:
-    V1  140  -260  0  0  -
-    Vmeas  300  -230  3  0  true
-
-  wires [22]:
-    80 -230 80 -170
-    60 -230 80 -230
-    140 -400 140 -380
-    140 -140 140 -120
-    140 -230 180 -230
-    140 -320 140 -290
-    140 -230 140 -200
-    80 -350 100 -350
-    80 -170 100 -170
-    330 -230 370 -230
-    240 -230 270 -230
-    140 -350 200 -350
-    140 -170 200 -170
-    80 -350 80 -230
-    370 -230 370 -230 Z
-    60 -230 60 -230 A
-    140 -400 140 -400 VDD
-    140 -120 140 -120 0
-    200 -170 200 -170 0
-    200 -350 200 -350 VDD
-    140 -220 140 -220 D
-    80 -320 80 -320 A
+  wires:
+    80 -230 80 -170 A
+    60 -230 80 -230 A
+    140 -400 140 -380 VDD
+    140 -140 140 -120 0
+    140 -230 180 -230 D
+    140 -320 140 -290 net1
+    140 -230 140 -200 D
+    80 -350 100 -350 A
+    80 -170 100 -170 A
+    330 -230 370 -230 Z
+    240 -230 270 -230 net2
+    140 -350 200 -350 VDD
+    140 -170 200 -170 0
+    80 -350 80 -230 A

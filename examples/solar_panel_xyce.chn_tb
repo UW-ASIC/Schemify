@@ -1,0 +1,88 @@
+chn_testbench 1
+
+TESTBENCH solar_panel_xyce
+  instances:
+    V1  vsource  x=80  y=-340  sym=vsource  value=21
+    l3  lab_pin  x=80  y=-310  sym=lab_pin  sig_type=std_logic
+    R1  resistor  x=80  y=-400  sym=res
+      .parameters{ value=1.4  footprint=1206  device=resistor  m=1 }
+    l4  lab_pin  x=460  y=-450  flip=1  sym=lab_pin  sig_type=std_logic
+    l5  lab_pin  x=80  y=-450  sym=lab_pin  sig_type=std_logic
+    l6  lab_pin  x=570  y=-250  sym=lab_pin  sig_type=std_logic
+    Vled  vsource  x=1110  y=-480  rot=3  sym=ammeter
+    L1  inductor  x=930  y=-650  rot=3  flip=1  sym=ind
+      .parameters{ m=1  value=40u  footprint=1206  device=inductor }
+    l7  lab_pin  x=1180  y=-480  flip=1  sym=lab_pin  sig_type=std_logic
+    l8  lab_pin  x=610  y=-870  sym=lab_pin  sig_type=std_logic
+    l9  lab_pin  x=860  y=-590  flip=1  sym=lab_pin  sig_type=std_logic
+    C1  capacitor  x=1050  y=-320  sym=capa
+      .parameters{ m=1  value=10u  footprint=1206  device=ceramic capacitor }
+    Vpanel  vsource  x=340  y=-450  rot=3  sym=ammeter
+    l10  lab_pin  x=1050  y=-440  flip=1  sym=lab_pin  sig_type=std_logic
+    Vset1  vsource  x=610  y=-780  sym=vsource  value=pulse -1 1 0 1n 1n 1.9u 5u
+    l13  lab_pin  x=610  y=-750  sym=lab_pin  sig_type=std_logic
+    l2  lab_pin  x=570  y=-650  sym=lab_pin  sig_type=std_logic
+    Vind  vsource  x=990  y=-650  rot=3  sym=ammeter
+    C2  capacitor  x=385  y=-390  sym=capa
+      .parameters{ m=1  value=10u  footprint=1206  device=ceramic capacitor }
+    l11  lab_pin  x=385  y=-310  sym=lab_pin  sig_type=std_logic
+    G2[9:0]  isource  x=1140  y=-320  sym=isource_table  CTRL=V(LED)  TABLE=
++ (0, 0)
++ (4.8, 5m)
++ (5.2, 15m)
++ (5.6, 46m)
++ (5.8, 80m)
++ (6.0, 115m)
++ (6.2, 157m)
++ (6.4, 202m)
++ (6.6, 245m)
++ (6.8, 290m)
++ (7.0, 337m)
++ (7.2, 395m)
++ (7.4, 470m)
++ (8.0, 750m)
+    Vsw  vsource  x=650  y=-650  rot=3  sym=ammeter
+    Vdiode  vsource  x=860  y=-400  rot=2  sym=ammeter
+    B1  behavioral  x=200  y=-450  rot=3  flip=1  sym=bsource  VAR=V  FUNC={ (15-V(PANEL2) > 0) ?
++ I(Vpanel)*((15-V(PANEL2))/2.5 + 1.12) : 
++ (18-V(PANEL2)> 0)? 
++ I(Vpanel)*((18-V(PANEL2))**1.1/3) : 
++ I(Vpanel)*(0.001) }
+    l12  lab_pin  x=740  y=-650  sym=lab_wire  sig_type=std_logic
+    l14  lab_pin  x=290  y=-450  sym=lab_wire  sig_type=std_logic
+    S1  unknown  x=800  y=-650  rot=3  flip=1  sym=switch_v_xyce  model=SWMOD1  state=OFF
+    l15  lab_pin  x=820  y=-690  flip=1  sym=lab_pin  sig_type=std_logic
+    l16  lab_pin  x=800  y=-690  sym=lab_pin  sig_type=std_logic
+    S2  unknown  x=860  y=-500  rot=2  flip=1  sym=switch_v_xyce  model=SWMOD1  state=OFF
+
+  wires:
+    80 -450 80 -430 SRC
+    1050 -250 1140 -250 0
+    1140 -290 1140 -250 0
+    680 -650 770 -650 PANEL1
+    1050 -480 1080 -480 VO
+    1050 -480 1050 -350 VO
+    1050 -290 1050 -250 0
+    570 -650 620 -650 PANEL
+    1050 -650 1050 -480 VO
+    610 -870 610 -810 CTRL1
+    860 -650 900 -650 SW
+    860 -650 860 -530 SW
+    830 -650 860 -650 SW
+    80 -450 170 -450 SRC
+    860 -250 1050 -250 0
+    1020 -650 1050 -650 VO
+    385 -450 385 -420 PANEL
+    385 -360 385 -310 0
+    1140 -480 1180 -480 LED
+    1140 -480 1140 -350 LED
+    230 -450 310 -450 PANEL2
+    385 -450 460 -450 PANEL
+    860 -470 860 -430 net1
+    860 -370 860 -250 0
+    820 -500 820 -470 net1
+    820 -470 860 -470 net1
+    820 -530 820 -520 SW
+    820 -530 860 -530 SW
+    370 -450 385 -450 PANEL
+    570 -250 860 -250 0

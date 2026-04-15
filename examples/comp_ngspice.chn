@@ -1,0 +1,34 @@
+chn 1
+
+SYMBOL comp_ngspice
+  pins:
+    PLUS  in  x=-60  y=-30
+    OUT  out  x=60  y=0
+    MINUS  in  x=-60  y=30
+  params:
+    format = @name @pinlist @symname OFFSET=@OFFSET AMPLITUDE=@AMPLITUDE GAIN=@GAIN ROUT=@ROUT COUT=@COUT
+    template = name=x1 OFFSET=0 AMPLITUDE=5 GAIN=100 ROUT=1000 COUT=1p
+    type = subcircuit
+  drawing:
+    rect 520 -415 630 -315
+
+SCHEMATIC
+  instances:
+    p1  ipin  x=120  y=-260  sym=ipin
+    p2  ipin  x=120  y=-210  sym=ipin
+    p3  opin  x=680  y=-240  sym=opin
+    l6  lab_pin  x=180  y=-260  flip=1  sym=lab_pin  sig_type=std_logic
+    l1  lab_pin  x=180  y=-210  flip=1  sym=lab_pin  sig_type=std_logic
+    l2  lab_pin  x=450  y=-240  sym=lab_pin  sig_type=std_logic
+    p35  lab_pin  x=450  y=-120  sym=lab_pin
+    B1  behavioral  x=450  y=-150  flip=1  sym=bsource  VAR=V  FUNC={OFFSET + AMPLITUDE/2*(tanh(V(IPLUS,IMINUS)*GAIN*2/AMPLITUDE))}
+    R1  resistor  x=570  y=-240  rot=1  sym=res  value={ROUT}  m=1
+    C3  capacitor  x=630  y=-230  sym=parax_cap  gnd=0  value={COUT}  m=1
+    V1  vsource  x=150  y=-260  rot=1  sym=vsource  value=0
+    V2  vsource  x=150  y=-210  rot=1  sym=vsource  value=0
+    l4  unknown  x=500  y=-290  sym=scope_ammeter  attach=l4  device=R1
+
+  wires:
+    450 -240 450 -180 IOUT
+    450 -240 540 -240 IOUT
+    600 -240 680 -240 OUT

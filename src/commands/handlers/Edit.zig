@@ -342,7 +342,7 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
 
             fio.selection.clear();
             fio.dirty = true;
-            fio.history.push(.{ .delete_selected = .{ .instances = snap_inst.items, .wires = snap_wire.items } });
+            fio.history.push(.{ .delete_selected = .{ .instances = snap_inst.items, .wires = snap_wire.items } }, null);
         },
 
         // ── Duplicate selected ────────────────────────────────────────────────
@@ -359,14 +359,17 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
                 sch.instances.append(sa, copy) catch continue;
             }
             fio.dirty = true;
-            fio.history.push(.{ .duplicate_selected = .{ .n = @intCast(sch.instances.len - before_len) } });
+            fio.history.push(.{ .duplicate_selected = .{ .n = @intCast(sch.instances.len - before_len) } }, null);
         },
 
         // ── Place / delete / move device ──────────────────────────────────────
         .place_device => |p| {
             const fio = state.active() orelse return;
             const new_idx = try fio.placeSymbol(p.sym_path, p.name, p.pos, .{});
-            fio.history.push(.{ .place_device = .{ .idx = @intCast(new_idx) } });
+            fio.history.push(
+                .{ .place_device = .{ .idx = @intCast(new_idx) } },
+                .{ .place_device = .{ .sym_path = p.sym_path, .name = p.name, .pos = p.pos } },
+            );
         },
 
         .delete_device => |p| {
@@ -375,7 +378,10 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
             const idx: usize = p.idx;
             if (idx >= sch.instances.len) return;
             const inst = sch.instances.get(idx);
-            fio.history.push(.{ .delete_device = .{ .sym_path = inst.symbol, .name = inst.name, .pos = .{ inst.x, inst.y } } });
+            fio.history.push(
+                .{ .delete_device = .{ .sym_path = inst.symbol, .name = inst.name, .pos = .{ inst.x, inst.y } } },
+                .{ .delete_device = .{ .idx = @intCast(idx) } },
+            );
             _ = fio.deleteInstanceAt(idx);
         },
 
@@ -383,13 +389,16 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
             const fio = state.active() orelse return;
             _ = fio.moveInstanceBy(@as(usize, p.idx), p.delta[0], p.delta[1]);
             // Negate delta here so applyInverse can use it directly.
-            fio.history.push(.{ .move_device = .{ .idx = p.idx, .delta = .{ -p.delta[0], -p.delta[1] } } });
+            fio.history.push(
+                .{ .move_device = .{ .idx = p.idx, .delta = .{ -p.delta[0], -p.delta[1] } } },
+                .{ .move_device = .{ .idx = p.idx, .delta = p.delta } },
+            );
         },
 
         .set_prop => |p| {
             const fio = state.active() orelse return;
             try fio.setProp(@as(usize, p.idx), p.key, p.val);
-            fio.history.push(.none);
+            fio.history.push(.none, null);
         },
 
         // ── Wire placement ────────────────────────────────────────────────────
@@ -397,7 +406,7 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
             const fio = state.active() orelse return;
             try fio.addWireSeg(p.start, p.end, null);
             const new_idx = fio.sch.wires.len - 1;
-            fio.history.push(.{ .add_wire = .{ .idx = @intCast(new_idx) } });
+            fio.history.push(.{ .add_wire = .{ .idx = @intCast(new_idx) } }, null);
         },
 
         .delete_wire => |p| {
@@ -406,12 +415,12 @@ pub fn handleUndoable(und: Undoable, state: anytype) Error!void {
             const idx: usize = p.idx;
             if (idx >= sch.wires.len) return;
             const wire = sch.wires.get(idx);
-            fio.history.push(.{ .delete_wire = .{ .start = .{ wire.x0, wire.y0 }, .end = .{ wire.x1, wire.y1 } } });
+            fio.history.push(.{ .delete_wire = .{ .start = .{ wire.x0, wire.y0 }, .end = .{ wire.x1, wire.y1 } } }, null);
             _ = fio.deleteWireAt(idx);
         },
 
         // Handled elsewhere (file.zig / sim.zig / Dispatch.zig) — must not reach here.
-        .load_schematic, .save_schematic, .run_sim, .add_digital_block,
+        .load_schematic, .save_schematic, .run_sim,
         .edit_spice_code => unreachable,
     }
 }

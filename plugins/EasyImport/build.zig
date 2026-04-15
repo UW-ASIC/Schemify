@@ -82,4 +82,27 @@ pub fn build(b: *std.Build) void {
         run.setCwd(b.path("../.."));
         test_step.dependOn(&run.step);
     }
+
+    // ── Borrow Examples ──────────────────────────────────────────────────
+
+    const borrow_step = b.step("borrow-examples", "Convert xschem examples to schemify format");
+    {
+        const bmod = b.createModule(.{
+            .root_source_file = b.path("tools/BorrowExamples.zig"),
+            .target = ctx.target,
+            .optimize = ctx.optimize,
+        });
+        bmod.addImport("xschem", xschem_mod);
+        bmod.addImport("core", ctx.core_mod);
+        bmod.addImport("easyimport", lib_mod);
+        bmod.addImport("convert_types", ct_mod);
+
+        const exe = b.addExecutable(.{
+            .name = "borrow-examples",
+            .root_module = bmod,
+        });
+        const run_exe = b.addRunArtifact(exe);
+        run_exe.setCwd(b.path("../.."));
+        borrow_step.dependOn(&run_exe.step);
+    }
 }

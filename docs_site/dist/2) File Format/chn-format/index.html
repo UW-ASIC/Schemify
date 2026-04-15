@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chn Format — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Chn Format</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link active">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>CHN Format Specification</h1>
+<h2>SYMBOL Section</h2>
+<p>Declares the external interface. Present in <code>.chn</code> and <code>.chn_prim</code>. Absent in <code>.chn_testbench</code>.</p>
+<pre><code>SYMBOL inverter
+  desc: CMOS inverter
+
+  pins [4]:
+    IN   in
+    OUT  out
+    VDD  inout
+    VSS  inout
+
+  params [4]:
+    wp = 2u
+    wn = 1u
+    lp = 100n
+    ln = 100n
+
+  spice_prefix: X
+</code></pre><h3>Pin Directions</h3>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Meaning</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>in</code></td>
+<td>Input-only</td>
+<td>Gate, clock, enable</td>
+</tr>
+<tr>
+<td><code>out</code></td>
+<td>Output-driven</td>
+<td>Amplifier output</td>
+</tr>
+<tr>
+<td><code>inout</code></td>
+<td>Bidirectional</td>
+<td>Drain, source, supply</td>
+</tr>
+</tbody></table>
+<h2>SCHEMATIC Section</h2>
+<h3>Instance Tables (TOON-style)</h3>
+<p>Instances are listed in <strong>type-grouped tabular blocks</strong>. Each device class gets its own table:</p>
+<pre><code>SCHEMATIC
+
+  nmos [4]{name, w, l, nf, model}:
+    M0   2u    100n  1  nch
+    M1   2u    100n  1  nch
+    M2   4u    100n  2  nch
+    M3   4u    100n  2  nch
+
+  pmos [2]{name, w, l, nf, model}:
+    M4   4u    100n  1  pch
+    M5   4u    100n  1  pch
+
+  capacitors [1]{name, c}:
+    CC   2p
+</code></pre><ul>
+<li><code>[N]</code> is the row count guardrail — validators check this matches actual rows</li>
+<li><code>{fields}</code> declares column names once; rows are positional</li>
+<li>Mixed/single instances use key-value form: <code>instances [1]: XBUF  chn/buffer  strength=4</code></li>
+</ul>
+<h3>Nets</h3>
+<p>Named connectivity declarations. Each line is a union operation: &quot;these pins all belong to this net.&quot;</p>
+<pre><code>  nets [7]:
+    INP      -&gt; M0.g
+    INN      -&gt; M1.g
+    tail     -&gt; M0.s, M1.s, M3.d
+    out_p    -&gt; M0.d, M4.d, M4.g, M5.g
+    out_n    -&gt; M1.d, M5.d, CC.p
+    VDD      -&gt; M4.s, M4.b, M5.s, M5.b
+    VSS      -&gt; M3.s, M3.b, M0.b, M1.b
+</code></pre><p>A pin not appearing in any net declaration is <strong>floating</strong> — a DRC error unless intentional.</p>
+<h3>Generate Loops</h3>
+<p>For repeated structures, use generate loops instead of bus notation:</p>
+<pre><code>  generate bit in 0..7:
+    nmos [1]{name, w, l, nf, model}:
+      MDRV_{bit}  1u  100n  1  nch
+    nets:
+      data_{bit}  -&gt; MDRV_{bit}.d, DFF.q_{bit}
+      word_line   -&gt; MDRV_{bit}.g
+      bit_{bit}   -&gt; MDRV_{bit}.s
+</code></pre><h3>Annotations</h3>
+<p>Simulation results embedded inline with freshness tracking:</p>
+<pre><code>  annotations:
+    status: fresh         # fresh | stale
+    timestamp: 2026-03-20T14:22:00Z
+    sim_tool: ngspice 43
+    corner: tt
+
+    op_points [4]{inst, vgs, vds, id, gm, gds, vth}:
+      M0   0.612  0.611  52.3u  312u  4.1u  0.385
+      M1   0.588  0.365  47.7u  298u  3.8u  0.390
+
+    measures:
+      dc_gain:  42.3 dB
+      ugbw:     85.2 MHz
+
+    notes:
+      - &quot;M0/M1 mismatch causing 4.6mV offset&quot;
+</code></pre><p><strong>Annotation status state machine:</strong></p>
+<ul>
+<li><code>fresh</code> — annotations match the current schematic; trust these values</li>
+<li><code>stale</code> — schematic modified since last simulation; re-run before citing values</li>
+</ul>
+<p>Any schematic modification must set <code>status: stale</code>.</p>
+<h2>Primitive Files (.chn_prim)</h2>
+<p>A <code>.chn_prim</code> declares a leaf device with no internal schematic — its behavior is a SPICE model:</p>
+<pre><code>chn_prim 1.0
+
+SYMBOL nmos
+  desc: N-channel MOSFET
+
+  pins [4]:
+    d  inout
+    g  in
+    s  inout
+    b  inout
+
+  params [5]:
+    w     = 1u
+    l     = 100n
+    nf    = 1
+    m     = 1
+    model = nch_lvt
+
+  spice_prefix: M
+  spice_format: &quot;@name @d @g @s @b @model w=@w l=@l nf=@nf m=@m&quot;
+  spice_lib: &quot;$PDK/models/nmos.lib&quot; section=tt
+</code></pre><p>Generated SPICE line:</p>
+<pre><code>M0 OUT_N IN_N TAIL VSS nch_lvt w=2u l=100n nf=1 m=1
+</code></pre><h2>Testbench Files (.chn_testbench)</h2>
+<p>No SYMBOL (testbenches are not instantiated). Contains stimulus, DUT, analyses, and measures:</p>
+<pre><code>chn_testbench 1.0
+
+TESTBENCH tb_opamp_ac
+  desc: Open-loop AC response
+
+  includes [1]:
+    &quot;$PDK/models/all.lib&quot; section=tt
+
+  instances [3]:
+    DUT   chn/opamp    wp_in=10u  cc=2p
+    VDD   chn_prim/vsource  dc=1.8
+    VAC   chn_prim/vsource  dc=0  ac=1
+
+  nets [4]:
+    vdd -&gt; DUT.VDD, VDD.p
+    gnd -&gt; DUT.VSS, VDD.n
+    inp -&gt; VAC.p, DUT.INP
+    out -&gt; DUT.OUT
+
+  analyses [2]:
+    op:
+    ac: start=1  stop=10G  points_per_dec=20
+
+  measures [2]:
+    dc_gain:  find dB(V(out)/V(inp)) at freq=1
+    ugbw:     find freq when dB(V(out)/V(inp))=0
+</code></pre><h2>Validation Rules</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>[N]</code> match</td>
+<td>Declared count matches actual row count in every section</td>
+</tr>
+<tr>
+<td>Floating pins</td>
+<td>Every pin of every instance appears in at least one <code>nets:</code> entry</td>
+</tr>
+<tr>
+<td>Duplicate nets</td>
+<td>No pin appears in more than one net (short-circuit)</td>
+</tr>
+<tr>
+<td>Pin existence</td>
+<td>Every <code>inst.pin</code> reference resolves to a real pin</td>
+</tr>
+<tr>
+<td>Param coverage</td>
+<td>Every param in <code>spice_format</code> has a value</td>
+</tr>
+<tr>
+<td>Supply consistency</td>
+<td>All NMOS bulk pins connect to VSS (or explicit body bias net)</td>
+</tr>
+<tr>
+<td>Annotation freshness</td>
+<td>Warn if <code>status: stale</code> and task requires simulation data</td>
+</tr>
+</tbody></table>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -224,54 +224,6 @@ pub const SymData = struct {
     template: ?[]const u8 = null,
 };
 
-pub const SourceMode = enum { @"inline", file };
-
-pub const HdlLanguage = enum {
-    verilog,
-    vhdl,
-    xspice,
-    xyce_digital,
-
-    pub fn fromStr(s: []const u8) ?HdlLanguage {
-        if (std.mem.eql(u8, s, "verilog")) return .verilog;
-        if (std.mem.eql(u8, s, "vhdl")) return .vhdl;
-        if (std.mem.eql(u8, s, "xspice")) return .xspice;
-        if (std.mem.eql(u8, s, "xyce_digital")) return .xyce_digital;
-        return null;
-    }
-
-    pub fn toStr(self: HdlLanguage) []const u8 {
-        return switch (self) {
-            .verilog => "verilog",
-            .vhdl => "vhdl",
-            .xspice => "xspice",
-            .xyce_digital => "xyce_digital",
-        };
-    }
-};
-
-pub const BehavioralModel = struct {
-    // optional slices first, then enum
-    source: ?[]const u8 = null,
-    top_module: ?[]const u8 = null,
-    mode: SourceMode = .file,
-};
-
-pub const SynthesizedModel = struct {
-    // optional slices first, then List, then enum
-    source: ?[]const u8 = null,
-    liberty: ?[]const u8 = null,
-    mapping: ?[]const u8 = null,
-    supply_map: List(Prop) = .{},
-    mode: SourceMode = .file,
-};
-
-pub const DigitalConfig = struct {
-    behavioral: BehavioralModel = .{},
-    synthesized: SynthesizedModel = .{},
-    language: HdlLanguage = .verilog,
-};
-
 // ── DeviceKind (re-exported from Devices.zig) ────────────────────────────────
 
 pub const DeviceKind = @import("devices/Devices.zig").DeviceKind;
@@ -377,30 +329,3 @@ pub const ComponentDesc = struct {
     flip: bool = false,
 };
 
-// ── HDL Sync types ───────────────────────────────────────────────────────────
-
-pub const PinChange = struct {
-    name: []const u8,
-    change: []const u8,
-};
-
-pub const SyncReport = struct {
-    pins_added: []const @import("digital/HdlParser.zig").HdlPin,
-    pins_removed: []const []const u8,
-    pins_modified: []const PinChange,
-    symbol_updated: bool,
-};
-
-pub const HdlMismatch = struct {
-    pin_name: []const u8,
-    issue: []const u8,
-};
-
-pub const SyncError = error{
-    NoDigitalConfig,
-    NoBehavioralSource,
-    UnsupportedLanguage,
-    HdlParseError,
-    FileReadError,
-    OutOfMemory,
-};

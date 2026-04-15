@@ -1,92 +1,53 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [3]:
+SYMBOL nand2
+  pins:
     Z  out  x=50  y=0
     A  in  x=-50  y=-20
     B  in  x=-50  y=20
-
-  params [1]:
+  params:
+    format = @name @pinlist @symname WP=@WP LP=@LP WN=@WN LLN=@LLN
     template = name=x1 WP=8u LP=1u WN=5u LLN=1u
-
-  spice_prefix: X
-
-  drawing:
-    line -50 -20 -35 -20
-    line 25 -3 25 3
-    line 25 -3 28 -5
-    line 28 -5 33 -5
-    line 33 -5 35 -3
-    line 35 -3 35 3
-    line 33 5 35 3
-    line 28 5 33 5
-    line 25 3 28 5
-    line 35 0 50 0
-    line -35 -30 -35 30
-    line -35 -30 -10 -30
-    line -35 30 -10 30
-    line -50 20 -35 20
-    line 3 -28 13 -23
-    line -10 -30 3 -28
-    line 3 28 13 23
-    line -10 30 3 28
-    line 13 23 20 15
-    line 20 15 24 8
-    line 24 8 25 0
-    line 13 -23 20 -15
-    line 20 -15 24 -8
-    line 24 -8 25 0
-    pin_positions:
-      Z: (50, 0)
-      A: (-50, -20)
-      B: (-50, 20)
+    type = subcircuit
 
 SCHEMATIC
+  instances:
+    p1  ipin  x=160  y=-310  sym=ipin
+    p2  opin  x=500  y=-380  sym=opin
+    p3  ipin  x=160  y=-190  sym=ipin
+    l2  gnd  x=180  y=-110  sym=gnd
+    l1  vdd  x=180  y=-500  sym=vdd
+    l3  lab_pin  x=290  y=-310  flip=1  sym=lab_pin  sig_type=std_logic
+    l4  lab_pin  x=290  y=-190  flip=1  sym=lab_pin  sig_type=std_logic
+    l5  lab_pin  x=290  y=-440  flip=1  sym=lab_pin  sig_type=std_logic
+    l6  lab_pin  x=440  y=-440  flip=1  sym=lab_pin  sig_type=std_logic
+    m1  nmos  x=270  y=-310  sym=nmos4
+      .parameters{ model=CMOSN  w=WN  l=LLN  m=1 }
+    m1  nmos  x=270  y=-190  sym=nmos4
+      .parameters{ model=CMOSN  w=WN  l=LLN  m=1 }
+    m2  pmos  x=270  y=-440  sym=pmos4
+      .parameters{ model=CMOSP  w=WP  l=LP  m=1 }
+    m2  pmos  x=420  y=-440  sym=pmos4
+      .parameters{ model=CMOSP  w=WP  l=LP  m=1 }
 
-
-  input_pin [2]{name, x, y, rot, flip, lab}:
-    A  160  -310  0  0  A
-    B  160  -190  0  0  B
-
-  output_pin [1]{name, x, y, rot, flip, lab}:
-    Z  500  -380  0  0  Z
-
-  nmos [2]{name, x, y, rot, flip, model, w, l, m}:
-    m1  270  -310  0  0  CMOSN  WN  LLN  1
-    m1  270  -190  0  0  CMOSN  WN  LLN  1
-
-  pmos [2]{name, x, y, rot, flip, model, w, l, m}:
-    m2  270  -440  0  0  CMOSP  WP  LP  1
-    m2  420  -440  0  0  CMOSP  WP  LP  1
-
-  wires [29]:
-    160 -310 250 -310
-    160 -190 210 -190
-    440 -380 500 -380
-    440 -500 440 -470
-    290 -500 440 -500
-    290 -500 290 -470
-    290 -160 290 -130
-    180 -110 290 -110
-    290 -130 290 -110
-    180 -500 290 -500
-    290 -280 290 -220
-    290 -410 290 -340
-    290 -380 440 -380
-    440 -410 440 -380
-    210 -190 250 -190
-    400 -440 400 -400
-    240 -400 400 -400
-    240 -400 240 -310
-    210 -440 210 -190
-    210 -440 250 -440
-    160 -310 160 -310 A
-    500 -380 500 -380 Z
-    160 -190 160 -190 B
-    180 -110 180 -110 VSS
-    180 -500 180 -500 VCC
-    290 -310 290 -310 VSS
-    290 -190 290 -190 VSS
-    290 -440 290 -440 VCC
-    440 -440 440 -440 VCC
+  wires:
+    160 -310 250 -310 A
+    160 -190 210 -190 B
+    440 -380 500 -380 Z
+    440 -500 440 -470 VCC
+    290 -500 440 -500 VCC
+    290 -500 290 -470 VCC
+    290 -160 290 -130 VSS
+    180 -110 290 -110 VSS
+    290 -130 290 -110 VSS
+    180 -500 290 -500 VCC
+    290 -280 290 -220 net1
+    290 -410 290 -340 Z
+    290 -380 440 -380 Z
+    440 -410 440 -380 Z
+    210 -190 250 -190 B
+    400 -440 400 -400 A
+    240 -400 400 -400 A
+    240 -400 240 -310 A
+    210 -440 210 -190 B
+    210 -440 250 -440 B

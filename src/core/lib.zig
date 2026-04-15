@@ -6,7 +6,6 @@
 //! root and lists all submodules.
 //!
 //! Submodules:
-//!   digital/       — HDL parsing and synthesis
 //!   simulation/    — SPICE interface and netlist emission
 //!   fileio/        — Reader, Writer, TOML config
 //!   devices/       — Device cell library and primitives
@@ -15,7 +14,6 @@ const std = @import("std");
 
 // ── Submodule libs ───────────────────────────────────────────────────────────
 
-const digital = @import("digital/lib.zig");
 const simulation = @import("simulation/lib.zig");
 const fileio = @import("fileio/lib.zig");
 const devices = @import("devices/lib.zig");
@@ -43,8 +41,6 @@ pub const SifyType = types.SifyType;
 pub const SymDataPin = types.SymDataPin;
 pub const PinRef = types.PinRef;
 pub const SymData = types.SymData;
-pub const SourceMode = types.SourceMode;
-pub const HdlLanguage = types.HdlLanguage;
 pub const ComponentDesc = types.ComponentDesc;
 pub const DiagLevel = types.DiagLevel;
 pub const Diagnostic = types.Diagnostic;
@@ -60,9 +56,6 @@ pub const NetlistMode = schemify.NetlistMode;
 pub const pdk = schemify.pdk;
 
 // From submodules
-pub const HdlParser = digital.HdlParser;
-pub const YosysJson = digital.YosysJson;
-pub const Synthesis = digital.Synthesis;
 pub const SpiceIF = simulation.SpiceIF;
 pub const Netlist = simulation.Netlist;
 pub const Reader = fileio.Reader;
@@ -76,7 +69,6 @@ comptime {
     _ = types;
     _ = @import("helpers.zig");
     _ = @import("Schemify.zig");
-    _ = digital;
     _ = simulation;
     _ = fileio;
     _ = devices;
@@ -128,13 +120,3 @@ test "NetMap pointKey deterministic" {
     try std.testing.expect(k1 != k3);
 }
 
-test "HdlLanguage fromStr/toStr round-trip" {
-    const HL = types.HdlLanguage;
-    const langs = [_]HL{ .verilog, .vhdl, .xspice, .xyce_digital };
-    for (langs) |l| {
-        const s = l.toStr();
-        const back = HL.fromStr(s);
-        try std.testing.expect(back != null);
-        try std.testing.expectEqual(l, back.?);
-    }
-}

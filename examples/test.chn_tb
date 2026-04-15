@@ -1,0 +1,28 @@
+chn_testbench 1
+
+TESTBENCH test
+  instances:
+    x1  subckt  x=310  y=-450  sym=nand2
+    p1  lab_pin  x=390  y=-450  flip=1  sym=lab_pin
+    p2  lab_pin  x=220  y=-470  sym=lab_pin
+    p3  lab_pin  x=220  y=-290  sym=lab_pin
+    x2  subckt  x=310  y=-310  rot=2  flip=1  sym=nand2
+    p4  lab_pin  x=390  y=-310  flip=1  sym=lab_pin
+
+  nets:
+    Q  -> x1.Z, x2.B
+    SET_BAR  -> x1.A
+    QBAR  -> x1.B, x2.Z
+    CLEAR_BAR  -> x2.A
+
+  wires:
+    220 -470 260 -470 SET_BAR
+    220 -290 260 -290 CLEAR_BAR
+    360 -450 390 -450 Q
+    360 -310 390 -310 QBAR
+    260 -430 260 -410 QBAR
+    260 -410 360 -360 QBAR
+    360 -360 360 -310 QBAR
+    260 -350 260 -330 Q
+    260 -350 360 -400 Q
+    360 -450 360 -400 Q

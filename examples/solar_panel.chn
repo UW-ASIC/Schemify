@@ -1,0 +1,123 @@
+chn_testbench 1
+
+TESTBENCH solar_panel
+  instances:
+    l4  lab_pin  x=650  y=-530  flip=1  sym=lab_pin
+    l6  lab_pin  x=800  y=-180  sym=lab_pin
+    Vled  vsource  x=1070  y=-440  rot=3  sym=ammeter
+    L2  inductor  x=890  y=-610  rot=3  flip=1  sym=ind
+      .parameters{ m=1  value=40u  footprint=1206  device=inductor  hide_texts=true  attach=L2 }
+    l7  lab_pin  x=1280  y=-440  flip=1  sym=lab_pin
+    l9  lab_pin  x=820  y=-550  flip=1  sym=lab_pin
+    C1  capacitor  x=1010  y=-280  sym=capa
+      .parameters{ m=1  value=500n  footprint=1206  device=ceramic capacitor  hide_texts=true  attach=C1 }
+    l10  lab_pin  x=1010  y=-400  flip=1  sym=lab_pin
+    l3  lab_pin  x=360  y=-610  sym=lab_pin
+    Vind  vsource  x=970  y=-610  rot=3  sym=ammeter
+    G2[9..0]  isource  x=1100  y=-330  sym=isource_table  CTRL=V(LED)  TABLE=
++ (0, 0)
++ (4.8, 5m)
++ (5.2, 15m)
++ (5.6, 46m)
++ (5.8, 80m)
++ (6.0, 115m)
++ (6.2, 157m)
++ (6.4, 202m)
++ (6.6, 245m)
++ (6.8, 290m)
++ (7.0, 337m)
++ (7.2, 395m)
++ (7.4, 470m)
++ (8.0, 750m)
+    Vsw  vsource  x=610  y=-610  rot=3  sym=ammeter
+    Vdiode  vsource  x=820  y=-360  rot=2  sym=ammeter
+    X1  subckt  x=360  y=-450  sym=pv_ngspice  m=1  isc=6.8  n=36
+    l12  lab_pin  x=360  y=-370  sym=lab_pin
+    C11  capacitor  x=500  y=-500  sym=capa
+      .parameters{ m=1  value=10u  footprint=1206  device=ceramic capacitor }
+    l90  lab_pin  x=500  y=-370  sym=lab_pin
+    Vpanel  vsource  x=430  y=-530  rot=3  flip=1  sym=ammeter
+    X2  subckt  x=820  y=-460  rot=2  sym=diode_ngspice  m=1  Roff=1e9  Ron=0.1
+    S1  vswitch  x=760  y=-610  rot=1  sym=switch_ngspice  model=swmod
+    l5  lab_pin  x=740  y=-650  sym=lab_pin
+    Vpanel1  vsource  x=560  y=-530  rot=3  flip=1  sym=ammeter
+    Vcap  vsource  x=500  y=-420  sym=ammeter
+    Vfade  vsource  x=160  y=-390  sym=vsource  value=pwl 0 1 1m 0
+    l8  lab_pin  x=160  y=-340  sym=lab_pin
+    Vtriang  vsource  x=610  y=-1040  sym=vsource  value=pulse 0 1 0 2u 2u 1f 4u
+    l11  lab_pin  x=610  y=-990  sym=lab_pin
+    l14  lab_pin  x=770  y=-1080  flip=1  sym=lab_pin
+    Vref  vsource  x=550  y=-790  sym=vsource  value=7
+    l17  lab_pin  x=550  y=-760  sym=lab_pin
+    l13  lab_pin  x=760  y=-720  sym=lab_pin
+    x3  subckt  x=660  y=-890  sym=comp_ngspice
+      .parameters{ GAIN=100  OFFSET=0.5  AMPLITUDE=1  ROUT=7k  COUT=1n  select=AMPLITUDE }
+    l16  lab_pin  x=550  y=-860  sym=lab_pin
+    l15  lab_pin  x=550  y=-920  sym=lab_pin
+    l18  lab_pin  x=830  y=-890  flip=1  sym=lab_pin
+    x4  subckt  x=950  y=-1000  sym=comp_ngspice
+      .parameters{ GAIN=100  OFFSET=0.5  AMPLITUDE=1  ROUT=1  COUT=1p  select=OFFSET }
+    l19  lab_pin  x=1060  y=-1000  flip=1  sym=lab_pin
+    l20  lab_pin  x=160  y=-450  sym=lab_pin
+    l24  lab_pin  x=440  y=-610  rot=2  sym=lab_show
+    l25  lab_pin  x=1190  y=-670  sym=lab_pin
+    l21  unknown  x=1190  y=-480  sym=scope2  attach=l21
+    l22  unknown  x=380  y=-610  sym=scope  attach=l22
+    l23  unknown  x=580  y=-360  sym=scope_ammeter  attach=l23  device=Vcap
+    l26  unknown  x=620  y=-170  sym=scope_ammeter  attach=l26  device=Vdiode
+
+  nets:
+    0  -> X1.minus
+    SUN  -> X1.fade
+    SW  -> X2.minus
+    LED  -> x3.PLUS
+    LEVEL  -> x3.OUT, x4.MINUS
+    REF  -> x3.MINUS
+    TRIANG  -> x4.PLUS
+    CTRL1  -> x4.OUT
+
+  wires:
+    1010 -180 1100 -180 0
+    1100 -300 1100 -180 0
+    640 -610 730 -610 net1
+    1010 -440 1040 -440 VO
+    1010 -440 1010 -310 VO
+    1010 -250 1010 -180 0
+    360 -610 580 -610 PANEL
+    1010 -610 1010 -440 VO
+    820 -610 860 -610 SW
+    820 -610 820 -490 SW
+    790 -610 820 -610 SW
+    820 -180 1010 -180 0
+    800 -180 820 -180 0
+    1000 -610 1010 -610 VO
+    1100 -440 1280 -440 LED
+    1100 -440 1100 -360 LED
+    820 -430 820 -390 net2
+    920 -610 940 -610 net3
+    360 -530 360 -480 net4
+    360 -420 360 -370 0
+    360 -530 400 -530 net4
+    760 -720 760 -650 CTRL1
+    460 -530 530 -530 net5
+    590 -530 650 -530 PANEL
+    500 -390 500 -370 0
+    500 -470 500 -450 net6
+    160 -450 320 -450 SUN
+    160 -360 160 -340 0
+    610 -1010 610 -990 0
+    610 -1080 610 -1070 TRIANG
+    610 -1080 770 -1080 TRIANG
+    720 -890 830 -890 LEVEL
+    550 -860 550 -820 REF
+    550 -860 600 -860 REF
+    550 -920 600 -920 LED
+    1010 -1000 1060 -1000 CTRL1
+    160 -450 160 -420 SUN
+    830 -970 830 -890 LEVEL
+    830 -970 890 -970 LEVEL
+    770 -1080 770 -1030 TRIANG
+    770 -1030 890 -1030 TRIANG
+    820 -330 820 -180 0
+    1190 -480 1190 -440 LED
+    1190 -670 1190 -640 PANEL

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Keyboard Shortcuts — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Keyboard Shortcuts</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link active">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Keyboard Shortcuts &amp; Editor Usage</h1>
+<p>Schemify is keyboard-driven. Most operations have single-key bindings. The editor supports a vim-like command mode for panel navigation.</p>
+<h2>Basic Navigation</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>W</code> <code>A</code> <code>S</code> <code>D</code></td>
+<td>Pan the canvas</td>
+</tr>
+<tr>
+<td><code>+</code> / <code>-</code></td>
+<td>Zoom in / out</td>
+</tr>
+<tr>
+<td><code>Ctrl+0</code></td>
+<td>Fit view to schematic</td>
+</tr>
+<tr>
+<td><code>Esc</code></td>
+<td>Cancel current action</td>
+</tr>
+<tr>
+<td><code>Tab</code></td>
+<td>Cycle focus between open schematics</td>
+</tr>
+</tbody></table>
+<h2>Placing Elements</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>W</code></td>
+<td>Place wire</td>
+</tr>
+<tr>
+<td><code>I</code></td>
+<td>Insert instance (opens symbol browser)</td>
+</tr>
+<tr>
+<td><code>L</code></td>
+<td>Place net label</td>
+</tr>
+<tr>
+<td><code>P</code></td>
+<td>Place port (ipin/opin/iopin)</td>
+</tr>
+<tr>
+<td><code>B</code></td>
+<td>Place bus</td>
+</tr>
+<tr>
+<td><code>T</code></td>
+<td>Place text annotation</td>
+</tr>
+</tbody></table>
+<h2>Selection &amp; Editing</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Click</td>
+<td>Select element</td>
+</tr>
+<tr>
+<td><code>Shift+Click</code></td>
+<td>Add to selection</td>
+</tr>
+<tr>
+<td>Click+Drag</td>
+<td>Rubber-band selection</td>
+</tr>
+<tr>
+<td><code>A</code></td>
+<td>Select all</td>
+</tr>
+<tr>
+<td><code>Esc</code></td>
+<td>Clear selection</td>
+</tr>
+<tr>
+<td><code>M</code></td>
+<td>Move selection</td>
+</tr>
+<tr>
+<td><code>C</code></td>
+<td>Copy selection</td>
+</tr>
+<tr>
+<td><code>Delete</code> / <code>Backspace</code></td>
+<td>Delete selection</td>
+</tr>
+<tr>
+<td><code>R</code></td>
+<td>Rotate selected instance</td>
+</tr>
+<tr>
+<td><code>F</code></td>
+<td>Flip (mirror) selected instance</td>
+</tr>
+<tr>
+<td><code>E</code></td>
+<td>Edit properties of selected element</td>
+</tr>
+<tr>
+<td><code>Q</code></td>
+<td>Edit instance parameters</td>
+</tr>
+</tbody></table>
+<h2>Undo / Redo</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Ctrl+Z</code></td>
+<td>Undo</td>
+</tr>
+<tr>
+<td><code>Ctrl+Y</code> or <code>Ctrl+Shift+Z</code></td>
+<td>Redo</td>
+</tr>
+</tbody></table>
+<h2>File Operations</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Ctrl+S</code></td>
+<td>Save current schematic</td>
+</tr>
+<tr>
+<td><code>Ctrl+O</code></td>
+<td>Open schematic</td>
+</tr>
+<tr>
+<td><code>Ctrl+N</code></td>
+<td>New schematic</td>
+</tr>
+</tbody></table>
+<h2>Simulation</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Ctrl+R</code></td>
+<td>Generate netlist + run simulation</td>
+</tr>
+<tr>
+<td><code>Ctrl+G</code></td>
+<td>Generate netlist only</td>
+</tr>
+</tbody></table>
+<h2>Hierarchy</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>H</code></td>
+<td>Descend into selected subcircuit</td>
+</tr>
+<tr>
+<td><code>Shift+H</code></td>
+<td>Ascend to parent</td>
+</tr>
+<tr>
+<td><code>Ctrl+H</code></td>
+<td>Show hierarchy tree</td>
+</tr>
+</tbody></table>
+<h2>View</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>G</code></td>
+<td>Toggle grid</td>
+</tr>
+<tr>
+<td><code>N</code></td>
+<td>Toggle net labels</td>
+</tr>
+<tr>
+<td><code>Ctrl+D</code></td>
+<td>Toggle dark/light theme</td>
+</tr>
+</tbody></table>
+<h2>Panel Navigation (vim-mode)</h2>
+<p>Open any plugin panel (if you have it installed) with its registered vim command:</p>
+<pre><code>:wv        # open Waveform Viewer
+:sim       # open Simulation panel
+:pdk       # open PDK/Volare panel
+:opt       # open Optimizer
+</code></pre><h2>Mouse</h2>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Left click</td>
+<td>Select</td>
+</tr>
+<tr>
+<td>Left drag on canvas</td>
+<td>Pan</td>
+</tr>
+<tr>
+<td>Scroll wheel</td>
+<td>Zoom</td>
+</tr>
+<tr>
+<td>Middle click drag</td>
+<td>Pan</td>
+</tr>
+<tr>
+<td>Right click</td>
+<td>Context menu</td>
+</tr>
+</tbody></table>
+<h2>Tips</h2>
+<ul>
+<li>Double-clicking a wire starts a new wire segment from that point</li>
+<li><code>Esc</code> during wire placement closes the wire at the last junction</li>
+<li>Hold <code>Ctrl</code> while placing to snap to nearby pins</li>
+<li><code>Shift+R</code> rotates by 90° in the other direction</li>
+</ul>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

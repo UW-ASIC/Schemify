@@ -102,9 +102,6 @@ fn dispatchImmediate(imm: Immediate, state: anytype) DispatchError!void {
         // Simulation
         .open_waveform_viewer => try sim.handleImmediate(imm, state),
 
-        // Digital block dialog
-        .open_digital_block_dialog => state.gui.cold.digital_block_dialog.is_open = true,
-
         // SPICE code block dialog — seed buffer from active document then open
         .open_spice_code_dialog => {
             const sd = &state.gui.cold.spice_code_dialog;
@@ -169,40 +166,10 @@ fn dispatchUndoable(und: Undoable, state: anytype) DispatchError!void {
         .save_schematic => |p| try file.handleSave(p, state),
         .run_sim        => |p| try sim.handleRun(p, state),
 
-        .add_digital_block => |p| {
-            const core = @import("core");
-            const fio = state.active() orelse return;
-            const name = p.name_buf[0..p.name_len];
-            const rtl  = p.rtl_source_buf[0..p.rtl_source_len];
-            const lang: core.HdlLanguage = if (p.language == 0) .verilog else .vhdl;
-
-            const rtl_file: ?[]const u8 = if (p.source_mode == 1 and p.rtl_file_path_len > 0)
-                p.rtl_file_path_buf[0..p.rtl_file_path_len]
-            else
-                null;
-            const synth_file: ?[]const u8 = if (p.synth_file_path_len > 0)
-                p.synth_file_path_buf[0..p.synth_file_path_len]
-            else
-                null;
-
-            fio.sch.addDigitalBlockFull(name, rtl, lang, .{
-                .source_mode = if (p.source_mode == 1) .file else .@"inline",
-                .rtl_file_path = rtl_file,
-                .synth_file_path = synth_file,
-                .is_stimulus = p.is_stimulus == 1,
-                .sim_preference = p.sim_preference,
-            }) catch {
-                state.setStatus("Failed to add digital block");
-                return;
-            };
-            fio.dirty = true;
-            state.setStatus("Digital block added");
-        },
-
         .edit_spice_code => |p| {
             const fio = state.active() orelse return;
             const gpa = state.allocator();
-            const new_text = p.buf[0..p.len];
+            const new_text = p;
             // Free old spice_body if it was GPA-allocated.
             // The arena owns strings loaded from file; we replace with a GPA dupe.
             // Safe to free only if non-null; arena will handle the rest on deinit.

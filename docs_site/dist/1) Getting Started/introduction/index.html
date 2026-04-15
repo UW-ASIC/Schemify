@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Introduction — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Introduction</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link active">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>What is Schemify?</h1>
+<p>Schemify is an open-source schematic editor written in <a href="https://ziglang.org/">Zig</a>. It targets mixed-signal IC design workflows where analog schematics need to coexist with digital RTL blocks synthesized from Verilog.</p>
+<h2>Goals</h2>
+<ul>
+<li><strong>XSchem compatibility</strong> — read and write <code>.sch</code> / <code>.sym</code> files directly so existing projects migrate without manual conversion.</li>
+<li><strong>Netlist generation</strong> — produce correct ngspice and Xyce SPICE netlists from a schematic, with a comptime device dispatch system that carries no runtime vtable cost.</li>
+<li><strong>Digital co-simulation</strong> — digital blocks embedded in a schematic are compiled with <a href="https://www.veripool.org/verilator/">Verilator</a> or synthesized with <a href="https://yosyshq.net/yosys/">Yosys</a> as part of the normal simulation flow.</li>
+<li><strong>Extensible</strong> — a stable plugin interface (<code>PluginIF.zig</code>) lets you add devices, themes, and simulation back-ends without forking the repository.</li>
+<li><strong>Web deployment</strong> — <code>zig build -Dbackend=web</code> ships the full editor running in a browser via HTML5 Canvas.</li>
+</ul>
+<h2>Architecture Overview</h2>
+<pre><code>src/
+  main.zig          ← application entry point (only the 4 dvui callbacks)
+  _dvuiIF.zig       ← dvui contract wiring
+  state.zig         ← process-lifetime AppState (config, open schematics, history)
+  command.zig       ← Command union + undo/redo History
+  PluginIF.zig      ← stable public API for plugins
+  toml.zig          ← Config.toml parser
+  core/
+    FileIO.zig      ← schematic I/O (XSchem ↔ CHN conversion)
+    devices/        ← comptime device system + netlist emission
+    xschem/         ← XSchem reader / writer / types
+    chn/            ← CHN reader / writer / types
+  gui/              ← dvui rendering layer
+</code></pre><h2>Prior Work</h2>
+<p>Schemify builds on ideas from <a href="https://xschem.sourceforge.io/">XSchem</a> by Stefan Schippers and is designed to integrate naturally with the <a href="https://github.com/google/skywater-pdk">SKY130</a> and GF180 open PDKs.</p>
+<h2>Design Principles</h2>
+<p><strong>Data-oriented design.</strong> Schemify uses <code>std.MultiArrayList</code> (Structure-of-Arrays) for schematic data — iterating all X coordinates of wires touches contiguous memory, not a stride through full structs.</p>
+<p><strong>Command queue pattern.</strong> All mutations go through a <code>Command</code> union. Undo records command inverses, not full snapshots. The command queue drains once per frame — clean separation between input, mutation, and render.</p>
+<p><strong>Comptime device dispatch.</strong> The device system uses Zig&#39;s comptime to generate device-specific netlist emission with zero runtime vtable overhead.</p>
+<p><strong>Dual backend.</strong> The same source compiles to a native binary (raylib/OpenGL) or a WASM module (HTML5 Canvas). The backend is a compile-time switch.</p>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -5,4 +5,6 @@
 
 comptime {
     _ = @import("test_xschem.zig");
+    _ = @import("test_TCL.zig");
+    _ = @import("xschem_roundtrip.zig");
 }

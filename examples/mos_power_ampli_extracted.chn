@@ -1,56 +1,92 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [6]:
+SYMBOL mos_power_ampli_extracted
+  pins:
     MINUS  in  x=-150  y=-40
     PLUS  in  x=-150  y=-20
     VSS  in  x=-150  y=0
     OUT  out  x=150  y=-40
     VPP  in  x=-150  y=20
     VNN  in  x=-150  y=40
-
-  params [1]:
+  params:
+    format = @name @pinlist @symname
     template = name=x1
-
-  spice_prefix: X
-
-  drawing:
-    line -130 -50 130 -50
-    line -130 50 130 50
-    line -130 -50 -130 50
-    line 130 -50 130 50
-    line -150 -40 -130 -40
-    line -150 -20 -130 -20
-    line -150 0 -130 0
-    line 130 -40 150 -40
-    line -150 20 -130 20
-    line -150 40 -130 40
-    pin_positions:
-      MINUS: (-150, -40)
-      PLUS: (-150, -20)
-      VSS: (-150, 0)
-      OUT: (150, -40)
-      VPP: (-150, 20)
-      VNN: (-150, 40)
+    type = subcircuit
 
 SCHEMATIC
+  instances:
+    p0  ipin  x=140  y=-190  sym=ipin
+    p2  ipin  x=140  y=-150  sym=ipin
+    p3  ipin  x=140  y=-130  sym=ipin
+    p5  opin  x=210  y=-160  sym=opin
+    p1  ipin  x=140  y=-210  sym=ipin
+    p4  ipin  x=140  y=-170  sym=ipin
+  code_block:
+    xm2 net1 GB SB irf540 m=1
+    R7 GB SB 190 m=1
+    xm1 VPP GA SA irf540 m=1
+    R0 GA SA 190 m=1
+    R2 VPP E2 50 m=1
+    R3 VBOOST E1 50 m=1
+    Q5 C5 PLUS E9 q2n2222 area=1 m=1
+    Q4 net8 net2 E4 q2n2907p area=1 m=1
+    R9 VBOOST E4 50 m=1
+    Q6 C6 C2 net5 q2n2907p area=1 m=1
+    R4 VPP E6 50 m=1
+    vd OUTI net1 0
+    .save  i(vd)
+    vu SA OUTI 0
+    .save  i(vu)
+    Q1 net2 net2 E1 q2n2907p area=1 m=1
+    Q2 C2 C2 net4 q2n2907p area=1 m=1
+    Q9 C9 MINUS E9 q2n2222 area=1 m=1
+    R11 GB net6 1300 m=1
+    Q8 C8 VSS E8 q2n2907p area=1 m=1
+    C12 VBOOST net3 40u m=1
+    D0 VPP VBOOST d1n4148 area=1
+    R18 net3 OUTI 200 m=1
+    D1 VPP VBOOST d1n758
+    R14 B1 net7 4k m=1
+    Q11 GA B1 E11 q2n2907p area=1 m=1
+    R15 VBOOST B1 4k m=1
+    R5 E9 net9 120 m=1
+    R6 net9 net10 120 m=1
+    D2 VSS B3 d1n755
+    Q3 C3 B3 E3 q2n2222 area=1 m=1
+    R1 VPP B3 10k m=1
+    R10 E3 VSS 170 m=1
+    C3 B3 VSS 100n m=1
+    R12 C6 E8 1300 m=1
+    R13 C2 C9 300 m=1
+    Q7 C7 C9 C5 q2n2222 area=1 m=1
+    v0 SB VNN 0
+    .save  i(v0)
+    v1 E6 net5 0
+    .save  i(v1)
+    v2 E2 net4 0
+    .save  i(v2)
+    v3 net10 C3 0
+    .save  i(v3)
+    v4 C8 net6 0
+    .save  i(v4)
+    v5 net7 OUTI 0
+    .save  i(v5)
+    v6 net2 C7 0
+    .save  i(v6)
+    v7 net8 E11 0
+    .save  i(v7)
+    .save  v(gb)
+    .save  v(sb)
+    .save  v(ga)
+    .save  v(sa)
+    v8 OUTI OUT 0
+    .save  i(v8)
+    .save  v(ga)
+    .save  v(gb)
+    .save  v(c2)
+    .save  v(net2)
+    .save  v(c7)
+    .save  v(vboost)
+    .save  v(outi)
 
-
-  input_pin [5]{name, x, y, rot, flip, lab}:
-    MINUS  140  -210  0  0  MINUS
-    PLUS  140  -190  0  0  PLUS
-    VSS  140  -170  0  0  VSS
-    VPP  140  -150  0  0  VPP
-    VNN  140  -130  0  0  VNN
-
-  output_pin [1]{name, x, y, rot, flip, lab}:
-    OUT  210  -160  0  0  OUT
-
-  wires [6]:
-    140 -190 140 -190 PLUS
-    140 -150 140 -150 VPP
-    140 -130 140 -130 VNN
-    210 -160 210 -160 OUT
-    140 -210 140 -210 MINUS
-    140 -170 140 -170 VSS
+  wires:

@@ -1,0 +1,43 @@
+chn_testbench 1
+
+TESTBENCH hpf_xschem
+  instances:
+    v2  vsource  x=100  y=-490  sym=vsource  value=ac 1
+    l14  gnd  x=100  y=-460  sym=gnd
+    C1  capacitor  x=240  y=-550  rot=1  flip=1  sym=capa
+      .parameters{ m=1  value=C  footprint=1206  device=ceramic capacitor }
+    l8  lab_pin  x=400  y=-550  sym=lab_wire  sig_type=std_logic
+    R6  resistor  x=340  y=-520  sym=res
+      .parameters{ value='k*R'  footprint=1206  device=resistor  m=1 }
+    l2  gnd  x=340  y=-490  sym=gnd
+    v6  vsource  x=850  y=-570  sym=vsource  value=12
+    v1  vsource  x=850  y=-490  sym=vsource  value=12
+    X1  unknown  x=530  y=-510  sym=lm741  model=LM741  device=LM741  footprint=SO(8)
+    l23  lab_pin  x=100  y=-550  sym=lab_pin  sig_type=std_logic
+    R7  resistor  x=200  y=-630  sym=res
+      .parameters{ value=R  footprint=1206  device=resistor  m=1 }
+    C2  capacitor  x=160  y=-550  rot=1  flip=1  sym=capa
+      .parameters{ m=1  value=C  footprint=1206  device=ceramic capacitor }
+    l1  gnd  x=530  y=-450  sym=gnd
+    l5  vdd  x=530  y=-570  sym=vdd
+    l3  gnd  x=850  y=-460  sym=gnd
+    l4  vdd  x=850  y=-600  sym=vdd
+    l6  gnd  x=800  y=-530  sym=gnd
+    p9  opin  x=670  y=-510  sym=opin
+
+  wires:
+    100 -550 100 -520 IN
+    650 -510 670 -510 OUT
+    270 -550 430 -550 PLUS
+    190 -550 210 -550 net1
+    200 -600 200 -550 net1
+    200 -660 650 -660 OUT
+    650 -660 650 -510 OUT
+    630 -510 650 -510 OUT
+    650 -510 650 -360 OUT
+    410 -360 650 -360 OUT
+    410 -470 410 -360 OUT
+    410 -470 430 -470 OUT
+    850 -540 850 -520 0
+    800 -530 850 -530 0
+    100 -550 130 -550 IN

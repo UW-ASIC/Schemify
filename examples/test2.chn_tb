@@ -1,0 +1,17 @@
+chn_testbench 1
+
+TESTBENCH test2
+  instances:
+    x1  subckt  x=260  y=-760  sym=nand2
+      .parameters{ WP=12u  LP=0.4u  WN=8u  LN=0.6u }
+    x2  subckt  x=50  y=-800  sym=nand2
+      .parameters{ WP=5u  LP=1u  WN=3u  LN=1.5u }
+    p1  lab_pin  x=0  y=-820  sym=lab_pin
+    p2  lab_pin  x=0  y=-780  sym=lab_pin
+    p3  lab_pin  x=310  y=-760  flip=1  sym=lab_pin
+    p4  lab_pin  x=210  y=-740  sym=lab_pin
+
+  wires:
+    100 -800 150 -800 net1
+    150 -800 150 -780 net1
+    150 -780 210 -780 net1

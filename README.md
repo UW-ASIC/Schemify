@@ -1,5 +1,9 @@
 ## Schemify
 
+<p align="center">
+  <img src="assets/banner.svg" alt="Schemify — Analog Schematic Editor" width="100%"/>
+</p>
+
 Lighter, Faster, More Featureful Schematic Editor with easier support for development and plugin creation.
 
 ### Development
@@ -38,38 +42,3 @@ zig build -Dbackend=web run_local  # compile + serve at http://localhost:8080
 ```
 
 `run_local` starts `python3 -m http.server 8080` in `zig-out/bin/`. Press Ctrl-C to stop.
-
-### Benefits over XSchem
-
-- Plugin support
-  - Volare < PDK Management
-    - GM/ID > Schematic Editor
-    - Resimulates and then updates the sizing
-  - ThemeSwitcher
-  - Picture to Schematic...
-    - ...
-- Use a web viewer...
-  - Github workflwos...
-- Different File structure
-  - XSchem
-    - schematic ()
-    - symbol ()
-  - Schemify
-    - .chn_sym (.sym < primitives) > volare .lib file for ngspice
-    - .chn (.sch and .sym) < top-level components l
-    - .chn_tb (.sch only)
-- Digital Interface is better
-  - inline (embedded) or linked...
-  - inline or linked...
-  - .sym is automatically created!
-  - LSP built in... (HRT (slang-server))
-- Xyce support too
-  - Xyce >>>>>>>> ngspice
-
-- Atomic Semi needs this, (web) layout editor, (web) schhematic editor
-- < Open-Source Silicon Meeting
-
-### TODO:
-
-- Waveform Viewer device...
-- Python drop-in replacement behavior for blocks

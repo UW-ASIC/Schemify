@@ -6,7 +6,6 @@ const List = std.ArrayListUnmanaged;
 const utility = @import("utility");
 const UnionFindType = utility.UnionFind;
 pub const Devices = @import("devices/Devices.zig");
-pub const HdlParser = @import("digital/HdlParser.zig");
 pub const Toml = @import("fileio/Toml.zig");
 const log = utility;
 
@@ -38,12 +37,6 @@ pub const SifyType = types.SifyType;
 pub const SymDataPin = types.SymDataPin;
 pub const PinRef = types.PinRef;
 pub const SymData = types.SymData;
-pub const SourceMode = types.SourceMode;
-pub const HdlLanguage = types.HdlLanguage;
-pub const BehavioralModel = types.BehavioralModel;
-pub const SynthesizedModel = types.SynthesizedModel;
-pub const DigitalConfig = types.DigitalConfig;
-
 /// Self-reference so test files can alias: `const sch = core.sch;`
 pub const sch = @This();
 
@@ -187,7 +180,6 @@ pub const Schemify = struct {
     /// inline subcircuit definitions.
     skip_toplevel_code: bool = false,
     stype: SifyType = .component,
-    digital: ?DigitalConfig = null,
 
     arena: std.heap.ArenaAllocator,
     logger: ?*log.Logger = null,

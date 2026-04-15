@@ -217,6 +217,9 @@ pub const CanvasState = struct {
     /// True once the `.move_hit_idx` candidate has crossed the drag
     /// threshold and we're actively moving selected instances.
     move_active: bool = false,
+    /// Snapped world-space cursor position, updated every mouse-motion event.
+    /// Used for wire placement preview.
+    cursor_world: [2]i32 = .{ 0, 0 },
 };
 
 pub const FileExplorerState = struct {
@@ -263,30 +266,6 @@ pub const PropsDialogState = struct {
 pub const KeybindsDialogState = struct {
     open: bool = false,
     win_rect: WinRect = .{ .x = 100, .y = 80, .w = 520, .h = 420 },
-};
-
-pub const DigitalBlockDialogState = struct {
-    is_open: bool = false,
-    name_buf: [128]u8 = [_]u8{0} ** 128,
-    name_len: usize = 0,
-    rtl_source_buf: [4096]u8 = [_]u8{0} ** 4096,
-    rtl_source_len: usize = 0,
-    language: u8 = 0,
-    win_rect: WinRect = .{ .x = 150, .y = 120, .w = 600, .h = 500 },
-    /// 0 = from scratch (.chn_prim), 1 = library template (.chn/.chn_tb)
-    block_mode: u8 = 0,
-    /// 0 = inline source, 1 = file reference
-    source_mode: u8 = 0,
-    /// 0 = device, 1 = stimulus
-    is_stimulus: u8 = 0,
-    /// 0 = behavioral only, 1 = post-synthesis only, 2 = both (user picks at sim time)
-    sim_preference: u8 = 0,
-    /// File path for RTL source (when source_mode == 1)
-    rtl_file_path_buf: [512]u8 = [_]u8{0} ** 512,
-    rtl_file_path_len: usize = 0,
-    /// File path for Yosys synthesized SPICE (optional)
-    synth_file_path_buf: [512]u8 = [_]u8{0} ** 512,
-    synth_file_path_len: usize = 0,
 };
 
 pub const MultiPropsDialogState = struct {
@@ -373,7 +352,6 @@ pub const GuiStateCold = struct {
     find_dialog:          FindDialogState          = .{},
     props_dialog:         PropsDialogState         = .{},
     keybinds_dialog:      KeybindsDialogState      = .{},
-    digital_block_dialog: DigitalBlockDialogState  = .{},
     spice_code_dialog:    SpiceCodeDialogState     = .{},
     marketplace_win: MarketplaceWinState = .{},
     multi_props_dialog:  MultiPropsDialogState     = .{},

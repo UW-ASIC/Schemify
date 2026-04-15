@@ -1,40 +1,42 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH test_lvs_ignore
+  instances:
+    V2  vsource  x=850  y=-350  sym=vsource  value=0  lvs_ignore=open
+    x5  subckt  x=1050  y=-430  sym=inv_ngspice  ROUT=1000
+    l10  lab_pin  x=920  y=-430  flip=1  sym=lab_show
+    l3  lab_pin  x=1110  y=-430  flip=1  sym=lab_show
+    l4  gnd  x=850  y=-290  sym=gnd
+    R1  resistor  x=50  y=-500  sym=res
+      .parameters{ value=100MEG  footprint=1206  device=resistor  m=1  lvs_ignore=short }
+    l12  vdd  x=50  y=-540  sym=vdd
+    C1  capacitor  x=50  y=-350  sym=capa
+      .parameters{ m=1  value=1p  footprint=1206  device=ceramic capacitor }
+    l13  gnd  x=50  y=-290  sym=gnd
+    l14  lab_pin  x=170  y=-430  rot=2  sym=lab_show
+    p1  lab_pin  x=430  y=-430  flip=1  sym=lab_pin  sig_type=std_logic
+    x2  subckt  x=320  y=-430  sym=inv_ngspice  ROUT=1000
+    R2  resistor  x=850  y=-540  sym=res
+      .parameters{ value=100MEG  footprint=1206  device=resistor  m=1 }
+    l6  vdd  x=850  y=-580  sym=vdd
+    l2  lab_pin  x=700  y=-520  flip=1  sym=lab_show
 
-  vsource [1]{name, x, y, rot, flip, value, lvs_ignore}:
-    V2  850  -350  0  0  0  open
+  nets:
+    STARTUP  -> x2.Y
 
-  instances [3]:
-    x5  inv_ngspice.chn  x=1050  y=-430  ROUT=1000
-    x2  inv_ngspice.chn  x=320  y=-430  ROUT=1000
-    x1  short.chn  x=520  y=-520  rot=1  value=0.1  lvs_ignore=open
-
-  resistors [2]{name, x, y, rot, flip, value, footprint, device, m, lvs_ignore}:
-    R1  50  -500  0  0  100MEG  1206  resistor  1  short
-    R2  850  -540  0  0  100MEG  1206  resistor  1  -
-
-  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
-    C1  50  -350  0  0  1  1p  1206  ceramic capacitor
-
-  wires [20]:
-    850 -430 1010 -430
-    850 -430 850 -380
-    50 -540 50 -530
-    50 -470 50 -430
-    50 -430 280 -430
-    360 -430 430 -430
-    50 -430 50 -380
-    50 -320 50 -290
-    850 -580 850 -570
-    850 -510 850 -430
-    1090 -430 1110 -430
-    850 -320 850 -290
-    400 -520 490 -520
-    400 -520 400 -430
-    550 -520 700 -520
-    850 -290 850 -290 GND
-    50 -540 50 -540 VDD
-    50 -290 50 -290 GND
-    430 -430 430 -430 STARTUP
-    850 -580 850 -580 VDD
+  wires:
+    850 -430 1010 -430 net1
+    850 -430 850 -380 net1
+    50 -540 50 -530 VDD
+    50 -470 50 -430 net2
+    50 -430 280 -430 net2
+    360 -430 430 -430 STARTUP
+    50 -430 50 -380 net2
+    50 -320 50 -290 GND
+    850 -580 850 -570 VDD
+    850 -510 850 -430 net1
+    1090 -430 1110 -430 net3
+    850 -320 850 -290 GND
+    400 -520 490 -520 STARTUP
+    400 -520 400 -430 STARTUP
+    550 -520 700 -520 STARTUP

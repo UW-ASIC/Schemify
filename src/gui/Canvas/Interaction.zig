@@ -67,6 +67,7 @@ pub fn handleInput(cs: *CanvasState, app: *st.AppState, wd: *dvui.WidgetData, vp
                         if (rel_ev != .none) result = rel_ev;
                     },
                     .motion => {
+                        cs.cursor_world = vp_mod.p2w(mp, vp, snap);
                         if (handleMouseMotion(cs, app, mp, vp, snap)) {
                             ev.handled = true;
                         }

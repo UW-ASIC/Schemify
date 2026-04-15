@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Api — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Api</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link active">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Plugin API Reference</h1>
+<p>Complete reference for the Schemify Plugin SDK (ABI v6). All types live in <code>@import(&quot;PluginIF&quot;)</code>.</p>
+<h2>Wire Format</h2>
+<p>Every message uses the same framing:</p>
+<pre><code>[u8  tag       ]   message type
+[u16 payload_sz]   payload byte count, little-endian
+[N   bytes     ]   payload
+</code></pre><p><strong>Strings inside payloads:</strong> <code>[u16 len LE][N bytes]</code> (UTF-8, no null terminator)</p>
+<p><strong>f32 arrays:</strong> <code>[u32 count LE][count × 4 bytes LE]</code></p>
+<h2>Descriptor</h2>
+<p>Every plugin must export <code>schemify_plugin</code>:</p>
+<pre><code class="hljs language-zig">pub const Descriptor = extern struct {
+    abi_version: u32 = ABI_VERSION,   // must equal 6
+    name:        [*:0]const u8,
+    version_str: [*:0]const u8,
+    process:     ProcessFn,
+};
+
+export const schemify_plugin: Plugin.Descriptor = .{
+    .name        = &quot;my-plugin&quot;,
+    .version_str = &quot;0.1.0&quot;,
+    .process     = schemify_process,
+};
+</code></pre><h2>ProcessFn</h2>
+<pre><code class="hljs language-zig">pub const ProcessFn = *const fn (
+    in_ptr:  [*]const u8,
+    in_len:  usize,
+    out_ptr: [*]u8,
+    out_cap: usize,
+) callconv(.c) usize;
+</code></pre><p>Return bytes written, or <code>maxInt(usize)</code> if output buffer too small (host will retry with doubled buffer).</p>
+<h2>Reader / InMsg</h2>
+<pre><code class="hljs language-zig">var r = Plugin.Reader.init(in_ptr[0..in_len]);
+while (r.next()) |msg| {
+    switch (msg) { ... }
+}
+</code></pre><h3>Lifecycle Messages</h3>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Payload</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>.load</code></td>
+<td>—</td>
+<td>Register panels and keybinds here</td>
+</tr>
+<tr>
+<td><code>.unload</code></td>
+<td>—</td>
+<td>Release resources</td>
+</tr>
+<tr>
+<td><code>.tick</code></td>
+<td><code>dt: f32</code></td>
+<td>Per-frame tick; <code>dt</code> = elapsed seconds</td>
+</tr>
+</tbody></table>
+<h3>UI Events</h3>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Payload</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>.draw_panel</code></td>
+<td><code>panel_id: u16</code></td>
+<td>Emit UI widgets for this panel</td>
+</tr>
+<tr>
+<td><code>.button_clicked</code></td>
+<td><code>panel_id</code>, <code>widget_id: u32</code></td>
+<td>Button was clicked</td>
+</tr>
+<tr>
+<td><code>.slider_changed</code></td>
+<td><code>panel_id</code>, <code>widget_id</code>, <code>val: f32</code></td>
+<td>Slider value changed</td>
+</tr>
+<tr>
+<td><code>.text_changed</code></td>
+<td><code>panel_id</code>, <code>widget_id</code>, <code>text: []const u8</code></td>
+<td>Text input changed</td>
+</tr>
+<tr>
+<td><code>.checkbox_changed</code></td>
+<td><code>panel_id</code>, <code>widget_id</code>, <code>val: u8</code></td>
+<td>Checkbox toggled</td>
+</tr>
+</tbody></table>
+<h3>Schematic Events</h3>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Payload</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>.schematic_changed</code></td>
+<td>—</td>
+<td>Active schematic modified</td>
+</tr>
+<tr>
+<td><code>.selection_changed</code></td>
+<td><code>instance_idx: i32</code></td>
+<td>Selected instance changed; <code>-1</code> = none</td>
+</tr>
+<tr>
+<td><code>.instance_data</code></td>
+<td><code>idx</code>, <code>name</code>, <code>symbol</code></td>
+<td>One instance from <code>queryInstances</code></td>
+</tr>
+<tr>
+<td><code>.net_data</code></td>
+<td><code>idx</code>, <code>name</code></td>
+<td>One net from <code>queryNets</code></td>
+</tr>
+</tbody></table>
+<h2>Writer Commands</h2>
+<pre><code class="hljs language-zig">var w = Plugin.Writer.init(out_ptr[0..out_cap]);
+// ... write messages ...
+return if (w.overflow()) std.math.maxInt(usize) else w.pos;
+</code></pre><h3>Panel &amp; Status</h3>
+<pre><code class="hljs language-zig">w.registerPanel(.{
+    .id      = &quot;waveform&quot;,
+    .title   = &quot;Waveform Viewer&quot;,
+    .vim_cmd = &quot;wv&quot;,
+    .layout  = .bottom_bar,
+    .keybind = &#x27;w&#x27;,
+});
+
+w.setStatus(&quot;simulation complete&quot;);
+</code></pre><h3>Logging</h3>
+<pre><code class="hljs language-zig">w.log(.info, &quot;sim&quot;, &quot;starting ngspice&quot;);
+w.log(.warn, &quot;sim&quot;, &quot;convergence issues detected&quot;);
+w.log(.err,  &quot;sim&quot;, &quot;ngspice exited with code 1&quot;);
+</code></pre><h3>Schematic Editing</h3>
+<pre><code class="hljs language-zig">w.placeDevice(&quot;sky130_fd_pr__nfet_01v8&quot;, &quot;M1&quot;, 100, 200);
+w.addWire(100, 200, 100, 300);
+w.setInstanceProp(3, &quot;W&quot;, &quot;2u&quot;);
+</code></pre><h3>Queries (async — responses arrive next tick)</h3>
+<pre><code class="hljs language-zig">w.queryInstances();  // → .schematic_snapshot, .instance_data, .instance_prop
+w.queryNets();       // → .schematic_snapshot, .net_data
+</code></pre><h3>Persistent State</h3>
+<pre><code class="hljs language-zig">w.setState(&quot;last_file&quot;, path);
+w.getState(&quot;last_file&quot;);
+// → .state_response next tick
+</code></pre><h3>Keybinds</h3>
+<pre><code class="hljs language-zig">w.registerKeybind(&#x27;r&#x27;, 0, &quot;run-simulation&quot;);
+// → .command { .tag = &quot;run-simulation&quot; } when pressed
+</code></pre><h2>UI Widgets</h2>
+<p>Emit during <code>.draw_panel</code>. <code>id</code> must be unique within one draw call.</p>
+<pre><code class="hljs language-zig">w.label(&quot;Threshold:&quot;, 0);
+w.slider(threshold, 0.0, 1.0, 1);
+w.button(&quot;Run Simulation&quot;, 2);
+w.separator(3);
+w.checkbox(show_labels, &quot;Show net labels&quot;, 4);
+w.progress(sim_progress, 5);
+w.plot(&quot;Vout vs Time&quot;, time_arr, voltage_arr, 6);
+w.image(rgba_data, 256, 256, 7);
+
+// Horizontal layout
+w.beginRow(8);
+w.label(&quot;W:&quot;, 9);
+w.button(&quot;2u&quot;, 10);
+w.endRow(8);
+
+// Collapsible section
+w.collapsibleStart(&quot;Advanced&quot;, false, 11);
+w.slider(gain, 0, 10, 12);
+w.collapsibleEnd(11);
+</code></pre><h2>PanelLayout</h2>
+<pre><code class="hljs language-zig">pub const PanelLayout = enum(u8) {
+    overlay       = 0,   // floating overlay / modal
+    left_sidebar  = 1,   // docked left
+    right_sidebar = 2,   // docked right
+    bottom_bar    = 3,   // docked bottom
+};
+</code></pre><h2>Vfs — Virtual Filesystem</h2>
+<p>Platform-agnostic FS API. Works identically on native and WASM.</p>
+<pre><code class="hljs language-zig">const data = try Plugin.Vfs.readAlloc(alloc, &quot;config.toml&quot;);
+defer alloc.free(data);
+
+try Plugin.Vfs.writeAll(&quot;output/result.json&quot;, json_bytes);
+try Plugin.Vfs.makePath(&quot;my-plugin/cache&quot;);
+
+if (!Plugin.Vfs.exists(&quot;cache/index.json&quot;)) {
+    try buildIndex(alloc);
+}
+
+const listing = try Plugin.Vfs.listDir(alloc, &quot;pdk/sky130A/libs.ref/&quot;);
+defer listing.deinit(alloc);
+for (listing.entries) |name| { ... }
+</code></pre><h2>LogLevel</h2>
+<pre><code class="hljs language-zig">pub const LogLevel = enum(u8) { info = 0, warn = 1, err = 2 };
+</code></pre>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

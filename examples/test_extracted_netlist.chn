@@ -1,96 +1,93 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH test_extracted_netlist
+  instances:
+    l1  lab_pin  x=620  y=-850  sym=lab_wire
+    p3  lab_pin  x=620  y=-810  sym=lab_pin
+    p4  lab_pin  x=1060  y=-850  flip=1  sym=lab_pin
+    p5  lab_pin  x=620  y=-790  sym=lab_pin
+    p6  lab_pin  x=620  y=-770  sym=lab_pin
+    R1  resistor  x=360  y=-800  sym=res
+      .parameters{ value=10k  footprint=1206  device=resistor  m=1 }
+    R2  resistor  x=360  y=-900  sym=res
+      .parameters{ value=100k  footprint=1206  device=resistor  m=1 }
+    VPP  vsource  x=290  y=-230  sym=vsource  value=dc 50
+    VNN  vsource  x=290  y=-170  sym=vsource  value=dc 50
+    p7  lab_pin  x=530  y=-280  flip=1  sym=lab_pin
+    p8  lab_pin  x=530  y=-120  flip=1  sym=lab_pin
+    p9  lab_pin  x=530  y=-200  flip=1  sym=lab_pin
+    vcurrvpp  vsource  x=430  y=-280  rot=3  sym=ammeter
+    vcurrvnn  vsource  x=430  y=-120  rot=3  sym=ammeter
+    vcurrvss  vsource  x=430  y=-200  rot=3  sym=ammeter
+    VVSS  vsource  x=660  y=-160  sym=vsource  value=0
+    p10  lab_pin  x=660  y=-210  flip=1  sym=lab_pin
+    p11  lab_pin  x=660  y=-130  flip=1  sym=lab_pin
+    p12  lab_pin  x=360  y=-680  flip=1  sym=lab_pin
+    VIN  vsource  x=30  y=-420  sym=vsource  value=pwl 
++   0     0 100u  0
++ 110u   2 200u 2
++ 210u    0 300u  0
++ 310u  -2
+    p1  lab_pin  x=30  y=-330  flip=1  sym=lab_pin
+    l3  lab_pin  x=620  y=-830  sym=lab_wire
+    R4  resistor  x=460  y=-640  flip=1  sym=res
+      .parameters{ value=100k  footprint=1206  device=resistor  m=1 }
+    p18  lab_pin  x=460  y=-690  sym=lab_pin
+    R5  resistor  x=480  y=-450  flip=1  sym=res
+      .parameters{ value=100k  footprint=1206  device=resistor  m=1 }
+    p15  lab_pin  x=480  y=-400  sym=lab_pin
+    C1  capacitor  x=370  y=-510  rot=1  sym=capa  m=1  value=50u
+    C4  capacitor  x=360  y=-740  sym=capa  m=1  value=50u
+    l4  lab_pin  x=210  y=-510  sym=lab_wire
+    R13  resistor  x=490  y=-910  flip=1  sym=res  m=1  value=100k
+    p16  lab_pin  x=490  y=-960  sym=lab_pin
+    RLOAD  resistor  x=1030  y=-750  sym=res
+      .parameters{ value=4  footprint=1206  device=resistor  m=1 }
+    p17  lab_pin  x=1030  y=-690  sym=lab_pin
+    p20  lab_pin  x=360  y=-770  flip=1  sym=lab_pin
+    x1  subckt  x=770  y=-810  sym=mos_power_ampli_extracted
 
-  resistors [6]{name, x, y, rot, flip, value, footprint, device, m}:
-    R1  360  -800  0  0  10k  1206  resistor  1
-    R2  360  -900  0  0  100k  1206  resistor  1
-    R4  460  -640  0  1  100k  1206  resistor  1
-    R5  480  -450  0  1  100k  1206  resistor  1
-    R13  490  -910  0  1  100k  -  -  1
-    RLOAD  1030  -750  0  0  4  1206  resistor  1
+  nets:
+    MINUS  -> x1.MINUS
+    PLUS  -> x1.PLUS
+    VSS  -> x1.VSS
+    OUT  -> x1.OUT
+    VPP  -> x1.VPP
+    VNN  -> x1.VNN
 
-  instances [4]:
-    VPP  vsource.sym  x=290  y=-230  value=dc 50
-    VNN  vsource.sym  x=290  y=-170  value=dc 50
-    VVSS  vsource.sym  x=660  y=-160  value=0
-    VIN  vsource.sym  x=30  y=-420  value=pwl +   0     0 100u  0 + 110u   2 200u 2 + 210u    0 300u  0 + 310u  -2
-
-  vsource [3]{name, x, y, rot, flip}:
-    vcurrvpp  430  -280  3  0
-    vcurrvnn  430  -120  3  0
-    vcurrvss  430  -200  3  0
-
-  capacitors [2]{name, x, y, rot, flip, m, value}:
-    C1  370  -510  1  0  1  50u
-    C4  360  -740  0  0  1  50u
-
-  instances [1]:
-    x1  mos_power_ampli_extracted.chn  x=770  y=-810
-
-  code_blocks [1]:
-    STIMULI  code  only_toplevel=true  value=.include \\"models_poweramp.txt\\" .options method=gear savecurrents ITL4=500 ITL5=50000  CHGTOL=1e-15 TRTOL=1 .control save all op write test_extracted_netlist.raw set appendwrite tran  100n 400u  * .FOUR 20k v(outm,outp) * .probe i(*)  write test_extracted_netlist.raw .endc 
-
-  annotations [6]:
-    p45  probe  x=520  y=-280  analysis=tran  voltage=49.93
-    p46  probe  x=520  y=-120  analysis=tran  voltage=-49.93
-    p2  probe  x=970  y=-850  analysis=tran  voltage=-0.1176
-    p13  probe  x=380  y=-850  analysis=tran  voltage=21.07
-    p14  probe  x=120  y=-510  analysis=tran  voltage=0.0000e+00
-    p19  probe  x=550  y=-620  analysis=tran  voltage=21.07
-
-  wires [54]:
-    360 -850 360 -830
-    290 -280 290 -260
-    290 -140 290 -120
-    290 -120 400 -120
-    290 -280 400 -280
-    460 -280 530 -280
-    460 -120 530 -120
-    460 -200 530 -200
-    290 -200 400 -200
-    660 -210 660 -190
-    920 -1000 920 -850
-    360 -1000 920 -1000
-    360 -1000 360 -930
-    490 -850 620 -850
-    550 -830 620 -830
-    550 -830 550 -510
-    1030 -850 1060 -850
-    30 -390 30 -330
-    460 -690 460 -670
-    480 -510 480 -480
-    480 -420 480 -400
-    460 -510 480 -510
-    400 -510 460 -510
-    460 -610 460 -510
-    360 -870 360 -850
-    360 -710 360 -680
-    480 -510 550 -510
-    30 -510 340 -510
-    490 -960 490 -940
-    490 -880 490 -850
-    1030 -850 1030 -780
-    1030 -720 1030 -690
-    30 -510 30 -450
-    360 -850 490 -850
-    920 -850 1030 -850
-    620 -850 620 -850 MINUS
-    620 -810 620 -810 VSS
-    1060 -850 1060 -850 OUT
-    620 -790 620 -790 VPP
-    620 -770 620 -770 VNN
-    530 -280 530 -280 VPP
-    530 -120 530 -120 VNN
-    530 -200 530 -200 VSS
-    660 -210 660 -210 VSS
-    660 -130 660 -130 0
-    360 -680 360 -680 VSS
-    30 -330 30 -330 VSS
-    620 -830 620 -830 PLUS
-    460 -690 460 -690 VPP
-    480 -400 480 -400 VSS
-    210 -510 210 -510 IN
-    490 -960 490 -960 VPP
-    1030 -690 1030 -690 VSS
-    360 -770 360 -770 C1
+  wires:
+    360 -850 360 -830 MINUS
+    290 -280 290 -260 net1
+    290 -140 290 -120 net2
+    290 -120 400 -120 net2
+    290 -280 400 -280 net1
+    460 -280 530 -280 VPP
+    460 -120 530 -120 VNN
+    460 -200 530 -200 VSS
+    290 -200 400 -200 net3
+    660 -210 660 -190 VSS
+    920 -1000 920 -850 OUT
+    360 -1000 920 -1000 OUT
+    360 -1000 360 -930 OUT
+    490 -850 620 -850 MINUS
+    550 -830 620 -830 PLUS
+    550 -830 550 -510 PLUS
+    1030 -850 1060 -850 OUT
+    30 -390 30 -330 VSS
+    460 -690 460 -670 VPP
+    480 -510 480 -480 PLUS
+    480 -420 480 -400 VSS
+    460 -510 480 -510 PLUS
+    400 -510 460 -510 PLUS
+    460 -610 460 -510 PLUS
+    360 -870 360 -850 MINUS
+    360 -710 360 -680 VSS
+    480 -510 550 -510 PLUS
+    30 -510 340 -510 IN
+    490 -960 490 -940 VPP
+    490 -880 490 -850 MINUS
+    1030 -850 1030 -780 OUT
+    1030 -720 1030 -690 VSS
+    30 -510 30 -450 IN
+    360 -850 490 -850 MINUS
+    920 -850 1030 -850 OUT

@@ -33,13 +33,13 @@ const core = @import("core");
 const theme = @import("theme_config");
 const utility = @import("utility");
 const Vfs = utility.Vfs;
-const components = @import("Components/lib.zig");
+const components = @import("../Components/lib.zig");
 
 const AppState = st.AppState;
 
 // Canvas sub-modules (read-only — we never modify them).
-const canvas_types = @import("Canvas/types.zig");
-const symbol_renderer = @import("Canvas/SymbolRenderer.zig");
+const canvas_types = @import("../Canvas/types.zig");
+const symbol_renderer = @import("../Canvas/SymbolRenderer.zig");
 const RenderContext = canvas_types.RenderContext;
 const RenderViewport = canvas_types.RenderViewport;
 const Palette = canvas_types.Palette;
@@ -817,21 +817,60 @@ fn drawPreviewSchematic(app: *AppState, bounds: dvui.Rect.Physical) void {
         sch.wires.len == 0 and sch.instances.len == 0 and sch.texts.len == 0;
     if (sch_is_empty) return;
 
-    // Compute world-space bounding box across every drawable element so the
-    // symbol's geometric center lands at the center of the preview pane.
-    const bbox = sch.bounds(30.0);
+    // Compute world-space bounding box only from the elements that
+    // drawSymbol actually renders: lines, rects, circles, arcs, pins,
+    // texts. Instances and wires live in the SCHEMATIC section of .chn
+    // files and are not drawn by drawSymbol — including them would push
+    // the computed center far from the visible symbol geometry.
+    var b_min_x: f32 = std.math.floatMax(f32);
+    var b_max_x: f32 = -std.math.floatMax(f32);
+    var b_min_y: f32 = std.math.floatMax(f32);
+    var b_max_y: f32 = -std.math.floatMax(f32);
+    var b_has_data = false;
+    const bumpPt = struct {
+        fn f(x: f32, y: f32, mnx: *f32, mxx: *f32, mny: *f32, mxy: *f32, hd: *bool) void {
+            if (x < mnx.*) mnx.* = x;
+            if (x > mxx.*) mxx.* = x;
+            if (y < mny.*) mny.* = y;
+            if (y > mxy.*) mxy.* = y;
+            hd.* = true;
+        }
+    }.f;
+    for (0..sch.lines.len) |i| {
+        bumpPt(@floatFromInt(sch.lines.items(.x0)[i]), @floatFromInt(sch.lines.items(.y0)[i]), &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+        bumpPt(@floatFromInt(sch.lines.items(.x1)[i]), @floatFromInt(sch.lines.items(.y1)[i]), &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+    }
+    for (0..sch.rects.len) |i| {
+        bumpPt(@floatFromInt(sch.rects.items(.x0)[i]), @floatFromInt(sch.rects.items(.y0)[i]), &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+        bumpPt(@floatFromInt(sch.rects.items(.x1)[i]), @floatFromInt(sch.rects.items(.y1)[i]), &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+    }
+    for (0..sch.circles.len) |i| {
+        const cx: f32 = @floatFromInt(sch.circles.items(.cx)[i]);
+        const cy: f32 = @floatFromInt(sch.circles.items(.cy)[i]);
+        const cr: f32 = @floatFromInt(sch.circles.items(.radius)[i]);
+        bumpPt(cx - cr, cy - cr, &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+        bumpPt(cx + cr, cy + cr, &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+    }
+    for (0..sch.arcs.len) |i| {
+        const ax: f32 = @floatFromInt(sch.arcs.items(.cx)[i]);
+        const ay: f32 = @floatFromInt(sch.arcs.items(.cy)[i]);
+        const ar: f32 = @floatFromInt(sch.arcs.items(.radius)[i]);
+        bumpPt(ax - ar, ay - ar, &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+        bumpPt(ax + ar, ay + ar, &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+    }
+    for (0..sch.pins.len) |i| {
+        bumpPt(@floatFromInt(sch.pins.items(.x)[i]), @floatFromInt(sch.pins.items(.y)[i]), &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+    }
+    for (0..sch.texts.len) |i| {
+        bumpPt(@floatFromInt(sch.texts.items(.x)[i]), @floatFromInt(sch.texts.items(.y)[i]), &b_min_x, &b_max_x, &b_min_y, &b_max_y, &b_has_data);
+    }
 
-    // Degenerate cases:
-    //   - `has_data == false` -> no geometry contributed at all. Use a
-    //     neutral square around the origin.
-    //   - bbox_w or bbox_h == 0 -> single point or horizontal/vertical
-    //     line. Pad so division by zero is avoided and the fit is stable.
     const pad_default: f32 = 50.0;
-    var min_x = bbox.min_x;
-    var max_x = bbox.max_x;
-    var min_y = bbox.min_y;
-    var max_y = bbox.max_y;
-    if (!bbox.has_data) {
+    var min_x = b_min_x;
+    var max_x = b_max_x;
+    var min_y = b_min_y;
+    var max_y = b_max_y;
+    if (!b_has_data) {
         min_x = -pad_default;
         max_x = pad_default;
         min_y = -pad_default;

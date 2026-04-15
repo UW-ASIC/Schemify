@@ -1,65 +1,39 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [4]:
+SYMBOL dlatch
+  pins:
     D  in  x=-90  y=-10
     Q  out  x=90  y=-10
     G  in  x=-90  y=10
     VSS  in  x=-90  y=30
-
-  params [1]:
+  params:
+    format = @name @pinlist @symname VTH=@VTH VHI=@VHI
     template = name=x1 VTH=1.5 VHI=3.0
-
-  spice_prefix: X
-
-  drawing:
-    line -70 -20 70 -20
-    line -70 40 70 40
-    line -70 -20 -70 40
-    line 70 -20 70 40
-    line -90 -10 -70 -10
-    line 70 -10 90 -10
-    line -90 10 -70 10
-    line -90 30 -70 30
-    pin_positions:
-      D: (-90, -10)
-      Q: (90, -10)
-      G: (-90, 10)
-      VSS: (-90, 30)
+    type = subcircuit
 
 SCHEMATIC
+  instances:
+    p0  ipin  x=100  y=-150  sym=ipin
+    p2  opin  x=400  y=-150  sym=opin
+    p4  ipin  x=100  y=-100  sym=ipin
+    G5  unknown  x=270  y=-280  rot=1  sym=switch  TABLE='VTH-0.1' 10G 'VTH+0.1' 10
+    c1  capacitor  x=300  y=-250  sym=capa  m=1  value=1p
+    p6  lab_pin  x=250  y=-320  sym=lab_pin
+    p7  lab_pin  x=300  y=-220  flip=1  sym=lab_pin
+    p1  ipin  x=100  y=-130  sym=ipin
+    p3  lab_pin  x=270  y=-320  flip=1  sym=lab_pin
+    E5  unknown  x=120  y=-280  sym=buf  TABLE='VTH-0.1' 0 'VTH+0.1' VHI
+    E1  unknown  x=440  y=-280  sym=buf  TABLE='VTH-0.1' 0 'VTH+0.1' VHI
+    p5  lab_pin  x=120  y=-250  sym=lab_pin
+    p8  lab_pin  x=440  y=-250  sym=lab_pin
+    p9  lab_pin  x=480  y=-280  flip=1  sym=lab_pin
+    p10  lab_pin  x=80  y=-280  sym=lab_pin
 
+  nets:
+    D  -> E5.A
+    VSS  -> E5.VSS, E1.VSS
+    Q  -> E1.Z
 
-  input_pin [3]{name, x, y, rot, flip, lab}:
-    D  80  -280  0  0  D
-    G  270  -320  0  0  G
-    VSS  440  -250  0  0  VSS
-
-  output_pin [1]{name, x, y, rot, flip, lab}:
-    Q  480  -280  0  0  Q
-
-  vswitch [1]{name, x, y, rot, flip, TABLE}:
-    G5  270  -280  1  0  'VTH-0.1' 10G 'VTH+0.1' 10
-
-  capacitors [1]{name, x, y, rot, flip, m, value}:
-    c1  300  -250  0  0  1  1p
-
-  behavioral [2]{name, x, y, rot, flip, TABLE}:
-    E5  120  -280  0  0  'VTH-0.1' 0 'VTH+0.1' VHI
-    E1  440  -280  0  0  'VTH-0.1' 0 'VTH+0.1' VHI
-
-  wires [13]:
-    160 -280 240 -280
-    300 -280 400 -280
-    100 -150 100 -150 D
-    400 -150 400 -150 Q
-    100 -100 100 -100 VSS
-    250 -320 250 -320 VSS
-    300 -220 300 -220 VSS
-    100 -130 100 -130 G
-    270 -320 270 -320 G
-    120 -250 120 -250 VSS
-    440 -250 440 -250 VSS
-    480 -280 480 -280 Q
-    80 -280 80 -280 D
+  wires:
+    160 -280 240 -280 net1
+    300 -280 400 -280 net2

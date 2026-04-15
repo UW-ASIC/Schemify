@@ -1,0 +1,60 @@
+chn_testbench 1
+
+TESTBENCH 0_examples_top
+  instances:
+    x1  subckt  x=160  y=-180  sym=poweramp  tclcommand=xschem descend
+    x2  subckt  x=160  y=-740  sym=tesla
+    x3  subckt  x=160  y=-700  sym=test_ne555
+    x4  subckt  x=160  y=-660  sym=test_lm324
+    x5  subckt  x=160  y=-780  sym=osc
+    x6  subckt  x=160  y=-820  sym=cmos_example
+    x8  subckt  x=160  y=-860  sym=greycnt
+    x9  subckt  x=160  y=-900  sym=loading
+    B1  subckt  x=880  y=-320  sym=inv_bsource  TABLE=1.4 3.0 1.6 0.0
+    x0  subckt  x=160  y=-940  sym=rlc
+    l2  lab_pin  x=640  y=-310  flip=1  sym=lab_pin  sig_type=std_logic
+    l3  lab_pin  x=500  y=-310  sym=bus_connect
+    r1  lab_pin  x=400  y=-310  sym=bus_connect_nolab
+    l4  lab_pin  x=410  y=-350  rot=3  flip=1  sym=lab_pin  sig_type=std_logic
+    x7  subckt  x=160  y=-620  sym=LCC_instances
+    x10  subckt  x=160  y=-580  sym=test_backannotated_subckt
+    x11  subckt  x=160  y=-540  sym=plot_manipulation
+    x12  unknown  x=160  y=-500  sym=logic_test
+    x13  unknown  x=160  y=-460  sym=simulate_ff
+    x14  unknown  x=160  y=-420  sym=test_mos_verilog
+    x15  subckt  x=160  y=-380  sym=test_ac
+    x17  unknown  x=160  y=-220  sym=rom8k
+    x19  subckt  x=160  y=-340  sym=test_doublepin
+    x20  subckt  x=160  y=-260  sym=classD_amp
+    x21  subckt  x=480  y=-900  sym=delta_sigma
+    xsolar  subckt  x=480  y=-860  sym=solar_panel
+    x23  subckt  x=160  y=-300  sym=test_extracted_netlist  tclcommand=xschem descend
+    x16  subckt  x=160  y=-140  sym=poweramp_lcc  tclcommand=xschem descend
+    x18  unknown  x=480  y=-820  sym=test_symbolgen
+    x24  unknown  x=480  y=-740  sym=inst_sch_select
+    x22  subckt  x=480  y=-700  sym=test_bus_tap
+    l5  lab_pin  x=450  y=-310  rot=1  flip=1  sym=bus_tap
+    x25  subckt  x=480  y=-660  sym=test_jfet
+    x26  subckt  x=480  y=-620  sym=test_short_option
+    x27  subckt  x=480  y=-580  sym=test_lvs_ignore
+    x28  unknown  x=480  y=-540  sym=test_generators
+    x29  subckt  x=480  y=-500  sym=autozero_comp
+    x30  subckt  x=480  y=-780  sym=tb_symbol_include
+    x31  unknown  x=1060  y=-100  sym=intuitive_interface_cheatsheet
+    x32  subckt  x=480  y=-460  sym=test_nyquist
+    x33  subckt  x=890  y=-900  sym=tb_diff_amp
+    x34  unknown  x=1360  y=-870  sym=tb_sar_adc
+    x35  unknown  x=1360  y=-900  sym=tb_counter_wrapper
+    x36  subckt  x=480  y=-940  sym=tb_test_evaluated_param
+
+  wires:
+    910 -410 940 -410 net1
+    860 -380 860 -360 net2
+    860 -380 920 -380 net2
+    880 -420 910 -410 net1
+    380 -310 640 -310 BUS[4:0]
+    510 -400 510 -320 BUS[1]
+    410 -350 410 -320 BUS[2]
+    460 -400 460 -320 BUS[2:1]
+    860 -450 860 -380 net2
+    820 -410 910 -410 net1

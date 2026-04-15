@@ -91,16 +91,16 @@ const ExprParser = struct {
             self.skipWs();
             if (self.match("==")) {
                 const rhs = try self.parseComparison();
-                lhs = .{ .boolean = lhs.asFloat() == rhs.asFloat() };
+                lhs = ExprResult{ .boolean = cmpBool(lhs.asFloat() == rhs.asFloat()) };
             } else if (self.match("!=")) {
                 const rhs = try self.parseComparison();
-                lhs = .{ .boolean = lhs.asFloat() != rhs.asFloat() };
+                lhs = ExprResult{ .boolean = cmpBool(lhs.asFloat() != rhs.asFloat()) };
             } else if (self.matchWord("eq")) {
                 const rhs = try self.parseComparison();
-                lhs = .{ .boolean = strEq(lhs, rhs) };
+                lhs = ExprResult{ .boolean = cmpBool(strEq(lhs, rhs)) };
             } else if (self.matchWord("ne")) {
                 const rhs = try self.parseComparison();
-                lhs = .{ .boolean = !strEq(lhs, rhs) };
+                lhs = ExprResult{ .boolean = cmpBool(!strEq(lhs, rhs)) };
             } else break;
         }
         return lhs;
@@ -112,16 +112,16 @@ const ExprParser = struct {
             self.skipWs();
             if (self.match("<=")) {
                 const rhs = try self.parseAdditive();
-                lhs = .{ .boolean = lhs.asFloat() <= rhs.asFloat() };
+                lhs = ExprResult{ .boolean = cmpBool(lhs.asFloat() <= rhs.asFloat()) };
             } else if (self.match(">=")) {
                 const rhs = try self.parseAdditive();
-                lhs = .{ .boolean = lhs.asFloat() >= rhs.asFloat() };
+                lhs = ExprResult{ .boolean = cmpBool(lhs.asFloat() >= rhs.asFloat()) };
             } else if (self.matchChar('<')) {
                 const rhs = try self.parseAdditive();
-                lhs = .{ .boolean = lhs.asFloat() < rhs.asFloat() };
+                lhs = ExprResult{ .boolean = cmpBool(lhs.asFloat() < rhs.asFloat()) };
             } else if (self.matchChar('>')) {
                 const rhs = try self.parseAdditive();
-                lhs = .{ .boolean = lhs.asFloat() > rhs.asFloat() };
+                lhs = ExprResult{ .boolean = cmpBool(lhs.asFloat() > rhs.asFloat()) };
             } else break;
         }
         return lhs;
@@ -372,6 +372,12 @@ fn parseValue(s: []const u8) ExprResult {
     if (std.fmt.parseInt(i64, s, 10)) |i| return .{ .integer = i } else |_| {}
     if (std.fmt.parseFloat(f64, s)) |f| return .{ .float = f } else |_| {}
     return .{ .string = s };
+}
+
+/// Force a boolean through a noinline barrier to prevent miscompilation
+/// of float comparisons stored into tagged unions (Zig 0.15 workaround).
+noinline fn cmpBool(v: bool) bool {
+    return v;
 }
 
 fn strEq(a: ExprResult, b: ExprResult) bool {

@@ -34,7 +34,6 @@ const context_menu = @import("Panels/ContextMenu.zig");
 const keybinds_dlg = @import("Dialogs/KeybindsDialog.zig");
 const find_dlg = @import("Dialogs/FindDialog.zig");
 const props_dlg = @import("Dialogs/PropsDialog.zig");
-const digital_block_dlg = @import("Dialogs/DigitalBlockDialog.zig");
 const missing_symbols_panel = @import("Dialogs/MissingSymbolsPanel.zig");
 const spice_code_dlg = @import("Dialogs/SpiceCodeDialog.zig");
 const multi_props_dlg = @import("Dialogs/MultiPropsDialog.zig");
@@ -77,7 +76,6 @@ pub fn frame(app: *AppState) !void {
     find_dlg.draw(app);
     props_dlg.draw(app);
     multi_props_dlg.draw(app);
-    digital_block_dlg.draw(app);
     spice_code_dlg.draw(app);
     marketplace.draw(app);
     missing_symbols_panel.draw(app);
@@ -92,13 +90,20 @@ fn handleCanvasEvent(app: *AppState, ev: CanvasEvent) void {
             switch (app.tool.active) {
                 .wire => {
                     if (app.tool.wire_start) |ws| {
+                        // Constrain to Manhattan (H or V only).
+                        const dx: u64 = @abs(@as(i64, pt[0]) - ws[0]);
+                        const dy: u64 = @abs(@as(i64, pt[1]) - ws[1]);
+                        const end: @import("Canvas/types.zig").Point = if (dx >= dy)
+                            .{ pt[0], ws[1] } // horizontal
+                        else
+                            .{ ws[0], pt[1] }; // vertical
                         // Second click: place the wire segment.
                         actions.enqueue(app, .{ .undoable = .{ .add_wire = .{
                             .start = ws,
-                            .end = pt,
+                            .end = end,
                         } } }, "Wire placed");
                         // Chain: next wire starts from this endpoint.
-                        app.tool.wire_start = pt;
+                        app.tool.wire_start = end;
                     } else {
                         // First click: set the starting point.
                         app.tool.wire_start = pt;

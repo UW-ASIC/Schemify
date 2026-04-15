@@ -1,0 +1,17 @@
+name = "Schemify Examples"
+
+[paths]
+chn = [
+  "cmos_inv.chn",
+  "cmos_example.chn",
+  "classD_amp.chn",
+  "mos_power_ampli.chn",
+  "autozero_comp.chn",
+  "delta_sigma.chn",
+  "adc.chn",
+  "greycnt.chn",
+  "dlatch.chn",
+  "flop.chn",
+  "nand2.chn",
+  "diode_1.chn",
+]

@@ -1,65 +1,84 @@
-chn_testbench 1.0
+chn 1
 
-TESTBENCH untitled
+SYMBOL test_short_option
+  pins:
+    NET_D  in  x=100  y=-190
+    NET_C  in  x=100  y=-170
+    NET_A  in  x=100  y=-210
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = subcircuit
+  drawing:
+    line 930 -250 1110 -250
 
-  instances [10]:
-    x2  short.chn  x=330  y=-390  rot=1
-    x5  short.chn  x=330  y=-580  rot=1
-    x3  inv_ngspice.chn  x=570  y=-480  ROUT=1000
-    x6  inv_ngspice.chn  x=570  y=-290  ROUT=1000
-    x7  inv_ngspice.chn  x=340  y=-480  ROUT=1000
-    x8  inv_ngspice.chn  x=340  y=-290  ROUT=1000
-    x4  and_ngspice.chn  x=790  y=-380  ROUT=1000
-    x1  short.chn  x=790  y=-460  rot=1
-    x10  inv_ngspice.chn  x=1520  y=-590  ROUT=1000
-    x11  inv_ngspice.chn  x=1720  y=-590  ROUT=1000
+SCHEMATIC
+  instances:
+    p3  lab_pin  x=130  y=-290  sym=lab_pin  sig_type=std_logic
+    p4  ipin  x=100  y=-190  sym=ipin
+    p5  lab_pin  x=660  y=-290  flip=1  sym=lab_pin  sig_type=std_logic
+    l2  lab_pin  x=480  y=-390  flip=1  sym=lab_show
+    p1  lab_pin  x=60  y=-480  sym=lab_pin  sig_type=std_logic
+    l3  lab_pin  x=480  y=-580  flip=1  sym=lab_show
+    p7  ipin  x=100  y=-170  sym=ipin
+    l5  lab_pin  x=660  y=-480  flip=1  sym=lab_show
+    x3  subckt  x=570  y=-480  sym=inv_ngspice  ROUT=1000
+    x6  subckt  x=570  y=-290  sym=inv_ngspice  ROUT=1000  spice_ignore=if {$IGNORE == 1} {return {false}} else {return {short}}
+    x7  subckt  x=340  y=-480  sym=inv_ngspice  spice_ignore=if {$IGNORE == 1} {return {false}} else {return {true}}  ROUT=1000
+    x8  subckt  x=340  y=-290  sym=inv_ngspice  spice_ignore=if {$IGNORE == 1} {return {true}} else {return {false}}  ROUT=1000
+    x4  subckt  x=790  y=-380  sym=and_ngspice  ROUT=1000  spice_ignore=if {$IGNORE == 0} {return {false}} else {return {true}}
+    l4  lab_pin  x=1020  y=-380  flip=1  sym=lab_show
+    Vopt2  vsource  x=90  y=-480  rot=3  sym=ammeter  spice_ignore=if {$IGNORE == 1} {return {true}} else {return {short}}
+    p2  lab_pin  x=60  y=-420  sym=lab_pin  sig_type=std_logic
+    Vopt1  vsource  x=90  y=-420  rot=3  sym=ammeter  spice_ignore=if {$IGNORE == 0} {return {true}} else {return {short}}
+    l6  lab_pin  x=180  y=-580  sym=lab_show
+    p6  lab_pin  x=920  y=-380  sym=lab_wire  sig_type=std_logic
+    p8  lab_pin  x=1820  y=-590  flip=1  sym=lab_pin  sig_type=std_logic
+    x10  subckt  x=1520  y=-590  sym=inv_ngspice  ROUT=1000  spice_ignore=if {$IGNORE == 0} {return {false}} else {return {short}}
+    x11  subckt  x=1720  y=-590  sym=inv_ngspice  ROUT=1000
+    p9  lab_pin  x=1210  y=-590  sym=lab_pin  sig_type=std_logic
+    l7  lab_pin  x=1590  y=-590  flip=1  sym=lab_show
+    l8  lab_pin  x=1380  y=-590  flip=1  sym=lab_show
+    p10  ipin  x=100  y=-210  sym=ipin
 
-  vsource [2]{name, x, y, rot, flip}:
-    Vopt2  90  -480  3  0
-    Vopt1  90  -420  3  0
+  nets:
+    NET_B  -> x6.Y, x4.B, x10.A
+    NET_A  -> x8.A
+    NET_E  -> x4.Y
+    NET_F  -> x11.Y
 
-  wires [44]:
-    130 -290 180 -290
-    480 -290 530 -290
-    180 -390 180 -290
-    480 -390 480 -290
-    180 -390 300 -390
-    360 -390 480 -390
-    160 -480 180 -480
-    480 -480 530 -480
-    180 -580 180 -480
-    480 -580 480 -480
-    180 -580 300 -580
-    360 -580 480 -580
-    380 -480 480 -480
-    180 -480 300 -480
-    380 -290 480 -290
-    180 -290 300 -290
-    610 -480 660 -480
-    660 -460 660 -400
-    660 -400 750 -400
-    660 -360 750 -360
-    660 -360 660 -290
-    610 -290 660 -290
-    980 -380 1020 -380
-    660 -460 760 -460
-    820 -460 980 -460
-    980 -460 980 -380
-    660 -480 660 -460
-    120 -420 160 -420
-    160 -480 160 -420
-    1560 -590 1680 -590
-    120 -480 160 -480
-    1760 -590 1820 -590
-    1210 -590 1480 -590
-    850 -380 980 -380
-    130 -290 130 -290 NET_A
-    100 -190 100 -190 NET_D
-    660 -290 660 -290 NET_B
-    60 -480 60 -480 NET_C
-    100 -170 100 -170 NET_C
-    60 -420 60 -420 NET_D
-    920 -380 920 -380 NET_E
-    1820 -590 1820 -590 NET_F
-    1210 -590 1210 -590 NET_B
-    100 -210 100 -210 NET_A
+  wires:
+    130 -290 180 -290 NET_A
+    480 -290 530 -290 NET_B
+    180 -390 180 -290 NET_A
+    480 -390 480 -290 NET_B
+    180 -390 300 -390 NET_A
+    360 -390 480 -390 NET_B
+    160 -480 180 -480 NET_C
+    480 -480 530 -480 NET_C
+    180 -580 180 -480 NET_C
+    480 -580 480 -480 NET_C
+    180 -580 300 -580 NET_C
+    360 -580 480 -580 NET_C
+    380 -480 480 -480 NET_C
+    180 -480 300 -480 NET_C
+    380 -290 480 -290 NET_B
+    180 -290 300 -290 NET_A
+    610 -480 660 -480 net1
+    660 -460 660 -400 net1
+    660 -400 750 -400 net1
+    660 -360 750 -360 NET_B
+    660 -360 660 -290 NET_B
+    610 -290 660 -290 NET_B
+    980 -380 1020 -380 NET_E
+    660 -460 760 -460 net1
+    820 -460 980 -460 NET_E
+    980 -460 980 -380 NET_E
+    660 -480 660 -460 net1
+    120 -420 160 -420 NET_C
+    160 -480 160 -420 NET_C
+    1560 -590 1680 -590 net2
+    120 -480 160 -480 NET_C
+    1760 -590 1820 -590 NET_F
+    1210 -590 1480 -590 NET_B
+    850 -380 980 -380 NET_E

@@ -1,0 +1,29 @@
+chn 1
+
+SYMBOL keeper_ngspice
+  pins:
+    A  in  x=-40  y=0
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    p1  ipin  x=220  y=-250  sym=ipin
+    x1  subckt  x=330  y=-200  sym=inv_ngspice
+    x2  subckt  x=330  y=-300  flip=1  sym=inv_ngspice  RUP=300k  RDOWN=200k
+    l2  lab_pin  x=400  y=-250  flip=1  sym=lab_pin  sig_type=std_logic
+
+  nets:
+    Y  -> x1.Y, x2.A
+    A  -> x1.A, x2.Y
+
+  wires:
+    260 -300 290 -300 A
+    260 -300 260 -200 A
+    260 -200 290 -200 A
+    370 -300 400 -300 Y
+    400 -300 400 -200 Y
+    370 -200 400 -200 Y
+    220 -250 260 -250 A

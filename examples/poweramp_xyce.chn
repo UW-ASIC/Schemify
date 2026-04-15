@@ -1,150 +1,131 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH poweramp_xyce
+  instances:
+    V1  vsource  x=160  y=-1200  sym=vsource  value=pwl 0 0 1m 50
+    V0  vsource  x=160  y=-1140  sym=vsource  value=pwl 0 0 1m 50
+    p5  lab_pin  x=340  y=-1250  flip=1  sym=lab_pin
+    p6  lab_pin  x=340  y=-1090  flip=1  sym=lab_pin
+    p3  lab_pin  x=340  y=-1170  flip=1  sym=lab_pin
+    p14  lab_pin  x=860  y=-240  flip=1  sym=lab_pin
+    R1  resistor  x=860  y=-490  flip=1  sym=res  m=1  value=8
+    p26  lab_pin  x=510  y=-1200  sym=lab_pin
+    p31  lab_pin  x=550  y=-1240  sym=lab_pin
+    E3  vcvs  x=620  y=-1220  sym=vcvs  value='gain*0.99'
+    p32  lab_pin  x=710  y=-1250  flip=1  sym=lab_pin
+    C2  capacitor  x=280  y=-1210  sym=capa  m=1  value=100u
+    C3  capacitor  x=270  y=-1130  sym=capa  m=1  value=100u
+    R11  resistor  x=220  y=-1250  rot=1  flip=1  sym=res  m=1  value=0.3
+    R9  resistor  x=220  y=-1090  rot=1  flip=1  sym=res  m=1  value=0.3
+    R19  resistor  x=550  y=-920  flip=1  sym=res  m=1  value='100k'
+    R0  resistor  x=550  y=-860  flip=1  sym=res  m=1  value='100k/gain'
+    p108  lab_pin  x=550  y=-750  sym=lab_pin
+    x1  subckt  x=500  y=-660  sym=mos_power_ampli
+    p2  lab_pin  x=350  y=-640  sym=lab_pin
+    p4  lab_pin  x=350  y=-620  sym=lab_pin
+    p9  lab_pin  x=860  y=-700  flip=1  sym=lab_pin
+    x0  subckt  x=500  y=-200  sym=mos_power_ampli
+    p12  lab_pin  x=350  y=-180  sym=lab_pin
+    p13  lab_pin  x=350  y=-160  sym=lab_pin
+    R6  resistor  x=240  y=-320  flip=1  sym=res  m=1  value=100k
+    p7  lab_pin  x=240  y=-370  sym=lab_pin
+    R7  resistor  x=260  y=-160  flip=1  sym=res  m=1  value=100k
+    p15  lab_pin  x=260  y=-110  sym=lab_pin
+    p20  lab_pin  x=510  y=-1120  sym=lab_pin
+    p21  lab_pin  x=550  y=-1160  sym=lab_pin
+    E0  vcvs  x=620  y=-1140  sym=vcvs  value='-gain*0.99'
+    p23  lab_pin  x=710  y=-1170  flip=1  sym=lab_pin
+    p8  lab_pin  x=240  y=-250  sym=lab_pin
+    p126  lab_pin  x=880  y=-1100  sym=lab_pin
+    p127  lab_pin  x=960  y=-1250  flip=1  sym=lab_pin
+    C5  capacitor  x=550  y=-800  sym=capa  m=1  value=100n ic=0
+    p11  lab_pin  x=550  y=-290  sym=lab_pin
+    C6  capacitor  x=550  y=-340  sym=capa  m=1  value=100n ic=0
+    p28  lab_pin  x=350  y=-200  sym=lab_pin
+    p1  lab_pin  x=350  y=-660  sym=lab_pin
+    R2  resistor  x=550  y=-460  flip=1  sym=res  m=1  value='100k'
+    R3  resistor  x=550  y=-400  flip=1  sym=res  m=1  value='100k/(gain-2)'
+    V3  vsource  x=880  y=-1190  sym=vsource  xvalue=pulse -.1 .1 1m .1u .1u 10.1u 20u  value=sin 0 1 20k 1m
+    R4  resistor  x=240  y=-780  flip=1  sym=res  m=1  value=100k
+    p18  lab_pin  x=240  y=-830  sym=lab_pin
+    R5  resistor  x=260  y=-620  flip=1  sym=res  m=1  value=100k
+    p10  lab_pin  x=260  y=-570  sym=lab_pin
+    R8  resistor  x=400  y=-950  flip=1  sym=res  m=1  value=100k
+    C4  capacitor  x=170  y=-220  rot=1  sym=capa  m=1  value=100n ic=0
+    p0  lab_pin  x=140  y=-220  sym=lab_pin
+    C1  capacitor  x=150  y=-680  rot=1  sym=capa  m=1  value=100n ic=0
+    p17  lab_pin  x=120  y=-680  sym=lab_pin
+    p22  lab_pin  x=240  y=-710  sym=lab_pin
+    R10  resistor  x=930  y=-1250  rot=1  flip=1  sym=res  m=1  value=2
+    p24  lab_pin  x=400  y=-1000  sym=lab_pin
+    R13  resistor  x=400  y=-490  flip=1  sym=res  m=1  value=100k
+    p16  lab_pin  x=400  y=-540  sym=lab_pin
+    V4  vsource  x=880  y=-1130  sym=vsource  value=0  xvalue=pwl 0 .1 1m .1 1.01m 0
+    p19  lab_pin  x=350  y=-270  sym=lab_pin
+    p25  lab_pin  x=350  y=-730  sym=lab_pin
+    p27  lab_pin  x=880  y=-1250  sym=lab_pin
 
-  vsource [4]{name, x, y, rot, flip, value, xvalue}:
-    V1  160  -1200  0  0  pwl 0 0 1m 50  -
-    V0  160  -1140  0  0  pwl 0 0 1m 50  -
-    V3  880  -1190  0  0  sin 0 1 20k 1m  pulse -.1 .1 1m .1u .1u 10.1u 20u
-    V4  880  -1130  0  0  0  pwl 0 .1 1m .1 1.01m 0
-
-  resistors [14]{name, x, y, rot, flip, m, value}:
-    R1  860  -490  0  1  1  8
-    R11  220  -1250  1  1  1  0.3
-    R9  220  -1090  1  1  1  0.3
-    R19  550  -920  0  1  1  '100k'
-    R0  550  -860  0  1  1  '100k/gain'
-    R6  240  -320  0  1  1  100k
-    R7  260  -160  0  1  1  100k
-    R2  550  -460  0  1  1  '100k'
-    R3  550  -400  0  1  1  '100k/(gain-2)'
-    R4  240  -780  0  1  1  100k
-    R5  260  -620  0  1  1  100k
-    R8  400  -950  0  1  1  100k
-    R10  930  -1250  1  1  1  2
-    R13  400  -490  0  1  1  100k
-
-  vcvs [2]{name, x, y, rot, flip, value}:
-    E3  620  -1220  0  0  'gain*0.99'
-    E0  620  -1140  0  0  '-gain*0.99'
-
-  capacitors [6]{name, x, y, rot, flip, m, value}:
-    C2  280  -1210  0  0  1  100u
-    C3  270  -1130  0  0  1  100u
-    C5  550  -800  0  0  1  100n ic=0
-    C6  550  -340  0  0  1  100n ic=0
-    C4  170  -220  1  0  1  100n ic=0
-    C1  150  -680  1  0  1  100n ic=0
-
-  instances [2]:
-    x1  mos_power_ampli.chn  x=500  y=-660
-    x0  mos_power_ampli.chn  x=500  y=-200
-
-  code_blocks [1]:
-    STIMULI  code  only_toplevel=true  value=* .option sampling_method = SRS * .option method=gear vvss vss 0 dc 0   .param frequ=20e3 .param gain=42 * .tran \{2e-3/frequ\} \{1e-3 + 160/frequ\} uic .tran 6e-6 0.06 uic  ** models are generally not free: you must download ** SPICE models for active devices and put them  into the below  ** referenced file in netlist/simulation directory. .include \\"models_poweramp.txt\\" * .save all * .FOUR 20k v(outm,outp) * .probe i(*)  * .probe p(r*) p(v*) 
-
-  annotations [5]:
-    p40  probe  x=730  y=-700  analysis=tran
-    p41  probe  x=740  y=-240  analysis=tran
-    p42  probe  x=670  y=-1250  analysis=tran
-    p43  probe  x=680  y=-1170  analysis=tran
-    p44  probe  x=960  y=-1250  analysis=tran
-
-  wires [97]:
-    160 -1250 160 -1230
-    160 -1110 160 -1090
-    280 -1170 340 -1170
-    710 -700 860 -700
-    510 -1200 580 -1200
-    580 -1200 580 -1190
-    580 -1190 620 -1190
-    550 -1240 580 -1240
-    620 -1250 710 -1250
-    280 -1180 280 -1170
-    280 -1250 280 -1240
-    270 -1100 270 -1090
-    270 -1170 270 -1160
-    160 -1090 190 -1090
-    270 -1090 340 -1090
-    160 -1250 190 -1250
-    280 -1250 340 -1250
-    270 -1170 280 -1170
-    250 -1250 280 -1250
-    250 -1090 270 -1090
-    160 -1170 270 -1170
-    550 -950 710 -950
-    400 -890 550 -890
-    550 -770 550 -750
-    350 -890 350 -700
-    710 -950 710 -700
-    710 -240 860 -240
-    260 -220 350 -220
-    550 -490 710 -490
-    400 -430 550 -430
-    350 -430 350 -240
-    710 -490 710 -240
-    240 -370 240 -350
-    240 -290 240 -220
-    260 -220 260 -190
-    260 -130 260 -110
-    510 -1120 580 -1120
-    550 -1160 580 -1160
-    620 -1170 710 -1170
-    200 -220 240 -220
-    550 -310 550 -290
-    650 -700 710 -700
-    650 -240 710 -240
-    240 -220 260 -220
-    260 -680 350 -680
-    240 -830 240 -810
-    240 -750 240 -680
-    260 -680 260 -650
-    260 -590 260 -570
-    240 -680 260 -680
-    180 -680 240 -680
-    880 -1250 900 -1250
-    880 -1250 880 -1220
-    400 -1000 400 -980
-    400 -920 400 -890
-    400 -540 400 -520
-    400 -460 400 -430
-    860 -700 860 -520
-    860 -460 860 -240
-    350 -890 400 -890
-    350 -430 400 -430
-    580 -1110 620 -1110
-    580 -1120 580 -1110
-    340 -1250 340 -1250 VPP
-    340 -1090 340 -1090 VNN
-    340 -1170 340 -1170 VSS
-    860 -240 860 -240 OUTP
-    510 -1200 510 -1200 VSS
-    550 -1240 550 -1240 IN
-    710 -1250 710 -1250 REFP
-    550 -750 550 -750 IN
-    350 -640 350 -640 VPP
-    350 -620 350 -620 VNN
-    860 -700 860 -700 OUTM
-    350 -180 350 -180 VPP
-    350 -160 350 -160 VNN
-    240 -370 240 -370 VPP
-    260 -110 260 -110 VSS
-    510 -1120 510 -1120 VSS
-    550 -1160 550 -1160 IN
-    710 -1170 710 -1170 REFM
-    240 -250 240 -250 INX
-    880 -1100 880 -1100 VSS
-    960 -1250 960 -1250 IN
-    550 -290 550 -290 VSS
-    350 -200 350 -200 VSS
-    350 -660 350 -660 VSS
-    240 -830 240 -830 VPP
-    260 -570 260 -570 VSS
-    140 -220 140 -220 IN
-    120 -680 120 -680 VSS
-    240 -710 240 -710 VSSX
-    400 -1000 400 -1000 VPP
-    400 -540 400 -540 VPP
-    350 -270 350 -270 FB
-    350 -730 350 -730 FBN
-    880 -1250 880 -1250 IN_INT
+  wires:
+    160 -1250 160 -1230 net1
+    160 -1110 160 -1090 net2
+    280 -1170 340 -1170 VSS
+    710 -700 860 -700 OUTM
+    510 -1200 580 -1200 VSS
+    580 -1200 580 -1190 VSS
+    580 -1190 620 -1190 VSS
+    550 -1240 580 -1240 IN
+    620 -1250 710 -1250 REFP
+    280 -1180 280 -1170 VSS
+    280 -1250 280 -1240 VPP
+    270 -1100 270 -1090 VNN
+    270 -1170 270 -1160 VSS
+    160 -1090 190 -1090 net2
+    270 -1090 340 -1090 VNN
+    160 -1250 190 -1250 net1
+    280 -1250 340 -1250 VPP
+    270 -1170 280 -1170 VSS
+    250 -1250 280 -1250 VPP
+    250 -1090 270 -1090 VNN
+    160 -1170 270 -1170 VSS
+    550 -950 710 -950 OUTM
+    400 -890 550 -890 FBN
+    550 -770 550 -750 IN
+    350 -890 350 -700 FBN
+    710 -950 710 -700 OUTM
+    710 -240 860 -240 OUTP
+    260 -220 350 -220 INX
+    550 -490 710 -490 OUTP
+    400 -430 550 -430 FB
+    350 -430 350 -240 FB
+    710 -490 710 -240 OUTP
+    240 -370 240 -350 VPP
+    240 -290 240 -220 INX
+    260 -220 260 -190 INX
+    260 -130 260 -110 VSS
+    510 -1120 580 -1120 VSS
+    550 -1160 580 -1160 IN
+    620 -1170 710 -1170 REFM
+    200 -220 240 -220 INX
+    550 -310 550 -290 VSS
+    650 -700 710 -700 OUTM
+    650 -240 710 -240 OUTP
+    240 -220 260 -220 INX
+    260 -680 350 -680 VSSX
+    240 -830 240 -810 VPP
+    240 -750 240 -680 VSSX
+    260 -680 260 -650 VSSX
+    260 -590 260 -570 VSS
+    240 -680 260 -680 VSSX
+    180 -680 240 -680 VSSX
+    880 -1250 900 -1250 IN_INT
+    880 -1250 880 -1220 IN_INT
+    400 -1000 400 -980 VPP
+    400 -920 400 -890 FBN
+    400 -540 400 -520 VPP
+    400 -460 400 -430 FB
+    860 -700 860 -520 OUTM
+    860 -460 860 -240 OUTP
+    350 -890 400 -890 FBN
+    350 -430 400 -430 FB
+    580 -1110 620 -1110 VSS
+    580 -1120 580 -1110 VSS

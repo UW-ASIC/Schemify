@@ -1,22 +1,46 @@
-chn_testbench 1.0
+chn 1
 
-TESTBENCH untitled
+SYMBOL tb_symbol_include
+  pins:
+    XY[7:4]  out  x=120  y=-70
+    xvss  in  x=80  y=-70
+    XVCC  in  x=80  y=-90
+    XC  in  x=80  y=-110
+    XB  in  x=80  y=-130
+    XA[9:7]  in  x=80  y=-150
+    XZ  out  x=120  y=-90
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = subcircuit
 
-  instances [1]:
-    x2  SYMBOL_include.chn  x=410  y=-190  tclcommand=textwindow [xschem get current_dirname]/symbol_include.cir  comm=following instance attributes (now 'x' commented) specify an alternate       symbol reference to use in netlist  xspice_sym_def=.include symbol_include2.cir  xschematic=symbol_include2.sch
+SCHEMATIC
+  instances:
+    p1  lab_pin  x=260  y=-230  sym=lab_pin
+    p2  lab_pin  x=260  y=-210  sym=lab_pin
+    p3  lab_pin  x=260  y=-190  sym=lab_pin
+    p4  lab_pin  x=560  y=-230  flip=1  sym=lab_pin
+    p5  lab_pin  x=260  y=-170  sym=lab_pin
+    p6  lab_pin  x=260  y=-150  sym=lab_pin
+    p7  opin  x=120  y=-70  sym=opin
+    p8  ipin  x=80  y=-70  sym=ipin
+    p9  ipin  x=80  y=-90  sym=ipin
+    p10  ipin  x=80  y=-110  sym=ipin
+    p11  ipin  x=80  y=-130  sym=ipin
+    p12  ipin  x=80  y=-150  sym=ipin
+    p13  lab_pin  x=560  y=-210  flip=1  sym=lab_pin
+    p14  opin  x=120  y=-90  sym=opin
+    x2  subckt  x=410  y=-190  sym=SYMBOL_include
+      .parameters{ tclcommand=textwindow [xschem get current_dirname]/symbol_include.cir  comm=following instance attributes (now 'x' commented) specify an alternate
+      symbol reference to use in netlist  xspice_sym_def=.include symbol_include2.cir  xschematic=symbol_include2.sch }
 
-  wires [14]:
-    260 -230 260 -230 XA[9:7]
-    260 -210 260 -210 XB
-    260 -190 260 -190 XC
-    560 -230 560 -230 XZ
-    260 -170 260 -170 XVCC
-    260 -150 260 -150 xvss
-    120 -70 120 -70 XY[7:4]
-    80 -70 80 -70 xvss
-    80 -90 80 -90 XVCC
-    80 -110 80 -110 XC
-    80 -130 80 -130 XB
-    80 -150 80 -150 XA[9:7]
-    560 -210 560 -210 XY[7:4]
-    120 -90 120 -90 XZ
+  nets:
+    XA[9:7]  -> x2.A[2:0]
+    XZ  -> x2.Z
+    XB  -> x2.B
+    XY[7:4]  -> x2.Y[5:2]
+    XC  -> x2.C
+    XVCC  -> x2.vcc
+    xvss  -> x2.VSS
+
+  wires:

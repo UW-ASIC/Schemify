@@ -1,0 +1,34 @@
+chn 1
+
+SYMBOL buf_ngspice
+  pins:
+    Y  out  x=40  y=0
+    A  in  x=-40  y=0
+  params:
+    format = @name @pinlist @symname RUP=@RUP RDOWN=@RDOWN
+    template = name=x1 RUP=2000 RDOWN=1000
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    p1  ipin  x=70  y=-240  sym=ipin
+    p4  opin  x=320  y=-240  sym=opin
+    B1  behavioral  x=470  y=-400  flip=1  sym=bsource  VAR=V  FUNC='VCC/2*(1+tanh((V(A1)-VCC/2)*100))'
+    l2  lab_pin  x=320  y=-470  sym=lab_pin  sig_type=std_logic
+    l3  lab_pin  x=470  y=-320  sym=lab_pin  sig_type=std_logic
+    l5  lab_pin  x=670  y=-470  flip=1  sym=lab_pin  sig_type=std_logic
+    l6  lab_pin  x=130  y=-240  flip=1  sym=lab_pin  sig_type=std_logic
+    l7  lab_pin  x=260  y=-240  sym=lab_pin  sig_type=std_logic
+    C3  capacitor  x=620  y=-460  sym=parax_cap  gnd=0  value=8f  m=1
+    C1  capacitor  x=360  y=-460  sym=parax_cap  gnd=0  value=4f  m=1
+    V1  vsource  x=290  y=-240  rot=1  sym=vsource  value=0
+    V2  vsource  x=100  y=-240  rot=1  sym=vsource  value=0
+    B2  behavioral  x=570  y=-470  rot=3  flip=1  sym=bsource  VAR=I  FUNC='v(X1,Y1) > 0 ? v(X1,Y1) / RUP : v(X1,Y1) / RDOWN'  hide_texts=1
+    l4  lab_pin  x=470  y=-470  sym=lab_pin  sig_type=std_logic
+
+  wires:
+    470 -470 470 -430 X1
+    470 -470 540 -470 X1
+    470 -370 470 -320 0
+    600 -470 670 -470 Y1
+    320 -470 360 -470 A1

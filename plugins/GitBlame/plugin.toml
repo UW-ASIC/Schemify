@@ -1,0 +1,8 @@
+[plugin]
+name        = "GitBlame"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libGitBlame.so"
+description = "Shows git blame annotations for schematic elements — displays last-commit author and message alongside selected components."
+tags        = ["git", "vcs", "blame", "annotations"]
+scope       = "user"

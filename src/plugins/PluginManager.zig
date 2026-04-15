@@ -5,6 +5,14 @@
 //! minimal struct shape so that runtime.zig compiles.
 
 const std = @import("std");
+const Logger = @import("utility").Logger;
+
+const PluginSpec = @import("core").Toml.ProjectConfig.PluginSpec;
+const Scope = enum { project, user };
+
+pub const EnsureResult = struct {
+    fail_count: u32,
+};
 
 pub const PluginManager = struct {
     alloc: std.mem.Allocator,
@@ -29,5 +37,21 @@ pub const PluginManager = struct {
             if (std.mem.eql(u8, n, name)) return true;
         }
         return false;
+    }
+
+    /// Stub: ensure plugins are installed. Returns zero failures.
+    pub fn ensureInstalled(
+        self: *PluginManager,
+        specs: []const PluginSpec,
+        scope: Scope,
+        log: *Logger,
+        alloc: std.mem.Allocator,
+    ) EnsureResult {
+        _ = self;
+        _ = specs;
+        _ = scope;
+        _ = log;
+        _ = alloc;
+        return .{ .fail_count = 0 };
     }
 };

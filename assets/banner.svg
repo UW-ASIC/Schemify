@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420">
+  <defs>
+    <style>
+      .bg { fill: #0d1117; }
+      .grid { stroke: #1e2a3a; stroke-width: 0.5; }
+      .wire { stroke: #4ec9b0; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .wire-dim { stroke: #2a6b60; stroke-width: 1.8; fill: none; stroke-linecap: round; }
+      .component { stroke: #4ec9b0; stroke-width: 1.8; fill: none; }
+      .component-fill { stroke: #4ec9b0; stroke-width: 1.8; fill: #0d1117; }
+      .label { fill: #7dcfb6; font-family: 'Courier New', monospace; font-size: 11px; }
+      .label-sm { fill: #4a8a7a; font-family: 'Courier New', monospace; font-size: 9px; }
+      .net-dot { fill: #4ec9b0; }
+      .title { fill: #e6edf3; font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; letter-spacing: 2px; }
+      .subtitle { fill: #4ec9b0; font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: 3px; }
+      .vdd { fill: #f97583; stroke: #f97583; stroke-width: 1.5; }
+      .vdd-label { fill: #f97583; font-family: 'Courier New', monospace; font-size: 10px; font-weight: bold; }
+      .gnd { stroke: #f97583; stroke-width: 1.5; fill: none; }
+      .highlight { stroke: #79c0ff; stroke-width: 2; fill: none; }
+      .pin-dot { fill: #4ec9b0; }
+      .annotation { fill: #3a5a6e; font-family: 'Courier New', monospace; font-size: 9px; }
+    </style>
+    <!-- Grid pattern -->
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" class="grid"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="420" class="bg"/>
+  <rect width="800" height="420" fill="url(#grid)" opacity="0.6"/>
+
+  <!-- ========== CIRCUIT: Inverting Op-Amp with BJT output stage ========== -->
+
+  <!-- === INPUT SECTION === -->
+  <!-- Vin label -->
+  <text x="38" y="205" class="label">Vin</text>
+  <!-- Input wire to R1 -->
+  <line x1="68" y1="200" x2="100" y2="200" class="wire"/>
+
+  <!-- R1 — input resistor (horizontal zigzag) -->
+  <text x="107" y="188" class="label">R1</text>
+  <text x="104" y="198" class="label-sm">10k</text>
+  <polyline points="100,200 104,200 107,194 113,206 119,194 125,206 131,194 137,206 140,200 144,200" class="component"/>
+  <!-- wire after R1 -->
+  <line x1="144" y1="200" x2="180" y2="200" class="wire"/>
+
+  <!-- Net junction to inverting input -->
+  <line x1="180" y1="200" x2="180" y2="200" class="wire"/>
+
+  <!-- === OP-AMP === -->
+  <!-- Op-amp triangle body: tip at (360,190), base from (260,140) to (260,240) -->
+  <polygon points="260,140 260,240 360,190" class="component-fill"/>
+
+  <!-- Inverting input (-) wire: from (180,200) to (260,200) -->
+  <line x1="180" y1="200" x2="260" y2="200" class="wire"/>
+  <!-- Non-inverting input (+) wire: from ground node to (260,180) -->
+  <line x1="180" y1="180" x2="260" y2="180" class="wire-dim"/>
+  <!-- Input port labels -->
+  <text x="264" y="204" class="label" font-size="14">−</text>
+  <text x="264" y="184" class="label" font-size="14">+</text>
+
+  <!-- Non-inverting to GND -->
+  <line x1="180" y1="180" x2="180" y2="200" class="wire-dim"/>
+  <!-- junction -->
+  <circle cx="180" cy="200" r="3" class="net-dot"/>
+
+  <!-- Node going up to feedback -->
+  <line x1="180" y1="200" x2="180" y2="140" class="wire"/>
+
+  <!-- === FEEDBACK RESISTOR Rf === -->
+  <!-- Rf horizontal from (180,140) to (360,140) via output -->
+  <line x1="180" y1="140" x2="220" y2="140" class="wire"/>
+  <text x="250" y="130" class="label">Rf</text>
+  <text x="248" y="140" class="label-sm">100k</text>
+  <polyline points="220,140 224,140 227,134 233,146 239,134 245,146 251,134 257,146 260,140 264,140" class="component"/>
+  <line x1="264" y1="140" x2="360" y2="140" class="wire"/>
+
+  <!-- Output wire from op-amp tip -->
+  <line x1="360" y1="190" x2="400" y2="190" class="wire"/>
+  <!-- Junction: feedback meets output -->
+  <line x1="360" y1="140" x2="360" y2="190" class="wire"/>
+  <circle cx="360" cy="190" r="3" class="net-dot"/>
+
+  <!-- === VDD / VSS SUPPLY TO OP-AMP === -->
+  <!-- VDD line up from op-amp center -->
+  <line x1="310" y1="165" x2="310" y2="130" class="wire" stroke="#f97583" stroke-width="1.5"/>
+  <!-- VDD symbol (upward arrow) -->
+  <polygon points="310,118 305,130 315,130" fill="#f97583"/>
+  <text x="316" y="122" class="vdd-label">VDD</text>
+
+  <!-- VSS line down -->
+  <line x1="310" y1="215" x2="310" y2="260" class="wire" stroke="#f97583" stroke-width="1.5"/>
+  <!-- GND symbol -->
+  <line x1="300" y1="260" x2="320" y2="260" stroke="#f97583" stroke-width="2"/>
+  <line x1="303" y1="265" x2="317" y2="265" stroke="#f97583" stroke-width="1.5"/>
+  <line x1="306" y1="270" x2="314" y2="270" stroke="#f97583" stroke-width="1"/>
+  <text x="325" y="264" class="vdd-label">VSS</text>
+
+  <!-- === NPN BJT OUTPUT STAGE === -->
+  <!-- Q1 NPN at roughly x=450 -->
+  <!-- Collector: top, Emitter: bottom, Base: left -->
+  <!-- Collector wire down from VDD -->
+  <line x1="460" y1="130" x2="460" y2="165" class="wire" stroke="#f97583" stroke-width="1.5"/>
+  <polygon points="460,118 455,130 465,130" fill="#f97583"/>
+  <text x="467" y="122" class="vdd-label">VCC</text>
+
+  <!-- BJT body circle -->
+  <circle cx="460" cy="190" r="22" class="component-fill"/>
+  <!-- Collector line (vertical, top) -->
+  <line x1="460" y1="168" x2="460" y2="178" class="wire"/>
+  <!-- Emitter line (vertical, bottom) with arrow -->
+  <line x1="460" y1="202" x2="460" y2="218" class="wire"/>
+  <!-- Emitter arrow -->
+  <polygon points="460,218 456,210 464,210" class="net-dot"/>
+  <!-- Base line (horizontal, left) -->
+  <line x1="400" y1="190" x2="438" y2="190" class="wire"/>
+  <!-- Internal lines: base-collector and base-emitter -->
+  <line x1="438" y1="178" x2="438" y2="202" class="component"/>
+  <line x1="438" y1="180" x2="460" y2="170" class="component"/>
+  <line x1="438" y1="200" x2="460" y2="210" class="component"/>
+  <!-- Q1 label -->
+  <text x="472" y="188" class="label">Q1</text>
+  <text x="470" y="198" class="label-sm">NPN</text>
+
+  <!-- Emitter to GND -->
+  <line x1="460" y1="218" x2="460" y2="260" class="wire"/>
+  <line x1="450" y1="260" x2="470" y2="260" stroke="#f97583" stroke-width="2"/>
+  <line x1="453" y1="265" x2="467" y2="265" stroke="#f97583" stroke-width="1.5"/>
+  <line x1="456" y1="270" x2="464" y2="270" stroke="#f97583" stroke-width="1"/>
+
+  <!-- === OUTPUT === -->
+  <!-- Output wire from collector to Vout -->
+  <line x1="460" y1="165" x2="500" y2="165" class="wire"/>
+  <!-- Load cap Cload -->
+  <line x1="520" y1="148" x2="520" y2="162" class="component"/>
+  <line x1="510" y1="162" x2="530" y2="162" class="component"/>
+  <line x1="510" y1="168" x2="530" y2="168" class="component"/>
+  <line x1="520" y1="168" x2="520" y2="185" class="component"/>
+  <!-- Cload GND -->
+  <line x1="520" y1="185" x2="520" y2="200" class="wire"/>
+  <line x1="510" y1="200" x2="530" y2="200" stroke="#f97583" stroke-width="1.5"/>
+  <line x1="513" y1="205" x2="527" y2="205" stroke="#f97583" stroke-width="1"/>
+  <line x1="516" y1="210" x2="524" y2="210" stroke="#f97583" stroke-width="0.8"/>
+  <!-- Cload top wire -->
+  <line x1="500" y1="165" x2="520" y2="165" class="wire"/>
+  <line x1="520" y1="148" x2="520" y2="138" class="component"/>
+  <line x1="500" y1="165" x2="560" y2="165" class="wire"/>
+  <!-- Cload label -->
+  <text x="534" y="162" class="label">Cl</text>
+  <text x="532" y="172" class="label-sm">10p</text>
+
+  <!-- Vout label & arrow -->
+  <line x1="560" y1="165" x2="590" y2="165" class="wire"/>
+  <text x="595" y="169" class="label">Vout</text>
+
+  <!-- === DECOUPLING CAP on VDD === -->
+  <line x1="380" y1="118" x2="380" y2="132" class="component" stroke="#4ec9b0"/>
+  <line x1="370" y1="132" x2="390" y2="132" class="component" stroke="#4ec9b0"/>
+  <line x1="370" y1="137" x2="390" y2="137" class="component" stroke="#4ec9b0"/>
+  <line x1="380" y1="137" x2="380" y2="155" class="component" stroke="#4ec9b0"/>
+  <!-- Cdec top wire to VDD rail -->
+  <line x1="380" y1="118" x2="380" y2="108" class="component" stroke="#4ec9b0"/>
+  <line x1="310" y1="108" x2="460" y2="108" class="wire" stroke="#f97583" stroke-width="1"/>
+  <line x1="380" y1="155" x2="380" y2="160" class="component" stroke="#4ec9b0"/>
+  <text x="393" y="137" class="annotation">Cdec</text>
+
+  <!-- ========== TITLE AREA ========== -->
+  <!-- Divider line -->
+  <line x1="0" y1="310" x2="800" y2="310" stroke="#1e3a4a" stroke-width="1"/>
+
+  <!-- Title text -->
+  <text x="400" y="360" class="title" text-anchor="middle">SCHEMIFY</text>
+  <text x="400" y="390" class="subtitle" text-anchor="middle">SCHEMATIC EDITOR · SPICE NETLIST · PLUGIN SYSTEM</text>
+
+  <!-- Subtle corner decorations -->
+  <polyline points="10,10 10,40 40,40" stroke="#1e3a4a" stroke-width="1.5" fill="none"/>
+  <polyline points="790,10 790,40 760,40" stroke="#1e3a4a" stroke-width="1.5" fill="none"/>
+  <polyline points="10,420 10,390 40,390" stroke="#1e3a4a" stroke-width="1.5" fill="none"/>
+  <polyline points="790,420 790,390 760,390" stroke="#1e3a4a" stroke-width="1.5" fill="none"/>
+
+  <!-- Corner labels like real schematic title block -->
+  <text x="16" y="405" class="annotation" font-size="8">REV 1.0</text>
+  <text x="680" y="405" class="annotation" font-size="8">ANALOG DESIGN · ZIG LANG</text>
+</svg>

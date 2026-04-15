@@ -3,7 +3,8 @@
 //! process so the GUI never starts.
 
 const std = @import("std");
-const Installer = @import("installer/lib.zig").Installer;
+const Installer = @import("plugins/installer/lib.zig").Installer;
+const InstallOptions = @import("plugins/installer/lib.zig").InstallOptions;
 const st = @import("state");
 const utility = @import("utility");
 const Logger = utility.Logger;
@@ -201,7 +202,7 @@ pub fn printHelp() void {
 }
 
 pub fn runPluginInstall(allocator: std.mem.Allocator, url: []const u8, web: bool) void {
-    const opts: Installer.InstallOptions = .{ .target = if (web) .web else .native };
+    const opts: InstallOptions = .{ .target = if (web) .web else .native };
 
     const path = Installer.install(allocator, url, opts) catch |e| {
         errPrint("error: install failed: {}\n", .{e});

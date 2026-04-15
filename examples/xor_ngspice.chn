@@ -1,0 +1,41 @@
+chn 1
+
+SYMBOL xor_ngspice
+  pins:
+    Y  out  x=60  y=0
+    A  in  x=-40  y=-20
+    B  in  x=-40  y=20
+  params:
+    format = @name @pinlist @symname ROUT=@ROUT
+    template = name=x1 ROUT=1000
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    p1  ipin  x=80  y=-170  sym=ipin
+    p4  opin  x=330  y=-170  sym=opin
+    B1  behavioral  x=480  y=-330  flip=1  sym=bsource  VAR=V  FUNC='VCC/2*(1+tanh((abs(V(A1)-V(B1))-VCC/2)*100))'
+    l2  lab_pin  x=330  y=-400  sym=lab_pin  sig_type=std_logic
+    l3  lab_pin  x=480  y=-250  sym=lab_pin  sig_type=std_logic
+    R1  resistor  x=580  y=-400  rot=1  sym=res
+      .parameters{ value='ROUT'  footprint=1206  device=resistor  m=1 }
+    l5  lab_pin  x=680  y=-400  flip=1  sym=lab_pin  sig_type=std_logic
+    l6  lab_pin  x=140  y=-170  flip=1  sym=lab_pin  sig_type=std_logic
+    l7  lab_pin  x=270  y=-170  sym=lab_pin  sig_type=std_logic
+    C1  capacitor  x=370  y=-390  sym=parax_cap  gnd=0  value=8f  m=1
+    p2  ipin  x=80  y=-110  sym=ipin
+    l4  lab_pin  x=140  y=-110  flip=1  sym=lab_pin  sig_type=std_logic
+    l8  lab_pin  x=330  y=-460  sym=lab_pin  sig_type=std_logic
+    C2  capacitor  x=370  y=-450  sym=parax_cap  gnd=0  value=8f  m=1
+    C3  capacitor  x=630  y=-390  sym=parax_cap  gnd=0  value=8f  m=1
+    V1  vsource  x=110  y=-170  rot=1  sym=vsource  value=0
+    V2  vsource  x=110  y=-110  rot=1  sym=vsource  value=0
+    V3  vsource  x=300  y=-170  rot=1  sym=vsource  value=0
+
+  wires:
+    480 -400 480 -360 net1
+    480 -400 550 -400 net1
+    480 -300 480 -250 0
+    610 -400 680 -400 Y1
+    330 -400 370 -400 A1
+    330 -460 370 -460 B1

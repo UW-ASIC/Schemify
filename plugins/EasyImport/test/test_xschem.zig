@@ -6,12 +6,10 @@ const core = @import("core");
 const ct = @import("convert_types");
 const tcl = @import("tcl");
 
-const core_examples = "plugins/EasyImport/examples/xschem_core_examples";
+const core_examples = "plugins/EasyImport/test/fixtures/xschem_library/xschem_library/examples";
 
 const example_dirs = [_][]const u8{
     core_examples,
-    "plugins/EasyImport/examples/xschem_sky130",
-    "plugins/EasyImport/examples/sky130_schematics",
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────

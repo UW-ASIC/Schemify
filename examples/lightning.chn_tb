@@ -1,0 +1,150 @@
+chn_testbench 1
+
+TESTBENCH lightning
+  instances:
+    L2  inductor  x=120  y=-670  sym=ind
+      .parameters{ m=1  value=10m  footprint=1206  device=inductor }
+    L1  inductor  x=120  y=-400  sym=ind
+      .parameters{ m=1  value=10m  footprint=1206  device=inductor }
+    C2  capacitor  x=280  y=-540  rot=3  flip=1  sym=capa
+      .parameters{ m=1  value=10n  footprint=1206  device=ceramic capacitor }
+    C1  capacitor  x=220  y=-400  flip=1  sym=capa
+      .parameters{ m=1  value=680p  footprint=1206  device=ceramic capacitor }
+    Q1  npn  x=420  y=-540  sym=npn
+      .parameters{ model=Q2N4401  device=2N4401  footprint=TO92  area=1 }
+    R2  resistor  x=440  y=-710  sym=res
+      .parameters{ value=3.9K  footprint=1206  device=resistor  m=1 }
+    p1  ipin  x=120  y=-740  rot=1  sym=ipin
+    R1  resistor  x=360  y=-590  sym=res
+      .parameters{ value=180K  footprint=1206  device=resistor  m=1 }
+    C3  capacitor  x=530  y=-600  rot=3  flip=1  sym=capa
+      .parameters{ m=1  value=10n  footprint=1206  device=ceramic capacitor }
+    Q2  pnp  x=640  y=-600  sym=pnp
+      .parameters{ model=Q2N4403  device=2N4403  footprint=TO92  area=1 }
+    D1  diode  x=660  y=-710  sym=diode  model=D1N914  area=1
+    R3  resistor  x=580  y=-510  sym=res
+      .parameters{ value=22K  footprint=1206  device=resistor  m=1 }
+    C4  capacitor  x=720  y=-510  flip=1  sym=capa
+      .parameters{ m=1  value=100u  footprint=1206  device=ceramic capacitor }
+    R5  resistor  x=790  y=-560  rot=3  flip=1  sym=res
+      .parameters{ value=2.2K  footprint=1206  device=resistor  m=1 }
+    C5  capacitor  x=880  y=-510  flip=1  sym=capa
+      .parameters{ m=1  value=5n  footprint=1206  device=ceramic capacitor }
+    Q3  npn  x=940  y=-560  sym=npn
+      .parameters{ model=Q2N4401  device=2N4401  footprint=TO92  area=1 }
+    R6  resistor  x=960  y=-310  sym=res
+      .parameters{ value=2.7K  footprint=1206  device=resistor  m=1 }
+    Q4  npn  x=1080  y=-440  sym=npn
+      .parameters{ model=Q2N4401  device=2N4401  footprint=TO92  area=1 }
+    C6  capacitor  x=1040  y=-710  flip=1  sym=capa
+      .parameters{ m=1  value=1u  footprint=1206  device=ceramic capacitor }
+    R7  resistor  x=1100  y=-870  sym=res
+      .parameters{ value=47  footprint=1206  device=resistor  m=1 }
+    p2  ipin  x=1160  y=-920  flip=1  sym=ipin
+    p3  ipin  x=1160  y=-280  flip=1  sym=ipin
+    p4  opin  x=1160  y=-640  sym=opin
+    p5  opin  x=1160  y=-520  sym=opin
+    R8  resistor  x=580  y=-710  sym=var_res  value=9.5K  footprint=1206  m=1
+    V1  vsource  x=1060  y=-150  sym=vsource  value=0
+    l2  gnd  x=1060  y=-120  sym=gnd
+    l3  lab_pin  x=1060  y=-180  sym=lab_pin  sig_type=std_logic
+    V2  vsource  x=940  y=-150  sym=vsource  value=3
+    l4  gnd  x=940  y=-120  sym=gnd
+    l5  lab_pin  x=940  y=-180  sym=lab_pin  sig_type=std_logic
+    l6  lab_pin  x=800  y=-120  sym=lab_pin  sig_type=std_logic
+    l7  lab_pin  x=800  y=-180  sym=lab_pin  sig_type=std_logic
+    Rlamp  resistor  x=800  y=-150  sym=res
+      .parameters{ value=300  footprint=1206  device=resistor  m=1 }
+    I0  isource  x=600  y=-190  sym=isource  value=dc 0
++ pwl 0 0 
++ 1u 0 
++ 1.01u 1m
++ 2u 1m
++ 2.01u 0
+    l8  lab_pin  x=600  y=-220  flip=1  sym=lab_pin  sig_type=std_logic
+    l9  gnd  x=600  y=-100  sym=gnd
+    RS  resistor  x=600  y=-130  flip=1  sym=res
+      .parameters{ value=1  footprint=1206  device=resistor  m=1 }
+    l10  lab_pin  x=400  y=-540  sym=lab_wire  sig_type=std_logic
+    l11  lab_pin  x=440  y=-570  flip=1  sym=lab_wire  sig_type=std_logic
+    l12  lab_pin  x=620  y=-600  sym=lab_wire  sig_type=std_logic
+    l13  lab_pin  x=700  y=-560  sym=lab_wire  sig_type=std_logic
+    l14  lab_pin  x=660  y=-650  sym=lab_wire  sig_type=std_logic
+    l15  lab_pin  x=160  y=-540  sym=lab_wire  sig_type=std_logic
+    l16  lab_pin  x=910  y=-560  sym=lab_wire  sig_type=std_logic
+    l18  lab_pin  x=960  y=-490  sym=lab_wire  sig_type=std_logic
+    VE1  vsource  x=440  y=-410  sym=ammeter  current=4.3151e-04
+    VE4  vsource  x=1100  y=-350  sym=ammeter  current=4.3372e-06
+    VE2  vsource  x=660  y=-780  sym=ammeter  current=1.5559e-06
+    VE3  vsource  x=960  y=-390  sym=ammeter  current=1.9089e-04
+
+  wires:
+    120 -540 120 -430 IN
+    120 -540 220 -540 IN
+    220 -540 220 -430 IN
+    120 -640 120 -540 IN
+    120 -370 120 -280 BAT0V
+    1100 -280 1160 -280 BAT0V
+    220 -370 220 -280 BAT0V
+    220 -540 250 -540 IN
+    360 -540 400 -540 B1
+    120 -740 120 -700 A1
+    440 -600 440 -570 C1
+    360 -620 440 -620 C1
+    360 -560 360 -540 B1
+    440 -820 440 -740 BAT3V
+    440 -600 500 -600 C1
+    580 -600 620 -600 B2
+    580 -600 580 -540 B2
+    660 -640 660 -630 E2
+    580 -820 580 -740 LAMP1
+    580 -480 580 -440 E3
+    880 -440 960 -440 E3
+    660 -640 720 -640 E2
+    720 -640 720 -540 E2
+    720 -480 720 -440 E3
+    660 -570 660 -560 C2
+    660 -560 760 -560 C2
+    880 -560 920 -560 B3
+    880 -560 880 -540 B3
+    880 -480 880 -440 E3
+    960 -820 960 -590 LAMP1
+    660 -820 960 -820 LAMP1
+    960 -530 960 -440 E3
+    960 -440 1060 -440 E3
+    1100 -520 1100 -470 LAMP2
+    1100 -520 1160 -520 LAMP2
+    1040 -920 1040 -740 BAT3V
+    1040 -680 1040 -280 BAT0V
+    120 -280 220 -280 BAT0V
+    220 -280 440 -280 BAT0V
+    310 -540 360 -540 B1
+    440 -680 440 -620 C1
+    440 -620 440 -600 C1
+    560 -600 580 -600 B2
+    660 -680 660 -640 E2
+    580 -820 660 -820 LAMP1
+    580 -440 720 -440 E3
+    720 -440 880 -440 E3
+    820 -560 880 -560 B3
+    1040 -280 1100 -280 BAT0V
+    580 -680 580 -600 B2
+    440 -280 1040 -280 BAT0V
+    440 -920 440 -820 BAT3V
+    440 -920 1160 -920 BAT3V
+    960 -820 1100 -820 LAMP1
+    1100 -840 1100 -820 LAMP1
+    1100 -920 1100 -900 BAT3V
+    1100 -820 1100 -640 LAMP1
+    1100 -640 1160 -640 LAMP1
+    550 -820 550 -710 LAMP1
+    550 -820 580 -820 LAMP1
+    440 -510 440 -440 net1
+    440 -380 440 -280 BAT0V
+    1100 -410 1100 -380 net2
+    1100 -320 1100 -280 BAT0V
+    660 -750 660 -740 net3
+    660 -820 660 -810 LAMP1
+    960 -350 960 -340 net4
+    960 -360 960 -350 net4
+    960 -440 960 -420 E3

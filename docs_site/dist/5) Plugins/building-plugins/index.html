@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Building Plugins — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Building Plugins</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link active">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Building Plugins</h1>
+<h2>Zig Plugin</h2>
+<p>The simplest case — pure Zig:</p>
+<p><strong><code>build.zig.zon</code>:</strong></p>
+<pre><code class="hljs language-zig">.{
+    .name = &quot;my-plugin&quot;,
+    .version = &quot;0.1.0&quot;,
+    .dependencies = .{
+        .schemify_sdk = .{
+            .url = &quot;https://github.com/UWASIC/Schemify/archive/&lt;hash&gt;.tar.gz&quot;,
+            .hash = &quot;...&quot;,
+        },
+    },
+}
+</code></pre><p><strong><code>build.zig</code>:</strong></p>
+<pre><code class="hljs language-zig">const helper = @import(&quot;schemify_sdk&quot;).build_plugin_helper;
+
+pub fn build(b: *std.Build) void {
+    const sdk_dep = b.dependency(&quot;schemify_sdk&quot;, .{});
+    const ctx = helper.setup(b, sdk_dep);
+
+    // Native shared library
+    const lib = helper.addNativePluginLibrary(b, ctx, &quot;MyPlugin&quot;, &quot;src/main.zig&quot;);
+    b.installArtifact(lib);
+
+    // WASM module
+    helper.addWasmPlugin(b, ctx, &quot;MyPlugin&quot;, &quot;src/main.zig&quot;);
+
+    // Auto-install + run step
+    helper.addNativeAutoInstallRunStep(b, &quot;MyPlugin&quot;, sdk_dep, &quot;MyPlugin&quot;);
+}
+</code></pre><pre><code class="hljs language-bash">zig build run   <span class="hljs-comment"># builds, installs to ~/.config/Schemify/MyPlugin/, launches host</span>
+</code></pre><h2>C Plugin</h2>
+<pre><code class="hljs language-c"><span class="hljs-comment">// src/main.c</span>
+<span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;schemify_plugin.h&quot;</span></span>
+
+<span class="hljs-type">size_t</span> <span class="hljs-title function_">schemify_process</span><span class="hljs-params">(
+    <span class="hljs-type">const</span> <span class="hljs-type">uint8_t</span>* in_ptr, <span class="hljs-type">size_t</span> in_len,
+    <span class="hljs-type">uint8_t</span>* out_ptr, <span class="hljs-type">size_t</span> out_cap
+)</span> {
+    SchWriter w = sch_writer_init(out_ptr, out_cap);
+
+    SchReader r = sch_reader_init(in_ptr, in_len);
+    SchMsg msg;
+    <span class="hljs-keyword">while</span> (sch_reader_next(&amp;r, &amp;msg)) {
+        <span class="hljs-keyword">if</span> (msg.tag == SCH_MSG_LOAD) {
+            sch_write_set_status(&amp;w, <span class="hljs-string">&quot;C plugin loaded&quot;</span>, <span class="hljs-number">15</span>);
+        }
+    }
+
+    <span class="hljs-keyword">return</span> sch_writer_overflow(&amp;w) ? SIZE_MAX : w.pos;
+}
+
+SCHEMIFY_PLUGIN_EXPORT <span class="hljs-type">const</span> SchPluginDescriptor schemify_plugin = {
+    .abi_version = <span class="hljs-number">6</span>,
+    .name        = <span class="hljs-string">&quot;CHelloPlugin&quot;</span>,
+    .version_str = <span class="hljs-string">&quot;0.1.0&quot;</span>,
+    .process     = schemify_process,
+};
+</code></pre><p><strong><code>build.zig</code>:</strong></p>
+<pre><code class="hljs language-zig">const lib = helper.addCPlugin(b, ctx, sdk_dep, &quot;CHelloPlugin&quot;, &quot;src/main.c&quot;);
+b.installArtifact(lib);
+</code></pre><h2>C++ Plugin</h2>
+<pre><code class="hljs language-cpp"><span class="hljs-comment">// src/main.cpp</span>
+<span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&quot;schemify_plugin.h&quot;</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;string&gt;</span></span>
+
+<span class="hljs-keyword">extern</span> <span class="hljs-string">&quot;C&quot;</span> {
+
+<span class="hljs-function"><span class="hljs-type">size_t</span> <span class="hljs-title">schemify_process</span><span class="hljs-params">(
+    <span class="hljs-type">const</span> <span class="hljs-type">uint8_t</span>* in_ptr, <span class="hljs-type">size_t</span> in_len,
+    <span class="hljs-type">uint8_t</span>* out_ptr, <span class="hljs-type">size_t</span> out_cap
+)</span> </span>{
+    <span class="hljs-comment">// Same as C but can use C++ features</span>
+    SchWriter w = <span class="hljs-built_in">sch_writer_init</span>(out_ptr, out_cap);
+    <span class="hljs-comment">// ...</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">sch_writer_overflow</span>(&amp;w) ? SIZE_MAX : w.pos;
+}
+
+SCHEMIFY_PLUGIN_EXPORT <span class="hljs-type">const</span> SchPluginDescriptor schemify_plugin = {
+    .abi_version = <span class="hljs-number">6</span>,
+    .name        = <span class="hljs-string">&quot;CppPlugin&quot;</span>,
+    .version_str = <span class="hljs-string">&quot;0.1.0&quot;</span>,
+    .process     = schemify_process,
+};
+
+} <span class="hljs-comment">// extern &quot;C&quot;</span>
+</code></pre><p><strong><code>build.zig</code>:</strong></p>
+<pre><code class="hljs language-zig">const lib = helper.addCppPlugin(b, ctx, sdk_dep, &quot;CppPlugin&quot;, &quot;src/main.cpp&quot;);
+b.installArtifact(lib);
+</code></pre><h2>Rust Plugin</h2>
+<p>Add to <code>Cargo.toml</code>:</p>
+<pre><code class="hljs language-toml"><span class="hljs-section">[dependencies]</span>
+<span class="hljs-attr">schemify-plugin</span> = <span class="hljs-string">&quot;0.6&quot;</span>
+</code></pre><pre><code class="hljs language-rust"><span class="hljs-keyword">use</span> schemify_plugin::{export_plugin, Plugin, Writer, InMsg};
+
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">MyPlugin</span>;
+
+<span class="hljs-keyword">impl</span> <span class="hljs-title class_">Plugin</span> <span class="hljs-keyword">for</span> <span class="hljs-title class_">MyPlugin</span> {
+    <span class="hljs-keyword">fn</span> <span class="hljs-title function_">process</span>(&amp;<span class="hljs-keyword">mut</span> <span class="hljs-keyword">self</span>, msgs: &amp;[InMsg], w: &amp;<span class="hljs-keyword">mut</span> Writer) {
+        <span class="hljs-keyword">for</span> <span class="hljs-variable">msg</span> <span class="hljs-keyword">in</span> msgs {
+            <span class="hljs-keyword">match</span> msg {
+                InMsg::Load =&gt; {
+                    w.<span class="hljs-title function_ invoke__">set_status</span>(<span class="hljs-string">&quot;Rust plugin loaded&quot;</span>);
+                }
+                InMsg::DrawPanel { panel_id: _ } =&gt; {
+                    w.<span class="hljs-title function_ invoke__">label</span>(<span class="hljs-string">&quot;Hello from Rust!&quot;</span>, <span class="hljs-number">0</span>);
+                }
+                _ =&gt; {}
+            }
+        }
+    }
+}
+
+export_plugin!(MyPlugin, <span class="hljs-string">&quot;rust-plugin&quot;</span>, <span class="hljs-string">&quot;0.1.0&quot;</span>);
+</code></pre><p><strong><code>build.zig</code>:</strong></p>
+<pre><code class="hljs language-zig">helper.addRustPlugin(b, &quot;rust/my-plugin&quot;, &quot;my_plugin&quot;);
+</code></pre><h2>Python Plugin</h2>
+<pre><code class="hljs language-python"><span class="hljs-comment"># src/plugin.py</span>
+<span class="hljs-keyword">import</span> schemify
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">on_load</span>(<span class="hljs-params">w</span>):
+    w.set_status(<span class="hljs-string">&quot;Python plugin loaded&quot;</span>)
+    w.register_panel(<span class="hljs-built_in">id</span>=<span class="hljs-string">&quot;py-panel&quot;</span>, title=<span class="hljs-string">&quot;Python Panel&quot;</span>, vim_cmd=<span class="hljs-string">&quot;py&quot;</span>, layout=<span class="hljs-string">&quot;right&quot;</span>)
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">on_draw_panel</span>(<span class="hljs-params">w, panel_id</span>):
+    w.label(<span class="hljs-string">&quot;Hello from Python!&quot;</span>, <span class="hljs-number">0</span>)
+    w.button(<span class="hljs-string">&quot;Click me&quot;</span>, <span class="hljs-number">1</span>)
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">on_button_clicked</span>(<span class="hljs-params">w, panel_id, widget_id</span>):
+    <span class="hljs-keyword">if</span> widget_id == <span class="hljs-number">1</span>:
+        w.set_status(<span class="hljs-string">&quot;Button clicked!&quot;</span>)
+
+schemify.run(on_load=on_load, on_draw_panel=on_draw_panel, on_button_clicked=on_button_clicked)
+</code></pre><p><strong><code>build.zig</code>:</strong></p>
+<pre><code class="hljs language-zig">helper.addPythonPlugin(b, &quot;MyPyPlugin&quot;, sdk_dep,
+    &amp;.{ &quot;src/plugin.py&quot; },
+    null,  // no requirements.txt
+    &quot;MyPyPlugin&quot;,
+);
+</code></pre><p>Python plugins are deployed to <code>~/.config/Schemify/SchemifyPython/scripts/&lt;plugin_name&gt;/</code>.</p>
+<h2>WASM Plugin (C via Emscripten)</h2>
+<pre><code class="hljs language-zig">helper.addCWasmPlugin(b, sdk_dep, &quot;CHelloWasm&quot;, &quot;src/main.c&quot;);
+// Output: zig-out/plugins/CHelloWasm.wasm
+</code></pre><h2>Local Development Workflow</h2>
+<pre><code class="hljs language-bash"><span class="hljs-comment"># 1. Create plugin directory</span>
+<span class="hljs-built_in">mkdir</span> my-plugin &amp;&amp; <span class="hljs-built_in">cd</span> my-plugin
+zig init-lib
+
+<span class="hljs-comment"># 2. Add schemify_sdk dependency to build.zig.zon</span>
+<span class="hljs-comment"># 3. Write src/main.zig</span>
+<span class="hljs-comment"># 4. Build, install, and launch:</span>
+zig build run
+
+<span class="hljs-comment"># The host auto-reloads plugins when they change (native only)</span>
+</code></pre><h2>Plugin Installation</h2>
+<p>Users install plugins by:</p>
+<ol>
+<li>Placing <code>lib&lt;Name&gt;.so</code> (or <code>.dylib</code>/<code>.wasm</code>) in <code>~/.config/Schemify/&lt;Name&gt;/</code></li>
+<li>Adding the plugin name to <code>[plugins] enabled</code> in <code>Config.toml</code></li>
+<li>Restarting Schemify</li>
+</ol>
+<p>Or via the CLI:</p>
+<pre><code class="hljs language-bash">schemify --plugin-install ./libMyPlugin.so
+schemify --plugin-install https://example.com/plugins/MyPlugin.wasm
+</code></pre>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

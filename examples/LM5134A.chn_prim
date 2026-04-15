@@ -1,0 +1,14 @@
+chn_prim 1
+
+SYMBOL LM5134A
+  pins:
+    VDD  inout  x=-80  y=-120
+    PILOT  inout  x=-80  y=0
+    OUT  inout  x=-80  y=120
+    IN  inout  x=80  y=-120
+    INB  inout  x=80  y=0
+    VSS  inout  x=80  y=120
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = primitive

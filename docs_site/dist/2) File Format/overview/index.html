@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overview — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Overview</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link active">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>CHN File Format</h1>
+<p>CHN is Schemify&#39;s native schematic interchange format. It is designed to be human-readable, LLM-optimized, and round-trip lossless with xschem&#39;s <code>.sch</code>/<code>.sym</code> format and SPICE netlists.</p>
+<blockquote>
+<p><strong>Design philosophy:</strong> <code>.chn</code> is to xschem what TOON is to JSON — same circuit data model, different encoding, optimized for LLM consumption instead of GUI rendering.</p>
+</blockquote>
+<h2>File Types</h2>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>Has SYMBOL</th>
+<th>Has SCHEMATIC</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>.chn</code></td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Reusable component (subcircuit)</td>
+</tr>
+<tr>
+<td><code>.chn_prim</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>Leaf device backed by SPICE <code>.lib</code></td>
+</tr>
+<tr>
+<td><code>.chn_testbench</code></td>
+<td>No</td>
+<td>Yes</td>
+<td>Top-level simulation harness</td>
+</tr>
+</tbody></table>
+<p>The type is enforced by the file extension and the parser — a testbench cannot be instantiated as a component by accident.</p>
+<h2>Core Axioms</h2>
+<ol>
+<li><strong>Zero geometry in connectivity.</strong> Coordinates are rendering concerns, banished to a low-priority <code>drawing:</code> section.</li>
+<li><strong>Explicit named nets.</strong> No implicit &quot;wires touching = connected.&quot; Every connection is a declared <code>net -&gt; inst.pin</code> statement.</li>
+<li><strong>Schema-once, rows-stream.</strong> Instance lists are tabular (TOON-style): field names appear once in a header, device rows are positional.</li>
+<li><strong><code>[N]</code> guardrails everywhere.</strong> Every list declares its length. Validators detect truncation, duplication, and drift.</li>
+<li><strong>Lossless round-trip.</strong> <code>.chn ↔ xschem .sch ↔ SPICE netlist</code>. No information is invented or destroyed.</li>
+<li><strong>Annotations are inline and timestamped.</strong> Simulation results live in the file with a freshness status, not in a sidecar.</li>
+</ol>
+<h2>File Structure</h2>
+<pre><code>&lt;header&gt;
+
+SYMBOL &lt;name&gt;
+  desc: &lt;description&gt;
+  pins [N]:
+    ...
+  params [N]:
+    ...
+  spice_prefix: &lt;letter&gt;
+
+SCHEMATIC
+  nmos [N]{name, w, l, nf, model}:
+    ...
+  nets [N]:
+    ...
+  annotations:
+    status: fresh|stale
+    ...
+</code></pre><h2>Token Efficiency</h2>
+<table>
+<thead>
+<tr>
+<th>Circuit</th>
+<th>Approx tokens (no annotations)</th>
+<th>vs xschem <code>.sch</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Simple inverter</td>
+<td>~80</td>
+<td>5× smaller</td>
+</tr>
+<tr>
+<td>Diff pair</td>
+<td>~150</td>
+<td>4× smaller</td>
+</tr>
+<tr>
+<td>Two-stage opamp</td>
+<td>~300</td>
+<td>3× smaller</td>
+</tr>
+<tr>
+<td>Full PLL (~200 devices)</td>
+<td>~2,500</td>
+<td>3× smaller</td>
+</tr>
+</tbody></table>
+<p>The same two-stage opamp in xschem <code>.sch</code> format ≈ 900 tokens (60% geometry waste).</p>
+<h2>Syntax Rules</h2>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Encoding</td>
+<td>UTF-8</td>
+</tr>
+<tr>
+<td>Comments</td>
+<td><code>#</code> to end of line</td>
+</tr>
+<tr>
+<td>Indentation</td>
+<td>2 spaces per level</td>
+</tr>
+<tr>
+<td>Strings</td>
+<td>Unquoted unless containing special chars</td>
+</tr>
+<tr>
+<td>Expressions</td>
+<td><code>{expr}</code> — e.g. <code>{wp*2}</code>, <code>{vdd/2}</code></td>
+</tr>
+<tr>
+<td>Net arrow</td>
+<td><code>-&gt;</code> separates net name from pin list</td>
+</tr>
+<tr>
+<td>Pin reference</td>
+<td><code>instance.pin</code> — dot notation</td>
+</tr>
+<tr>
+<td>File header</td>
+<td>First line: <code>chn 1.0</code>, <code>chn_prim 1.0</code>, or <code>chn_testbench 1.0</code></td>
+</tr>
+<tr>
+<td>List headers</td>
+<td><code>section_name [N]:</code> — N = item count guardrail</td>
+</tr>
+<tr>
+<td>Tabular headers</td>
+<td><code>section_name [N]{col1, col2, ...}:</code> — TOON-style</td>
+</tr>
+</tbody></table>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

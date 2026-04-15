@@ -1,0 +1,11 @@
+.{
+    .name = .git_blame,
+    .version = "0.1.0",
+    .fingerprint = 0xc2cc40f5c91adf76,
+    .dependencies = .{
+        .schemify_sdk = .{
+            .path = "../..",
+        },
+    },
+    .paths = .{""},
+}

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Components — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Components</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link active">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Built-in Components Reference</h1>
+<p>Schemify ships with a standard library of primitive components. All primitives are <code>.chn_prim</code> files.</p>
+<h2>Passive Components</h2>
+<h3>Resistor (<code>res</code>)</h3>
+<pre><code>R1  resistor  value=10k  footprint=0402
+</code></pre><p>SPICE: <code>R&lt;name&gt; &lt;n+&gt; &lt;n-&gt; &lt;value&gt;</code></p>
+<p>Parameters: <code>value</code>, <code>tc1</code>, <code>tc2</code>, <code>m</code> (multiplicity), <code>footprint</code></p>
+<h3>Capacitor (<code>capa</code>)</h3>
+<pre><code>C1  capacitor  value=100n  footprint=0402
+</code></pre><p>SPICE: <code>C&lt;name&gt; &lt;n+&gt; &lt;n-&gt; &lt;value&gt; [IC=&lt;initial&gt;]</code></p>
+<p>Parameters: <code>value</code>, <code>ic</code>, <code>m</code>, <code>footprint</code></p>
+<h3>Inductor (<code>ind</code>)</h3>
+<pre><code>L1  inductor  value=10u
+</code></pre><p>SPICE: <code>L&lt;name&gt; &lt;n+&gt; &lt;n-&gt; &lt;value&gt;</code></p>
+<p>Parameters: <code>value</code>, <code>ic</code>, <code>m</code></p>
+<h2>MOSFETs</h2>
+<h3>NMOS (<code>nmos4</code>)</h3>
+<pre><code>M1  nmos  model=nch  w=2u  l=100n  nf=1  m=1
+</code></pre><p>SPICE: <code>M&lt;name&gt; &lt;d&gt; &lt;g&gt; &lt;s&gt; &lt;b&gt; &lt;model&gt; w=&lt;w&gt; l=&lt;l&gt; nf=&lt;nf&gt; m=&lt;m&gt;</code></p>
+<p>Parameters: <code>model</code>, <code>w</code>, <code>l</code>, <code>nf</code>, <code>m</code>, <code>ad</code>, <code>as</code>, <code>pd</code>, <code>ps</code></p>
+<h3>PMOS (<code>pmos4</code>)</h3>
+<pre><code>M2  pmos  model=pch  w=4u  l=100n  nf=1  m=1
+</code></pre><p>Same format as NMOS.</p>
+<h2>Bipolar Transistors</h2>
+<h3>NPN (<code>npn</code>)</h3>
+<pre><code>Q1  npn  model=2N3904  m=1
+</code></pre><p>SPICE: <code>Q&lt;name&gt; &lt;c&gt; &lt;b&gt; &lt;e&gt; [&lt;sub&gt;] &lt;model&gt; [m=&lt;m&gt;]</code></p>
+<h3>PNP (<code>pnp</code>)</h3>
+<pre><code>Q2  pnp  model=2N3906  m=1
+</code></pre><h2>Diodes</h2>
+<pre><code>D1  diode  model=1N4148  m=1
+</code></pre><p>SPICE: <code>D&lt;name&gt; &lt;a&gt; &lt;k&gt; &lt;model&gt; [m=&lt;m&gt;]</code></p>
+<h2>Sources</h2>
+<h3>Voltage Source (<code>vsource</code>)</h3>
+<pre><code>V1  vsource  value=1.8
+</code></pre><p>SPICE: <code>V&lt;name&gt; &lt;n+&gt; &lt;n-&gt; &lt;value&gt;</code></p>
+<p>Supports: DC, AC, transient (PULSE, SIN, PWL, etc.)</p>
+<p>Parameters: <code>value</code> (DC), <code>ac</code>, <code>type</code>, <code>pulse_params</code>...</p>
+<h3>Current Source (<code>isource</code>)</h3>
+<pre><code>I1  isource  value=100u
+</code></pre><h3>Behavioral Sources</h3>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>SPICE</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>vcvs</code></td>
+<td>E</td>
+<td>Voltage-controlled voltage source</td>
+</tr>
+<tr>
+<td><code>vccs</code></td>
+<td>G</td>
+<td>Voltage-controlled current source</td>
+</tr>
+<tr>
+<td><code>ccvs</code></td>
+<td>H</td>
+<td>Current-controlled voltage source</td>
+</tr>
+<tr>
+<td><code>cccs</code></td>
+<td>F</td>
+<td>Current-controlled current source</td>
+</tr>
+</tbody></table>
+<h2>Connectivity Symbols</h2>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>vdd</code></td>
+<td>Power rail label (connects to VDD net)</td>
+</tr>
+<tr>
+<td><code>gnd</code></td>
+<td>Ground label (connects to 0/GND net)</td>
+</tr>
+<tr>
+<td><code>lab_pin</code></td>
+<td>Net label (names a wire net)</td>
+</tr>
+<tr>
+<td><code>ipin</code></td>
+<td>Input port (for subcircuits)</td>
+</tr>
+<tr>
+<td><code>opin</code></td>
+<td>Output port (for subcircuits)</td>
+</tr>
+<tr>
+<td><code>iopin</code></td>
+<td>Bidirectional port</td>
+</tr>
+<tr>
+<td><code>noconn</code></td>
+<td>No-connect marker (suppresses DRC warning)</td>
+</tr>
+</tbody></table>
+<h2>Simulation Primitives</h2>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>code</code></td>
+<td>SPICE code block (<code>.model</code>, <code>.param</code>, <code>.include</code>, etc.)</td>
+</tr>
+<tr>
+<td><code>code_shown</code></td>
+<td>SPICE code block, visible in schematic</td>
+</tr>
+<tr>
+<td><code>simulator_commands</code></td>
+<td>Simulation analysis commands (<code>.tran</code>, <code>.ac</code>, etc.)</td>
+</tr>
+<tr>
+<td><code>probe</code></td>
+<td>Voltage/current measurement probe</td>
+</tr>
+<tr>
+<td><code>ammeter</code></td>
+<td>Current measurement (zero-volt voltage source)</td>
+</tr>
+</tbody></table>
+<h2>PDK-Specific Components</h2>
+<p>PDK components are installed via Volare and appear under the PDK namespace:</p>
+<pre><code>sky130_fd_pr__nfet_01v8     # SKY130 1.8V NFET
+sky130_fd_pr__pfet_01v8     # SKY130 1.8V PFET
+sky130_fd_pr__res_xhigh_po  # SKY130 high-resistance poly resistor
+</code></pre><pre><code>
+</code></pre>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

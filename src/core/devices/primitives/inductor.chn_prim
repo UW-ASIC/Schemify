@@ -1,0 +1,31 @@
+chn_prim 1.0
+
+SYMBOL inductor
+  desc: Ideal inductor
+
+  pins [2]:
+    p  inout
+    n  inout
+
+  params [2]:
+    l  = 1u
+    ic = 0
+
+  spice_prefix: L
+  spice_format: "@name @p @n @l ic=@ic"
+
+  drawing:
+    lines:
+      # Top lead
+      (0,-30) (0,-23)
+      # Bottom lead
+      (0,23) (0,30)
+    # Coil arcs (3 semicircles, xschem style)
+    arc: (0,-15) r=8 start=90 sweep=180
+    arc: (0,0) r=8 start=90 sweep=180
+    arc: (0,15) r=8 start=90 sweep=180
+    text: (15,0) "@name"
+    text: (15,10) "@l"
+    pin_positions:
+      p: (0,-30)
+      n: (0,30)

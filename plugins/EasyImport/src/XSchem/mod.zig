@@ -42,6 +42,12 @@ const reader = @import("reader.zig");
 
 pub const parse = reader.parse;
 
+// ── Re-exports from fileio ─────────────────────────────────────────────
+
+const fileio = @import("fileio/mod.zig");
+
+pub const serialize = fileio.serialize;
+
 // ── Re-exports from xschemrc.zig ────────────────────────────────────────
 
 const xschemrc = @import("xschemrc.zig");
@@ -52,6 +58,13 @@ pub const parseRc = xschemrc.parseRc;
 // ── Re-exports from converter.zig ────────────────────────────────────────
 
 pub const convert = converter.convert;
+pub const SymResolver = @import("convert.zig").SymResolver;
+pub const mapXSchemToSchemify = @import("convert.zig").mapXSchemToSchemify;
+pub const mapSchemifyToXSchem = @import("convert.zig").mapSchemifyToXSchem;
+
+// ── Re-exports from pdk_remap.zig ────────────────────────────────────────
+
+pub const remapSky130 = @import("pdk_remap.zig").remapSky130;
 
 // ── Re-exports from convert_types (shared result types) ─────────────────
 

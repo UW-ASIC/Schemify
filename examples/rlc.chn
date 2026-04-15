@@ -1,36 +1,26 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH rlc
+  instances:
+    C1  capacitor  x=150  y=-510  sym=capa
+      .parameters{ m=1  value=50nF  footprint=1206  device=ceramic capacitor }
+    l2  lab_pin  x=150  y=-290  rot=2  flip=1  sym=lab_pin  sig_type=std_logic
+    l4  lab_pin  x=150  y=-560  rot=2  sym=lab_pin  sig_type=std_logic
+    l5  lab_pin  x=350  y=-200  rot=2  sym=lab_pin  sig_type=std_logic
+    R1  resistor  x=350  y=-450  sym=res
+      .parameters{ m=1  value=1k  footprint=1206  device=resistor }
+    L1  inductor  x=150  y=-350  sym=ind  value=10mH
+    V1  vsource  x=150  y=-230  sym=vsource  xvalue=pwl 0 0 100u 0 101u 3  value=pulse 0 3 0 100n 100n 9.9u 20u
+    Vmeas  vsource  x=350  y=-310  sym=ammeter
+    l6  lab_pin  x=150  y=-450  rot=2  sym=lab_pin  sig_type=std_logic
+    l7  lab_pin  x=350  y=-380  rot=2  sym=lab_pin  sig_type=std_logic
 
-  capacitors [1]{name, x, y, rot, flip, m, value, footprint, device}:
-    C1  150  -510  0  0  1  50nF  1206  ceramic capacitor
-
-  resistors [1]{name, x, y, rot, flip, m, value, footprint, device}:
-    R1  350  -450  0  0  1  1k  1206  resistor
-
-  inductors [1]{name, x, y, rot, flip, value}:
-    L1  150  -350  0  0  10mH
-
-  vsource [1]{name, x, y, rot, flip, xvalue, value}:
-    V1  150  -230  0  0  pwl 0 0 100u 0 101u 3  pulse 0 3 0 100n 100n 9.9u 20u
-
-  vsource [1]{name, x, y, rot, flip}:
-    Vmeas  350  -310  0  0
-
-  code_blocks [1]:
-    STIMULI  code  only_toplevel=true  value=.control       save all   tran 10n 800u uic   let pow = i(v1) * v(a,b)   meas tran cap_avg_pow avg pow from=600u to=800u   write  rlc.raw .endc 
-
-  wires [13]:
-    150 -480 150 -380
-    150 -200 350 -200
-    150 -320 150 -260
-    150 -580 350 -580
-    350 -580 350 -480
-    150 -580 150 -540
-    350 -280 350 -200
-    350 -420 350 -340
-    150 -290 150 -290 C
-    150 -560 150 -560 A
-    350 -200 350 -200 0
-    150 -450 150 -450 B
-    350 -380 350 -380 D
+  wires:
+    150 -480 150 -380 B
+    150 -200 350 -200 0
+    150 -320 150 -260 C
+    150 -580 350 -580 A
+    350 -580 350 -480 A
+    150 -580 150 -540 A
+    350 -280 350 -200 0
+    350 -420 350 -340 D

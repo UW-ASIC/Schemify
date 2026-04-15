@@ -1,0 +1,39 @@
+# ── Schemify GitHub Pages ──────────────────────────────────────────────────────
+#
+# Copy this file to .github/workflows/schemify-pages.yml in your circuit repo.
+#
+# After enabling GitHub Pages (Settings → Pages → Source: GitHub Actions),
+# every push to `main` will deploy a live viewer and post the URL to the
+# workflow summary.
+#
+# Options:
+#   project_dir   — directory that contains Config.toml  (default: repo root)
+#   schemify_version — pin a specific release, e.g. "v0.3.0" (default: latest)
+#
+# Embed alongside a VitePress / static docs site:
+#   Uncomment the embed_in line and set it to your built site directory.
+#   The viewer will be accessible at <your-site-url>/schematic/
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: View on Schemify
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:          # allows manual trigger from GitHub UI
+
+permissions:
+  contents: read              # read repo files
+  pages: write                # write to GitHub Pages
+  id-token: write             # OIDC token for Pages deploy
+
+jobs:
+  deploy:
+    uses: UWASIC/Schemify/.github/workflows/deploy-pages.yml@main
+    permissions:
+      pages: write
+      id-token: write
+    with:
+      project_dir: '.'
+      schemify_version: 'latest'
+      # embed_in: 'docs/.vitepress/dist'   # ← uncomment to embed in existing site

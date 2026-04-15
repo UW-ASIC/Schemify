@@ -1,0 +1,284 @@
+chn_testbench 1
+
+TESTBENCH autozero_comp_xyce
+  instances:
+    p92  ipin  x=90  y=-700  sym=ipin
+    p93  ipin  x=90  y=-760  sym=ipin
+    p94  ipin  x=90  y=-800  sym=ipin
+    p95  ipin  x=90  y=-840  sym=ipin
+    p96  ipin  x=90  y=-630  sym=ipin
+    p97  ipin  x=90  y=-660  sym=ipin
+    p116  opin  x=110  y=-750  sym=opin
+    p126  lab_pin  x=180  y=-420  flip=1  sym=lab_pin
+    l50  lab_pin  x=100  y=-420  sym=lab_pin
+    x14  unknown  x=140  y=-420  sym=inv-2  m=1
+    x5  unknown  x=140  y=-550  sym=inv-2  m=1
+    p15  lab_pin  x=100  y=-550  sym=lab_pin
+    l4  lab_pin  x=180  y=-550  flip=1  sym=lab_pin
+    p283  lab_pin  x=340  y=-850  flip=1  sym=lab_pin
+    l56  lab_pin  x=270  y=-850  sym=lab_pin
+    p284  lab_pin  x=310  y=-800  sym=lab_pin
+    p199  lab_pin  x=310  y=-900  sym=lab_pin
+    M67  nmos  x=290  y=-850  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=5u  l=0.13u  extra=delvto='agauss(0,ABSVAR,3)' }
+    c38  capacitor  x=310  y=-790  sym=parax_cap  value=2p
+    x1  unknown  x=860  y=-1260  flip=1  sym=passgate  m=1
+    l19  lab_pin  x=860  y=-1290  flip=1  sym=lab_pin  sig_type=std_logic
+    l44  lab_pin  x=860  y=-1230  flip=1  sym=lab_pin  sig_type=std_logic
+    M3  nmos  x=1100  y=-1100  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=1.0u  l=1.0u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p179  lab_pin  x=1150  y=-1100  flip=1  sym=lab_pin
+    M4  pmos  x=1100  y=-1330  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=2.0u  l=1.0u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p180  lab_pin  x=1150  y=-1330  flip=1  sym=lab_pin
+    p181  lab_pin  x=1090  y=-1400  sym=lab_pin
+    p182  lab_pin  x=1090  y=-970  sym=lab_pin
+    x2  unknown  x=1350  y=-1260  flip=1  sym=passgate  m=1
+    l45  lab_pin  x=1350  y=-1290  flip=1  sym=lab_pin  sig_type=std_logic
+    l46  lab_pin  x=1350  y=-1230  flip=1  sym=lab_pin  sig_type=std_logic
+    M7  nmos  x=1590  y=-1100  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=1.3u  l=1.0u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p183  lab_pin  x=1640  y=-1100  flip=1  sym=lab_pin
+    M9  pmos  x=1590  y=-1330  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=2.6u  l=1.0u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p184  lab_pin  x=1640  y=-1330  flip=1  sym=lab_pin
+    p185  lab_pin  x=1580  y=-1400  sym=lab_pin
+    p186  lab_pin  x=1580  y=-970  sym=lab_pin
+    l47  lab_pin  x=1470  y=-1320  sym=lab_pin
+    l48  lab_pin  x=980  y=-1320  sym=lab_pin
+    M20  nmos  x=870  y=-640  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=2u  l=0.4u  extra=delvto='agauss(0,ABSVAR,3)' }
+    M8  nmos  x=1110  y=-640  flip=1  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=2u  l=0.4u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p187  lab_pin  x=920  y=-640  flip=1  sym=lab_pin
+    p188  lab_pin  x=1060  y=-640  sym=lab_pin
+    M30  pmos  x=1070  y=-800  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=2u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p189  lab_pin  x=1120  y=-800  flip=1  sym=lab_pin
+    M12  pmos  x=910  y=-800  flip=1  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=2u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p190  lab_pin  x=860  y=-800  sym=lab_pin
+    M32  nmos  x=970  y=-510  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=1u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p191  lab_pin  x=1020  y=-510  flip=1  sym=lab_pin
+    p192  lab_pin  x=990  y=-880  sym=lab_pin
+    p193  lab_pin  x=960  y=-380  sym=lab_pin
+    M17  nmos  x=1450  y=-510  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=1u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p194  lab_pin  x=1500  y=-510  flip=1  sym=lab_pin
+    M13  pmos  x=1450  y=-800  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=2u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p195  lab_pin  x=1500  y=-800  flip=1  sym=lab_pin
+    p196  lab_pin  x=1440  y=-870  sym=lab_pin
+    p197  lab_pin  x=1440  y=-380  sym=lab_pin
+    l49  lab_pin  x=1710  y=-750  sym=lab_pin
+    c3  capacitor  x=1540  y=-700  sym=parax_cap  value=4f
+    l51  lab_pin  x=1220  y=-750  sym=lab_pin
+    l52  lab_pin  x=990  y=-570  sym=lab_pin
+    l53  lab_pin  x=930  y=-770  flip=1  sym=lab_pin
+    c5  capacitor  x=980  y=-790  sym=parax_cap  value=4f
+    c30  capacitor  x=910  y=-580  sym=parax_cap  value=2f
+    c31  capacitor  x=1180  y=-700  sym=parax_cap  value=4f
+    p198  lab_pin  x=950  y=-510  sym=lab_pin
+    l54  lab_pin  x=1130  y=-640  flip=1  sym=lab_pin
+    l55  lab_pin  x=850  y=-640  sym=lab_pin
+    v2  vsource  x=990  y=-450  sym=ammeter
+    v3  vsource  x=1470  y=-450  sym=ammeter
+    v4  vsource  x=1610  y=-1040  sym=ammeter
+    v6  vsource  x=1120  y=-1040  sym=ammeter
+    M19  nmos  x=1940  y=-510  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=1u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p9  lab_pin  x=1990  y=-510  flip=1  sym=lab_pin
+    M21  pmos  x=1940  y=-800  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=2u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p10  lab_pin  x=1990  y=-800  flip=1  sym=lab_pin
+    p11  lab_pin  x=1930  y=-870  sym=lab_pin
+    p12  lab_pin  x=1930  y=-380  sym=lab_pin
+    c1  capacitor  x=2030  y=-700  sym=parax_cap  value=4f
+    v1  vsource  x=1960  y=-450  sym=ammeter
+    l3  lab_pin  x=2290  y=-710  flip=1  sym=lab_pin
+    x3  unknown  x=1840  y=-1260  flip=1  sym=passgate  m=1
+    l5  lab_pin  x=1840  y=-1290  flip=1  sym=lab_pin  sig_type=std_logic
+    l6  lab_pin  x=1840  y=-1230  flip=1  sym=lab_pin  sig_type=std_logic
+    M23  nmos  x=2080  y=-1100  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=1.5u  l=1.0u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p13  lab_pin  x=2130  y=-1100  flip=1  sym=lab_pin
+    M24  pmos  x=2080  y=-1330  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=3u  l=1.0u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p14  lab_pin  x=2130  y=-1330  flip=1  sym=lab_pin
+    p16  lab_pin  x=2070  y=-1400  sym=lab_pin
+    p17  lab_pin  x=2070  y=-970  sym=lab_pin
+    l8  lab_pin  x=1960  y=-1320  sym=lab_pin
+    v5  vsource  x=2100  y=-1040  sym=ammeter
+    M6  pmos  x=2160  y=-810  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=0.6u  l=0.2u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p18  lab_pin  x=2210  y=-810  flip=1  sym=lab_pin
+    p19  lab_pin  x=2150  y=-880  sym=lab_pin
+    l2  lab_pin  x=2140  y=-810  sym=lab_pin
+    M18  pmos  x=620  y=-620  flip=1  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=4u  l=0.4u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p20  lab_pin  x=570  y=-620  sym=lab_pin
+    M25  pmos  x=380  y=-620  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=4u  l=0.4u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p21  lab_pin  x=430  y=-620  flip=1  sym=lab_pin
+    p22  lab_pin  x=370  y=-490  sym=lab_pin
+    p23  lab_pin  x=630  y=-490  flip=1  sym=lab_pin
+    p24  lab_pin  x=470  y=-400  sym=lab_pin
+    M28  pmos  x=490  y=-750  sym=pmos4-v
+      .parameters{ verilog_gate=pmos  del=50,50,50  model=pmos  w=2u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    p25  lab_pin  x=540  y=-750  flip=1  sym=lab_pin
+    p26  lab_pin  x=510  y=-800  sym=lab_pin
+    l7  lab_pin  x=470  y=-750  sym=lab_pin
+    l9  lab_pin  x=440  y=-520  flip=1  sym=lab_pin
+    l10  lab_pin  x=360  y=-620  sym=lab_pin
+    l11  lab_pin  x=640  y=-620  flip=1  sym=lab_pin
+    l12  lab_pin  x=660  y=-550  flip=1  sym=lab_pin
+    M26  nmos  x=580  y=-490  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=1u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    M1  nmos  x=420  y=-490  flip=1  sym=nmos4-v
+      .parameters{ verilog_gate=nmos  del=50,50,50  model=nmos  w=1u  l=0.5u  extra=delvto='agauss(0,ABSVAR,3)' }
+    c2  capacitor  x=480  y=-480  sym=parax_cap  value=4f
+    l13  lab_pin  x=510  y=-700  sym=lab_pin
+    c4  capacitor  x=980  y=-1090  sym=parax_cap  value=5f
+    c6  capacitor  x=1470  y=-1090  sym=parax_cap  value=5f
+    c7  capacitor  x=1960  y=-1090  sym=parax_cap  value=5f
+
+  wires:
+    310 -850 340 -850 VSS
+    310 -820 310 -800 VSS
+    310 -900 310 -880 VSSI
+    1120 -1100 1150 -1100 VSS
+    1120 -1330 1150 -1330 VCC
+    1090 -1400 1120 -1400 VCC
+    1120 -1400 1120 -1360 VCC
+    1090 -970 1120 -970 VSSI
+    1120 -1010 1120 -970 VSSI
+    980 -1100 1080 -1100 ZERO0
+    980 -1260 980 -1100 ZERO0
+    900 -1260 980 -1260 ZERO0
+    790 -1260 820 -1260 OUTDIFF
+    790 -1440 790 -1260 OUTDIFF
+    790 -1440 1220 -1440 OUTDIFF
+    1120 -1260 1220 -1260 OUTDIFF
+    1610 -1100 1640 -1100 VSS
+    1610 -1330 1640 -1330 VCC
+    1580 -1400 1610 -1400 VCC
+    1610 -1400 1610 -1360 VCC
+    1580 -970 1610 -970 VSSI
+    1610 -1010 1610 -970 VSSI
+    1470 -1100 1570 -1100 ZERO1
+    1470 -1260 1470 -1100 ZERO1
+    1390 -1260 1470 -1260 ZERO1
+    1280 -1260 1310 -1260 SAOUTF
+    1280 -1440 1280 -1260 SAOUTF
+    1280 -1440 1710 -1440 SAOUTF
+    1610 -1260 1710 -1260 SAOUTF
+    1220 -1440 1220 -1260 OUTDIFF
+    1120 -1300 1120 -1260 OUTDIFF
+    980 -1330 980 -1260 ZERO0
+    1610 -1300 1610 -1260 SAOUTF
+    1470 -1330 1470 -1260 ZERO1
+    1710 -1440 1710 -1260 SAOUTF
+    890 -640 920 -640 VSS
+    1060 -640 1090 -640 VSS
+    1090 -800 1120 -800 VCC
+    860 -800 890 -800 VCC
+    930 -800 1050 -800 GN
+    930 -800 930 -770 GN
+    890 -770 930 -770 GN
+    890 -770 890 -670 GN
+    1090 -710 1090 -670 OUTDIFF
+    890 -860 890 -830 VCC
+    990 -860 1090 -860 VCC
+    1090 -860 1090 -830 VCC
+    1090 -610 1090 -590 SN
+    990 -590 1090 -590 SN
+    890 -610 890 -590 SN
+    990 -510 1020 -510 VSS
+    990 -590 990 -540 SN
+    990 -880 990 -860 VCC
+    960 -380 990 -380 VSSI
+    990 -420 990 -380 VSSI
+    1470 -510 1500 -510 VSS
+    1470 -800 1500 -800 VCC
+    1440 -870 1470 -870 VCC
+    1470 -870 1470 -830 VCC
+    1440 -380 1470 -380 VSSI
+    1470 -420 1470 -380 VSSI
+    1470 -710 1470 -540 SAOUTF
+    1220 -710 1360 -710 OUTDIFF
+    890 -860 990 -860 VCC
+    890 -590 990 -590 SN
+    1120 -1260 1120 -1130 OUTDIFF
+    1610 -1260 1610 -1130 SAOUTF
+    1360 -710 1360 -510 OUTDIFF
+    1220 -1260 1220 -710 OUTDIFF
+    1710 -1260 1710 -710 SAOUTF
+    1710 -710 1850 -710 SAOUTF
+    1090 -710 1220 -710 OUTDIFF
+    1090 -770 1090 -710 OUTDIFF
+    1360 -800 1360 -710 OUTDIFF
+    1470 -1330 1570 -1330 ZERO1
+    980 -1330 1080 -1330 ZERO0
+    1360 -800 1430 -800 OUTDIFF
+    1360 -510 1430 -510 OUTDIFF
+    1960 -510 1990 -510 VSS
+    1960 -800 1990 -800 VCC
+    1930 -870 1960 -870 VCC
+    1960 -870 1960 -830 VCC
+    1930 -380 1960 -380 VSSI
+    1960 -420 1960 -380 VSSI
+    1960 -710 1960 -540 SAOUT
+    1850 -710 1850 -510 SAOUTF
+    2100 -1100 2130 -1100 VSS
+    2100 -1330 2130 -1330 VCC
+    2070 -1400 2100 -1400 VCC
+    2100 -1400 2100 -1360 VCC
+    2070 -970 2100 -970 VSSI
+    2100 -1010 2100 -970 VSSI
+    1960 -1100 2060 -1100 ZERO2
+    1960 -1260 1960 -1100 ZERO2
+    1880 -1260 1960 -1260 ZERO2
+    1770 -1260 1800 -1260 SAOUT
+    1770 -1440 1770 -1260 SAOUT
+    1770 -1440 2290 -1440 SAOUT
+    2100 -1260 2290 -1260 SAOUT
+    2100 -1300 2100 -1260 SAOUT
+    1960 -1330 1960 -1260 ZERO2
+    2290 -1440 2290 -1260 SAOUT
+    2100 -1260 2100 -1130 SAOUT
+    2290 -1260 2290 -710 SAOUT
+    1960 -1330 2060 -1330 ZERO2
+    1850 -800 1920 -800 SAOUTF
+    1850 -510 1920 -510 SAOUTF
+    1470 -710 1710 -710 SAOUTF
+    1960 -710 2290 -710 SAOUT
+    1850 -800 1850 -710 SAOUTF
+    1960 -770 1960 -710 SAOUT
+    1470 -770 1470 -710 SAOUTF
+    2180 -810 2210 -810 VCC
+    2150 -880 2180 -880 VCC
+    2180 -880 2180 -840 VCC
+    2180 -780 2180 -710 SAOUT
+    570 -620 600 -620 VCC
+    400 -680 400 -650 SP
+    500 -680 600 -680 SP
+    600 -680 600 -650 SP
+    400 -680 500 -680 SP
+    400 -620 430 -620 VCC
+    370 -490 400 -490 VSS
+    600 -490 630 -490 VSS
+    440 -490 560 -490 GP
+    440 -520 440 -490 GP
+    400 -520 440 -520 GP
+    400 -590 400 -520 GP
+    600 -590 600 -520 OUTDIFF
+    600 -460 600 -440 VSSI
+    400 -440 600 -440 VSSI
+    400 -460 400 -440 VSSI
+    470 -400 500 -400 VSSI
+    500 -440 500 -400 VSSI
+    510 -750 540 -750 VCC
+    510 -720 510 -680 SP
+    510 -800 510 -780 VCC
+    600 -550 660 -550 OUTDIFF

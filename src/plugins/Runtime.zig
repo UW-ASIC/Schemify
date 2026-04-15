@@ -180,7 +180,7 @@ pub const Runtime = struct {
         };
     }
 
-    pub fn loadStartup(self: *Self, app: *st.AppState) void {
+    pub fn loadStartup(self: *Self, app: *st.AppState, manager: ?*const PluginManager) void {
         if (comptime is_wasm) return;
         self.app = app;
         if (manager) |m| {

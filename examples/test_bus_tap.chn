@@ -1,127 +1,144 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH test_bus_tap
+  instances:
+    l1  lab_pin  x=400  y=-390  rot=3  sym=bus_tap
+    l2  lab_pin  x=290  y=-390  rot=3  sym=bus_tap
+    l3  lab_pin  x=440  y=-390  rot=1  sym=bus_tap
+    l4  lab_pin  x=320  y=-390  rot=1  sym=bus_tap
+    l5  lab_pin  x=210  y=-390  rot=1  sym=bus_tap
+    l7  lab_pin  x=510  y=-390  rot=3  sym=bus_tap
+    l8  lab_pin  x=630  y=-390  rot=3  sym=bus_tap
+    R1  resistor  x=620  y=-560  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R2  resistor  x=500  y=-560  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R3  resistor  x=390  y=-560  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R4  resistor  x=280  y=-560  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R5[3:0]  resistor  x=220  y=-200  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R6[3:0]  resistor  x=330  y=-200  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R7[3:0]  resistor  x=450  y=-200  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R8[3:0]  resistor  x=600  y=-200  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p10  lab_pin  x=190  y=-520  sym=lab_pin  sig_type=std_logic
+    l6  lab_pin  x=590  y=-390  rot=1  sym=bus_tap
+    p2  lab_pin  x=280  y=-600  sym=lab_pin  sig_type=std_logic
+    p3  lab_pin  x=390  y=-600  sym=lab_pin  sig_type=std_logic
+    p4  lab_pin  x=500  y=-600  sym=lab_pin  sig_type=std_logic
+    p5  lab_pin  x=840  y=-500  sym=lab_pin  sig_type=std_logic
+    p6  lab_pin  x=220  y=-160  sym=lab_pin  sig_type=std_logic
+    p7  lab_pin  x=330  y=-160  sym=lab_pin  sig_type=std_logic
+    p8  lab_pin  x=450  y=-160  sym=lab_pin  sig_type=std_logic
+    p9  lab_pin  x=600  y=-160  sym=lab_pin  sig_type=std_logic
+    R9[15:0]  resistor  x=190  y=-480  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p1  lab_pin  x=170  y=-390  sym=lab_pin  sig_type=std_logic
+    R10[15:0]  resistor  x=840  y=-460  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p11  lab_pin  x=170  y=-790  sym=lab_pin  sig_type=std_logic
+    l10  lab_pin  x=270  y=-790  rot=1  sym=bus_tap
+    l11  lab_pin  x=490  y=-790  rot=1  sym=bus_tap
+    R11[3:0]  resistor  x=500  y=-690  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R12  resistor  x=280  y=-690  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p12  lab_pin  x=280  y=-640  sym=lab_pin  sig_type=std_logic
+    p13  lab_pin  x=500  y=-640  sym=lab_pin  sig_type=std_logic
+    l12  lab_pin  x=690  y=-790  rot=1  sym=bus_tap
+    R13  resistor  x=700  y=-690  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p14  lab_pin  x=700  y=-640  sym=lab_pin  sig_type=std_logic
+    p15  lab_pin  x=230  y=-980  sym=lab_pin  sig_type=std_logic
+    l13  lab_pin  x=270  y=-980  rot=1  sym=bus_tap
+    l14  lab_pin  x=490  y=-980  rot=1  sym=bus_tap
+    R15[3:0]  resistor  x=280  y=-880  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R14  resistor  x=500  y=-880  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p16  lab_pin  x=280  y=-830  sym=lab_pin  sig_type=std_logic
+    p17  lab_pin  x=500  y=-830  sym=lab_pin  sig_type=std_logic
+    l15  lab_pin  x=690  y=-980  rot=1  sym=bus_tap
+    R16  resistor  x=700  y=-880  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p18  lab_pin  x=700  y=-830  sym=lab_pin  sig_type=std_logic
+    p19  lab_pin  x=980  y=-790  sym=lab_pin  sig_type=std_logic
+    l16  lab_pin  x=1130  y=-790  rot=1  sym=bus_tap
+    l17  lab_pin  x=1300  y=-790  rot=1  sym=bus_tap
+    R18[6:0]  resistor  x=1310  y=-690  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    R17  resistor  x=1140  y=-690  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p20  lab_pin  x=1140  y=-640  sym=lab_pin  sig_type=std_logic
+    p21  lab_pin  x=1310  y=-640  sym=lab_pin  sig_type=std_logic
+    l18  lab_pin  x=1500  y=-790  rot=1  sym=bus_tap
+    R19[7:0]  resistor  x=1510  y=-690  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p22  lab_pin  x=1510  y=-640  sym=lab_pin  sig_type=std_logic
+    xsa[15:0]  unknown  x=830  y=-1110  sym=rom2_sa
+    p24  lab_pin  x=680  y=-1170  sym=lab_pin
+    p25  lab_pin  x=680  y=-1150  sym=lab_pin
+    p26  lab_pin  x=680  y=-1130  sym=lab_pin
+    p27  lab_pin  x=680  y=-1110  sym=lab_pin
+    p28  lab_pin  x=680  y=-1090  sym=lab_pin
+    p29  lab_pin  x=680  y=-1070  sym=lab_pin
+    p30  lab_pin  x=680  y=-1050  sym=lab_pin
+    l19  lab_pin  x=1120  y=-790  rot=3  sym=bus_tap
+    p23  lab_pin  x=620  y=-600  sym=lab_pin  sig_type=std_logic
+    l20  lab_pin  x=380  y=-980  rot=1  sym=bus_tap
+    R20  resistor  x=390  y=-880  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    p31  lab_pin  x=390  y=-830  sym=lab_pin  sig_type=std_logic
 
-  instances [20]:
-    l1  bus_tap.chn  x=400  y=-390  rot=3  lab=[3]
-    l2  bus_tap.chn  x=290  y=-390  rot=3  lab=[13]
-    l3  bus_tap.chn  x=440  y=-390  rot=1  lab=[7:4]
-    l4  bus_tap.chn  x=320  y=-390  rot=1  lab=[11:8]
-    l5  bus_tap.chn  x=210  y=-390  rot=1  lab=[3:0]
-    l7  bus_tap.chn  x=510  y=-390  rot=3  lab=[10]
-    l8  bus_tap.chn  x=630  y=-390  rot=3  lab=[0]
-    l6  bus_tap.chn  x=590  y=-390  rot=1  lab=[15:12]
-    l10  bus_tap.chn  x=270  y=-790  rot=1  lab=0
-    l11  bus_tap.chn  x=490  y=-790  rot=1  lab=[4..1]
-    l12  bus_tap.chn  x=690  y=-790  rot=1  lab=5
-    l13  bus_tap.chn  x=270  y=-980  rot=1  lab=[3:0]
-    l14  bus_tap.chn  x=490  y=-980  rot=1  lab=ENAB
-    l15  bus_tap.chn  x=690  y=-980  rot=1  lab=CK
-    l16  bus_tap.chn  x=1130  y=-790  rot=1  lab=[0]
-    l17  bus_tap.chn  x=1300  y=-790  rot=1  lab=[7:1]
-    l18  bus_tap.chn  x=1500  y=-790  rot=1  lab=[15:8]
-    xsa[15:0]  rom2_sa.chn  x=830  y=-1110
-    l19  bus_tap.chn  x=1120  y=-790  rot=3  lab=[15:0]
-    l20  bus_tap.chn  x=380  y=-980  rot=1  lab=[1]
-
-  resistors [20]{name, x, y, rot, flip, value, footprint, device, m}:
-    R1  620  -560  0  0  1k  1206  resistor  1
-    R2  500  -560  0  0  1k  1206  resistor  1
-    R3  390  -560  0  0  1k  1206  resistor  1
-    R4  280  -560  0  0  1k  1206  resistor  1
-    R5[3:0]  220  -200  0  0  1k  1206  resistor  1
-    R6[3:0]  330  -200  0  0  1k  1206  resistor  1
-    R7[3:0]  450  -200  0  0  1k  1206  resistor  1
-    R8[3:0]  600  -200  0  0  1k  1206  resistor  1
-    R9[15:0]  190  -480  0  0  1k  1206  resistor  1
-    R10[15:0]  840  -460  0  0  1k  1206  resistor  1
-    R11[3:0]  500  -690  0  0  1k  1206  resistor  1
-    R12  280  -690  0  0  1k  1206  resistor  1
-    R13  700  -690  0  0  1k  1206  resistor  1
-    R15[3:0]  280  -880  0  0  1k  1206  resistor  1
-    R14  500  -880  0  0  1k  1206  resistor  1
-    R16  700  -880  0  0  1k  1206  resistor  1
-    R18[6:0]  1310  -690  0  0  1k  1206  resistor  1
-    R17  1140  -690  0  0  1k  1206  resistor  1
-    R19[7:0]  1510  -690  0  0  1k  1206  resistor  1
-    R20  390  -880  0  0  1k  1206  resistor  1
-
-  wires [78]:
-    170 -390 910 -390
-    390 -530 390 -400
-    280 -530 280 -400
-    450 -380 450 -230
-    330 -380 330 -230
-    220 -380 220 -230
-    600 -380 600 -230
-    500 -530 500 -400
-    620 -530 620 -400
-    840 -500 840 -490
-    500 -600 500 -590
-    390 -600 390 -590
-    280 -600 280 -590
-    220 -170 220 -160
-    330 -170 330 -160
-    450 -170 450 -160
-    600 -170 600 -160
-    190 -450 190 -390
-    190 -520 190 -510
-    840 -430 840 -390
-    170 -790 720 -790
-    280 -780 280 -720
-    500 -780 500 -720
-    280 -660 280 -640
-    500 -660 500 -640
-    700 -780 700 -720
-    700 -660 700 -640
-    230 -980 720 -980
-    280 -970 280 -910
-    500 -970 500 -910
-    280 -850 280 -830
-    500 -850 500 -830
-    700 -970 700 -910
-    700 -850 700 -830
-    980 -790 1640 -790
-    1140 -780 1140 -720
-    1310 -780 1310 -720
-    1140 -660 1140 -640
-    1310 -660 1310 -640
-    1510 -780 1510 -720
-    1510 -660 1510 -640
-    980 -1170 1090 -1170
-    1090 -1170 1110 -1170
-    1110 -1170 1110 -800
-    620 -600 620 -590
-    390 -970 390 -910
-    390 -850 390 -830
-    190 -520 190 -520 VCC
-    280 -600 280 -600 VCC
-    390 -600 390 -600 VCC
-    500 -600 500 -600 VCC
-    840 -500 840 -500 VCC
-    220 -160 220 -160 VSS
-    330 -160 330 -160 VSS
-    450 -160 450 -160 VSS
-    600 -160 600 -160 VSS
-    170 -390 170 -390 DATA[15:0]
-    170 -790 170 -790 DIN[15..0]
-    280 -640 280 -640 VSS
-    500 -640 500 -640 VSS
-    700 -640 700 -640 VSS
-    230 -980 230 -980 CK , S1, ADD[3:0],ENAB
-    280 -830 280 -830 VSS
-    500 -830 500 -830 VSS
-    700 -830 700 -830 VSS
-    980 -790 980 -790 DOUT[15:0]
-    1140 -640 1140 -640 VSS
-    1310 -640 1310 -640 VSS
-    1510 -640 1510 -640 VSS
-    680 -1170 680 -1170 LDCP
-    680 -1150 680 -1150 LDYMS
-    680 -1130 680 -1130 LDOE
-    680 -1110 680 -1110 LDPRECH
-    680 -1090 680 -1090 LDSAL
-    680 -1070 680 -1070 vcc
-    680 -1050 680 -1050 vss
-    620 -600 620 -600 VCC
-    390 -830 390 -830 VSS
+  wires:
+    170 -390 910 -390 DATA[15:0]
+    390 -530 390 -400 DATA[3]
+    280 -530 280 -400 DATA[13]
+    450 -380 450 -230 DATA[7:4]
+    330 -380 330 -230 DATA[11:8]
+    220 -380 220 -230 DATA[3:0]
+    600 -380 600 -230 DATA[15:12]
+    500 -530 500 -400 DATA[10]
+    620 -530 620 -400 DATA[0]
+    840 -500 840 -490 VCC
+    500 -600 500 -590 VCC
+    390 -600 390 -590 VCC
+    280 -600 280 -590 VCC
+    220 -170 220 -160 VSS
+    330 -170 330 -160 VSS
+    450 -170 450 -160 VSS
+    600 -170 600 -160 VSS
+    190 -450 190 -390 DATA[15:0]
+    190 -520 190 -510 VCC
+    840 -430 840 -390 DATA[15:0]
+    170 -790 720 -790 DIN[15..0]
+    280 -780 280 -720 DIN0
+    500 -780 500 -720 DIN[4..1]
+    280 -660 280 -640 VSS
+    500 -660 500 -640 VSS
+    700 -780 700 -720 DIN5
+    700 -660 700 -640 VSS
+    230 -980 720 -980 CK , S1, ADD[3:0],ENAB
+    280 -970 280 -910 ADD[3:0]
+    500 -970 500 -910 ENAB
+    280 -850 280 -830 VSS
+    500 -850 500 -830 VSS
+    700 -970 700 -910 CK
+    700 -850 700 -830 VSS
+    980 -790 1640 -790 DOUT[15:0]
+    1140 -780 1140 -720 DOUT[0]
+    1310 -780 1310 -720 DOUT[7:1]
+    1140 -660 1140 -640 VSS
+    1310 -660 1310 -640 VSS
+    1510 -780 1510 -720 DOUT[15:8]
+    1510 -660 1510 -640 VSS
+    980 -1170 1090 -1170 DOUT[15:0]
+    1090 -1170 1110 -1170 DOUT[15:0]
+    1110 -1170 1110 -800 DOUT[15:0]
+    620 -600 620 -590 VCC
+    390 -970 390 -910 ADD[1]
+    390 -850 390 -830 VSS

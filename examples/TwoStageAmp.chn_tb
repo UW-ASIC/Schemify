@@ -1,0 +1,105 @@
+chn_testbench 1
+
+TESTBENCH TwoStageAmp
+  instances:
+    Vinput  vsource  x=90  y=-290  sym=vsource  value=DC 1.6V AC 1 0 SIN(0 1MV 1KHZ)
+    l2  gnd  x=90  y=-260  sym=gnd
+    R5  resistor  x=150  y=-460  rot=3  flip=1  sym=res
+      .parameters{ value=10  footprint=1206  device=resistor  m=1 }
+    C1  capacitor  x=250  y=-460  rot=3  flip=1  sym=capa
+      .parameters{ m=1  value=2.2u  footprint=1206  device=ceramic capacitor }
+    R1  resistor  x=310  y=-550  sym=res
+      .parameters{ value=28K  footprint=1206  device=resistor  m=1 }
+    R2  resistor  x=330  y=-290  sym=res
+      .parameters{ value=2K  footprint=1206  device=resistor  m=1 }
+    l3  gnd  x=330  y=-260  sym=gnd
+    Q1  npn  x=410  y=-460  sym=npn
+      .parameters{ model=Q2N3904  device=2N3904  footprint=TO92  area=1 }
+    RE1  resistor  x=430  y=-290  sym=res
+      .parameters{ value=100  footprint=1206  device=resistor  m=1 }
+    l4  gnd  x=430  y=-260  sym=gnd
+    CE1  capacitor  x=510  y=-290  sym=capa
+      .parameters{ m=1  value=1p  footprint=1206  device=ceramic capacitor }
+    l5  gnd  x=510  y=-260  sym=gnd
+    RC1  resistor  x=430  y=-700  sym=res
+      .parameters{ value=3.3K  footprint=1206  device=resistor  m=1 }
+    l6  vdd  x=430  y=-730  sym=vdd
+    l7  vdd  x=310  y=-580  sym=vdd
+    p1  ipin  x=70  y=-460  sym=ipin
+    R8  resistor  x=500  y=-580  rot=3  flip=1  sym=res
+      .parameters{ value=1  footprint=1206  device=resistor  m=1 }
+    C2  capacitor  x=600  y=-580  rot=3  flip=1  sym=capa
+      .parameters{ m=1  value=2.2u  footprint=1206  device=ceramic capacitor }
+    R3  resistor  x=690  y=-700  sym=res
+      .parameters{ value=28K  footprint=1206  device=resistor  m=1 }
+    R4  resistor  x=710  y=-490  sym=res
+      .parameters{ value=2.8K  footprint=1206  device=resistor  m=1 }
+    l8  gnd  x=710  y=-460  sym=gnd
+    l9  vdd  x=690  y=-730  sym=vdd
+    Q2  npn  x=820  y=-580  sym=npn
+      .parameters{ model=Q2N3904  device=2N3904  footprint=TO92  area=1 }
+    RC2  resistor  x=840  y=-700  sym=res
+      .parameters{ value=1K  footprint=1206  device=resistor  m=1 }
+    l10  vdd  x=840  y=-730  sym=vdd
+    RE2  resistor  x=840  y=-290  sym=res
+      .parameters{ value=100  footprint=1206  device=resistor  m=1 }
+    l11  gnd  x=840  y=-260  sym=gnd
+    CE2  capacitor  x=920  y=-290  sym=capa
+      .parameters{ m=1  value=1p  footprint=1206  device=ceramic capacitor }
+    l12  gnd  x=920  y=-260  sym=gnd
+    Cout  capacitor  x=950  y=-630  rot=3  flip=1  sym=capa
+      .parameters{ m=1  value=2.2u  footprint=1206  device=ceramic capacitor }
+    RL  resistor  x=1000  y=-490  sym=res
+      .parameters{ value=100K  footprint=1206  device=resistor  m=1 }
+    l13  gnd  x=1000  y=-460  sym=gnd
+    p2  opin  x=1050  y=-630  sym=opin
+    l14  vdd  x=760  y=-190  sym=vdd
+    VCC  vsource  x=760  y=-140  sym=vsource  value=15
+    l15  gnd  x=760  y=-110  sym=gnd
+    l16  lab_pin  x=430  y=-650  sym=lab_pin  sig_type=std_logic
+    l17  lab_pin  x=840  y=-650  sym=lab_pin  sig_type=std_logic
+    l18  lab_pin  x=710  y=-550  sym=lab_pin  sig_type=std_logic
+    l19  lab_pin  x=310  y=-510  sym=lab_pin  sig_type=std_logic
+    l20  lab_pin  x=840  y=-420  sym=lab_pin  sig_type=std_logic
+    l21  lab_pin  x=430  y=-420  sym=lab_pin  sig_type=std_logic
+    vm2  vsource  x=840  y=-450  sym=ammeter  current=0.005705
+    vm1  vsource  x=430  y=-370  sym=ammeter  current=0.002765
+    v1  vsource  x=760  y=-580  rot=3  sym=ammeter  current=3.2742e-05
+
+  wires:
+    430 -330 430 -320 net1
+    430 -330 510 -330 net1
+    510 -330 510 -320 net1
+    430 -580 430 -490 Vcoll1
+    330 -460 390 -460 Vbase1
+    180 -460 220 -460 net2
+    90 -460 120 -460 Vin
+    90 -460 90 -320 Vin
+    310 -520 310 -460 Vbase1
+    330 -460 330 -320 Vbase1
+    70 -460 90 -460 Vin
+    530 -580 570 -580 net3
+    430 -580 470 -580 Vcoll1
+    790 -580 800 -580 net4
+    690 -670 690 -580 Vbase2
+    710 -580 710 -520 Vbase2
+    430 -340 430 -330 net1
+    430 -670 430 -580 Vcoll1
+    280 -460 310 -460 Vbase1
+    310 -460 330 -460 Vbase1
+    630 -580 690 -580 Vbase2
+    690 -580 710 -580 Vbase2
+    840 -630 840 -610 Vcoll2
+    840 -330 840 -320 Vem2
+    840 -330 920 -330 Vem2
+    920 -330 920 -320 Vem2
+    840 -420 840 -330 Vem2
+    840 -630 920 -630 Vcoll2
+    1000 -630 1000 -520 Vout
+    980 -630 1000 -630 Vout
+    840 -670 840 -630 Vcoll2
+    1000 -630 1050 -630 Vout
+    840 -550 840 -480 net5
+    430 -430 430 -400 Vem1
+    760 -190 760 -170 VCC
+    710 -580 730 -580 Vbase2

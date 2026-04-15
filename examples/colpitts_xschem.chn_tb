@@ -1,0 +1,48 @@
+chn_testbench 1
+
+TESTBENCH colpitts_xschem
+  instances:
+    l0  inductor  x=420  y=-370  sym=ind  value={l0}
+    C3  capacitor  x=250  y=-410  sym=capa
+      .parameters{ m=1  value=1nF  footprint=1206  device=ceramic capacitor }
+    Rb0  resistor  x=470  y=-440  rot=1  sym=res
+      .parameters{ value=100k  footprint=1206  device=resistor  m=1 }
+    p1  opin  x=610  y=-210  sym=opin
+    v0  vsource  x=620  y=-350  sym=vsource  value=pwl 0 0 1u 15
+    l2  gnd  x=620  y=-320  sym=gnd
+    Re  resistor  x=520  y=-160  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  m=1 }
+    l3  gnd  x=520  y=-130  sym=gnd
+    Rb1  resistor  x=340  y=-410  sym=res
+      .parameters{ value=100k  footprint=1206  device=resistor  m=1 }
+    l4  gnd  x=340  y=-380  sym=gnd
+    l5  gnd  x=250  y=-380  sym=gnd
+    C2  capacitor  x=420  y=-160  flip=1  sym=capa
+      .parameters{ m=1  value={cr}  footprint=1206  device=ceramic capacitor }
+    C1  capacitor  x=420  y=-240  flip=1  sym=capa
+      .parameters{ m=1  value={cr}  footprint=1206  device=ceramic capacitor }
+    l6  gnd  x=420  y=-130  sym=gnd
+    l8  lab_pin  x=620  y=-440  flip=1  sym=lab_pin  sig_type=std_logic
+    l9  lab_pin  x=420  y=-320  sym=lab_pin  sig_type=std_logic
+    l10  lab_pin  x=390  y=-440  sym=lab_wire  sig_type=std_logic
+    Q1  npn  x=500  y=-300  sym=npn
+      .parameters{ model=Q2N5179  device=Q2N5179  footprint=SOT23  area=1 }
+
+  wires:
+    520 -440 520 -330 VCC
+    620 -440 620 -380 VCC
+    520 -200 520 -190 OUT
+    420 -340 420 -300 B
+    420 -300 480 -300 B
+    520 -440 620 -440 VCC
+    420 -440 420 -400 C
+    250 -440 420 -440 C
+    420 -300 420 -270 B
+    520 -210 610 -210 OUT
+    500 -440 520 -440 VCC
+    420 -440 440 -440 C
+    520 -270 520 -210 OUT
+    420 -200 420 -190 OUT
+    420 -200 520 -200 OUT
+    520 -210 520 -200 OUT
+    420 -210 420 -200 OUT

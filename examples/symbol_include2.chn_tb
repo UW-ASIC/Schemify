@@ -1,0 +1,12 @@
+chn_testbench 1
+
+TESTBENCH symbol_include2
+  instances:
+    g0  ipin  x=-120  y=0  sym=ipin
+    g1  ipin  x=-120  y=20  sym=ipin
+    g2  ipin  x=-120  y=40  sym=ipin
+    g3  ipin  x=-120  y=60  sym=ipin
+    g4  ipin  x=-120  y=80  sym=ipin
+    g5  opin  x=120  y=0  sym=opin
+
+  wires:

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ theme }}">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ site_url }}/style/main.css" />
+
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+        integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+    <script type="module">
+        import init from "{{ site_url }}/dist/schemify_docs.js";
+
+        init();
+    </script>
+</head>
+
+<body>
+    <div class="topbar">
+        <div class="left">
+            <a href="{{ site_url }}/" class="site-title">Schemify Docs</a>
+
+        </div>
+        <div class="center" id="topbar-center">
+            {{ page_title }}
+        </div>
+        <div class="right">
+            <button class="theme-toggle" title="Switch Theme">
+                🌗
+            </button>
+        </div>
+    </div>
+
+    <div id="app">
+        {{ sidebar|safe }}
+
+        <main class="content">
+            <div id="page-content">
+                {{ content|safe }}
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

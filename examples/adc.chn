@@ -1,0 +1,124 @@
+chn 1
+
+SYMBOL adc
+  pins:
+    CODE[5:0]  out  x=80  y=-30
+    SIG_IN  in  x=-80  y=-30
+    VREF  in  x=-80  y=-10
+    CK  in  x=-80  y=10
+    RST  in  x=-80  y=30
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = subcircuit
+  drawing:
+    rect 1020 -850 1820 -560
+    rect 1020 -940 1820 -850
+
+SCHEMATIC
+  instances:
+    p4  lab_pin  x=800  y=-390  sym=lab_pin
+    l4  lab_pin  x=760  y=-410  flip=1  sym=lab_wire
+    p8  lab_pin  x=940  y=-330  flip=1  sym=lab_pin
+    x1  subckt  x=860  y=-390  sym=flip_flop_ngspice
+    p3  lab_pin  x=800  y=-370  sym=lab_pin
+    x2  subckt  x=1250  y=-410  sym=counter_6bit_ngspice
+    p5  lab_pin  x=1170  y=-430  sym=lab_pin
+    p12  lab_pin  x=1070  y=-340  sym=lab_pin
+    x4[5:0]  subckt  x=1580  y=-410  sym=flip_flop_ngspice
+    p20  opin  x=1700  y=-430  sym=opin
+    l10  lab_pin  x=1350  y=-430  flip=1  sym=lab_wire
+    x4  subckt  x=870  y=-170  sym=counter_6bit_ngspice
+    p10  ipin  x=640  y=-190  sym=ipin
+    p11  ipin  x=640  y=-150  sym=ipin
+    p14  lab_pin  x=790  y=-170  sym=lab_pin
+    p24  lab_pin  x=950  y=-190  flip=1  sym=lab_pin
+    x5  subckt  x=1120  y=-230  sym=and3_ngspice  ROUT=1000
+    p25  lab_pin  x=1080  y=-250  sym=lab_pin
+    p26  lab_pin  x=1080  y=-230  sym=lab_pin
+    p27  lab_pin  x=1080  y=-210  sym=lab_pin
+    p28  lab_pin  x=1080  y=-150  sym=lab_pin
+    p29  lab_pin  x=1080  y=-130  sym=lab_pin
+    x6  subckt  x=1120  y=-150  sym=and3_ngspice  ROUT=1000
+    p30  lab_pin  x=1080  y=-170  sym=lab_pin
+    x7  subckt  x=1220  y=-190  sym=and_ngspice  ROUT=1000
+    x8  subckt  x=1320  y=-210  sym=or_ngspice  ROUT=1000
+    p31  lab_pin  x=1280  y=-230  sym=lab_pin
+    p15  lab_pin  x=1540  y=-230  flip=1  sym=lab_pin
+    x9  subckt  x=1480  y=-210  sym=flip_flop_ngspice
+    p32  lab_pin  x=1420  y=-190  sym=lab_pin
+    p35  lab_pin  x=1420  y=-230  sym=lab_pin
+    p1  lab_pin  x=1520  y=-390  sym=lab_pin
+    x11  subckt  x=1040  y=-410  sym=inv_ngspice  RUP=1000
+    l2  lab_pin  x=1130  y=-410  sym=lab_wire
+    p242  ipin  x=300  y=-370  sym=ipin
+    p244  lab_pin  x=520  y=-420  sym=lab_pin
+    p260  ipin  x=120  y=-430  sym=ipin
+    c10  capacitor  x=390  y=-570  rot=1  sym=capa  m=1  value=1e-12
+    R4  resistor  x=170  y=-430  rot=1  sym=res
+      .parameters{ value=60k  footprint=1206  device=resistor  m=1 }
+    p261  lab_pin  x=550  y=-380  sym=lab_pin
+    R5  resistor  x=210  y=-350  sym=res
+      .parameters{ value=60k  footprint=1206  device=resistor  m=1 }
+    p262  lab_pin  x=310  y=-490  sym=lab_pin
+    x41  subckt  x=370  y=-400  rot=2  flip=1  sym=opamp_65nm
+    x42  subckt  x=610  y=-410  sym=comp_65nm
+    x3  subckt  x=1110  y=-320  sym=or_ngspice  ROUT=1000
+
+  nets:
+    COMP  -> x1.D, x42.OUT
+    CK  -> x1.CLK, x2.CK, x4.CK
+    Q  -> x1.Q, x11.A
+    0  -> x1.RST
+    COUNT[5:0]  -> x2.COUNT[5:0], x4[5:0].D
+    QN  -> x2.D, x11.Y
+    RSTI  -> x4[5:0].CLK, x9.Q, x3.B
+    CODE[5:0]  -> x4[5:0].Q
+    RST  -> x4[5:0].RST, x4.RST, x8.A, x9.RST, x3.A
+    C[5:0]  -> x4.COUNT[5:0]
+    VCC  -> x4.D, x9.D
+    C[5]  -> x5.A
+    C[4]  -> x5.B
+    C[3]  -> x5.C
+    C[2]  -> x6.A
+    C[1]  -> x6.B
+    C[0]  -> x6.C
+    VREF  -> x41.PLUS, x42.MINUS
+    INTEG  -> x41.OUT, x42.PLUS
+    FB  -> x41.MINUS
+
+  wires:
+    920 -410 940 -410 Q
+    940 -410 940 -250 Q
+    1640 -430 1700 -430 CODE[5:0]
+    1330 -430 1520 -430 COUNT[5:0]
+    1180 -170 1180 -150 net1
+    1180 -230 1180 -210 net2
+    1450 -410 1520 -410 RSTI
+    1380 -210 1420 -210 net3
+    1540 -270 1540 -230 RSTI
+    1450 -270 1540 -270 RSTI
+    1450 -410 1450 -270 RSTI
+    640 -190 790 -190 CK
+    640 -150 790 -150 RST
+    670 -410 800 -410 COMP
+    210 -250 940 -250 Q
+    1080 -410 1170 -410 QN
+    940 -410 1000 -410 Q
+    520 -440 550 -440 INTEG
+    520 -440 520 -400 INTEG
+    300 -370 310 -370 VREF
+    210 -430 310 -430 FB
+    450 -400 520 -400 INTEG
+    420 -570 450 -570 INTEG
+    450 -570 450 -400 INTEG
+    310 -570 360 -570 FB
+    120 -430 140 -430 SIG_IN
+    310 -570 310 -430 FB
+    210 -430 210 -380 FB
+    210 -320 210 -250 Q
+    430 -400 450 -400 INTEG
+    200 -430 210 -430 FB
+    1070 -270 1450 -270 RSTI
+    1070 -300 1070 -270 RSTI
+    1170 -390 1170 -320 net4

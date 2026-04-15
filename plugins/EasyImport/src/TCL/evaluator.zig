@@ -21,12 +21,13 @@ pub const Evaluator = struct {
     script_path: ?[]const u8,
     source_visited: std.StringHashMapUnmanaged(void),
     backing: std.mem.Allocator,
+    returning: bool = false,
+    return_value: []const u8 = "",
+    breaking: bool = false,
 
     const unsupported_constructs = std.StaticStringMap(void).initComptime(.{
-        .{ "switch", {} },   .{ "array", {} },
-        .{ "regexp", {} },   .{ "for", {} },      .{ "foreach", {} },
-        .{ "while", {} },    .{ "global", {} },
-        .{ "namespace", {} }, .{ "package", {} },  .{ "eval", {} },
+        .{ "global", {} },
+        .{ "package", {} },  .{ "eval", {} },
         .{ "uplevel", {} },  .{ "upvar", {} },
     });
 
@@ -38,12 +39,18 @@ pub const Evaluator = struct {
         .{ "string", .string_ },  .{ "puts", .puts },
         .{ "return", .return_ },  .{ "unset", .unset },
         .{ "proc", .proc_ },      .{ "catch", .catch_ },
+        .{ "while", .while_ },    .{ "for", .for_ },
+        .{ "foreach", .foreach_ }, .{ "incr", .incr_ },
+        .{ "break", .break_ },
+        .{ "switch", .switch_ },  .{ "regexp", .regexp_ },
+        .{ "array", .array_ },    .{ "namespace", .namespace_ },
     });
 
     const CommandKind = enum {
         set, append_, lappend, if_, expr, source,
         file, info, string_, puts, return_, unset,
-        proc_, catch_,
+        proc_, catch_, while_, for_, foreach_, incr_,
+        break_, switch_, regexp_, array_, namespace_,
     };
 
     pub fn init(backing: std.mem.Allocator) Evaluator {
@@ -78,6 +85,7 @@ pub const Evaluator = struct {
             // Skip comments
             if (trimmed[0] == '#') continue;
             last = try self.evalCommand(trimmed);
+            if (self.returning or self.breaking) return if (self.returning) self.return_value else last;
         }
         return last;
     }
@@ -117,10 +125,26 @@ pub const Evaluator = struct {
             .info => self.execInfoCmd(args),
             .string_ => self.execStringCmd(args),
             .puts => "",  // no-op
-            .return_ => if (args.len > 0) args[0] else "",
+            .return_ => {
+                self.returning = true;
+                self.return_value = if (args.len > 0) args[0] else "";
+                return self.return_value;
+            },
             .unset => blk: { if (args.len > 0) _ = self.variables.fetchRemove(args[0]); break :blk ""; },
             .proc_ => self.execProc(cmd_text),
             .catch_ => self.execCatch(cmd_text),
+            .while_ => self.execWhile(cmd_text),
+            .for_ => self.execFor(cmd_text),
+            .foreach_ => self.execForeach(cmd_text),
+            .incr_ => self.execIncr(args),
+            .break_ => {
+                self.breaking = true;
+                return "";
+            },
+            .switch_ => self.execSwitch(cmd_text),
+            .regexp_ => self.execRegexp(args),
+            .array_ => self.execArray(cmd_text),
+            .namespace_ => self.execNamespace(cmd_text),
         };
     }
 
@@ -208,6 +232,7 @@ pub const Evaluator = struct {
             }
             return err;
         };
+        self.returning = false; // Clear after proc boundary
         // Restore saved vars
         for (proc_def.arg_names, 0..) |arg_name, idx| {
             if (saved[idx]) |sv| {
@@ -249,6 +274,7 @@ pub const Evaluator = struct {
 
     fn execIf(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
         // Parse if {cond} {body} ?elseif {cond} {body}? ?else {body}?
+        // Tcl also allows: if {cond} {body} {else_body} (implicit else)
         var blocks_buf: [32][]const u8 = undefined;
         var block_count: usize = 0;
         commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
@@ -264,7 +290,10 @@ pub const Evaluator = struct {
                 return "";
             }
             // condition + body pair
-            if (i + 1 >= block_count) return "";
+            if (i + 1 >= block_count) {
+                // Last block with no body: treat as implicit else body
+                return self.evalScript(blocks_buf[i]);
+            }
             const cond = blocks_buf[i];
             i += 1;
             // Skip optional "then"
@@ -283,7 +312,14 @@ pub const Evaluator = struct {
             break :blk std.mem.join(self.arena.allocator(), " ", args) catch return error.OutOfMemory;
         };
         const lookup_var_ctx = LookupCtx{ .ev = self };
-        const result = expr_mod.evalExpr(input, lookup_var_ctx.varFn(), lookup_var_ctx.envFn(), null) catch {
+        const bracket_fn = struct {
+            var captured: *Evaluator = undefined;
+            fn eval(cmd: []const u8) ?[]const u8 {
+                return captured.evalScript(cmd) catch null;
+            }
+        };
+        bracket_fn.captured = self;
+        const result = expr_mod.evalExpr(input, lookup_var_ctx.varFn(), lookup_var_ctx.envFn(), &bracket_fn.eval) catch {
             return "0";
         };
         return self.resultToStr(result);
@@ -341,11 +377,341 @@ pub const Evaluator = struct {
         };
     }
 
+    fn execIncr(self: *Evaluator, args: []const []const u8) EvalError![]const u8 {
+        if (args.len == 0) return error.InvalidArgCount;
+        const current = self.getVar(args[0]) orelse "0";
+        const val = std.fmt.parseInt(i64, current, 10) catch 0;
+        const inc: i64 = if (args.len > 1) std.fmt.parseInt(i64, args[1], 10) catch 1 else 1;
+        const new_val = val + inc;
+        const aa = self.arena.allocator();
+        const str = std.fmt.allocPrint(aa, "{d}", .{new_val}) catch return error.OutOfMemory;
+        try self.setVar(args[0], str);
+        return str;
+    }
+
+    fn execWhile(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
+        var blocks_buf: [32][]const u8 = undefined;
+        var block_count: usize = 0;
+        commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
+        if (block_count < 3) return "";
+        const cond = blocks_buf[1];
+        const body = blocks_buf[2];
+        var last: []const u8 = "";
+        var iterations: usize = 0;
+        while (iterations < 10000) : (iterations += 1) {
+            if (!try self.evalCondition(cond)) break;
+            last = self.evalScript(body) catch |err| {
+                if (self.breaking) {
+                    self.breaking = false;
+                    break;
+                }
+                return err;
+            };
+            if (self.breaking) {
+                self.breaking = false;
+                break;
+            }
+            if (self.returning) return self.return_value;
+        }
+        return last;
+    }
+
+    fn execFor(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
+        var blocks_buf: [32][]const u8 = undefined;
+        var block_count: usize = 0;
+        commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
+        if (block_count < 5) return "";
+        const init_script = blocks_buf[1];
+        const cond = blocks_buf[2];
+        const incr_script = blocks_buf[3];
+        const body = blocks_buf[4];
+        _ = try self.evalScript(init_script);
+        var last: []const u8 = "";
+        var iterations: usize = 0;
+        while (iterations < 10000) : (iterations += 1) {
+            if (!try self.evalCondition(cond)) break;
+            last = self.evalScript(body) catch |err| {
+                if (self.breaking) {
+                    self.breaking = false;
+                    break;
+                }
+                return err;
+            };
+            if (self.breaking) {
+                self.breaking = false;
+                break;
+            }
+            if (self.returning) return self.return_value;
+            _ = try self.evalScript(incr_script);
+        }
+        return last;
+    }
+
+    fn execForeach(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
+        var blocks_buf: [32][]const u8 = undefined;
+        var block_count: usize = 0;
+        commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
+        if (block_count < 4) return "";
+        // blocks: [foreach, var_list, list, body]
+        const var_list_raw = blocks_buf[1];
+        const list_raw = blocks_buf[2];
+        const body = blocks_buf[3];
+
+        const aa = self.arena.allocator();
+
+        // Parse variable names
+        var var_names: std.ArrayListUnmanaged([]const u8) = .{};
+        var vtoks = std.mem.tokenizeAny(u8, var_list_raw, " \t\n\r");
+        while (vtoks.next()) |tok| {
+            var_names.append(aa, tok) catch return error.OutOfMemory;
+        }
+        if (var_names.items.len == 0) return "";
+
+        // Parse list values
+        var values: std.ArrayListUnmanaged([]const u8) = .{};
+        var ltoks = std.mem.tokenizeAny(u8, list_raw, " \t\n\r");
+        while (ltoks.next()) |tok| {
+            values.append(aa, tok) catch return error.OutOfMemory;
+        }
+
+        const nvars = var_names.items.len;
+        var last: []const u8 = "";
+        var idx: usize = 0;
+        while (idx < values.items.len) {
+            for (var_names.items, 0..) |vname, vi| {
+                const val = if (idx + vi < values.items.len) values.items[idx + vi] else "";
+                self.setVar(vname, val) catch {};
+            }
+            idx += nvars;
+            last = self.evalScript(body) catch |err| {
+                if (self.breaking) {
+                    self.breaking = false;
+                    return last;
+                }
+                return err;
+            };
+            if (self.breaking) {
+                self.breaking = false;
+                break;
+            }
+            if (self.returning) return self.return_value;
+        }
+        return last;
+    }
+
+    fn execSwitch(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
+        var blocks_buf: [32][]const u8 = undefined;
+        var block_count: usize = 0;
+        commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
+        if (block_count < 3) return "";
+
+        var idx: usize = 1;
+        // Check for -glob/-exact flag
+        var use_glob = true; // Tcl defaults to -glob
+        if (idx < block_count and blocks_buf[idx].len > 0 and blocks_buf[idx][0] == '-') {
+            if (std.mem.eql(u8, blocks_buf[idx], "-exact")) use_glob = false;
+            // -glob is already the default
+            idx += 1;
+        }
+        if (idx >= block_count) return "";
+
+        // The string to match against - substitute variables
+        const match_str = try self.substitute(blocks_buf[idx]);
+        idx += 1;
+
+        // If remaining is a single brace block, parse its contents as pattern/body pairs
+        if (idx + 1 == block_count) {
+            var inner_buf: [32][]const u8 = undefined;
+            var inner_count: usize = 0;
+            commands.parseBlocks(blocks_buf[idx], &inner_buf, &inner_count);
+            return self.switchMatch(match_str, inner_buf[0..inner_count], use_glob);
+        }
+        // Multiple separate args
+        return self.switchMatch(match_str, blocks_buf[idx..block_count], use_glob);
+    }
+
+    fn switchMatch(self: *Evaluator, match_str: []const u8, pairs: []const []const u8, use_glob: bool) EvalError![]const u8 {
+        var i: usize = 0;
+        while (i + 1 < pairs.len) : (i += 2) {
+            const pattern = pairs[i];
+            const body = pairs[i + 1];
+            if (std.mem.eql(u8, pattern, "default")) {
+                return self.evalScript(body);
+            }
+            const matches = if (use_glob) globMatch(pattern, match_str) else std.mem.eql(u8, pattern, match_str);
+            if (matches) return self.evalScript(body);
+        }
+        return "";
+    }
+
+    fn globMatch(pattern: []const u8, str: []const u8) bool {
+        var pi: usize = 0;
+        var si: usize = 0;
+        var star_pi: ?usize = null;
+        var star_si: usize = 0;
+        while (si < str.len) {
+            if (pi < pattern.len and (pattern[pi] == '?' or pattern[pi] == str[si])) {
+                pi += 1;
+                si += 1;
+            } else if (pi < pattern.len and pattern[pi] == '*') {
+                star_pi = pi;
+                star_si = si;
+                pi += 1;
+            } else if (star_pi) |sp| {
+                pi = sp + 1;
+                star_si += 1;
+                si = star_si;
+            } else return false;
+        }
+        while (pi < pattern.len and pattern[pi] == '*') pi += 1;
+        return pi == pattern.len;
+    }
+
+    fn execRegexp(self: *Evaluator, args: []const []const u8) EvalError![]const u8 {
+        _ = self;
+        var idx: usize = 0;
+        var nocase = false;
+        while (idx < args.len and args[idx].len > 0 and args[idx][0] == '-') {
+            if (std.mem.eql(u8, args[idx], "-nocase")) nocase = true;
+            idx += 1;
+        }
+        if (idx + 1 > args.len) return "0";
+        const pattern = args[idx];
+        idx += 1;
+        if (idx >= args.len) return "0";
+        const str = args[idx];
+        if (simpleRegexMatch(pattern, str, nocase)) return "1" else return "0";
+    }
+
+    fn simpleRegexMatch(pattern: []const u8, str: []const u8, nocase: bool) bool {
+        var start: usize = 0;
+        while (start <= str.len) : (start += 1) {
+            if (regexMatchAt(pattern, 0, str, start, nocase)) return true;
+        }
+        return false;
+    }
+
+    fn regexMatchAt(pattern: []const u8, pi_init: usize, str: []const u8, si_init: usize, nocase: bool) bool {
+        var p = pi_init;
+        var s = si_init;
+        while (p < pattern.len) {
+            const has_star = (p + 1 < pattern.len and pattern[p + 1] == '*');
+            const has_plus = (p + 1 < pattern.len and pattern[p + 1] == '+');
+
+            if (has_star or has_plus) {
+                const ch = pattern[p];
+                p += 2;
+                const min: usize = if (has_plus) 1 else 0;
+                var count: usize = 0;
+                var ts = s;
+                while (ts < str.len and charMatch(ch, str[ts], nocase)) {
+                    ts += 1;
+                    count += 1;
+                }
+                // Greedy: try from max down to min
+                var c = count;
+                while (true) {
+                    if (c >= min and regexMatchAt(pattern, p, str, s + c, nocase)) return true;
+                    if (c == 0) break;
+                    c -= 1;
+                }
+                return false;
+            }
+
+            if (pattern[p] == '.') {
+                if (s >= str.len) return false;
+                p += 1;
+                s += 1;
+            } else {
+                if (s >= str.len) return false;
+                if (!charMatch(pattern[p], str[s], nocase)) return false;
+                p += 1;
+                s += 1;
+            }
+        }
+        return true;
+    }
+
+    fn charMatch(pat_ch: u8, str_ch: u8, nocase: bool) bool {
+        if (pat_ch == '.') return true;
+        if (nocase) return std.ascii.toLower(pat_ch) == std.ascii.toLower(str_ch);
+        return pat_ch == str_ch;
+    }
+
+    fn execArray(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
+        var blocks_buf: [32][]const u8 = undefined;
+        var block_count: usize = 0;
+        commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
+        if (block_count < 3) return error.InvalidArgCount;
+        const sub = blocks_buf[1];
+        const arr_name = blocks_buf[2];
+
+        if (std.mem.eql(u8, sub, "set")) {
+            if (block_count < 4) return error.InvalidArgCount;
+            const list = blocks_buf[3];
+            var toks = std.mem.tokenizeAny(u8, list, " \t\n\r");
+            while (toks.next()) |key| {
+                const val = toks.next() orelse break;
+                const aa = self.arena.allocator();
+                const full_name = std.fmt.allocPrint(aa, "{s}({s})", .{ arr_name, key }) catch return error.OutOfMemory;
+                try self.setVar(full_name, val);
+            }
+            return "";
+        }
+        if (std.mem.eql(u8, sub, "exists")) {
+            const aa = self.arena.allocator();
+            const prefix = std.fmt.allocPrint(aa, "{s}(", .{arr_name}) catch return error.OutOfMemory;
+            var it = self.variables.iterator();
+            while (it.next()) |entry| {
+                if (std.mem.startsWith(u8, entry.key_ptr.*, prefix)) return "1";
+            }
+            return "0";
+        }
+        if (std.mem.eql(u8, sub, "get")) {
+            const aa = self.arena.allocator();
+            const prefix = std.fmt.allocPrint(aa, "{s}(", .{arr_name}) catch return error.OutOfMemory;
+            var parts: std.ArrayListUnmanaged([]const u8) = .{};
+            var it = self.variables.iterator();
+            while (it.next()) |entry| {
+                if (std.mem.startsWith(u8, entry.key_ptr.*, prefix)) {
+                    const key_start = prefix.len;
+                    const key_end = std.mem.indexOfScalar(u8, entry.key_ptr.*[key_start..], ')') orelse continue;
+                    const key = entry.key_ptr.*[key_start .. key_start + key_end];
+                    parts.append(aa, key) catch continue;
+                    parts.append(aa, entry.value_ptr.*) catch continue;
+                }
+            }
+            return std.mem.join(aa, " ", parts.items) catch return error.OutOfMemory;
+        }
+        return "";
+    }
+
+    fn execNamespace(self: *Evaluator, full_cmd: []const u8) EvalError![]const u8 {
+        var blocks_buf: [32][]const u8 = undefined;
+        var block_count: usize = 0;
+        commands.parseBlocks(full_cmd, &blocks_buf, &block_count);
+        if (block_count < 2) return error.InvalidArgCount;
+        const sub = blocks_buf[1];
+        if (std.mem.eql(u8, sub, "eval")) {
+            if (block_count < 4) return error.InvalidArgCount;
+            return self.evalScript(blocks_buf[3]);
+        }
+        if (std.mem.eql(u8, sub, "current")) {
+            return "::";
+        }
+        return "";
+    }
+
     fn evalCondition(self: *Evaluator, cond: []const u8) EvalError!bool {
         const t = std.mem.trim(u8, cond, " \t\r\n");
         if (t.len == 0) return false;
-        if (std.mem.eql(u8, t, "1") or std.ascii.eqlIgnoreCase(t, "true")) return true;
-        if (std.mem.eql(u8, t, "0") or std.ascii.eqlIgnoreCase(t, "false")) return false;
+        // Substitute variables and commands in the condition first,
+        // then evaluate the expanded string as an expression.
+        const expanded = try self.substitute(t);
+        const trimmed = std.mem.trim(u8, expanded, " \t\r\n");
+        if (trimmed.len == 0) return false;
+        if (std.mem.eql(u8, trimmed, "1") or std.ascii.eqlIgnoreCase(trimmed, "true")) return true;
+        if (std.mem.eql(u8, trimmed, "0") or std.ascii.eqlIgnoreCase(trimmed, "false")) return false;
         // Try as expression
         const lookup = LookupCtx{ .ev = self };
         const bracket_fn = struct {
@@ -355,7 +721,7 @@ pub const Evaluator = struct {
             }
         };
         bracket_fn.captured = self;
-        const result = expr_mod.evalExpr(t, lookup.varFn(), lookup.envFn(), &bracket_fn.eval) catch return false;
+        const result = expr_mod.evalExpr(trimmed, lookup.varFn(), lookup.envFn(), &bracket_fn.eval) catch return false;
         return result.asBool();
     }
 

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Testing — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Testing</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link active">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Testing</h1>
+<h2>Test Structure</h2>
+<pre><code>src/
+  *.zig           unit tests inline (test &quot;...&quot; blocks)
+tests/
+  roundtrip/      xschem ↔ CHN roundtrip tests
+  netlist/        SPICE netlist generation tests
+  fixtures/       test schematics (.chn, .sch, .spice)
+plugins/
+  EasyImport/
+    test/         EasyImport plugin integration tests
+</code></pre><h2>Running Tests</h2>
+<pre><code class="hljs language-bash"><span class="hljs-comment"># All tests</span>
+zig build <span class="hljs-built_in">test</span>
+
+<span class="hljs-comment"># Filter by name</span>
+zig build <span class="hljs-built_in">test</span> -- --test-filter <span class="hljs-string">&quot;CHN parser&quot;</span>
+
+<span class="hljs-comment"># Filter by file</span>
+zig build <span class="hljs-built_in">test</span> -- src/core/chn/parser.zig
+
+<span class="hljs-comment"># Verbose output</span>
+zig build <span class="hljs-built_in">test</span> -- --verbose
+</code></pre><h2>Unit Tests</h2>
+<p>Unit tests live inline in the source file they test:</p>
+<pre><code class="hljs language-zig">// src/core/chn/parser.zig
+
+pub fn parseChN(allocator: std.mem.Allocator, input: []const u8) !Schematic {
+    // ...
+}
+
+test &quot;parseChN: simple SYMBOL section&quot; {
+    const input =
+        \\chn 1
+        \\SYMBOL inv
+        \\  pins:
+        \\    A  in  x=0 y=0
+        \\    Z  out x=40 y=0
+    ;
+    const result = try parseChN(std.testing.allocator, input);
+    defer result.deinit(std.testing.allocator);
+
+    const sym = result.symbol orelse return error.NoSymbol;
+    try std.testing.expectEqualStrings(&quot;inv&quot;, sym.name);
+    try std.testing.expectEqual(@as(usize, 2), sym.pins.len);
+}
+</code></pre><h2>Roundtrip Tests</h2>
+<p>The xschem roundtrip tests verify that reading a <code>.sch</code> file and converting to <code>.chn</code> and back produces an equivalent schematic:</p>
+<pre><code>tests/roundtrip/
+  fixtures/
+    cmos_inv.sch      xschem source
+    cmos_inv.chn      expected CHN output
+  roundtrip_test.zig
+</code></pre><pre><code class="hljs language-bash">zig build <span class="hljs-built_in">test</span> -- --test-filter <span class="hljs-string">&quot;roundtrip&quot;</span>
+</code></pre><p>The roundtrip tests use a dependency graph to handle fixture ordering — schematics that reference symbols are tested after the symbols they depend on.</p>
+<h2>Integration Tests</h2>
+<p>Integration tests in <code>tests/</code> use real file I/O via <code>std.testing.tmpDir()</code>:</p>
+<pre><code class="hljs language-zig">test &quot;FileIO: write CHN and read back&quot; {
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const path = try tmp.dir.realpathAlloc(std.testing.allocator, &quot;test.chn&quot;);
+    defer std.testing.allocator.free(path);
+
+    const schematic = try buildTestSchematic();
+    try FileIO.writeChn(schematic, path);
+
+    const result = try FileIO.readChn(std.testing.allocator, path);
+    defer result.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(schematic.instances.len, result.instances.len);
+}
+</code></pre><h2>GUI Tests</h2>
+<p>The GUI test checklist in <code>TODO.md</code> covers 30+ categories of manual tests for the editor. These are not automated — they require running the editor and verifying behavior visually.</p>
+<p>Key categories:</p>
+<ul>
+<li>Wire placement and deletion</li>
+<li>Instance placement, rotation, flip</li>
+<li>Rubber-band selection</li>
+<li>Undo/redo across all operations</li>
+<li>Zoom and pan</li>
+<li>Symbol browser</li>
+<li>Net label placement and connectivity</li>
+<li>Plugin panel docking</li>
+<li>Schematic saving and loading</li>
+</ul>
+<h2>Plugin Tests</h2>
+<p>Plugin integration tests build and load the plugin into a test host:</p>
+<pre><code class="hljs language-zig">test &quot;EasyImport: convert xschem inverter&quot; {
+    const plugin = try PluginHost.loadPlugin(&quot;libEasyImport.so&quot;);
+    defer plugin.unload();
+
+    // Send load message
+    const load_result = plugin.process(.{.load = {}});
+    try std.testing.expect(load_result.registered_panels.len &gt; 0);
+
+    // Send convert command
+    const convert_result = plugin.process(.{
+        .command = .{ .tag = &quot;convert&quot;, .payload = &quot;fixtures/cmos_inv.sch&quot; }
+    });
+    try std.testing.expect(convert_result.vfs_writes.len &gt; 0);
+}
+</code></pre><h2>Test Conventions</h2>
+<ul>
+<li>No mocking. Use real data structures, real parsers.</li>
+<li>For file I/O tests: <code>std.testing.tmpDir()</code></li>
+<li>For schematic tests: use <code>tests/fixtures/</code> test schematics</li>
+<li>All public functions must have at least one test</li>
+<li>Test names follow: <code>&quot;ModuleName: description of scenario&quot;</code></li>
+</ul>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

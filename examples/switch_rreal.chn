@@ -1,20 +1,14 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [3]:
+SYMBOL switch_rreal
+  pins:
     ENAB  in  x=-150  y=10
     B  inout  x=150  y=-10
     A  inout  x=-150  y=-10
-
-  params [4]:
-    type = subcircuit
+  params:
     format = @name @pinlist @symname
     template = name=x1 del=\\"2 ns\\"
-    generic_type = del=time
-
-  spice_prefix: X
-
+    type = subcircuit
   drawing:
     line -110 -20 110 -20
     line -110 20 110 20
@@ -23,33 +17,12 @@ SYMBOL untitled
     line 110 -10 150 -10
     line -150 -10 -110 -10
     line -150 10 -110 10
-    line -130 -20 130 -20
-    line -130 20 130 20
-    line -130 -20 -130 20
-    line 130 -20 130 20
-    line -150 10 -130 10
-    line 130 -10 150 -10
-    line -150 -10 -130 -10
-    pin_positions:
-      ENAB: (-150, 10)
-      B: (150, -10)
-      A: (-150, -10)
 
 SCHEMATIC
+  instances:
+    p3  ipin  x=-150  y=10  sym=ipin
+    p2  iopin  x=-150  y=-10  flip=1  sym=iopin  sig_type=rreal
+    p1  iopin  x=150  y=-10  sym=iopin  sig_type=rreal
+      unknown  x=-130  y=-260  sym=use
 
-
-  inout_pin [2]{name, x, y, rot, flip, lab}:
-    B  150  -10  0  0  B
-    A  -150  -10  0  0  A
-
-  input_pin [1]{name, x, y, rot, flip, lab}:
-    ENAB  -150  10  0  0  ENAB
-
-  hdl_blocks [2]:
-    
-    
-
-  wires [3]:
-    -150 10 -150 10 ENAB
-    -150 -10 -150 -10 A
-    150 -10 150 -10 B
+  wires:

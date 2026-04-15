@@ -1,0 +1,70 @@
+chn 1
+
+SYMBOL flip_flop_ngspice
+  pins:
+    D  in  x=-60  y=-20
+    CLK  in  x=-60  y=0
+    Q  out  x=60  y=-20
+    RST  in  x=-60  y=20
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = subcircuit
+
+SCHEMATIC
+  instances:
+    p1  ipin  x=70  y=-240  sym=ipin
+    p2  ipin  x=70  y=-200  sym=ipin
+    p3  ipin  x=70  y=-160  sym=ipin
+    p4  opin  x=250  y=-200  sym=opin
+    x2  subckt  x=560  y=-570  sym=keeper_ngspice
+    S1  vswitch  x=310  y=-460  rot=1  flip=1  sym=switch_ngspice  model=SWITCH
+    l4  lab_pin  x=310  y=-420  flip=1  sym=lab_pin  sig_type=std_logic
+    l5  lab_pin  x=290  y=-420  sym=lab_pin  sig_type=std_logic
+    l6  lab_pin  x=90  y=-460  sym=lab_pin  sig_type=std_logic
+    S2  vswitch  x=760  y=-460  rot=1  flip=1  sym=switch_ngspice  model=SWITCH
+    l7  lab_pin  x=740  y=-420  sym=lab_pin  sig_type=std_logic
+    l8  lab_pin  x=760  y=-420  flip=1  sym=lab_pin  sig_type=std_logic
+    x3  subckt  x=1030  y=-570  sym=keeper_ngspice
+    l9  lab_pin  x=500  y=-480  flip=1  sym=lab_pin  sig_type=std_logic
+    x4  subckt  x=1070  y=-460  sym=buf_ngspice  RUP=100  RDOWN=100
+    l10  lab_pin  x=970  y=-480  sym=lab_pin  sig_type=std_logic
+    l11  lab_pin  x=1160  y=-460  flip=1  sym=lab_pin  sig_type=std_logic
+    S3  vswitch  x=990  y=-330  sym=switch_ngspice  model=SWITCH
+    l2  lab_pin  x=990  y=-260  sym=lab_pin  sig_type=std_logic
+    l3  lab_pin  x=950  y=-310  sym=lab_pin  sig_type=std_logic
+    l12  lab_pin  x=950  y=-330  sym=lab_pin  sig_type=std_logic
+    x1  subckt  x=630  y=-460  sym=buf_ngspice  RUP=1000
+    S4  vswitch  x=430  y=-460  rot=1  flip=1  sym=switch_ngspice  model=SWITCH
+    l13  lab_pin  x=430  y=-420  flip=1  sym=lab_pin  sig_type=std_logic
+    l14  lab_pin  x=410  y=-420  sym=lab_pin  sig_type=std_logic
+    S5  vswitch  x=520  y=-330  sym=switch_ngspice  model=SWITCH
+    l15  lab_pin  x=520  y=-260  sym=lab_pin  sig_type=std_logic
+    l16  lab_pin  x=480  y=-310  sym=lab_pin  sig_type=std_logic
+    l17  lab_pin  x=480  y=-330  sym=lab_pin  sig_type=std_logic
+    x5  subckt  x=170  y=-460  sym=buf_ngspice  RUP=1000
+
+  nets:
+    DI  -> x2.A, x1.A
+    QI  -> x3.A, x4.A
+    Q  -> x4.Y
+    D  -> x5.A
+
+  wires:
+    90 -460 130 -460 D
+    500 -570 520 -570 DI
+    500 -570 500 -460 DI
+    870 -460 1030 -460 QI
+    970 -570 990 -570 QI
+    970 -570 970 -460 QI
+    1110 -460 1160 -460 Q
+    990 -460 990 -360 QI
+    990 -300 990 -260 0
+    790 -460 870 -460 QI
+    690 -460 730 -460 net1
+    670 -460 690 -460 net1
+    460 -460 590 -460 DI
+    340 -460 400 -460 net2
+    520 -460 520 -360 DI
+    520 -300 520 -260 0
+    210 -460 280 -460 net3

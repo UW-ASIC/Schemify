@@ -1,0 +1,11 @@
+chn_prim 1
+
+SYMBOL lm337
+  pins:
+    IN  in  x=-80  y=-10
+    ADJ  in  x=0  y=-40
+    OUT  out  x=80  y=-10
+  params:
+    format = @name @pinlist @symname
+    template = name=x1
+    type = primitive

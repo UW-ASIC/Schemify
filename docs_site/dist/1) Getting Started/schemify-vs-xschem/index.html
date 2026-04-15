@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Schemify Vs Xschem — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Schemify Vs Xschem</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link active">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Schemify vs xschem</h1>
+<blockquote>
+<p><strong>tl;dr</strong> — xschem is to Schemify as vim is to Neovim.</p>
+<p>xschem is a battle-tested, single-developer masterpiece that defined the open-source analog EDA workflow. Schemify keeps that philosophy — keyboard-driven, hierarchy-first, SPICE-native — but rebuilds the foundation for modern deployment targets: browser, GPU rendering, and language-agnostic plugins.</p>
+</blockquote>
+<h2>The Analogy</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>vim</th>
+<th>xschem</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Core language</strong></td>
+<td>C</td>
+<td>C + Tcl/Tk</td>
+</tr>
+<tr>
+<td><strong>Extension model</strong></td>
+<td>Vimscript</td>
+<td>Tcl scripts</td>
+</tr>
+<tr>
+<td><strong>Deployment</strong></td>
+<td>Terminal, any Unix</td>
+<td>X11, Linux/macOS only</td>
+</tr>
+</tbody></table>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Neovim</th>
+<th>Schemify</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Core language</strong></td>
+<td>C + Lua</td>
+<td>Zig</td>
+</tr>
+<tr>
+<td><strong>Extension model</strong></td>
+<td>Lua + LSP + any-language plugins</td>
+<td>ABI v6: Zig/C/Rust/Go/Python/WASM</td>
+</tr>
+<tr>
+<td><strong>Deployment</strong></td>
+<td>Terminal + GUI frontends + web</td>
+<td>Native + browser (WASM)</td>
+</tr>
+</tbody></table>
+<h2>Architectural Limits of xschem</h2>
+<p>These are not missing features — they are architectural impossibilities.</p>
+<h3>Browser deployment is impossible</h3>
+<p>xschem requires X11/Xlib, Tcl/Tk, and POSIX <code>fork()</code>/<code>popen()</code>. None of these exist in WebAssembly.</p>
+<p>Schemify: <code>zig build -Dbackend=web</code> ships the full editor in a browser via HTML5 Canvas.</p>
+<h3>Language-agnostic plugins don&#39;t exist</h3>
+<p>xschem has no binary plugin ABI. &quot;Plugins&quot; are Tcl scripts or external processes. There is no <code>.so</code>/<code>.dylib</code>/<code>.wasm</code> loading, no versioned protocol, no way to write a plugin in Python, Rust, or Go.</p>
+<p>Schemify&#39;s ABI v6:</p>
+<pre><code>schemify_process(in_ptr, in_len, out_ptr, out_cap) -&gt; usize
+wire format: [u8 tag][u16 LE payload_sz][payload bytes]
+</code></pre><p>Any language that compiles to a shared library or WASM module is a first-class plugin.</p>
+<h3>Build dependencies are heavy</h3>
+<p>xschem on Debian/Ubuntu requires 14+ packages. On macOS it requires XQuartz. On Windows it requires Cygwin + an X server.</p>
+<p>Schemify: <code>zig build</code>. One command, any platform.</p>
+<h3>True headless requires display tricks</h3>
+<p>xschem&#39;s <code>--no_x</code> still initializes Tcl/Tk. CI environments need <code>Xvfb</code>.</p>
+<p>Schemify&#39;s CLI compiles out the GUI entirely:</p>
+<pre><code class="hljs language-bash">schemify --netlist output.spice schematic.chn
+schemify --export-svg render.svg schematic.chn
+</code></pre><h2>Data Model Comparison</h2>
+<p><strong>xschem</strong> uses Array-of-Structs:</p>
+<pre><code class="hljs language-c">xWire wires[MAX_WIRES];
+<span class="hljs-comment">// Undo: memcpy of all element arrays on every operation</span>
+</code></pre><p><strong>Schemify</strong> uses Structure-of-Arrays via <code>std.MultiArrayList</code>:</p>
+<pre><code class="hljs language-zig">const xs = wires.items(.x1);  // contiguous, cache-friendly
+// Undo: command inverses, not full snapshots
+</code></pre><h2>Side-by-Side</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>xschem</th>
+<th>Schemify</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Core language</strong></td>
+<td>C (67%) + Tcl (15%)</td>
+<td>Zig</td>
+</tr>
+<tr>
+<td><strong>GUI framework</strong></td>
+<td>Tcl/Tk</td>
+<td>dvui (immediate-mode)</td>
+</tr>
+<tr>
+<td><strong>Rendering</strong></td>
+<td>Xlib → X protocol (CPU)</td>
+<td>raylib (OpenGL) / HTML5 Canvas</td>
+</tr>
+<tr>
+<td><strong>Web deployment</strong></td>
+<td>Impossible</td>
+<td><code>zig build -Dbackend=web</code></td>
+</tr>
+<tr>
+<td><strong>Plugin languages</strong></td>
+<td>Tcl only</td>
+<td>Any: Zig, C, C++, Rust, Go, Python, WASM</td>
+</tr>
+<tr>
+<td><strong>Plugin ABI</strong></td>
+<td>None (Tcl scripts)</td>
+<td>ABI v6, versioned binary protocol</td>
+</tr>
+<tr>
+<td><strong>Data layout</strong></td>
+<td>Array-of-Structs</td>
+<td>MultiArrayList (Structure-of-Arrays)</td>
+</tr>
+<tr>
+<td><strong>Undo model</strong></td>
+<td>Full deep-copy snapshot</td>
+<td>Command inverses, ring buffer</td>
+</tr>
+<tr>
+<td><strong>CLI</strong></td>
+<td><code>--no_x</code> + raw Tcl flags</td>
+<td>First-class: <code>--netlist</code>, <code>--export-svg</code></td>
+</tr>
+<tr>
+<td><strong>Build</strong></td>
+<td>autoconf + 14 apt packages</td>
+<td><code>zig build</code></td>
+</tr>
+<tr>
+<td><strong>Windows</strong></td>
+<td>Cygwin + X server required</td>
+<td>Native</td>
+</tr>
+<tr>
+<td><strong>Simulator backends</strong></td>
+<td>ngspice</td>
+<td>ngspice + Xyce</td>
+</tr>
+</tbody></table>
+<h2>Where xschem Is Still Ahead</h2>
+<ul>
+<li><strong>Ecosystem</strong> — 25 years of SKY130 / IHP symbols and community <code>.sch</code> files</li>
+<li><strong>ngspice integration depth</strong> — <code>spice_netlist.c</code> is 4000+ lines of edge-case handling</li>
+<li><strong>Tcl scripting power</strong> — parametric symbol generation, corner sweeps, backannotation pipelines</li>
+</ul>
+<p>Schemify addresses the ecosystem gap via <strong>EasyImport</strong> — xschem <code>.sch</code>/<code>.sym</code> files read natively. Existing designs migrate without conversion.</p>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

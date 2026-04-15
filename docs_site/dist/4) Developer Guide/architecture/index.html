@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Architecture — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Architecture</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link ">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link active">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Architecture</h1>
+<h2>Module Map</h2>
+<pre><code>src/
+├── main.zig              application entry point (4 dvui callbacks)
+├── cli.zig               CLI subcommands (--cli mode)
+├── PluginIF.zig          stable plugin ABI definition
+├── core/
+│   ├── Schemify.zig      netlist generation, hierarchy
+│   ├── types.zig         Wire, Instance, Pin, Net, Prop, Conn
+│   ├── fileio/
+│   │   ├── Reader.zig    CHN parser
+│   │   ├── Writer.zig    CHN serializer
+│   │   ├── Toml.zig      Config.toml parser
+│   │   └── utils.zig     file I/O helpers
+│   ├── devices/
+│   │   └── Devices.zig   DeviceKind enum, primitives, PDK models
+│   └── simulation/
+│       ├── SpiceIF.zig   simulator interface, Value, SpiceComponent
+│       ├── Netlist.zig   SPICE IR, validation, emission
+│       └── backend/      ngspice + Xyce runners
+├── gui/
+│   ├── lib.zig           frame dispatcher (render order)
+│   ├── Input.zig         keyboard/mouse handling
+│   ├── Actions.zig       keybind → Action enum
+│   ├── Canvas/
+│   │   ├── lib.zig
+│   │   ├── SymbolRenderer.zig
+│   │   ├── WireRenderer.zig
+│   │   ├── Interaction.zig    hit-test, drag, rubber-band
+│   │   ├── SelectionOverlay.zig
+│   │   └── TbOverlay.zig     testbench pill button + ghost wires
+│   ├── Bars/             toolbar, tabbar, command bar
+│   ├── Panels/           file browser, library, marketplace
+│   ├── Dialogs/          properties, keybinds, find, spice code
+│   ├── Keybinds/         keymap definitions
+│   └── state/
+│       ├── AppState.zig  global app state (plugins, config, open tabs)
+│       ├── Document.zig  per-tab schematic + selection + tool state
+│       └── types.zig
+├── commands/
+│   ├── lib.zig
+│   ├── CommandQueue.zig  undo/redo ring buffer
+│   ├── Dispatch.zig      Action → handler router
+│   ├── handlers/         one file per command (AddWire, Move, Delete…)
+│   └── utils/            move, copy, delete helpers
+├── plugins/
+│   ├── PluginIF.zig      message protocol, ABI v6
+│   ├── Runtime.zig       load/tick/unload lifecycle
+│   ├── Framework.zig     helper abstractions for plugin authors
+│   └── installer/        plugin install/remove
+├── utility/
+│   ├── Vfs.zig           virtual filesystem (native + WASM)
+│   ├── Logger.zig        structured logging
+│   └── Platform.zig      OS abstraction
+└── web/                  WASM-specific shell (IndexedDB VFS, boot.js)
+</code></pre><h2>Data Model</h2>
+<h3>AppState vs Document</h3>
+<p><code>AppState</code> (global, process-lifetime):</p>
+<pre><code class="hljs language-zig">pub const AppState = struct {
+    config:       Config,
+    open_tabs:    ArrayList(Document),
+    active_tab:   usize,
+    plugins:      PluginHost,
+    theme:        Theme,
+};
+</code></pre><p><code>Document</code> (per-tab, schematic-lifetime):</p>
+<pre><code class="hljs language-zig">pub const Document = struct {
+    schematic:  Schematic,
+    selection:  SelectionSet,
+    tool_state: ToolState,   // wire mode, placement mode, etc.
+    undo_queue: CommandQueue,
+    file_path:  ?[]const u8,
+    dirty:      bool,
+};
+</code></pre><p>This split means undo/redo is per-tab, plugins are global.</p>
+<h3>Schematic Data (DOD)</h3>
+<p>Schemify uses <code>std.MultiArrayList</code> (Structure-of-Arrays) for all schematic data.</p>
+<pre><code class="hljs language-zig">pub const Schematic = struct {
+    instances: MultiArrayList(Instance),
+    wires:     MultiArrayList(Wire),
+    nets:      MultiArrayList(Net),
+    labels:    MultiArrayList(Text),
+};
+
+// Fast: iterating all X coords is contiguous memory
+const xs = schematic.instances.items(.x);
+const ys = schematic.instances.items(.y);
+</code></pre><h3>Core Types</h3>
+<pre><code class="hljs language-zig">pub const Wire = struct {
+    x0, y0, x1, y1: i32,
+    net_name: ?[]const u8,
+    bus: bool,
+};
+
+pub const Instance = struct {
+    name:        []const u8,   // &quot;R1&quot;, &quot;M2&quot;, &quot;Xamp&quot;
+    symbol:      []const u8,   // reference to .chn_prim or .chn
+    x, y:        i32,
+    rot:         u2,           // 0=0°, 1=90°, 2=180°, 3=270°
+    flip:        bool,
+    kind:        DeviceKind,
+    prop_start:  u32,          // index into flat property array
+    prop_count:  u16,
+    conn_start:  u32,          // index into flat connection array
+    conn_count:  u16,
+};
+
+pub const Prop = struct { key, val: []const u8 };
+pub const Conn = struct { pin, net: []const u8 };
+</code></pre><p>Net connectivity uses union-find (<code>NetMap</code>): wires are merged into nets by scanning endpoints.</p>
+<h2>Command Queue and Undo</h2>
+<p>All mutations go through the <code>Command</code> union in <code>commands/</code>:</p>
+<pre><code class="hljs language-zig">pub const UndoableAction = union(enum) {
+    add_wire:            WireAddCmd,
+    delete_selection:    DeleteCmd,
+    move_instances:      MoveCmd,
+    copy_paste:          PasteCmd,
+    rotate_cw, rotate_ccw,
+    flip_h, flip_v,
+    set_instance_prop:   PropCmd,
+    // ...
+};
+</code></pre><p><code>CommandQueue</code> is a ring buffer — push appends, undo pops and inverts, redo re-applies.</p>
+<pre><code class="hljs language-zig">// Trigger from GUI
+actions.enqueue(app, .{ .undoable = .{ .add_wire = .{
+    .start = p0,
+    .end   = p1,
+} } }, &quot;Add wire&quot;);
+</code></pre><p>Handlers in <code>commands/handlers/</code> implement <code>handle()</code> and <code>undo()</code> for each action.</p>
+<h2>VFS — Virtual Filesystem</h2>
+<p>All file I/O goes through <code>utility/Vfs.zig</code>. Calling <code>std.fs</code> directly outside <code>utility/</code> and <code>cli/</code> is banned (enforced by lint).</p>
+<p><strong>Why:</strong> WASM has no native filesystem. VFS maps to:</p>
+<ul>
+<li><strong>Native:</strong> <code>std.fs</code></li>
+<li><strong>Web:</strong> IndexedDB via JS interop</li>
+</ul>
+<pre><code class="hljs language-zig">// In plugin or core code:
+const data = try Vfs.readAlloc(allocator, &quot;config.toml&quot;);
+defer allocator.free(data);
+
+try Vfs.writeAll(&quot;output.spice&quot;, netlist_text);
+try Vfs.makePath(&quot;cache/pdk&quot;);
+</code></pre><h2>Rendering Pipeline</h2>
+<p>Frame order (back → front):</p>
+<ol>
+<li>Grid</li>
+<li>Wires (<code>WireRenderer</code>)</li>
+<li>Instance bodies (<code>SymbolRenderer</code>)</li>
+<li>Instance pins</li>
+<li>Net labels</li>
+<li>Selection highlights (<code>SelectionOverlay</code>)</li>
+<li>Rubber-band rectangle</li>
+<li>Testbench ghost overlay (<code>TbOverlay</code>) — only when hovering TB pill</li>
+<li>Plugin overlays (floating panels)</li>
+<li>UI chrome (topbar, sidebar, toolbar, statusbar)</li>
+</ol>
+<h2>Testbench Overlay</h2>
+<p>When a <code>.chn</code> schematic is open and a matching <code>.chn_tb</code> exists in the same project:</p>
+<ul>
+<li>Pill button appears in top-right of canvas: <code>▶ test.chn_tb</code></li>
+<li><strong>Hover</strong> → ghost-draws testbench wires on top of the DUT schematic (shows port connections)</li>
+<li><strong>Click</strong> → switch active tab to the testbench</li>
+<li><strong>Shift+Click</strong> → open testbench in a new tab</li>
+</ul>
+<p>Implemented in <code>gui/Canvas/TbOverlay.zig</code>.</p>
+<h2>Dual Backend</h2>
+<pre><code class="hljs language-bash">zig build                    <span class="hljs-comment"># native (SDL3 + Raylib, OpenGL)</span>
+zig build -Dbackend=web      <span class="hljs-comment"># WASM (HTML5 Canvas via dvui wasm32 backend)</span>
+</code></pre><p>Same source. Platform-specific code isolated to <code>web/</code> and the dvui backend selection in <code>build.zig</code>. VFS, plugin runtime, and all core logic are backend-agnostic.</p>
+<h2>CLI Mode</h2>
+<p>Schemify has a headless CLI mode — no display, no dvui:</p>
+<pre><code class="hljs language-bash">zig build run -- --cli <span class="hljs-built_in">help</span>
+zig build run -- --cli netlist output.spice schematic.chn
+zig build run -- --cli export-svg render.svg schematic.chn
+zig build run -- --cli plugin-install ./libMyPlugin.so
+</code></pre><p>Implemented in <code>src/cli.zig</code>. CLI mode compiles out the GUI entirely — no Xvfb needed in CI.</p>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

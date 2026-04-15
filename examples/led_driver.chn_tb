@@ -1,0 +1,76 @@
+chn_testbench 1
+
+TESTBENCH led_driver
+  instances:
+    G1  isource  x=780  y=-310  sym=isource_table  CTRL=V(VLED)  TABLE=
++ (0, 0)
++ (2.4, 5m)
++ (2.6, 15m)
++ (2.8, 46m)
++ (2.9, 80m)
++ (3.0, 115m)
++ (3.1, 157m)
++ (3.2, 202m)
++ (3.3, 245m)
++ (3.4, 290m)
++ (3.5, 337m)
++ (3.6, 395m)
++ (3.7, 470m)
++ (4.0, 750m)
+    V1  vsource  x=60  y=-310  sym=vsource  value=pwl 0 0 1u 2
+    l2  lab_pin  x=30  y=-240  sym=lab_pin  sig_type=std_logic
+    l3  lab_pin  x=60  y=-640  sym=lab_pin  sig_type=std_logic
+    VVled  vsource  x=750  y=-470  rot=3  sym=ammeter
+    S2  vswitch  x=410  y=-290  sym=switch_ngspice  model=swmod
+    L1  inductor  x=350  y=-640  rot=3  flip=1  sym=ind
+      .parameters{ m=1  value=40u  footprint=1206  device=inductor }
+    l6  lab_pin  x=780  y=-470  flip=1  sym=lab_pin  sig_type=std_logic
+    Vset  vsource  x=170  y=-310  sym=vsource  value=pulse 0 1 0 1n 1n 2.1u 5u
+    l7  lab_pin  x=170  y=-400  sym=lab_pin  sig_type=std_logic
+    l5  lab_pin  x=410  y=-370  flip=1  sym=lab_pin  sig_type=std_logic
+    l4  lab_pin  x=370  y=-270  sym=lab_pin  sig_type=std_logic
+    R1  resistor  x=260  y=-640  rot=1  sym=res
+      .parameters{ value=0.01  footprint=1206  device=resistor  m=1 }
+    C1  capacitor  x=690  y=-310  sym=capa
+      .parameters{ m=1  value=10u  footprint=1206  device=ceramic capacitor }
+    Vvcc  vsource  x=180  y=-640  rot=3  sym=ammeter
+    l8  lab_pin  x=690  y=-430  flip=1  sym=lab_pin  sig_type=std_logic
+    R2  resistor  x=690  y=-580  sym=res
+      .parameters{ value=r='V(SW,VO) > 0 ? 0.1 : 1e7'  footprint=1206  device=resistor  m=1 }
+    B1  behavioral  x=880  y=-670  sym=bsource  VAR=V  FUNC=pwl(V(VLED,VCC), 
++ -0.006, 0,
++ -0.005, 0, 
++ -0.001, 0.5, 
++ 0.001, 4.5, 
++ 0.005, 5,
++ 0.006, 5)
+    l9  lab_pin  x=880  y=-640  sym=lab_pin  sig_type=std_logic
+    l10  lab_pin  x=880  y=-730  sym=lab_pin  sig_type=std_logic
+
+  wires:
+    30 -240 60 -240 0
+    60 -280 60 -240 0
+    690 -240 780 -240 0
+    780 -280 780 -240 0
+    60 -640 60 -340 VCC
+    780 -470 780 -340 VLED
+    380 -640 410 -640 SW
+    410 -640 410 -320 SW
+    410 -260 410 -240 0
+    690 -470 720 -470 VO
+    410 -640 690 -640 SW
+    170 -280 170 -240 0
+    170 -400 370 -400 CTRL1
+    170 -400 170 -340 CTRL1
+    290 -640 320 -640 net1
+    690 -470 690 -340 VO
+    690 -280 690 -240 0
+    170 -240 410 -240 0
+    410 -240 690 -240 0
+    60 -240 170 -240 0
+    210 -640 230 -640 net2
+    60 -640 150 -640 VCC
+    370 -400 370 -290 CTRL1
+    690 -550 690 -470 VO
+    690 -640 690 -610 SW
+    880 -730 880 -700 COMP

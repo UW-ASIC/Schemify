@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Device Kinds — Schemify Docs</title>
+  <link rel="stylesheet" href="/style/main.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script src="/public/app.js" defer></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left">
+      <a href="/" class="site-title">Schemify</a>
+    </div>
+    <div class="center" id="topbar-center">Device Kinds</div>
+    <div class="right">
+      <button class="theme-toggle" title="Switch Theme">🌗</button>
+    </div>
+  </div>
+
+  <div id="app">
+    
+<aside class="sidebar">
+  <button class="sidebar-toggle" title="Toggle Sidebar">
+    <span></span><span></span><span></span>
+  </button>
+  <nav>
+    
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Getting Started</summary>
+    <div class="chapters">
+      <a href="/1) Getting Started/schemify-vs-xschem" class="topic-link ">Schemify Vs Xschem</a>
+<a href="/1) Getting Started/config" class="topic-link ">Config</a>
+<a href="/1) Getting Started/introduction" class="topic-link ">Introduction</a>
+<a href="/1) Getting Started/getting-started" class="topic-link ">Getting Started</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" open>
+    <summary class="category-link active">File Format</summary>
+    <div class="chapters">
+      <a href="/2) File Format/device-kinds" class="topic-link active">Device Kinds</a>
+<a href="/2) File Format/chn-format" class="topic-link ">Chn Format</a>
+<a href="/2) File Format/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Usage</summary>
+    <div class="chapters">
+      <a href="/3) Usage/components" class="topic-link ">Components</a>
+<a href="/3) Usage/keyboard-shortcuts" class="topic-link ">Keyboard Shortcuts</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Developer Guide</summary>
+    <div class="chapters">
+      <a href="/4) Developer Guide/conventions" class="topic-link ">Conventions</a>
+<a href="/4) Developer Guide/architecture" class="topic-link ">Architecture</a>
+<a href="/4) Developer Guide/build" class="topic-link ">Build</a>
+<a href="/4) Developer Guide/testing" class="topic-link ">Testing</a>
+    </div>
+  </details>
+</div>
+
+<div class="category">
+  <details class="category-dropdown" >
+    <summary class="category-link ">Plugins</summary>
+    <div class="chapters">
+      <a href="/5) Plugins/api" class="topic-link ">Api</a>
+<a href="/5) Plugins/building-plugins" class="topic-link ">Building Plugins</a>
+<a href="/5) Plugins/overview" class="topic-link ">Overview</a>
+    </div>
+  </details>
+</div>
+  </nav>
+</aside>
+    <main class="content">
+      <div id="page-content" class="markdown-body">
+        <h1>Device Kinds Reference</h1>
+<p>All device kinds recognized by Schemify&#39;s CHN parser and netlist generator.</p>
+<h2>Electrical Devices</h2>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>SPICE Prefix</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>nmos</code></td>
+<td>M</td>
+<td>N-channel MOSFET (3 or 4 terminal)</td>
+</tr>
+<tr>
+<td><code>pmos</code></td>
+<td>M</td>
+<td>P-channel MOSFET (3 or 4 terminal)</td>
+</tr>
+<tr>
+<td><code>resistor</code></td>
+<td>R</td>
+<td>Resistor</td>
+</tr>
+<tr>
+<td><code>capacitor</code></td>
+<td>C</td>
+<td>Capacitor</td>
+</tr>
+<tr>
+<td><code>inductor</code></td>
+<td>L</td>
+<td>Inductor</td>
+</tr>
+<tr>
+<td><code>npn</code></td>
+<td>Q</td>
+<td>NPN BJT</td>
+</tr>
+<tr>
+<td><code>pnp</code></td>
+<td>Q</td>
+<td>PNP BJT</td>
+</tr>
+<tr>
+<td><code>diode</code></td>
+<td>D</td>
+<td>Diode</td>
+</tr>
+<tr>
+<td><code>vsource</code></td>
+<td>V</td>
+<td>Voltage source</td>
+</tr>
+<tr>
+<td><code>isource</code></td>
+<td>I</td>
+<td>Current source</td>
+</tr>
+<tr>
+<td><code>vcvs</code></td>
+<td>E</td>
+<td>Voltage-controlled voltage source</td>
+</tr>
+<tr>
+<td><code>vccs</code></td>
+<td>G</td>
+<td>Voltage-controlled current source</td>
+</tr>
+<tr>
+<td><code>ccvs</code></td>
+<td>H</td>
+<td>Current-controlled voltage source</td>
+</tr>
+<tr>
+<td><code>cccs</code></td>
+<td>F</td>
+<td>Current-controlled current source</td>
+</tr>
+<tr>
+<td><code>ammeter</code></td>
+<td>V</td>
+<td>Zero-volt source for current measurement</td>
+</tr>
+<tr>
+<td><code>subckt</code></td>
+<td>X</td>
+<td>Subcircuit instance</td>
+</tr>
+</tbody></table>
+<h2>Label / Connectivity Devices</h2>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>lab_pin</code></td>
+<td>Net label (assigns name to a net)</td>
+</tr>
+<tr>
+<td><code>vdd</code></td>
+<td>Power supply label</td>
+</tr>
+<tr>
+<td><code>gnd</code></td>
+<td>Ground label</td>
+</tr>
+<tr>
+<td><code>ipin</code></td>
+<td>Subcircuit input port</td>
+</tr>
+<tr>
+<td><code>opin</code></td>
+<td>Subcircuit output port</td>
+</tr>
+<tr>
+<td><code>iopin</code></td>
+<td>Subcircuit bidirectional port</td>
+</tr>
+<tr>
+<td><code>noconn</code></td>
+<td>No-connect marker</td>
+</tr>
+</tbody></table>
+<h2>Non-Electrical (filtered from netlist)</h2>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>title</code></td>
+<td>Title block / annotation</td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td>SPICE code block (<code>.model</code>, <code>.include</code>, etc.)</td>
+</tr>
+<tr>
+<td><code>launcher</code></td>
+<td>UI action launcher</td>
+</tr>
+<tr>
+<td><code>probe</code></td>
+<td>Measurement probe</td>
+</tr>
+</tbody></table>
+<h2>Standard Primitive Library</h2>
+<p>A standard library of <code>.chn_prim</code> files ships with the toolchain:</p>
+<pre><code>chn_prim/nmos
+chn_prim/pmos
+chn_prim/resistor
+chn_prim/capacitor
+chn_prim/inductor
+chn_prim/diode
+chn_prim/npn
+chn_prim/pnp
+chn_prim/vsource
+chn_prim/isource
+chn_prim/vcvs
+chn_prim/vccs
+chn_prim/ccvs
+chn_prim/cccs
+</code></pre><p>PDK-specific primitives (e.g., <code>sky130_prim/nfet_01v8</code>) are installed separately and reference PDK <code>.lib</code> files via Volare.</p>
+<h2>Complete Example</h2>
+<h3>Component (cmos_inv.chn)</h3>
+<pre><code>chn 1
+
+SYMBOL cmos_inv
+  pins:
+    Z  out  x=40  y=0
+    A  in   x=-40 y=0
+  params:
+    format   = @name @pinlist @symname WN=@WN WP=@WP LLN=@LLN LLP=@LLP m=@m
+    template = name=X1 WN=15u WP=45u LLN=3u LLP=3u m=1
+    type     = subcircuit
+
+SCHEMATIC
+  instances:
+    p2  opin  x=370 y=-230  sym=opin  name=p2
+    p1  ipin  x=60  y=-230  sym=ipin  name=p1
+    l1  vdd   x=140 y=-400  sym=vdd   name=l1
+    M2  pmos  x=120 y=-350  sym=pmos4
+      .parameters{ name=M2  model=p  w=WP  l=LLP  m=1 }
+    M1  nmos  x=120 y=-170  sym=nmos4
+      .parameters{ name=M1  model=n  w=WN  l=LLN  m=1 }
+
+  nets:
+    A   -&gt; M2.g, M1.g
+    VDD -&gt; M2.s, M2.b
+    Z   -&gt; M1.d
+
+  wires:
+    80 -230 80 -170 A
+    140 -400 140 -380 VDD
+</code></pre><h3>Primitive (nmos.chn_prim)</h3>
+<pre><code>chn_prim 1
+
+SYMBOL nmos
+  pins:
+    d  inout  x=20  y=-30
+    g  in     x=-20 y=0
+    s  inout  x=20  y=30
+  params:
+    type     = nmos
+    format   = @spiceprefix@name @pinlist @model @extra m=@m
+    template = name=M1 model=M2N7002 device=2N7002 m=1
+</code></pre>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

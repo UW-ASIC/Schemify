@@ -1,46 +1,26 @@
-chn 1.0
+chn 1
 
-SYMBOL untitled
-
-  pins [2]:
+SYMBOL xcross
+  pins:
     A  inout  x=-80  y=-40
     B  inout  x=80  y=-40
-
-  params [1]:
+    B  inout  x=-80  y=0
+    A  inout  x=80  y=0
+    A  inout  x=80  y=40
+    B  inout  x=80  y=80
+  params:
+    format = @name @pinlist @symname
     template = name=x1
-
-  spice_prefix: X
-
-  drawing:
-    line -80 -40 -60 -40
-    line 60 -40 80 -40
-    line -80 0 -60 0
-    line 60 0 80 0
-    line 60 40 80 40
-    line 60 80 80 80
-    line -25 55 25 55
-    line -25 70 25 70
-    line -25 -25 25 -10
-    line -25 -10 25 -25
-    pin_positions:
-      A: (-80, -40)
-      B: (80, -40)
+    type = subcircuit
 
 SCHEMATIC
+  instances:
+    p1  iopin  x=190  y=-80  sym=iopin
+    p1  iopin  x=190  y=-20  sym=iopin
+      unknown  x=160  y=-240  sym=use
+    R1  resistor  x=150  y=-50  sym=res
+      .parameters{ value=1k  footprint=1206  device=resistor  verilog_ignore=true  vhdl_ignore=true  m=1 }
 
-
-  inout_pin [2]{name, x, y, rot, flip, lab}:
-    A  190  -80  0  0  A
-    B  190  -20  0  0  B
-
-  resistors [1]{name, x, y, rot, flip, value, footprint, device, vhdl_ignore, m}:
-    R1  150  -50  0  0  1k  1206  resistor  true  1
-
-  hdl_blocks [1]:
-    
-
-  wires [4]:
-    150 -80 190 -80
-    150 -20 190 -20
-    190 -80 190 -80 A
-    190 -20 190 -20 B
+  wires:
+    150 -80 190 -80 A
+    150 -20 190 -20 B

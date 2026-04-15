@@ -1,0 +1,26 @@
+chn_prim 1.0
+
+SYMBOL inout_pin
+  desc: Bidirectional port (hierarchical)
+
+  pins [1]:
+    p  inout
+
+  params [1]:
+    lab = ""
+
+  drawing:
+    lines:
+      # Pin stub from connection point (0,0) to hexagon body
+      (0,0) (4,0)
+      # Hexagon (six sides, symmetric — bidirectional convention)
+      # Left point at x=4, right point at x=28, flat top/bottom from x=10..22
+      (4,0) (10,-8)
+      (10,-8) (22,-8)
+      (22,-8) (28,0)
+      (28,0) (22,8)
+      (22,8) (10,8)
+      (10,8) (4,0)
+    text: (16,0) "@lab"
+    pin_positions:
+      p: (0,0)

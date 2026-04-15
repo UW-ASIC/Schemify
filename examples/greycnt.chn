@@ -1,136 +1,152 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH greycnt
+  instances:
+    s1  unknown  x=30  y=-110  sym=verilog_timescale  timestep=1ps  precision=1ps
+    x2  subckt  x=660  y=-470  sym=xnor
+    x3  subckt  x=660  y=-550  sym=xnor
+    x14  subckt  x=660  y=-630  sym=xnor
+    p4  lab_pin  x=830  y=-710  flip=1  sym=lab_pin
+    p0  lab_pin  x=830  y=-630  flip=1  sym=lab_pin
+    p5  lab_pin  x=830  y=-550  flip=1  sym=lab_pin
+    p6  lab_pin  x=830  y=-470  flip=1  sym=lab_pin
+    v1  unknown  x=660  y=-690  sym=assign  delay=1
+    x1  subckt  x=660  y=-230  sym=xnor
+    x4  subckt  x=660  y=-310  sym=xnor
+    x5  subckt  x=660  y=-390  sym=xnor
+    p11  lab_pin  x=830  y=-390  flip=1  sym=lab_pin
+    p12  lab_pin  x=830  y=-310  flip=1  sym=lab_pin
+    p13  lab_pin  x=830  y=-230  flip=1  sym=lab_pin
+    x6  subckt  x=660  y=-150  sym=xnor
+    p15  lab_pin  x=830  y=-150  flip=1  sym=lab_pin
+    l16  lab_pin  x=150  y=-220  flip=1  sym=lab_pin
+    l17  lab_pin  x=90  y=-200  sym=lab_pin  verilog_type=reg
+    x7  subckt  x=1060  y=-470  sym=xnor
+    x8  subckt  x=1060  y=-550  sym=xnor
+    x9  subckt  x=1060  y=-630  sym=xnor
+    v0  unknown  x=1060  y=-690  sym=assign  delay=1
+    x10  subckt  x=1060  y=-230  sym=xnor
+    x11  subckt  x=1060  y=-310  sym=xnor
+    x12  subckt  x=1060  y=-390  sym=xnor
+    x13  subckt  x=1060  y=-150  sym=xnor
+    l26  lab_pin  x=150  y=-190  flip=1  sym=lab_pin
+      unknown  x=60  y=-770  sym=use
+    l2  lab_pin  x=1240  y=-140  rot=3  sym=bus_tap
+    l4  lab_pin  x=1240  y=-220  rot=3  sym=bus_tap
+    l5  lab_pin  x=1240  y=-300  rot=3  sym=bus_tap
+    l6  lab_pin  x=1240  y=-380  rot=3  sym=bus_tap
+    l7  lab_pin  x=1240  y=-460  rot=3  sym=bus_tap
+    l8  lab_pin  x=1240  y=-540  rot=3  sym=bus_tap
+    l9  lab_pin  x=1240  y=-620  rot=3  sym=bus_tap
+    l10  lab_pin  x=1240  y=-700  rot=3  sym=bus_tap
+    p16  lab_pin  x=1280  y=-100  flip=1  sym=lab_pin
+    l11  lab_pin  x=560  y=-120  rot=1  flip=1  sym=bus_tap
+    l12  lab_pin  x=560  y=-200  rot=1  flip=1  sym=bus_tap
+    l13  lab_pin  x=560  y=-280  rot=1  flip=1  sym=bus_tap
+    l14  lab_pin  x=560  y=-360  rot=1  flip=1  sym=bus_tap
+    l15  lab_pin  x=560  y=-440  rot=1  flip=1  sym=bus_tap
+    l18  lab_pin  x=560  y=-520  rot=1  flip=1  sym=bus_tap
+    l19  lab_pin  x=560  y=-600  rot=1  flip=1  sym=bus_tap
+    l20  lab_pin  x=560  y=-680  rot=1  flip=1  sym=bus_tap
+    p1  lab_pin  x=520  y=-80  sym=lab_pin
 
-  behavioral [14]{name, x, y, rot, flip}:
-    x2  660  -470  0  0
-    x3  660  -550  0  0
-    x14  660  -630  0  0
-    x1  660  -230  0  0
-    x4  660  -310  0  0
-    x5  660  -390  0  0
-    x6  660  -150  0  0
-    x7  1060  -470  0  0
-    x8  1060  -550  0  0
-    x9  1060  -630  0  0
-    x10  1060  -230  0  0
-    x11  1060  -310  0  0
-    x12  1060  -390  0  0
-    x13  1060  -150  0  0
+  nets:
+    B[4]  -> x2.Z, x7.B
+    A[5]  -> x2.A, x3.B
+    A[4]  -> x2.B, x5.A
+    B[5]  -> x3.Z, x8.B
+    A[6]  -> x3.A, x14.B
+    B[6]  -> x14.Z, x9.B
+    A[7]  -> x14.A
+    B[1]  -> x1.Z, x10.B
+    A[2]  -> x1.A, x4.B
+    A[1]  -> x1.B, x6.A
+    B[2]  -> x4.Z, x11.B
+    A[3]  -> x4.A, x5.B
+    B[3]  -> x5.Z, x12.B
+    B[0]  -> x6.Z, x13.B
+    A[0]  -> x6.B
+    C[4]  -> x7.Z, x12.A
+    C[5]  -> x7.A, x8.Z
+    C[6]  -> x8.A, x9.Z
+    C[7]  -> x9.A
+    C[1]  -> x10.Z, x13.A
+    C[2]  -> x10.A, x11.Z
+    C[3]  -> x11.A, x12.Z
+    C[0]  -> x13.Z
 
-  instances [16]:
-    l2  bus_tap.chn  x=1240  y=-140  rot=3  lab=[0]
-    l4  bus_tap.chn  x=1240  y=-220  rot=3  lab=[1]
-    l5  bus_tap.chn  x=1240  y=-300  rot=3  lab=[2]
-    l6  bus_tap.chn  x=1240  y=-380  rot=3  lab=[3]
-    l7  bus_tap.chn  x=1240  y=-460  rot=3  lab=[4]
-    l8  bus_tap.chn  x=1240  y=-540  rot=3  lab=[5]
-    l9  bus_tap.chn  x=1240  y=-620  rot=3  lab=[6]
-    l10  bus_tap.chn  x=1240  y=-700  rot=3  lab=[7]
-    l11  bus_tap.chn  x=560  y=-120  rot=1  flip=1  lab=[0]
-    l12  bus_tap.chn  x=560  y=-200  rot=1  flip=1  lab=[1]
-    l13  bus_tap.chn  x=560  y=-280  rot=1  flip=1  lab=[2]
-    l14  bus_tap.chn  x=560  y=-360  rot=1  flip=1  lab=[3]
-    l15  bus_tap.chn  x=560  y=-440  rot=1  flip=1  lab=[4]
-    l18  bus_tap.chn  x=560  y=-520  rot=1  flip=1  lab=[5]
-    l19  bus_tap.chn  x=560  y=-600  rot=1  flip=1  lab=[6]
-    l20  bus_tap.chn  x=560  y=-680  rot=1  flip=1  lab=[7]
-
-  code_blocks [2]:
-    COMMANDS  code  simulator=ngspice  only_toplevel=false  value=* ngspice commands .options save all .control     tran 1n 2000n   remzerovec   write greycnt.raw .endc  * to generate following file copy .../share/doc/xschem/examples/stimuli.greycnt * to the simulation directory and run simulation -> Utile Stimuli Editor (GUI),  * and press 'Translate' .include stimuli_greycnt.cir  .model nmos nmos level=49 version=3.3.0 vth0=0.8 .model pmos pmos level=49 version=3.3.0 vth0=-0.8 
-    COMMANDS1  code  simulator=xyce  only_toplevel=false  value=* Xyce commands VGND GND 0 0 .tran 0.1n 2000n .print tran format=raw + file=greycnt.raw v(*) i(*)  * to generate following file copy .../share/doc/xschem/examples/stimuli.greycnt * to the simulation directory and run simulation -> Utile Stimuli Editor (GUI),  * and press 'Translate' .include stimuli_greycnt.cir  .model nmos nmos level=49 version=3.3.0 vth0=0.8 .model pmos pmos level=49 version=3.3.0 vth0=-0.8  
-
-  hdl_blocks [4]:
-    s1  timestep=1ps  precision=1ps
-    v1  delay=1
-    v0  delay=1
-    
-
-  wires [87]:
-    720 -630 830 -630
-    570 -610 620 -610
-    570 -530 620 -530
-    570 -450 620 -450
-    720 -550 830 -550
-    720 -470 830 -470
-    570 -690 630 -690
-    720 -390 830 -390
-    570 -370 620 -370
-    570 -290 620 -290
-    570 -210 620 -210
-    720 -310 830 -310
-    720 -230 830 -230
-    570 -130 620 -130
-    720 -150 830 -150
-    830 -130 1020 -130
-    830 -150 830 -130
-    830 -210 1020 -210
-    830 -230 830 -210
-    830 -290 1020 -290
-    830 -310 830 -290
-    830 -370 1020 -370
-    830 -390 830 -370
-    830 -450 1020 -450
-    830 -470 830 -450
-    830 -530 1020 -530
-    830 -550 830 -530
-    830 -610 1020 -610
-    830 -630 830 -610
-    690 -690 830 -690
-    830 -690 1030 -690
-    830 -710 830 -690
-    1120 -630 1230 -630
-    1120 -550 1230 -550
-    1120 -470 1230 -470
-    1120 -390 1230 -390
-    1120 -310 1230 -310
-    1120 -230 1230 -230
-    1120 -150 1230 -150
-    1090 -690 1130 -690
-    1130 -710 1130 -690
-    1130 -710 1230 -710
-    1120 -630 1120 -590
-    1020 -590 1120 -590
-    1020 -590 1020 -570
-    1120 -550 1120 -510
-    1020 -510 1120 -510
-    1020 -510 1020 -490
-    1120 -470 1120 -430
-    1020 -430 1120 -430
-    1020 -430 1020 -410
-    1120 -390 1120 -350
-    1020 -350 1120 -350
-    1020 -350 1020 -330
-    1120 -310 1120 -270
-    1020 -270 1120 -270
-    1020 -270 1020 -250
-    1120 -230 1120 -190
-    1020 -190 1120 -190
-    1020 -190 1020 -170
-    1130 -690 1130 -670
-    1020 -670 1130 -670
-    1020 -670 1020 -650
-    620 -690 620 -650
-    620 -610 620 -570
-    620 -530 620 -490
-    620 -450 620 -410
-    620 -370 620 -330
-    620 -290 620 -250
-    620 -210 620 -170
-    1240 -700 1240 -100
-    1240 -100 1280 -100
-    560 -680 560 -80
-    520 -80 560 -80
-    830 -710 830 -710 B[7]
-    830 -630 830 -630 B[6]
-    830 -550 830 -550 B[5]
-    830 -470 830 -470 B[4]
-    830 -390 830 -390 B[3]
-    830 -310 830 -310 B[2]
-    830 -230 830 -230 B[1]
-    830 -150 830 -150 B[0]
-    150 -220 150 -220 B[7:0]
-    90 -200 90 -200 A[7:0]
-    150 -190 150 -190 C[7:0]
-    1280 -100 1280 -100 C[7:0]
-    520 -80 520 -80 A[7:0]
+  wires:
+    720 -630 830 -630 B[6]
+    570 -610 620 -610 A[6]
+    570 -530 620 -530 A[5]
+    570 -450 620 -450 A[4]
+    720 -550 830 -550 B[5]
+    720 -470 830 -470 B[4]
+    570 -690 630 -690 A[7]
+    720 -390 830 -390 B[3]
+    570 -370 620 -370 A[3]
+    570 -290 620 -290 A[2]
+    570 -210 620 -210 A[1]
+    720 -310 830 -310 B[2]
+    720 -230 830 -230 B[1]
+    570 -130 620 -130 A[0]
+    720 -150 830 -150 B[0]
+    830 -130 1020 -130 B[0]
+    830 -150 830 -130 B[0]
+    830 -210 1020 -210 B[1]
+    830 -230 830 -210 B[1]
+    830 -290 1020 -290 B[2]
+    830 -310 830 -290 B[2]
+    830 -370 1020 -370 B[3]
+    830 -390 830 -370 B[3]
+    830 -450 1020 -450 B[4]
+    830 -470 830 -450 B[4]
+    830 -530 1020 -530 B[5]
+    830 -550 830 -530 B[5]
+    830 -610 1020 -610 B[6]
+    830 -630 830 -610 B[6]
+    690 -690 830 -690 B[7]
+    830 -690 1030 -690 B[7]
+    830 -710 830 -690 B[7]
+    1120 -630 1230 -630 C[6]
+    1120 -550 1230 -550 C[5]
+    1120 -470 1230 -470 C[4]
+    1120 -390 1230 -390 C[3]
+    1120 -310 1230 -310 C[2]
+    1120 -230 1230 -230 C[1]
+    1120 -150 1230 -150 C[0]
+    1090 -690 1130 -690 C[7]
+    1130 -710 1130 -690 C[7]
+    1130 -710 1230 -710 C[7]
+    1120 -630 1120 -590 C[6]
+    1020 -590 1120 -590 C[6]
+    1020 -590 1020 -570 C[6]
+    1120 -550 1120 -510 C[5]
+    1020 -510 1120 -510 C[5]
+    1020 -510 1020 -490 C[5]
+    1120 -470 1120 -430 C[4]
+    1020 -430 1120 -430 C[4]
+    1020 -430 1020 -410 C[4]
+    1120 -390 1120 -350 C[3]
+    1020 -350 1120 -350 C[3]
+    1020 -350 1020 -330 C[3]
+    1120 -310 1120 -270 C[2]
+    1020 -270 1120 -270 C[2]
+    1020 -270 1020 -250 C[2]
+    1120 -230 1120 -190 C[1]
+    1020 -190 1120 -190 C[1]
+    1020 -190 1020 -170 C[1]
+    1130 -690 1130 -670 C[7]
+    1020 -670 1130 -670 C[7]
+    1020 -670 1020 -650 C[7]
+    620 -690 620 -650 A[7]
+    620 -610 620 -570 A[6]
+    620 -530 620 -490 A[5]
+    620 -450 620 -410 A[4]
+    620 -370 620 -330 A[3]
+    620 -290 620 -250 A[2]
+    620 -210 620 -170 A[1]
+    1240 -700 1240 -100 C[7:0]
+    1240 -100 1280 -100 C[7:0]
+    560 -680 560 -80 A[7:0]
+    520 -80 560 -80 A[7:0]

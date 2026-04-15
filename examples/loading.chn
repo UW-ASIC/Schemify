@@ -1,55 +1,58 @@
-chn_testbench 1.0
+chn_testbench 1
 
-TESTBENCH untitled
+TESTBENCH loading
+  instances:
+      unknown  x=840  y=-220  sym=use
+    x4  subckt  x=250  y=-680  sym=pump  conduct=1.0/20000.0  val=4.5
+    l4  lab_pin  x=150  y=-680  sym=lab_pin
+    x5  subckt  x=660  y=-670  sym=switch_rreal  del=2 ns
+    l5  lab_pin  x=510  y=-660  sym=lab_pin
+    x3  subckt  x=450  y=-540  sym=real_capa  cap=30.0
+    x1  subckt  x=830  y=-540  sym=real_capa  cap=100.0
+    x2  subckt  x=1050  y=-670  sym=switch_rreal  del=2 ns
+    l2  lab_pin  x=900  y=-660  sym=lab_pin
+    l3  lab_pin  x=1240  y=-680  flip=1  sym=lab_pin  sig_type=rrreal
+    x6  subckt  x=1230  y=-540  sym=real_capa  cap=20.0
+    l6  lab_pin  x=860  y=-680  flip=1  sym=lab_wire  sig_type=rrreal
+    x7  subckt  x=250  y=-800  sym=pump  conduct=1.0/40000.0  val=3.0
+    l7  lab_pin  x=150  y=-800  sym=lab_pin
+    x8  subckt  x=630  y=-790  sym=switch_rreal  del=2 ns
+    l0  lab_pin  x=480  y=-780  sym=lab_pin
+    l8  lab_pin  x=400  y=-800  flip=1  sym=lab_wire  sig_type=rrreal
+    x9  subckt  x=350  y=-880  sym=real_capa  cap=40.0
+    l1  lab_pin  x=430  y=-680  flip=1  sym=lab_wire  sig_type=rrreal
+    p1  lab_pin  x=110  y=-500  sym=lab_pin
+    p2  lab_pin  x=110  y=-520  sym=lab_pin
+    p3  lab_pin  x=110  y=-540  sym=lab_pin
+    p4  lab_pin  x=110  y=-560  sym=lab_pin
+    p5  lab_pin  x=110  y=-580  sym=lab_pin
 
-  instances [7]:
-    x4  pump.chn  x=250  y=-680  conduct=1.0/20000.0  val=4.5
-    x3  real_capa.chn  x=450  y=-540  cap=30.0
-    x1  real_capa.chn  x=830  y=-540  cap=100.0
-    x6  real_capa.chn  x=1230  y=-540  cap=20.0
-    x7  pump.chn  x=250  y=-800  conduct=1.0/40000.0  val=3.0
-    x8  switch_rreal.chn  x=630  y=-790  del=2 ns
-    x9  real_capa.chn  x=350  y=-880  cap=40.0
+  nets:
+    VX  -> x4.USC, x5.A, x3.USC
+    ING  -> x4.ING
+    SW  -> x5.ENAB
+    VXS  -> x5.B, x1.USC, x2.A, x8.B
+    SW1  -> x2.ENAB
+    SP  -> x2.B, x6.USC
+    VX2  -> x7.USC, x8.A, x9.USC
+    ING1  -> x7.ING
+    SW2  -> x8.ENAB
+  code_block:
+    * test
 
-  instances [2]:
-    x5  switch_rreal.sch  x=660  y=-670  del=2 ns
-    x2  switch_rreal.sch  x=1050  y=-670  del=2 ns
-
-  code_blocks [1]:
-    CODE  code  value=-- these assignments are done to have the voltage values available -- in the waveform file V_VX <= VX.value; V_VX2 <= VX2.value; V_VXS <= VXS.value; V_SP <= SP.value;   process begin ING<='0'; ING1<='0'; SW <= '0'; SW1<='0'; SW2<='0'; --VX <= rreal'(4.5,10.0,0.0); --VX2 <= rreal'(3.0, 5.0, 0.0); wait for 200 ns; ING1<='1'; wait for 200 ns; ING<='1'; wait for 200 ns; SW<='1'; wait for 200 ns; SW2<='1'; wait for 200 ns; SW1<='1'; wait for 200 ns; SW1<='0'; wait for 200 ns; SW2<='0'; wait for 200 ns; SW1<='1'; wait for 200 ns; SW<='1'; wait for 200 ns; ING <='0'; wait for 200 ns; SW1<= '0'; wait for 200 ns; SW<='1'; wait for 200 ns; ING<='1'; wait for 200 ns; SW <= '0'; wait for 200 ns; SW1<= '1'; wait for 200 ns; ING<='1'; wait for 200 ns; SW<='0'; wait for 200 ns; SW1<='0'; wait for 200 ns; SW<='1'; wait for 200 ns; SW1<='1'; wait for 200 ns; SW1<='0'; wait for 200 ns; SW1<='1'; wait for 200 ns;    wait; end process;   
-
-  hdl_blocks [3]:
-    
-    
-    
-
-  wires [29]:
-    830 -680 900 -680
-    450 -680 510 -680
-    450 -680 450 -570
-    1230 -680 1240 -680
-    340 -680 450 -680
-    830 -680 830 -570
-    1230 -680 1230 -570
-    470 -800 480 -800
-    810 -800 810 -680
-    780 -800 810 -800
-    350 -910 470 -910
-    470 -910 470 -800
-    810 -680 830 -680
-    1200 -680 1230 -680
-    340 -800 470 -800
-    150 -680 150 -680 ING
-    510 -660 510 -660 SW
-    900 -660 900 -660 SW1
-    1240 -680 1240 -680 SP
-    860 -680 860 -680 VXS
-    150 -800 150 -800 ING1
-    480 -780 480 -780 SW2
-    400 -800 400 -800 VX2
-    430 -680 430 -680 VX
-    110 -500 110 -500 SW2
-    110 -520 110 -520 SW1
-    110 -540 110 -540 SW
-    110 -560 110 -560 ING1
-    110 -580 110 -580 ING
+  wires:
+    830 -680 900 -680 VXS
+    450 -680 510 -680 VX
+    450 -680 450 -570 VX
+    1230 -680 1240 -680 SP
+    340 -680 450 -680 VX
+    830 -680 830 -570 VXS
+    1230 -680 1230 -570 SP
+    470 -800 480 -800 VX2
+    810 -800 810 -680 VXS
+    780 -800 810 -800 VXS
+    350 -910 470 -910 VX2
+    470 -910 470 -800 VX2
+    810 -680 830 -680 VXS
+    1200 -680 1230 -680 SP
+    340 -800 470 -800 VX2
