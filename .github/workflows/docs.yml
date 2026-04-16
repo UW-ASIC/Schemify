@@ -35,8 +35,14 @@ jobs:
         working-directory: docs_site
         run: bun install
 
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v4
+
       - name: Build static site
         working-directory: docs_site
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
         run: bun run build
 
       # ── Embed Schemify viewer at docs_site/dist/schematic/ ──────────────────
@@ -74,9 +80,6 @@ jobs:
             "$GITHUB_WORKSPACE/docs_site/dist/schematic"
 
       # ── Upload & deploy ──────────────────────────────────────────────────────
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

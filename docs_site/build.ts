@@ -28,6 +28,9 @@ const STYLE_DIR   = join(import.meta.dir, "style");
 const PUBLIC_DIR  = join(import.meta.dir, "public");
 const OUT_DIR     = join(import.meta.dir, "dist");
 
+// BASE is empty for local dev; set BASE_PATH env var for subdirectory deployments (e.g. GitHub Pages)
+const BASE = (process.env.BASE_PATH ?? "").replace(/\/$/, "");
+
 // ── helpers (shared with server.ts) ──────────────────────────────────────────
 interface SidebarItem {
   title: string;
@@ -106,7 +109,7 @@ function generateSidebar(): SidebarItem[] {
 function renderSidebarItem(item: SidebarItem, activePath: string, depth = 0): string {
   const isActive = activePath === item.path || activePath.startsWith(item.path + "/");
   if (item.children.length === 0) {
-    return `<a href="${item.path}" class="topic-link ${activePath === item.path ? "active" : ""}">${item.title}</a>`;
+    return `<a href="${BASE}${item.path}" class="topic-link ${activePath === item.path ? "active" : ""}">${item.title}</a>`;
   }
   if (depth === 0) {
     return `
@@ -148,6 +151,7 @@ function renderLayout(options: { title: string; pageTitle: string; sidebar: stri
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="base-path" content="${BASE}" />
   <title>${options.title}</title>
   <link rel="stylesheet" href="${root}/style/main.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
@@ -157,7 +161,7 @@ function renderLayout(options: { title: string; pageTitle: string; sidebar: stri
 <body>
   <div class="topbar">
     <div class="left">
-      <a href="/" class="site-title">Schemify</a>
+      <a href="${BASE}/" class="site-title">Schemify</a>
     </div>
     <div class="center" id="topbar-center">${options.pageTitle}</div>
     <div class="right">
