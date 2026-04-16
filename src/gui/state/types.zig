@@ -205,6 +205,9 @@ pub const CanvasState = struct {
     // 1-byte
     /// True while a left-button drag is in progress (pan or move).
     dragging: bool = false,
+    /// True when the current drag is a pan gesture (middle-button or space+left).
+    /// False for rubber-band selection drags. Distinguishes the two uses of `dragging`.
+    drag_is_pan: bool = false,
     /// True while the Space key is physically held down.
     space_held: bool = false,
     /// Set when a drag actually started during a Space hold. Used to

@@ -124,7 +124,6 @@ pub fn createNetlist(self: *Document, sim: core.SpiceBackend) ![]u8 {
 }
 
 pub fn runSpiceSim(self: *Document, sim: core.SpiceBackend, netlist_content: []const u8) !std.process.Child.Term {
-    _ = sim;
     const builtin = @import("builtin");
     if (builtin.cpu.arch == .wasm32) return error.UnsupportedFeature;
 
@@ -140,15 +139,31 @@ pub fn runSpiceSim(self: *Document, sim: core.SpiceBackend, netlist_content: []c
 
     utility.Vfs.writeAll(sp_path, netlist_content) catch return error.WriteFailed;
 
+    // Select simulator binary based on backend.
+    const sim_bin: []const u8 = switch (sim) {
+        .ngspice => "ngspice",
+        .xyce => "xyce",
+        .vacask => "vacask",
+    };
+
+    // Shell command: run sim, then pause so the user can read output before close.
+    var cmd_buf: [1024]u8 = undefined;
+    const cmd_str = std.fmt.bufPrint(
+        &cmd_buf,
+        "{s} -b \"{s}\" -r \"{s}\"; echo '--- Done. Press Enter to close. ---'; read",
+        .{ sim_bin, sp_path, raw_path },
+    ) catch return error.Overflow;
+
+    // Spawn xterm running the command. Don't wait — terminal runs independently.
     var child = std.process.Child.init(
-        &.{ "ngspice", "-b", sp_path, "-r", raw_path },
+        &.{ "xterm", "-T", "Schemify Simulator", "-e", "sh", "-c", cmd_str },
         self.alloc,
     );
     child.stdout_behavior = .Ignore;
     child.stderr_behavior = .Ignore;
     try child.spawn();
-    const term = try child.wait();
-    return term;
+    // Return Exited=0 — caller interprets this as "launched successfully".
+    return .{ .Exited = 0 };
 }
 
 // ── Properties ───────────────────────────────────────────────────────────────

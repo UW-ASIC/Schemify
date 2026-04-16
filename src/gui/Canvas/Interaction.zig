@@ -118,6 +118,7 @@ fn handleMousePress(cs: *CanvasState, app: *st.AppState, button: dvui.enums.Butt
                 return .none;
             } else if (cs.space_held) {
                 cs.dragging = true;
+                cs.drag_is_pan = true;
                 cs.drag_last = .{ mp[0], mp[1] };
                 return .none;
             } else {
@@ -129,6 +130,7 @@ fn handleMousePress(cs: *CanvasState, app: *st.AppState, button: dvui.enums.Butt
                     cs.rubber_band_active = false;
                     cs.move_press_pixel = .{ mp[0], mp[1] };
                     cs.dragging = true;
+                    cs.drag_is_pan = false;
                     cs.drag_last = .{ mp[0], mp[1] };
                 }
                 return handleClick(cs, mp, vp, snap);
@@ -136,6 +138,7 @@ fn handleMousePress(cs: *CanvasState, app: *st.AppState, button: dvui.enums.Butt
         },
         .middle => {
             cs.dragging = true;
+            cs.drag_is_pan = true;
             cs.drag_last = .{ mp[0], mp[1] };
             return .none;
         },
@@ -171,9 +174,11 @@ fn handleMouseRelease(cs: *CanvasState, button: dvui.enums.Button) CanvasEvent {
         cs.move_active = false;
         cs.move_hit_idx = -1;
         cs.dragging = false;
+        cs.drag_is_pan = false;
         return result;
     } else if (button == .middle) {
         cs.dragging = false;
+        cs.drag_is_pan = false;
         return .none;
     }
     return .none;
@@ -198,14 +203,8 @@ fn handleMouseMotion(cs: *CanvasState, app: *st.AppState, cur: Vec2, vp: RenderV
         return true;
     }
 
-    if (cs.dragging) {
-        if (cs.space_held) cs.space_drag_happened = true;
-        panBy(app, cs, cur, vp);
-        return true;
-    }
-
-    // Rubber-band selection drag.
-    if (cs.dragging and !cs.move_active and cs.move_hit_idx < 0 and app.tool.active == .select) {
+    // Rubber-band selection drag: left-button drag, not a pan, no instance hit.
+    if (cs.dragging and !cs.drag_is_pan and cs.move_hit_idx < 0 and app.tool.active == .select) {
         if (!cs.rubber_band_active) {
             const press_dx = cur[0] - cs.move_press_pixel[0];
             const press_dy = cur[1] - cs.move_press_pixel[1];
@@ -215,6 +214,13 @@ fn handleMouseMotion(cs: *CanvasState, app: *st.AppState, cur: Vec2, vp: RenderV
         }
         const world = vp_mod.p2w(cur, vp, snap);
         cs.rubber_band_end = world;
+        return true;
+    }
+
+    // Pan drag: middle-button or space+left.
+    if (cs.dragging and cs.drag_is_pan) {
+        if (cs.space_held) cs.space_drag_happened = true;
+        panBy(app, cs, cur, vp);
         return true;
     }
 
@@ -275,16 +281,39 @@ fn moveSelectedByMotion(app: *st.AppState, cs: *CanvasState, cur: Vec2, vp: Rend
     const dy = curr_world[1] - prev_world[1];
     if (dx == 0 and dy == 0) return;
 
+    var moved = false;
+
+    // Move selected instances.
     const xs = sch.instances.items(.x);
     const ys = sch.instances.items(.y);
-    const isel_doc = app.active() orelse return; if (isel_doc.selection.instances.bit_length == 0) return;
-    var it = isel_doc.selection.instances.iterator(.{});
-    while (it.next()) |idx| {
-        if (idx >= xs.len) continue;
-        xs[idx] += dx;
-        ys[idx] += dy;
+    if (doc.selection.instances.bit_length > 0) {
+        var it = doc.selection.instances.iterator(.{});
+        while (it.next()) |idx| {
+            if (idx >= xs.len) continue;
+            xs[idx] += dx;
+            ys[idx] += dy;
+            moved = true;
+        }
     }
-    doc.dirty = true;
+
+    // Move selected wires.
+    const x0s = sch.wires.items(.x0);
+    const y0s = sch.wires.items(.y0);
+    const x1s = sch.wires.items(.x1);
+    const y1s = sch.wires.items(.y1);
+    if (doc.selection.wires.bit_length > 0) {
+        var wit = doc.selection.wires.iterator(.{});
+        while (wit.next()) |idx| {
+            if (idx >= sch.wires.len) continue;
+            x0s[idx] += dx;
+            y0s[idx] += dy;
+            x1s[idx] += dx;
+            y1s[idx] += dy;
+            moved = true;
+        }
+    }
+
+    if (moved) doc.dirty = true;
 }
 
 /// If the click lands on an already-selected instance and we're not in
@@ -297,23 +326,37 @@ fn primeMoveIfOnSelected(cs: *CanvasState, app: *st.AppState, mp: Vec2, vp: Rend
 
     const doc = app.active() orelse return;
     const sch = &doc.sch;
-    if (sch.instances.len == 0) return;
+    if (sch.instances.len == 0 and sch.wires.len == 0) return;
 
     // Unsnapped world point for hit testing.
     const world = vp_mod.p2w_raw(mp, vp);
     const wx: i32 = @intFromFloat(@round(world[0]));
     const wy: i32 = @intFromFloat(@round(world[1]));
 
-    const hit = hitTestInstance(sch, .{ wx, wy }) orelse return;
-    const isel_doc = app.active() orelse return; if (isel_doc.selection.instances.bit_length == 0) return;
-    if (hit >= isel_doc.selection.instances.bit_length) return;
-    if (!isel_doc.selection.instances.isSet(hit)) return;
+    const world_pt: Point = .{ wx, wy };
 
-    cs.move_hit_idx = @intCast(hit);
-    cs.move_press_pixel = .{ mp[0], mp[1] };
-    cs.move_start_world = .{ wx, wy };
-    // Seed drag_last so the first delta is computed from the press point.
-    cs.drag_last = .{ mp[0], mp[1] };
+    // Check instances first.
+    if (hitTestInstance(sch, world_pt)) |hit| {
+        const isel_doc = app.active() orelse return;
+        if (hit < isel_doc.selection.instances.bit_length and isel_doc.selection.instances.isSet(hit)) {
+            cs.move_hit_idx = @intCast(hit);
+            cs.move_press_pixel = .{ mp[0], mp[1] };
+            cs.move_start_world = .{ wx, wy };
+            cs.drag_last = .{ mp[0], mp[1] };
+            return;
+        }
+    }
+
+    // Then check wires.
+    if (hitTestWire(sch, world_pt)) |hit| {
+        const wsel_doc = app.active() orelse return;
+        if (hit < wsel_doc.selection.wires.bit_length and wsel_doc.selection.wires.isSet(hit)) {
+            cs.move_hit_idx = @intCast(hit);
+            cs.move_press_pixel = .{ mp[0], mp[1] };
+            cs.move_start_world = .{ wx, wy };
+            cs.drag_last = .{ mp[0], mp[1] };
+        }
+    }
 }
 
 fn handleClick(cs: *CanvasState, mp: Vec2, vp: RenderViewport, snap: f32) CanvasEvent {
@@ -355,29 +398,91 @@ fn hitTestCanvas(app: *st.AppState, world: Point) HitResult {
     return .{ .inst_idx = -1, .wire_idx = -1 };
 }
 
-/// Returns the nearest instance within the selection click radius, or null.
+/// Returns the first instance whose shape contains `world`, or null.
+/// Instances with prim geometry use a bbox test in local symbol space.
+/// Instances without geometry (subckt / generic) fall back to radius.
 pub fn hitTestInstance(sch: *const Schemify, world: Point) ?usize {
-    var best_idx: ?usize = null;
-    var best_dist: i64 = select_hit_radius_sq;
     const xs = sch.instances.items(.x);
     const ys = sch.instances.items(.y);
+    const rots = sch.instances.items(.rot);
+    const flips = sch.instances.items(.flip);
+    const px: f32 = @floatFromInt(world[0]);
+    const py: f32 = @floatFromInt(world[1]);
     for (0..sch.instances.len) |i| {
-        const dx = @as(i64, world[0]) - @as(i64, xs[i]);
-        const dy = @as(i64, world[1]) - @as(i64, ys[i]);
-        const d2 = dx * dx + dy * dy;
-        if (d2 < best_dist) {
-            best_dist = d2;
-            best_idx = i;
+        const ox: f32 = @floatFromInt(xs[i]);
+        const oy: f32 = @floatFromInt(ys[i]);
+        const dx = px - ox;
+        const dy = py - oy;
+        if (instanceShapeHit(sch, i, dx, dy, rots[i], flips[i])) return i;
+    }
+    return null;
+}
+
+/// Inverse of `draw_helpers.applyRotFlip`: world-offset → local symbol coords.
+fn inverseRotFlip(dx: f32, dy: f32, rot: u2, flip: bool) [2]f32 {
+    const ur: [2]f32 = switch (rot) {
+        0 => .{ dx,  dy  },
+        1 => .{ dy,  -dx },
+        2 => .{ -dx, -dy },
+        3 => .{ -dy, dx  },
+    };
+    return .{ if (flip) -ur[0] else ur[0], ur[1] };
+}
+
+/// True if the local click offset (dx, dy in world space) falls within
+/// the prim's symbol-space bounding box. Falls back to radius for
+/// instances that have no drawable prim geometry.
+fn instanceShapeHit(sch: *const Schemify, idx: usize, dx: f32, dy: f32, rot: u2, flip: bool) bool {
+    const prim: ?*const core.primitives.PrimEntry =
+        if (idx < sch.prim_cache.len) sch.prim_cache[idx] else null;
+
+    if (prim) |entry| {
+        if (entry.hasDrawing()) {
+            // Transform click into local symbol coordinates.
+            const local = inverseRotFlip(dx, dy, rot, flip);
+            const lx = local[0];
+            const ly = local[1];
+
+            var min_x: f32 =  std.math.floatMax(f32);
+            var max_x: f32 = -std.math.floatMax(f32);
+            var min_y: f32 =  std.math.floatMax(f32);
+            var max_y: f32 = -std.math.floatMax(f32);
+
+            for (entry.segs()) |s| {
+                const ax: f32 = @floatFromInt(s.x0); const ay: f32 = @floatFromInt(s.y0);
+                const bx: f32 = @floatFromInt(s.x1); const by: f32 = @floatFromInt(s.y1);
+                min_x = @min(min_x, @min(ax, bx)); max_x = @max(max_x, @max(ax, bx));
+                min_y = @min(min_y, @min(ay, by)); max_y = @max(max_y, @max(ay, by));
+            }
+            for (entry.drawCircles()) |c| {
+                const r: f32 = @floatFromInt(c.r);
+                const cx: f32 = @floatFromInt(c.cx); const cy: f32 = @floatFromInt(c.cy);
+                min_x = @min(min_x, cx - r); max_x = @max(max_x, cx + r);
+                min_y = @min(min_y, cy - r); max_y = @max(max_y, cy + r);
+            }
+            for (entry.drawRects()) |r| {
+                const ax: f32 = @floatFromInt(r.x0); const ay: f32 = @floatFromInt(r.y0);
+                const bx: f32 = @floatFromInt(r.x1); const by: f32 = @floatFromInt(r.y1);
+                min_x = @min(min_x, @min(ax, bx)); max_x = @max(max_x, @max(ax, bx));
+                min_y = @min(min_y, @min(ay, by)); max_y = @max(max_y, @max(ay, by));
+            }
+
+            const pad: f32 = 8.0;
+            return lx >= min_x - pad and lx <= max_x + pad and
+                   ly >= min_y - pad and ly <= max_y + pad;
         }
     }
-    return best_idx;
+
+    // No drawable prim (subckt / generic): radius fallback.
+    const r2: f32 = @floatFromInt(select_hit_radius_sq);
+    return dx * dx + dy * dy < r2;
 }
 
 /// Returns the first wire whose segment passes within the click radius,
 /// or null. Uses perpendicular distance from the world point to each
 /// segment; caps the distance at the same `select_hit_radius_sq` used
 /// for instance hit-testing.
-fn hitTestWire(sch: *const Schemify, world: Point) ?usize {
+pub fn hitTestWire(sch: *const Schemify, world: Point) ?usize {
     const x0s = sch.wires.items(.x0);
     const y0s = sch.wires.items(.y0);
     const x1s = sch.wires.items(.x1);

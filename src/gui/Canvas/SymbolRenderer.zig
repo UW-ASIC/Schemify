@@ -198,7 +198,6 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, app: *st.AppState, 
 
     for (0..sch.instances.len) |i| {
         const selected = i < sel.instances.bit_length and sel.instances.isSet(i);
-        const color = if (selected) pal.inst_sel else pal.symbol_line;
         const origin = vp_mod.w2p(.{ ix[i], iy[i] }, vp);
         const rot = irot[i];
         const flip = iflip[i];
@@ -209,7 +208,13 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, app: *st.AppState, 
         // Read from the pre-built prim cache (zero string lookups per frame).
         const prim: ?*const primitives.PrimEntry = if (i < sch.prim_cache.len) sch.prim_cache[i] else null;
 
+        const is_port = if (prim) |entry| isPortPin(entry.kind_name) else false;
+        const color = if (selected) pal.inst_sel
+                      else if (is_port) port_pin_color
+                      else pal.symbol_line;
+
         if (prim) |entry| {
+            if (is_port) drawPortPinFill(entry, origin, rot, flip, vp, port_pin_fill, &batch);
             drawPrimEntry(entry, origin, rot, flip, vp, color, &batch);
         } else {
             const subckt = if (active_doc) |doc|
@@ -427,6 +432,47 @@ fn drawSubcktBox(sym: *const SubcktSymbol, origin: Vec2, rot: u2, flip: bool, vp
             h.queueLabel(labels, lalloc, name, label_x, label_y, color, 0x8000 + pi);
         }
     }
+}
+
+// ── Port pin fill ─────────────────────────────────────────────────────────── //
+
+const port_pin_color = Color{ .r = 220, .g = 55, .b = 65, .a = 255 };
+const port_pin_fill  = Color{ .r = 200, .g = 45, .b = 55, .a = 180 };
+
+fn isPortPin(kind_name: []const u8) bool {
+    return std.mem.eql(u8, kind_name, "input_pin") or
+        std.mem.eql(u8, kind_name, "output_pin") or
+        std.mem.eql(u8, kind_name, "inout_pin") or
+        std.mem.eql(u8, kind_name, "lab_pin");
+}
+
+/// Fill the body polygon of a port pin symbol (skip the first segment = stub).
+fn drawPortPinFill(
+    entry: *const primitives.PrimEntry,
+    origin: Vec2,
+    rot: u2,
+    flip: bool,
+    vp: RenderViewport,
+    col: Color,
+    batch: *h.LineBatch,
+) void {
+    const segs = entry.segs();
+    if (segs.len < 2) return;
+
+    // Skip seg[0] (stub). Remaining segs form the closed body polygon.
+    // Collect the start point of each body segment as polygon vertices.
+    var pts: [8]dvui.Point.Physical = undefined;
+    var n: usize = 0;
+    for (segs[1..]) |seg| {
+        if (n >= 8) break;
+        const lp = h.applyRotFlip(@floatFromInt(seg.x0), @floatFromInt(seg.y0), rot, flip);
+        pts[n] = .{
+            .x = origin[0] + lp[0] * vp.scale,
+            .y = origin[1] + lp[1] * vp.scale,
+        };
+        n += 1;
+    }
+    batch.addFilledPoly(pts[0..n], col);
 }
 
 fn drawPrimEntry(entry: *const primitives.PrimEntry, origin: Vec2, rot: u2, flip: bool, vp: RenderViewport, color: Color, batch: *h.LineBatch) void {

@@ -7,17 +7,16 @@
 //!   | search [         ]|  <selected plugin detail + README>       |
 //!   |-------------------|                                          |
 //!   |  Card: name       |  Name      Author   vX.Y.Z              |
-//!   |        author v   |  tags: ai  vision                       |
-//!   |        desc...    |  [Install]  [Open on GitHub]             |
-//!   |  [Details]        |  ----------------------------------------|
-//!   |  Card: ...        |  <README rendered line-by-line>          |
+//!   |        author v   |  tags: ui themes                        |
+//!   |        desc...    |  [Install]                               |
+//!   |  Card: ...        |  ----------------------------------------|
+//!   |                   |  <README rendered line-by-line>          |
 //!   +-------------------+------------------------------------------+
-//!   |  Custom plugin:  [url                     ]  [Add]           |
-//!   +--------------------------------------------------------------+
 
 const std = @import("std");
 const dvui = @import("dvui");
 const st = @import("state");
+const utility = @import("utility");
 
 const components = @import("../Components/lib.zig");
 
@@ -25,11 +24,96 @@ const AppState = st.AppState;
 const MktStatus = st.MktStatus;
 const MarketplaceEntry = st.MarketplaceEntry;
 
+const REGISTRY_URL = "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/registry.json";
+
 // ── Layout constants ───────────────────────────────────────────────────────
 
 const MODAL_MIN_WIDTH: f32 = 680;
 const MODAL_MIN_HEIGHT: f32 = 480;
 const LEFT_PANEL_MIN_WIDTH: f32 = 250;
+
+// ── Registry fetch (background thread) ───────────────────────────────────── //
+
+/// Minimal JSON schema for parsing registry entries (heap-allocated slices).
+const RegistryDownloadJson = struct {
+    linux: []const u8 = "",
+    macos: []const u8 = "",
+    wasm: []const u8 = "",
+};
+
+const RegistryEntryJson = struct {
+    id: []const u8 = "",
+    name: []const u8 = "",
+    author: []const u8 = "",
+    version: []const u8 = "",
+    description: []const u8 = "",
+    tags: [][]const u8 = &.{},
+    repo: []const u8 = "",
+    readme_url: []const u8 = "",
+    download: RegistryDownloadJson = .{},
+};
+
+const RegistryJson = struct {
+    version: u32 = 0,
+    plugins: []RegistryEntryJson = &.{},
+};
+
+const FetchCtx = struct {
+    mkt: *st.MarketplaceState,
+    alloc: std.mem.Allocator,
+};
+
+fn fetchRegistryThread(ctx: FetchCtx) void {
+    const body = utility.platform.httpGetSync(ctx.alloc, REGISTRY_URL) catch {
+        @atomicStore(MktStatus, &ctx.mkt.registry_status, .failed, .seq_cst);
+        return;
+    };
+    defer ctx.alloc.free(body);
+
+    const parsed = std.json.parseFromSlice(RegistryJson, ctx.alloc, body, .{
+        .ignore_unknown_fields = true,
+    }) catch {
+        @atomicStore(MktStatus, &ctx.mkt.registry_status, .failed, .seq_cst);
+        return;
+    };
+    defer parsed.deinit();
+
+    // Copy each JSON entry into a fixed-buffer MarketplaceEntry.
+    for (parsed.value.plugins) |src| {
+        var dst = MarketplaceEntry{};
+        copyStr(src.name, &dst.name);
+        copyStr(src.id, &dst.id);
+        copyStr(src.author, &dst.author);
+        copyStr(src.version, &dst.version);
+        copyStr(src.description, &dst.desc);
+        copyStr(src.repo, &dst.repo_url);
+        copyStr(src.readme_url, &dst.readme_url);
+        copyStr(src.download.linux, &dst.dl_linux);
+        // Join tags array into space-separated string.
+        var tags_pos: usize = 0;
+        for (src.tags, 0..) |tag, ti| {
+            if (ti > 0 and tags_pos + 1 < dst.tags.len - 1) {
+                dst.tags[tags_pos] = ' ';
+                tags_pos += 1;
+            }
+            const n = @min(tag.len, dst.tags.len - 1 - tags_pos);
+            @memcpy(dst.tags[tags_pos..][0..n], tag[0..n]);
+            tags_pos += n;
+        }
+        dst.tags[tags_pos] = 0;
+        ctx.mkt.entries.append(ctx.alloc, dst) catch break;
+    }
+
+    // Write status last — main thread reads entries only after seeing .done.
+    @atomicStore(MktStatus, &ctx.mkt.registry_status, .done, .seq_cst);
+}
+
+/// Copy `src` into fixed-size `dst` buffer, null-terminating at the end.
+fn copyStr(src: []const u8, dst: []u8) void {
+    const n = @min(src.len, dst.len - 1);
+    @memcpy(dst[0..n], src[0..n]);
+    dst[n] = 0;
+}
 
 // ── Public API ────────────────────────────────────────────────────────────── //
 
@@ -37,6 +121,17 @@ const LEFT_PANEL_MIN_WIDTH: f32 = 250;
 pub fn draw(app: *AppState) void {
     const mkt = &app.gui.cold.marketplace;
     if (!mkt.visible) return;
+
+    // Kick off registry fetch on first open.
+    if (mkt.registry_status == .idle) {
+        mkt.registry_status = .fetching;
+        const ctx = FetchCtx{ .mkt = mkt, .alloc = app.allocator() };
+        const thread = std.Thread.spawn(.{}, fetchRegistryThread, .{ctx}) catch {
+            mkt.registry_status = .failed;
+            return;
+        };
+        thread.detach();
+    }
 
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = true,
@@ -80,7 +175,10 @@ fn drawLeftPanel(mkt: *st.MarketplaceState) void {
 
     // Status indicator.
     switch (mkt.registry_status) {
-        .idle, .fetching => {
+        .idle => {
+            dvui.labelNoFmt(@src(), "No registry configured.", .{}, .{ .id_extra = 602, .style = .control });
+        },
+        .fetching => {
             dvui.labelNoFmt(@src(), "Loading registry...", .{}, .{ .id_extra = 602, .style = .control });
         },
         .failed => {
@@ -176,7 +274,6 @@ fn drawRightPanel(mkt: *st.MarketplaceState) void {
             dvui.labelNoFmt(@src(), "Installed", .{}, .{ .id_extra = 709, .style = .control });
         } else {
             if (dvui.button(@src(), "Install", .{}, .{ .id_extra = 710 })) {
-                // TODO: trigger install via background thread / WASM fetch
                 mkt.install_status = .fetching;
             }
         }

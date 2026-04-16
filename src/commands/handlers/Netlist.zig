@@ -116,6 +116,19 @@ fn buildSchemify(state: anytype) !struct { s: core.Schemify } {
     return .{ .s = s };
 }
 
+/// Generate a simulation netlist and cache it in `state.last_netlist`.
+/// Called when opening the netlist viewer dialog.
+pub fn generateForViewer(state: anytype) !void {
+    var result = try buildSchemify(state);
+    defer result.s.deinit();
+    const spice = try result.s.emitSpice(state.allocator(), .ngspice, core.pdk, .sim);
+    defer state.allocator().free(spice);
+    writeNetlist(&result.s, spice, .sim, .{
+        .prefix  = "Netlist generated: ",
+        .err_msg = "Netlist generation failed",
+    }, state);
+}
+
 pub fn handle(imm: Immediate, state: anytype) Error!void {
     switch (imm) {
         .netlist_hierarchical,

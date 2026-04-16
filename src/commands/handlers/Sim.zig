@@ -50,11 +50,11 @@ pub fn handleRun(p: RunSim, state: anytype) Error!void {
     switch (term) {
         .Exited => |code| {
             if (code == 0) {
-                state.setStatus("Simulation complete");
+                state.setStatus("Simulation launched in terminal");
             } else {
-                state.setStatus("ngspice exited with error");
+                state.setStatus("Simulator exited with error");
             }
         },
-        else => state.setStatus("ngspice terminated abnormally"),
+        else => state.setStatus("Simulator terminated abnormally"),
     }
 }

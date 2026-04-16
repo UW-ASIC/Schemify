@@ -102,18 +102,11 @@ fn dispatchImmediate(imm: Immediate, state: anytype) DispatchError!void {
         // Simulation
         .open_waveform_viewer => try sim.handleImmediate(imm, state),
 
-        // SPICE code block dialog — seed buffer from active document then open
+        // SPICE netlist viewer — generate netlist then open dialog
         .open_spice_code_dialog => {
-            const sd = &state.gui.cold.spice_code_dialog;
-            sd.buf_len = 0;
-            if (state.active()) |fio| {
-                if (fio.sch.spice_body) |body| {
-                    const copy_len = @min(body.len, sd.buf.len - 1);
-                    @memcpy(sd.buf[0..copy_len], body[0..copy_len]);
-                    sd.buf_len = copy_len;
-                }
-            }
-            sd.is_open = true;
+            // Generate the netlist (best-effort; errors silently swallowed).
+            netlist.generateForViewer(state) catch {};
+            state.gui.cold.spice_code_dialog.is_open = true;
         },
 
         // Properties

@@ -35,6 +35,7 @@ const module_defs = [_]Def{
 const test_defs = [_]Def{
     .{ "core", "test/core/test_core.zig", &.{"core"} },
     .{ "utility", "src/utility/lib.zig", &.{} },
+    .{ "marketplace", "test/marketplace/test_marketplace.zig", &.{"utility"} },
 };
 
 // ── web-specific ───────────────────────────────────────────────────────────────

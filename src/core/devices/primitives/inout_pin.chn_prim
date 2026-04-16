@@ -12,15 +12,15 @@ SYMBOL inout_pin
   drawing:
     lines:
       # Pin stub from connection point (0,0) to hexagon body
-      (0,0) (4,0)
-      # Hexagon (six sides, symmetric — bidirectional convention)
-      # Left point at x=4, right point at x=28, flat top/bottom from x=10..22
-      (4,0) (10,-8)
-      (10,-8) (22,-8)
-      (22,-8) (28,0)
-      (28,0) (22,8)
-      (22,8) (10,8)
-      (10,8) (4,0)
-    text: (16,0) "@lab"
+      (0,0) (6,0)
+      # Hexagon — larger, symmetric, bidirectional convention
+      # Left point at x=6, right point at x=48, flat top/bottom from x=16..38
+      (6,0) (16,-14)
+      (16,-14) (38,-14)
+      (38,-14) (48,0)
+      (48,0) (38,14)
+      (38,14) (16,14)
+      (16,14) (6,0)
+    text: (22,0) "@lab"
     pin_positions:
       p: (0,0)

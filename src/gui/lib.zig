@@ -112,15 +112,24 @@ fn handleCanvasEvent(app: *AppState, ev: CanvasEvent) void {
                 },
                 .select => {
                     const doc = app.active() orelse return;
+                    const a = app.allocator();
                     if (interaction.hitTestInstance(&doc.sch, pt)) |idx| {
                         const already_selected = doc.selection.instances.bit_length > idx and
                             doc.selection.instances.isSet(idx);
                         if (!already_selected) {
                             doc.selection.clear();
-                            const a = app.allocator();
                             doc.selection.instances.resize(a, doc.sch.instances.len, false) catch return;
                             doc.selection.instances.set(idx);
                             app.status_msg = "Selected instance";
+                        }
+                    } else if (interaction.hitTestWire(&doc.sch, pt)) |idx| {
+                        const already_selected = doc.selection.wires.bit_length > idx and
+                            doc.selection.wires.isSet(idx);
+                        if (!already_selected) {
+                            doc.selection.clear();
+                            doc.selection.wires.resize(a, doc.sch.wires.len, false) catch return;
+                            doc.selection.wires.set(idx);
+                            app.status_msg = "Selected wire";
                         }
                     } else {
                         doc.selection.clear();

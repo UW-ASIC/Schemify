@@ -46,16 +46,28 @@ fn drawContents(app: *AppState) void {
         const is_active = idx == @as(usize, app.active_idx);
         var buf: [80]u8 = undefined;
         const prefix: []const u8 = if (doc.dirty) "\xe2\x97\x8f " else "";
-        // Show the full filename including extension (e.g. "untitled.comp")
         const label = std.fmt.bufPrint(&buf, "{s}{s}{s}", .{ prefix, doc.name, arrow_suffix }) catch doc.name;
+        const tab_style: dvui.Theme.Style.Name = if (is_active) .highlight else .control;
 
-        if (is_active) {
-            _ = dvui.button(@src(), label, .{}, .{ .style = .highlight, .id_extra = idx, .corner_radius = cr });
-        } else {
-            if (dvui.button(@src(), label, .{}, .{ .id_extra = idx, .corner_radius = cr })) {
+        // Horizontal box: [✕ close][tab label]
+        var tab_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .id_extra = idx,
+            .corner_radius = cr,
+        });
+        defer tab_row.deinit();
+
+        // Close button on left — only functional with >1 tab.
+        if (app.documents.items.len > 1) {
+            if (dvui.button(@src(), "\xe2\x9c\x95", .{}, .{ .style = .err, .id_extra = 9100 + idx, .corner_radius = cr })) {
                 app.active_idx = @intCast(idx);
-                app.status_msg = "Switched tab";
+                actions.enqueue(app, .{ .immediate = .close_tab }, "Close tab");
             }
+        }
+
+        // Tab label — switches active document.
+        if (dvui.button(@src(), label, .{}, .{ .style = tab_style, .id_extra = 9200 + idx, .corner_radius = cr })) {
+            app.active_idx = @intCast(idx);
+            app.status_msg = "Switched tab";
         }
     }
 
@@ -94,10 +106,4 @@ fn drawContents(app: *AppState) void {
             actions.runGuiCommand(app, .view_symbol);
     }
 
-    // ── Close tab (only with >1 tab) ─────────────────────────────────────── //
-    if (app.documents.items.len > 1) {
-        if (dvui.button(@src(), "\xe2\x9c\x95", .{}, .{ .style = .err, .id_extra = 9003, .corner_radius = cr })) {
-            actions.enqueue(app, .{ .immediate = .close_tab }, "Close tab");
-        }
-    }
 }

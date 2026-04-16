@@ -151,6 +151,57 @@ pub const LineBatch = struct {
         self.addLine(p[0] - radius, p[1], p[0] + radius, p[1], radius * 2.0, col);
     }
 
+    /// Append a filled convex polygon via fan triangulation from vertex 0.
+    /// Points are in physical screen space. Automatically corrects winding to
+    /// CCW in y-down (dvui culls CW triangles).
+    pub fn addFilledPoly(self: *LineBatch, pts: []const dvui.Point.Physical, col: Color) void {
+        const n = pts.len;
+        if (n < 3) return;
+
+        // Compute twice the signed area (shoelace). Positive = CW in y-down.
+        var area2: f32 = 0;
+        for (pts, 0..) |p, i| {
+            const q = pts[(i + 1) % n];
+            area2 += p.x * q.y - q.x * p.y;
+        }
+        const needs_reverse = area2 > 0;
+
+        self.vertexes.ensureUnusedCapacity(self.allocator, n) catch return;
+        self.indices.ensureUnusedCapacity(self.allocator, (n - 2) * 3) catch return;
+
+        const pma: dvui.Color.PMA = .fromColor(col);
+        const base: Vertex.Index = @intCast(self.vertexes.items.len);
+
+        if (needs_reverse) {
+            var k: usize = n;
+            while (k > 0) {
+                k -= 1;
+                const p = pts[k];
+                self.vertexes.appendAssumeCapacity(.{ .pos = p, .col = pma });
+                self.bounds.x = @min(self.bounds.x, p.x);
+                self.bounds.y = @min(self.bounds.y, p.y);
+                self.bounds.w = @max(self.bounds.w, p.x);
+                self.bounds.h = @max(self.bounds.h, p.y);
+            }
+        } else {
+            for (pts) |p| {
+                self.vertexes.appendAssumeCapacity(.{ .pos = p, .col = pma });
+                self.bounds.x = @min(self.bounds.x, p.x);
+                self.bounds.y = @min(self.bounds.y, p.y);
+                self.bounds.w = @max(self.bounds.w, p.x);
+                self.bounds.h = @max(self.bounds.h, p.y);
+            }
+        }
+
+        // Fan from vertex 0: triangles (0,1,2), (0,2,3), …, (0,n-2,n-1).
+        var k: Vertex.Index = 1;
+        while (k + 1 < n) : (k += 1) {
+            self.indices.appendAssumeCapacity(base);
+            self.indices.appendAssumeCapacity(base + k);
+            self.indices.appendAssumeCapacity(base + k + 1);
+        }
+    }
+
     /// Append a rectangle outline as 4 line quads.
     pub fn addRectOutline(self: *LineBatch, tl: Vec2, br: Vec2, thickness: f32, col: Color) void {
         self.addLine(tl[0], tl[1], br[0], tl[1], thickness, col);
@@ -277,13 +328,11 @@ pub fn drainLabels(list: *LabelList, vp: RenderViewport) void {
 /// `min_size` is 8 logical pixels — below that the text would be illegible
 /// anyway, and the caller should be culling via `vp.scale >= 0.3` first.
 fn canvasLabelFont(vp: RenderViewport) dvui.Font {
-    const view_zoom = if (vp.rs_s > 0.0) vp.scale / vp.rs_s else vp.scale;
-    const desired: f32 = 12.0 * view_zoom;
-    // Quantize to integer logical pixels. @round (not @floor) so we don't
-    // bias the displayed size half a pixel below the visual zoom.
-    const quantized: f32 = @max(8.0, @round(desired));
+    // Fixed 11 logical pixels — text stays constant screen size regardless of zoom.
+    // Culling at vp.scale >= 0.3 (in callers) keeps text hidden when too zoomed out.
+    _ = vp;
     var font = dvui.themeGet().font_body;
-    font.size = quantized;
+    font.size = 11.0;
     return font;
 }
 

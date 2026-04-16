@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "XSchemDropIN",
+      "name": "EasyImport",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "Drop-in XSchem project bridge: reads xschemrc, converts .sch/.sym to .chn/.chn_tb in .temp_schemify/, generates Config.toml.",
+      "tags": [
+        "xschem",
+        "import",
+        "conversion",
+        "dropin"
+      ],
+      "repo": "https://github.com/UWASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/EasyImport/README.md",
+      "download": {
+        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.so",
+        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.dylib",
+        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.wasm"
+      }
+    },
+    {
+      "id": "GitBlame",
+      "name": "GitBlame",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "Shows git blame annotations for schematic elements \u2014 displays last-commit author and message alongside selected components.",
+      "tags": [
+        "git",
+        "vcs",
+        "blame",
+        "annotations"
+      ],
+      "repo": "https://github.com/UWASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/GitBlame/README.md",
+      "download": {
+        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GitBlame.so",
+        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GitBlame.dylib",
+        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GitBlame.wasm"
+      }
+    },
+    {
+      "id": "Optimizer",
+      "name": "Optimizer",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "Bayesian circuit optimization plugin with iterative sweep controls.",
+      "tags": [
+        "optimization",
+        "bayesian",
+        "analog"
+      ],
+      "repo": "https://github.com/UWASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/Optimizer/README.md",
+      "download": {
+        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Optimizer.so",
+        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Optimizer.dylib",
+        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Optimizer.wasm"
+      }
+    },
+    {
+      "id": "PDKLoader",
+      "name": "PDKLoader",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "Process Design Kit loader. Resolves PDK paths, fetches sky130/gf180 via Volare, and registers device libraries for the active project.",
+      "tags": [
+        "pdk",
+        "sky130",
+        "gf180",
+        "devices"
+      ],
+      "repo": "https://github.com/UWASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/PDKLoader/README.md",
+      "download": {
+        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/PDKLoader.so",
+        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/PDKLoader.dylib",
+        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/PDKLoader.wasm"
+      }
+    },
+    {
+      "id": "Themes",
+      "name": "Themes",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "Live theme switcher for Schemify. Ships with 7 built-in color themes (dark and light) and supports user-defined themes via ~/.config/Schemify/themes/*.json.",
+      "tags": [
+        "ui",
+        "themes",
+        "colors",
+        "customization"
+      ],
+      "repo": "https://github.com/UWASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/Themes/README.md",
+      "download": {
+        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Themes.so",
+        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Themes.dylib",
+        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Themes.wasm"
+      }
+    }
+  ]
+}

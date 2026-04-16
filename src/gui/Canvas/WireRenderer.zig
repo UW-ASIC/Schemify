@@ -127,7 +127,7 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, sel: *const st.Sele
             const mid_x = (a[0] + b[0]) * 0.5;
             const mid_y = (a[1] + b[1]) * 0.5;
 
-            h.drawLabel(net, mid_x - 40.0, mid_y - 16.0, theme.withAlpha(pal.wire, 180), vp, sch.instances.len + i);
+            h.drawLabel(net, mid_x - 40.0, mid_y - 16.0, theme.withAlpha(pal.inst_pin, 200), vp, sch.instances.len + i);
 
             // Zero-length wires (net label markers) get a white dot.
             if (wx0[i] == wx1[i] and wy0[i] == wy1[i]) {
