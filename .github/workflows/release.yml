@@ -71,8 +71,11 @@ jobs:
       # Rename to the canonical asset names expected by deploy-pages.yml
       - name: Prepare release assets
         run: |
-          cp zig-out/bin/schemify.wasm schemify.wasm
-          cp zig-out/bin/web.js        web.js
+          cp zig-out/bin/schemify.wasm    schemify.wasm
+          cp zig-out/bin/web.js           web.js
+          cp zig-out/bin/schemify_host.js schemify_host.js
+          cp zig-out/bin/vfs.js           vfs.js
+          cp zig-out/bin/vfs-worker.js    vfs-worker.js
 
       - name: Upload WASM assets to release
         uses: softprops/action-gh-release@v2
@@ -81,3 +84,6 @@ jobs:
           files: |
             schemify.wasm
             web.js
+            schemify_host.js
+            vfs.js
+            vfs-worker.js

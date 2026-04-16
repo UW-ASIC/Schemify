@@ -114,14 +114,21 @@ push to main
 Checkout your repo
     │
     ▼
-Download schemify.wasm + web.js  (from latest Schemify release)
+Download release assets  (from latest Schemify release)
+  ├─ schemify.wasm
+  ├─ web.js           (dvui JS runtime)
+  ├─ schemify_host.js (host VFS bridge)
+  ├─ vfs.js           (in-page VFS map)
+  └─ vfs-worker.js    (OPFS persistence worker)
     │
     ▼
 build-viewer.mjs
   ├─ reads Config.toml  →  project name, file list
   ├─ copies .chn / .sch / .sym / Config.toml → schemify-out/
+  ├─ copies all 5 runtime assets → schemify-out/
   ├─ writes files.json  (file manifest)
-  └─ generates index.html (VFS loader + WASM shell)
+  ├─ generates boot.js  (seeds VFS from manifest, boots WASM)
+  └─ generates index.html
     │
     ▼
 Deploy schemify-out/  →  github-pages environment
@@ -130,7 +137,7 @@ Deploy schemify-out/  →  github-pages environment
 https://<user>.github.io/<repo>/   ← posted to workflow summary
 ```
 
-The viewer uses an **in-memory VFS**: on load it fetches every project file listed in `files.json` and populates a JavaScript `Map` that the WASM runtime reads through the `host.vfs_*` imports defined in `Vfs.zig`.
+The viewer uses a two-namespace WASM import object — `dvui` (rendering, provided by `web.js`) and `host` (VFS + platform, provided by `schemify_host.js`). On load, `boot.js` fetches every project file listed in `files.json`, populates a JavaScript `Map` backed by `vfs.js`, then instantiates `schemify.wasm` with both namespaces.
 
 ---
 
@@ -139,6 +146,6 @@ The viewer uses an **in-memory VFS**: on load it fetches every project file list
 | Symptom | Fix |
 |---------|-----|
 | Workflow fails: `gh release download: no assets` | Schemify hasn't cut a WASM release yet — pin `schemify_version: main` to build from source |
-| Blank page / console errors about `web.js` | Check that `project_dir` points to the directory containing `Config.toml`, not a parent |
+| Blank page / console errors about `web.js` or `schemify_host.js` | Check that `project_dir` points to the directory containing `Config.toml`, not a parent |
 | Files not loading in viewer | Filenames are case-sensitive on Linux — check `Config.toml` paths match exactly |
 | Pages shows old content | GitHub Pages CDN caches aggressively — hard-refresh with `Ctrl+Shift+R` |

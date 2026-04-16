@@ -67,7 +67,7 @@ function scanDir(dir: string, urlPrefix: string): SidebarItem[] {
     const stat = statSync(fullPath);
 
     if (stat.isDirectory()) {
-      const itemUrl = `${urlPrefix}/${originalName}`;
+      const itemUrl = `${urlPrefix}/${encodeURIComponent(originalName)}`;
       const children = scanDir(fullPath, itemUrl);
       items.push({
         title: formatTitle(displayName),
@@ -76,7 +76,7 @@ function scanDir(dir: string, urlPrefix: string): SidebarItem[] {
       });
     } else if (extname(originalName) === ".md") {
       const stem = basename(originalName, ".md");
-      const fileUrl = `${urlPrefix}/${stem}`;
+      const fileUrl = `${urlPrefix}/${encodeURIComponent(stem)}`;
       items.push({
         title: formatTitle(stem),
         path: fileUrl,
@@ -109,7 +109,7 @@ function generateSidebar(): SidebarItem[] {
 
   for (const { cleanName, originalName, fullPath } of tops) {
     const displayName = cleanName || originalName;
-    const urlPrefix = `/${originalName}`;
+    const urlPrefix = `/${encodeURIComponent(originalName)}`;
     const children = scanDir(fullPath, urlPrefix);
     categories.push({
       title: formatTitle(displayName),
@@ -122,10 +122,11 @@ function generateSidebar(): SidebarItem[] {
 }
 
 function renderSidebarItem(item: SidebarItem, activePath: string, depth = 0): string {
-  const isActive = activePath === item.path || activePath.startsWith(item.path + "/");
+  const decodedItemPath = decodeURIComponent(item.path);
+  const isActive = activePath === decodedItemPath || activePath.startsWith(decodedItemPath + "/");
 
   if (item.children.length === 0) {
-    return `<a href="${item.path}" class="topic-link ${activePath === item.path ? "active" : ""}">${item.title}</a>`;
+    return `<a href="${item.path}" class="topic-link ${activePath === decodedItemPath ? "active" : ""}">${item.title}</a>`;
   }
 
   if (depth === 0) {
@@ -171,7 +172,7 @@ function renderLayout(options: {
   content: string;
 }): string {
   return `<!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -225,7 +226,7 @@ const server = Bun.serve({
   port: 3000,
   async fetch(req) {
     const url = new URL(req.url);
-    let pathname = url.pathname;
+    let pathname = decodeURIComponent(url.pathname);
 
     // Serve static files
     if (pathname.startsWith("/style/")) {

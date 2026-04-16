@@ -23,14 +23,24 @@ Browse the Schemify example schematics directly in your browser — no install r
   var repoSegment = pathParts.length > 0 ? '/' + pathParts[0] : '';
   var viewerUrl = origin + repoSegment + '/schematic/';
 
-  var frame = document.getElementById('schemify-frame');
-  frame.src = viewerUrl;
+  // Probe first — iframe onerror does not fire on 404.
+  fetch(viewerUrl, { method: 'HEAD' }).then(function (res) {
+    if (res.ok) {
+      document.getElementById('schemify-frame').src = viewerUrl;
+    } else {
+      showFallback();
+    }
+  }).catch(function () {
+    showFallback();
+  });
 
-  // Fallback message if no release has been cut yet.
-  frame.onerror = function () {
-    var el = document.getElementById('schematic-embed');
-    el.innerHTML = '<p style="color:#4ec9b0;padding:24px;font-family:monospace">Viewer not available yet — no WASM release found. Run <code>zig build -Dbackend=web</code> locally.</p>';
-  };
+  function showFallback() {
+    document.getElementById('schematic-embed').innerHTML =
+      '<p style="color:#4ec9b0;padding:24px;font-family:monospace">' +
+      'Viewer not available yet \u2014 no WASM release has been published.<br><br>' +
+      'Run locally: <code>zig build -Dbackend=web run_local</code> \u2192 http://localhost:8080' +
+      '</p>';
+  }
 })();
 </script>
 

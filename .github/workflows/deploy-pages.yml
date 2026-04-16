@@ -93,8 +93,11 @@ jobs:
           mkdir -p .schemify-assets
           gh release download "${{ steps.version.outputs.tag }}" \
             --repo UWASIC/Schemify \
-            --pattern "schemify.wasm" \
-            --pattern "web.js" \
+            --pattern "schemify.wasm"    \
+            --pattern "web.js"           \
+            --pattern "schemify_host.js" \
+            --pattern "vfs.js"           \
+            --pattern "vfs-worker.js"    \
             --dir .schemify-assets
 
       - name: Generate viewer

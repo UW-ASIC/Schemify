@@ -7,20 +7,20 @@
 }
 
 :root {
-  --bg-color: #ffffff;
-  --text-color: #1a1a1a;
-  --link-color: #0d7377;
-  --sidebar-bg: #f9fafb;
-  --sidebar-border: #e5e7eb;
-  --code-bg: #fafafa;
-  --code-border: #e5e7eb;
-  --heading-color: #111827;
-  --topbar-bg: rgba(255, 255, 255, 0.9);
-  --example-bg: #fff;
-  --example-border: #e5e7eb;
-  --example-question-bg: #f0fdf4;
-  --accent: #0d7377;
-  --accent-light: rgba(13, 115, 119, 0.1);
+  --bg-color: #f6f3ff;
+  --text-color: #1e1535;
+  --link-color: #6d28d9;
+  --sidebar-bg: #ede9ff;
+  --sidebar-border: #c4b5fd;
+  --code-bg: #ede9ff;
+  --code-border: #c4b5fd;
+  --heading-color: #5b21b6;
+  --topbar-bg: rgba(246, 243, 255, 0.92);
+  --example-bg: #fdf4ff;
+  --example-border: #c4b5fd;
+  --example-question-bg: rgba(139, 92, 246, 0.08);
+  --accent: #7c3aed;
+  --accent-light: rgba(124, 58, 237, 0.12);
 }
 
 [data-theme=dark] {
@@ -66,14 +66,14 @@ blockquote.note strong {
 }
 
 blockquote.warning {
-  border-left: 4px solid #f87171;
-  background-color: rgba(248, 113, 113, 0.08);
+  border-left: 4px solid #e11d48;
+  background-color: rgba(225, 29, 72, 0.08);
   padding: 1rem;
   border-radius: 4px;
   margin: 1.5rem 0;
 }
 blockquote.warning strong {
-  color: #dc2626;
+  color: #be123c;
   display: block;
   margin-bottom: 0.5rem;
 }
