@@ -1,7 +1,7 @@
-module github.com/uwasic/schemify/plugins/examples/go-demo
+module go-demo
 
 go 1.21
 
-require github.com/uwasic/schemify v0.0.0-local
+require schemify v0.0.0
 
-replace github.com/uwasic/schemify => ../../../..
+replace schemify => ../../../../tools/api/tinygo

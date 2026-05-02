@@ -6,8 +6,8 @@
     .dependencies = .{
         // DVUI - General-purpose Zig GUI toolkit (fetched from GitHub)
         .dvui = .{
-            .url = "https://github.com/david-vanderson/dvui/archive/refs/heads/main.tar.gz",
-            .hash = "dvui-0.4.0-dev-AQFJmTXU3wBJ2wCYyH4UeUWkMBSJbY7y6Ouc11_Gkls1",
+            .url = "https://github.com/OmarSiwy/HTML2DVUI/archive/refs/heads/main.tar.gz",
+            .hash = "12202559d26aabb512eeeafac143d22e4edb403fd31d00247409d94cb1e1c317de06",
         },
     },
 
@@ -15,8 +15,6 @@
         "build.zig",
         "build.zig.zon",
         "src",
-        "tools/sdk",
-        "tools/build_dep.zig",
         "test",
     },
 }

@@ -1,8 +1,0 @@
-[plugin]
-name        = "PDKLoader"
-version     = "0.1.0"
-author      = "UWASIC"
-entry       = "libPDKLoader.so"
-description = "Process Design Kit loader. Resolves PDK paths, fetches sky130/gf180 via Volare, and registers device libraries for the active project."
-tags        = ["pdk", "sky130", "gf180", "devices"]
-scope       = "project"

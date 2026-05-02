@@ -1,0 +1,10 @@
+[build-system]
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name        = "schemify-themes"
+version     = "0.1.0"
+description = "Schemify Themes plugin"
+requires-python = ">=3.10"
+dependencies = []

@@ -1,4 +1,5 @@
 //! Shared types for Canvas sub-renderers.
+
 const std = @import("std");
 const dvui = @import("dvui");
 const theme = @import("theme_config");
@@ -12,15 +13,9 @@ pub const Palette = theme.Palette;
 pub const RenderViewport = struct {
     cx: f32,
     cy: f32,
-    /// Total scale = user zoom × dvui natural screen scale. Used for all
-    /// world→pixel geometry and stroke widths.
+    /// Total scale = user zoom * dvui screen scale.
     scale: f32,
-    /// Just the dvui natural screen scale of the canvas widget (≈1.0 on a
-    /// standard display, ~2.0 on HiDPI). Held separately so text rendering
-    /// can pass `rs.s = rs_s` and a logical font size to dvui — that lets
-    /// dvui's font cache key on `logical_size × rs_s`, which only changes
-    /// in integer steps when we quantize the logical size, killing the
-    /// per-frame atlas churn that caused text jitter on zoom.
+    /// dvui natural screen scale (1.0 standard, ~2.0 HiDPI).
     rs_s: f32,
     pan: [2]f32,
     bounds: dvui.Rect.Physical,
@@ -33,19 +28,13 @@ pub const CanvasEvent = union(enum) {
     right_click: struct {
         pixel: Vec2,
         world: Point,
-        /// Hit-tested instance index at the click position, or `-1` for none.
         inst_idx: i32 = -1,
-        /// Hit-tested wire index at the click position, or `-1` for none.
         wire_idx: i32 = -1,
     },
-    rubber_band_complete: struct {
-        min: Point,
-        max: Point,
-    },
+    rubber_band_complete: struct { min: Point, max: Point },
 };
 
 /// Bundles allocator + viewport + palette for Canvas sub-renderers.
-/// Per Claude's discretion: RenderContext reduces parameter count from 3-4 to 1.
 pub const RenderContext = struct {
     allocator: std.mem.Allocator,
     vp: RenderViewport,
@@ -53,7 +42,7 @@ pub const RenderContext = struct {
     cmd_flags: st.CommandFlags,
 };
 
-// Drawing constants (moved from Renderer.zig bottom)
+// Drawing constants
 pub const grid_min_step_px: f32 = 3.0;
 pub const grid_max_points: f32 = 16_000.0;
 pub const wire_endpoint_radius: f32 = 2.5;

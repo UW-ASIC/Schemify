@@ -49,7 +49,7 @@ pub fn build(b: *std.Build) void {
     lib_mod.addImport("core", ctx.core_mod);
     lib_mod.addImport("convert_types", ct_mod);
 
-    // ── Native plugin (.so) ─────────────────────────────────────────────────
+    // ── Plugin library (.so native / .wasm web) ────────────────────────────────
 
     if (!ctx.is_web) {
         const plugin_lib = helper.addNativePluginLibrary(b, ctx, "XSchemDropIN", "src/main.zig");
@@ -57,9 +57,13 @@ pub fn build(b: *std.Build) void {
         plugin_lib.root_module.addImport("core", ctx.core_mod);
         b.installArtifact(plugin_lib);
         helper.addNativeAutoInstallRunStep(b, "XSchemDropIN", sdk_dep, "EasyImport");
+    } else {
+        // WASM build — filesystem access provided by dvui.fs
+        const plugin_wasm = helper.addWasmPlugin(b, ctx, "XSchemDropIN", "src/main.zig");
+        plugin_wasm.root_module.addImport("easyimport", lib_mod);
+        plugin_wasm.root_module.addImport("core", ctx.core_mod);
+        b.installArtifact(plugin_wasm);
     }
-
-    // Import requires filesystem access — no WASM plugin.
 
     // ── Tests ───────────────────────────────────────────────────────────────
 

@@ -1,36 +1,31 @@
 {
-  description = "GitBlame – git blame annotations plugin";
+  description = "GitBlame – Schemify C plugin";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      flake-utils,
-    }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
+  outputs = { self, nixpkgs, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-      in
-      {
+        llvm = pkgs.llvmPackages;
+      in {
         devShells.default = pkgs.mkShell {
-          name = "gitblame-dev";
-
           nativeBuildInputs = [
-            pkgs.zig
-            pkgs.zls
+            pkgs.gcc
+            pkgs.gnumake
             pkgs.git
+            llvm.clang-unwrapped
+            pkgs.lld
           ];
-
           shellHook = ''
-            echo "GitBlame dev shell — Zig $(zig version), git $(git --version | cut -d' ' -f3)"
-            echo "  zig build        - build plugin (.so)"
-            echo "  zig build test   - run tests"
+            export WASM_CC="${llvm.clang-unwrapped}/bin/clang"
+            echo "GitBlame Plugin Dev Shell"
+            echo "  make          - build native .so"
+            echo "  make web      - build .wasm"
+            echo "  make install  - install to ~/.config/Schemify/"
           '';
         };
       }

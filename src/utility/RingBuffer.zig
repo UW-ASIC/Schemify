@@ -1,60 +1,71 @@
 const std = @import("std");
 
-/// Fixed-capacity FIFO ring buffer. Zero heap allocations.
-/// CAP must be a power of 2 for fast modulo via bitmasking.
-pub fn RingBuffer(comptime T: type, comptime CAP: usize) type {
+pub fn RingBuffer(comptime T: type, comptime cap: usize) type {
+    comptime std.debug.assert(cap > 0 and (cap & (cap - 1)) == 0);
+    const mask = cap - 1;
+
     return struct {
-        buf:  [CAP]T = undefined,
-        head: usize  = 0,
-        len:  usize  = 0,
+        buf: [cap]T = undefined,
+        head: usize = 0,
+        count: usize = 0,
 
         const Self = @This();
-        const MASK = CAP - 1;
 
-        comptime {
-            std.debug.assert(CAP > 0 and (CAP & MASK) == 0); // must be power of 2
+        /// Push, overwriting oldest if full.
+        pub fn push(self: *Self, item: T) void {
+            self.buf[(self.head + self.count) & mask] = item;
+            if (self.count == cap)
+                self.head = (self.head + 1) & mask
+            else
+                self.count += 1;
         }
 
-        pub fn push(self: *Self, item: T) error{Full}!void {
-            if (self.len == CAP) return error.Full;
-            self.buf[(self.head + self.len) & MASK] = item;
-            self.len += 1;
-        }
-
-        pub fn pushOverwrite(self: *Self, item: T) void {
-            if (self.len == CAP) {
-                // overwrite oldest
-                self.buf[self.head & MASK] = item;
-                self.head = (self.head + 1) & MASK;
-            } else {
-                self.buf[(self.head + self.len) & MASK] = item;
-                self.len += 1;
-            }
+        /// Push, returning error.Full if at capacity.
+        pub fn tryPush(self: *Self, item: T) error{Full}!void {
+            if (self.count == cap) return error.Full;
+            self.buf[(self.head + self.count) & mask] = item;
+            self.count += 1;
         }
 
         pub fn pop(self: *Self) ?T {
-            if (self.len == 0) return null;
-            const item = self.buf[self.head & MASK];
-            self.head = (self.head + 1) & MASK;
-            self.len -= 1;
-            return item;
+            if (self.count == 0) return null;
+            const v = self.buf[self.head & mask];
+            self.head = (self.head + 1) & mask;
+            self.count -= 1;
+            return v;
         }
 
         pub fn peek(self: *const Self) ?T {
-            if (self.len == 0) return null;
-            return self.buf[self.head & MASK];
+            if (self.count == 0) return null;
+            return self.buf[self.head & mask];
         }
 
-        pub fn isEmpty(self: *const Self) bool { return self.len == 0; }
-        pub fn isFull(self:  *const Self) bool { return self.len == CAP; }
+        pub fn len(self: *const Self) usize {
+            return self.count;
+        }
 
-        test "ring buffer basic" {
-            var rb = Self{};
-            try rb.push(1);
-            try rb.push(2);
-            try std.testing.expectEqual(@as(?T, 1), rb.pop());
-            try std.testing.expectEqual(@as(?T, 2), rb.pop());
-            try std.testing.expectEqual(@as(?T, null), rb.pop());
+        pub fn full(self: *const Self) bool {
+            return self.count == cap;
         }
     };
+}
+
+test "push pop peek" {
+    var rb: RingBuffer(u32, 4) = .{};
+    rb.push(10);
+    rb.push(20);
+    try std.testing.expectEqual(@as(?u32, 10), rb.peek());
+    try std.testing.expectEqual(@as(?u32, 10), rb.pop());
+    try std.testing.expectEqual(@as(?u32, 20), rb.pop());
+    try std.testing.expectEqual(@as(?u32, null), rb.pop());
+}
+
+test "overwrite on full" {
+    var rb: RingBuffer(u8, 2) = .{};
+    rb.push(1);
+    rb.push(2);
+    rb.push(3); // overwrites 1
+    try std.testing.expect(rb.full());
+    try std.testing.expectEqual(@as(?u8, 2), rb.pop());
+    try std.testing.expectEqual(@as(?u8, 3), rb.pop());
 }

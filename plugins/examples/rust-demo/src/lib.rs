@@ -1,11 +1,11 @@
 //! Schemify Plugin SDK — Rust demo
 //!
-//! Registers four panels and draws a widget gallery on every on_draw call.
+//! Registers four panels and draws a widget gallery on every draw_panel call.
 //!
-//! Build:  zig build        (invokes cargo build --release internally)
-//! Run:    zig build run
+//! Build:  cargo build --release
+//! WASM:   cargo build --release --target wasm32-unknown-unknown
 
-use schemify_plugin::{InMsg, PanelDef, PanelLayout, Plugin, Writer};
+use schemify::{Plugin, Writer, Layout};
 
 struct RustDemo {
     slider_val:   f32,
@@ -25,49 +25,47 @@ impl Default for RustDemo {
 
 impl Plugin for RustDemo {
     fn on_load(&mut self, w: &mut Writer) {
-        w.register_panel(&PanelDef { id: "rust-demo-overlay", title: "Properties",   vim_cmd: "rdprop",   layout: PanelLayout::Overlay,      keybind: 0 });
-        w.register_panel(&PanelDef { id: "rust-demo-left",    title: "Components",   vim_cmd: "rdcomp",   layout: PanelLayout::LeftSidebar,  keybind: 0 });
-        w.register_panel(&PanelDef { id: "rust-demo-right",   title: "Design Stats", vim_cmd: "rdstats",  layout: PanelLayout::RightSidebar, keybind: 0 });
-        w.register_panel(&PanelDef { id: "rust-demo-bottom",  title: "Status",       vim_cmd: "rdstatus", layout: PanelLayout::BottomBar,    keybind: 0 });
-        w.set_status("Rust Demo loaded!");
+        w.register_panel(b"rust-demo-overlay", b"Properties",   b"rdprop",   Layout::Overlay,      0);
+        w.register_panel(b"rust-demo-left",    b"Components",   b"rdcomp",   Layout::LeftSidebar,  0);
+        w.register_panel(b"rust-demo-right",   b"Design Stats", b"rdstats",  Layout::RightSidebar, 0);
+        w.register_panel(b"rust-demo-bottom",  b"Status",       b"rdstatus", Layout::BottomBar,    0);
+        w.set_status(b"Rust Demo loaded");
     }
 
     fn on_tick(&mut self, _dt: f32, _w: &mut Writer) {
         self.tick_count = self.tick_count.wrapping_add(1);
     }
 
-    fn on_draw(&mut self, _panel_id: u16, w: &mut Writer) {
-        // panel_id identifies which panel to draw; switch on it when the
-        // host assigns distinct IDs per registration. Currently always 0.
-        w.label("Selected: R1", 0);
+    fn on_draw_panel(&mut self, _panel_id: u16, w: &mut Writer) {
+        w.label(b"Selected: R1", 0);
         w.separator(1);
-        w.label("Value (kOhm)", 2);
+        w.label(b"Value (kOhm)", 2);
         w.slider(self.slider_val, 0.0, 100.0, 3);
-        w.checkbox(self.checkbox_val, "Show in netlist", 4);
-        w.button("Apply", 5);
+        w.checkbox(self.checkbox_val, b"Show in netlist", 4);
+        w.button(b"Apply", 5);
         w.separator(6);
-        w.collapsible_start("Component Browser", true, 7);
-        w.label("  Resistors: R1, R2, R3", 8);
-        w.label("  Capacitors: C1", 9);
-        w.label("  Transistors: M1, M2", 10);
+        w.collapsible_start(b"Component Browser", true, 7);
+        w.label(b"  Resistors: R1, R2, R3", 8);
+        w.label(b"  Capacitors: C1", 9);
+        w.label(b"  Transistors: M1, M2", 10);
         w.collapsible_end(7);
         w.separator(11);
-        w.label("Design Stats", 12);
+        w.label(b"Design Stats", 12);
         w.progress(0.75, 13);
         w.begin_row(14);
-        w.label("Nets: 12", 15);
-        w.label("Comps: 8", 16);
-        w.button("Simulate", 17);
+        w.label(b"Nets: 12", 15);
+        w.label(b"Comps: 8", 16);
+        w.button(b"Simulate", 17);
         w.end_row(14);
     }
 
-    fn on_event(&mut self, ev: InMsg, _w: &mut Writer) {
-        match ev {
-            InMsg::SliderChanged   { widget_id: 3, val, .. } => self.slider_val   = val,
-            InMsg::CheckboxChanged { widget_id: 4, val, .. } => self.checkbox_val = val,
-            _ => {}
-        }
+    fn on_slider_changed(&mut self, _panel_id: u16, widget_id: u32, val: f32, _w: &mut Writer) {
+        if widget_id == 3 { self.slider_val = val; }
+    }
+
+    fn on_checkbox_changed(&mut self, _panel_id: u16, widget_id: u32, val: bool, _w: &mut Writer) {
+        if widget_id == 4 { self.checkbox_val = val; }
     }
 }
 
-schemify_plugin::export_plugin!(RustDemo, "rust-demo", "0.1.0");
+schemify::export_plugin!("rust-demo", "0.1.0", RustDemo);

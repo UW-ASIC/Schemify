@@ -3,11 +3,10 @@
 //! Provides an overlay panel for importing XSchem and Virtuoso projects
 //! into Schemify format.  Uses the EasyImport library for conversion.
 //!
-//! Uses the Framework comptime layer — no manual ABI switch or widget ID math.
+//! Uses raw ABI pattern — manual message dispatch and widget ID management.
 
 const std = @import("std");
 const P = @import("PluginIF");
-const F = P.Framework;
 const ei = @import("easyimport");
 const core = @import("core");
 
@@ -293,35 +292,37 @@ fn handleConvert(s: *State, w: *P.Writer) void {
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────── //
 
-fn onLoad(_: *State, w: *P.Writer) void {
+fn onLoad(w: *P.Writer) void {
+    w.registerPanel("easyimport", "Import Project", "import", .overlay, 'I');
     w.setStatus("EasyImport ready");
-    w.log(.info, "EasyImport", "on_load");
+    w.log(0, "EasyImport", "on_load");
 }
 
-fn onUnload(s: *State, _: *P.Writer) void {
-    s.* = .{};
+// ── ABI export ────────────────────────────────────────────────────────────── //
+
+export fn schemify_process(
+    in_ptr: [*]const u8,
+    in_len: usize,
+    out_ptr: [*]u8,
+    out_cap: usize,
+) callconv(.C) usize {
+    var r = P.Reader.init(in_ptr[0..in_len]);
+    var w = P.Writer.init(out_ptr[0..out_cap]);
+
+    while (r.next()) |msg| switch (msg) {
+        .load          => onLoad(&w),
+        .unload        => state = .{},
+        .draw_panel    => drawPanel(&state, &w),
+        .button_clicked => |ev| onButton(&state, ev.widget_id, &w),
+        else           => {},
+    };
+
+    return w.finish() catch ~@as(usize, 0);
 }
 
-// ── Plugin definition ─────────────────────────────────────────────────────── //
-
-const MyPlugin = F.define(State, &state, .{
-    .name = "XSchemDropIN",
-    .version = "0.1.0",
-    .panels = &.{
-        F.PanelSpec{
-            .id = "easyimport",
-            .title = "Import Project",
-            .vim_cmd = "import",
-            .layout = .overlay,
-            .keybind = 'I',
-            .draw_fn = F.wrapDrawFn(State, drawPanel),
-            .on_button = F.wrapOnButton(State, onButton),
-        },
-    },
-    .on_load = F.wrapWriterHook(State, onLoad),
-    .on_unload = F.wrapWriterHook(State, onUnload),
-});
-
-comptime {
-    MyPlugin.export_plugin();
-}
+export const schemify_plugin: P.Descriptor = .{
+    .abi_version = P.ABI_VERSION,
+    .name        = "XSchemDropIN",
+    .version_str = "0.1.0",
+    .process     = &schemify_process,
+};

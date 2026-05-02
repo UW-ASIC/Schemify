@@ -1,21 +1,30 @@
 //! Thin action bar below the canvas — SPICE code button.
 
 const dvui = @import("dvui");
+const HTML = dvui.HTML;
 const st = @import("state");
-const actions = @import("../Actions.zig");
-
+const actions = @import("../actions.zig");
 const AppState = st.AppState;
 
-pub fn draw(app: *AppState) void {
-    var bar = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .expand = .horizontal,
-        .padding = .{ .x = 6, .y = 2, .w = 6, .h = 2 },
-        .min_size_content = .{ .h = 24 },
-    });
-    defer bar.deinit();
+var g_app: *AppState = undefined;
 
-    // SPICE Code button — always available.
-    if (dvui.button(@src(), "SPICE Code", .{}, .{ .id_extra = 0 })) {
-        actions.enqueue(app, .{ .immediate = .open_spice_code_dialog }, "Opening SPICE code block editor");
-    }
+const Bar = HTML.parse(
+    \\<nav style="display: flex; height: 24px; align-items: center; background: #181a22; padding: 0 8px; gap: 4px;">
+    \\  <style>
+    \\    button { padding: 0 10px; height: 20px; background: #282a34; color: #dce0e8; font-size: 11px; border-radius: 3px; }
+    \\    button:hover { background: #32343e; }
+    \\  </style>
+    \\  <button data-action="spice-code">SPICE Code</button>
+    \\</nav>
+);
+
+fn doSpiceCode() void {
+    actions.enqueue(g_app, .{ .immediate = .open_spice_code_dialog }, "Opening SPICE code editor");
+}
+
+pub fn draw(app: *AppState) void {
+    g_app = app;
+    var cbs = Bar.Callbacks{};
+    Bar.callbacksOn(&cbs, "spice-code", doSpiceCode);
+    Bar.renderDvui(.{ .callbacks = &cbs });
 }

@@ -1,5 +1,4 @@
 //! Xyce-specific emit logic.
-//! All functions here match the signature used in backend/lib.zig dispatch.
 
 const std = @import("std");
 const SpiceIF = @import("../SpiceIF.zig");
@@ -41,35 +40,20 @@ pub fn emitAnalysis(writer: anytype, an: SpiceIF.Analysis) !void {
             },
         },
         .tf => |t| try writer.print(".tf {s} {s}\n", .{ t.output_var, t.input_src }),
-        .pz => {
-            try writer.writeAll("* [UNSUPPORTED] .PZ not available in Xyce.\n");
-            try writer.writeAll("* Workaround: use dense .AC sweep + external vector fitting.\n");
-        },
-        .disto => {
-            try writer.writeAll("* [UNSUPPORTED] .DISTO not available in Xyce.\n");
-            try writer.writeAll("* Workaround: use .HB and extract harmonic magnitudes.\n");
-        },
-        .pss => {
-            try writer.writeAll("* [EMULATED] .PSS lowered to .HB\n");
-            try writer.print(".HB {e}\n", .{an.pss.gfreq});
-        },
-        .sp => {
-            try writer.writeAll(".LIN sparcalc=1\n");
-            try writer.print(".ac {s} {d} {e} {e}\n", .{ SpiceIF.sweepStr(an.sp.sweep), an.sp.n_points, an.sp.f_start, an.sp.f_stop });
-        },
-        .hb => |h| {
+        .pz => try writer.writeAll("* [UNSUPPORTED] .PZ not available in Xyce.\n"),
+        .disto => try writer.writeAll("* [UNSUPPORTED] .DISTO not available in Xyce.\n"),
+        .pss => try writer.print("* [EMULATED] .PSS lowered to .HB\n.HB {e}\n", .{an.pss.gfreq}),
+        .sp => try writer.print(".LIN sparcalc=1\n.ac {s} {d} {e} {e}\n", .{ SpiceIF.sweepStr(an.sp.sweep), an.sp.n_points, an.sp.f_start, an.sp.f_stop }),
+        .hb => |hb| {
             try writer.writeAll(".HB");
-            for (h.freqs) |f| try writer.print(" {e}", .{f});
+            for (hb.freqs) |f| try writer.print(" {e}", .{f});
             try writer.writeByte('\n');
-            try writer.print(".options HBINT numfreq={d}", .{h.n_harmonics});
-            if (h.startup) {
-                try writer.writeAll(" startup=1");
-                if (h.startup_periods) |p| try writer.print(" startupperiods={d}", .{p});
-            }
+            try writer.print(".options HBINT numfreq={d}", .{hb.n_harmonics});
+            if (hb.startup) { try writer.writeAll(" startup=1"); if (hb.startup_periods) |p| try writer.print(" startupperiods={d}", .{p}); }
             try writer.writeByte('\n');
         },
         .mpde => try writer.writeAll("* TODO: emit .MPDE\n"),
-        .four => {}, // emitted separately after .tran by emitTo
+        .four => {},
     }
 }
 
@@ -81,19 +65,13 @@ pub fn emitSweep(writer: anytype, sw: SpiceIF.Sweep) !void {
                 .lin => |lin| try writer.print("{e} {e} {e}", .{ lin.start, lin.stop, lin.step }),
                 .dec => |d| try writer.print("DEC {d} {e} {e}", .{ d.points, d.start, d.stop }),
                 .oct => |o| try writer.print("OCT {d} {e} {e}", .{ o.points, o.start, o.stop }),
-                .list => |l| {
-                    try writer.writeAll("LIST");
-                    for (l.values) |v| try writer.print(" {e}", .{v});
-                },
+                .list => |l| { try writer.writeAll("LIST"); for (l.values) |v| try writer.print(" {e}", .{v}); },
             }
             try writer.writeByte('\n');
         },
         .sampling => |s| {
             try writer.print(".SAMPLING\n+ numsamples={d}\n", .{s.num_samples});
-            switch (s.method) {
-                .mc => try writer.writeAll("+ sample_type=mc\n"),
-                .lhs => try writer.writeAll("+ sample_type=lhs\n"),
-            }
+            switch (s.method) { .mc => try writer.writeAll("+ sample_type=mc\n"), .lhs => try writer.writeAll("+ sample_type=lhs\n") }
             for (s.params) |p| {
                 try writer.print("+ param={s} ", .{p.name});
                 switch (p.dist) {
@@ -110,11 +88,7 @@ pub fn emitSweep(writer: anytype, sw: SpiceIF.Sweep) !void {
             try writer.print(".DATA {s}", .{d.name});
             for (d.param_names) |pn| try writer.print(" {s}", .{pn});
             try writer.writeByte('\n');
-            for (d.rows) |row| {
-                try writer.writeByte('+');
-                for (row) |v| try writer.print(" {e}", .{v});
-                try writer.writeByte('\n');
-            }
+            for (d.rows) |row| { try writer.writeByte('+'); for (row) |v| try writer.print(" {e}", .{v}); try writer.writeByte('\n'); }
             try writer.writeAll(".ENDDATA\n");
         },
     }

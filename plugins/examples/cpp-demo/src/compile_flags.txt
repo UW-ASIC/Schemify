@@ -1,2 +1,0 @@
--I/home/omare/Documents/Projects/Active/Schemify/tools/sdk
--std=c++17

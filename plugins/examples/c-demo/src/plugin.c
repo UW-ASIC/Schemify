@@ -3,11 +3,10 @@
  *
  * Registers four panels and draws a widget gallery on every draw_panel call.
  *
- * Build:  zig build
- * Run:    zig build run
+ * Build:  make
+ * WASM:   make web
  */
-#include "schemify_plugin.h"
-#include <string.h>
+#include "lib.h"
 
 static float  slider_val   = 0.5f;
 static int    checkbox_val = 1;
@@ -61,8 +60,6 @@ static size_t c_demo_process(
             tick_count++;
             break;
         case SP_TAG_DRAW_PANEL:
-            /* panel_id = msg.u.draw_panel.panel_id — switch on it when host
-             * assigns distinct IDs per registration. Currently always 0. */
             draw_widgets(&w);
             break;
         case SP_TAG_SLIDER_CHANGED:

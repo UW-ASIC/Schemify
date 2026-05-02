@@ -1,0 +1,11 @@
+[plugin]
+name        = "CCreator"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libCCreator.so"
+description = "Full-stack circuit toolkit: define PDK-agnostic circuits, switch PDKs with gm/Id-preserving remap, optimize transistor sizing via Bayesian optimization, and export to Schemify schematics."
+tags        = ["analog", "circuit", "simulation", "testbench", "spice", "pdk", "optimization", "gm/id", "import"]
+scope       = "user"
+
+[build]
+apt_deps = []

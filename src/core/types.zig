@@ -1,13 +1,8 @@
-//! types.zig — All shared/simple data types for the core module.
-//!
-//! Public within the module; external consumers access them through lib.zig
-//! re-exports only where needed in function signatures.
-
 const std = @import("std");
-const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
 
-// ── PinDir ────────────────────────────────────────────────────────────────────
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+pub const SchematicType = enum(u2) { schematic, symbol, testbench, primitive };
 
 pub const PinDir = enum(u8) {
     input,
@@ -16,67 +11,125 @@ pub const PinDir = enum(u8) {
     power,
     ground,
 
+    const map = std.StaticStringMap(PinDir).initComptime(.{
+        .{ "i", .input }, .{ "o", .output }, .{ "io", .inout },
+        .{ "p", .power }, .{ "g", .ground },
+        .{ "input", .input }, .{ "output", .output }, .{ "inout", .inout },
+        .{ "power", .power }, .{ "ground", .ground },
+    });
+
     pub fn fromStr(s: []const u8) PinDir {
-        if (s.len == 0) return .inout;
-        return switch (s[0]) {
-            'i' => if (s.len >= 5 and s[1] == 'n' and s[2] == 'o') .inout
-                else if (s.len == 2 and s[1] == 'o') .inout
-                else .input,
-            'o' => .output,
-            'p' => .power,
-            'g' => .ground,
-            else => .inout,
-        };
+        return map.get(s) orelse .inout;
     }
 
     pub fn toStr(self: PinDir) []const u8 {
         return switch (self) {
-            .input  => "i",
-            .output => "o",
-            .inout  => "io",
-            .power  => "p",
-            .ground => "g",
+            .input => "i", .output => "o", .inout => "io",
+            .power => "p", .ground => "g",
         };
     }
 };
 
-// ── DOD element structs (ordered by alignment: largest first) ─────────────────
+pub const GeomKind = enum(u8) { line, rect, circle, arc, text, polygon };
 
-pub const Line = struct {
-    // i32 fields first (4-byte alignment), then u8
-    x0: i32,
-    y0: i32,
-    x1: i32,
-    y1: i32,
-    layer: u8,
+pub const DeviceKind = enum(u8) {
+    unknown,
+    // Passives
+    resistor, resistor3, var_resistor, capacitor, inductor,
+    // Diodes
+    diode, zener,
+    // MOSFETs
+    nmos3, pmos3, nmos4, pmos4, nmos4_depl, nmos_sub, pmos_sub, nmoshv4, pmoshv4, rnmos4,
+    // BJTs
+    npn, pnp,
+    // JFETs / MESFET
+    njfet, pjfet, mesfet,
+    // Sources
+    vsource, isource, sqwsource, ammeter, behavioral,
+    // Controlled sources
+    vcvs, vccs, ccvs, cccs,
+    // Transmission / coupling
+    coupling, tline, tline_lossy,
+    // Switches
+    vswitch, iswitch,
+    // Simulation / probes
+    param, probe, probe_diff, code, graph,
+    // HDL
+    hdl,
+    // Connectors / labels
+    gnd, vdd, lab_pin, input_pin, output_pin, inout_pin,
+    // Non-electrical
+    annotation, noconn, title, launcher, rgb_led, generic,
+    // Hierarchical
+    digital_instance, subckt,
+
+    pub fn isNonElectrical(self: DeviceKind) bool {
+        return switch (self) {
+            .annotation, .title, .param, .code, .graph,
+            .launcher, .rgb_led, .noconn, .generic,
+            => true,
+            else => false,
+        };
+    }
+
+    pub fn isLabel(self: DeviceKind) bool {
+        return switch (self) {
+            .lab_pin, .input_pin, .output_pin, .inout_pin => true,
+            else => false,
+        };
+    }
+
+    pub fn isPower(self: DeviceKind) bool {
+        return self == .gnd or self == .vdd;
+    }
 };
 
-pub const Rect = struct {
-    x0: i32,
-    y0: i32,
-    x1: i32,
-    y1: i32,
-    layer: u8,
+pub const ConnKind = enum(u8) {
+    instance_pin,
+    wire_endpoint,
+    label,
+
+    const tags = std.StaticStringMap(ConnKind).initComptime(.{
+        .{ "ip", .instance_pin }, .{ "we", .wire_endpoint }, .{ "lb", .label },
+    });
+
+    pub fn toTag(self: ConnKind) []const u8 {
+        return switch (self) {
+            .instance_pin => "ip", .wire_endpoint => "we", .label => "lb",
+        };
+    }
+
+    pub fn fromTag(s: []const u8) ConnKind {
+        return tags.get(s) orelse .label;
+    }
 };
 
-pub const Circle = struct {
-    cx: i32,
-    cy: i32,
-    radius: i32,
-    layer: u8,
+// ── Flags ────────────────────────────────────────────────────────────────────
+
+pub const InstanceFlags = packed struct(u8) {
+    rot: u2 = 0,
+    flip: bool = false,
+    bus: bool = false,
+    _pad: u4 = 0,
 };
 
-pub const Arc = struct {
-    cx: i32,
-    cy: i32,
-    radius: i32,
-    start_angle: i16,
-    sweep_angle: i16,
-    layer: u8,
+// ── Core data structs (fields ordered by alignment: 8, 4, 2, 1) ─────────────
+
+pub const Instance = struct {
+    name: []const u8,
+    symbol: []const u8,
+    spice_line: ?[]const u8 = null,
+    prop_start: u32 = 0,
+    conn_start: u32 = 0,
+    x: i32 = 0,
+    y: i32 = 0,
+    prop_count: u16 = 0,
+    conn_count: u16 = 0,
+    kind: DeviceKind = .unknown,
+    flags: InstanceFlags = .{},
 };
 
 pub const Wire = struct {
-    // slice (8-byte) first, then i32, then bool
     net_name: ?[]const u8 = null,
     x0: i32,
     y0: i32,
@@ -85,18 +138,7 @@ pub const Wire = struct {
     bus: bool = false,
 };
 
-pub const Text = struct {
-    // slice (8-byte) first, then i32, then u8/u2
-    content: []const u8,
-    x: i32,
-    y: i32,
-    layer: u8 = 4,
-    size: u8 = 10,
-    rotation: u2 = 0,
-};
-
 pub const Pin = struct {
-    // slice (8-byte) first, then i32, then u16, then enum(u8)
     name: []const u8,
     x: i32,
     y: i32,
@@ -105,30 +147,12 @@ pub const Pin = struct {
     dir: PinDir = .inout,
 };
 
-pub const Instance = struct {
-    // slices (8-byte) first, then u32, then i32, then u16, then u2/bool/enum
-    name: []const u8,
-    symbol: []const u8,
-    spice_line: ?[]const u8 = null,
-    prop_start: u32 = 0,
-    conn_start: u32 = 0,
-    x: i32,
-    y: i32,
-    prop_count: u16 = 0,
-    conn_count: u16 = 0,
-    kind: DeviceKind = .unknown,
-    rot: u2 = 0,
-    flip: bool = false,
-};
-
-pub const Prop = struct {
-    // both slices (8-byte)
+pub const Property = struct {
     key: []const u8,
     val: []const u8,
 };
 
 pub const Conn = struct {
-    // both slices (8-byte)
     pin: []const u8,
     net: []const u8,
 };
@@ -137,32 +161,7 @@ pub const Net = struct {
     name: []const u8,
 };
 
-pub const ConnKind = enum(u8) {
-    instance_pin,
-    wire_endpoint,
-    label,
-
-    const tag_table = std.StaticStringMap(ConnKind).initComptime(.{
-        .{ "ip", .instance_pin },
-        .{ "we", .wire_endpoint },
-        .{ "lb", .label },
-    });
-
-    pub fn toTag(self: ConnKind) []const u8 {
-        return switch (self) {
-            .instance_pin  => "ip",
-            .wire_endpoint => "we",
-            .label         => "lb",
-        };
-    }
-
-    pub fn fromTag(s: []const u8) ConnKind {
-        return tag_table.get(s) orelse .label;
-    }
-};
-
 pub const NetConn = struct {
-    // u32 first, then i32, then optional slice, then enum(u8)
     net_id: u32,
     ref_a: i32,
     ref_b: i32,
@@ -170,44 +169,40 @@ pub const NetConn = struct {
     kind: ConnKind,
 };
 
-pub const NetMap = struct {
-    // hash maps (contain pointers, 8-byte alignment)
-    root_to_name: std.AutoHashMapUnmanaged(u64, []const u8),
-    point_to_root: std.AutoHashMapUnmanaged(u64, u64),
+// ── Geometry ─────────────────────────────────────────────────────────────────
 
-    pub fn init() NetMap {
-        return .{ .root_to_name = .{}, .point_to_root = .{} };
-    }
-
-    pub fn deinit(self: *NetMap, a: Allocator) void {
-        self.root_to_name.deinit(a);
-        self.point_to_root.deinit(a);
-    }
-
-    pub fn pointKey(x: i32, y: i32) u64 {
-        const ux: u64 = @as(u32, @bitCast(x));
-        const uy: u64 = @as(u32, @bitCast(y));
-        return (ux << 32) | uy;
-    }
-
-    pub fn getNetName(self: *const NetMap, x: i32, y: i32) ?[]const u8 {
-        const root = self.point_to_root.get(pointKey(x, y)) orelse return null;
-        return self.root_to_name.get(root);
-    }
+pub const Line = struct {
+    x0: i32, y0: i32, x1: i32, y1: i32,
+    layer: u8 = 4,
 };
 
-pub const SifyType = enum(u2) { primitive, component, testbench };
-
-pub const SymDataPin = struct {
-    // slice first, then i32, then slice of Prop
-    name: []const u8,
-    x: i32,
-    y: i32,
-    props: []const Prop = &.{},
+pub const Rect = struct {
+    x0: i32, y0: i32, x1: i32, y1: i32,
+    layer: u8 = 4,
 };
+
+pub const Circle = struct {
+    cx: i32, cy: i32, radius: i32,
+    layer: u8 = 4,
+};
+
+pub const Arc = struct {
+    cx: i32, cy: i32, radius: i32,
+    start_angle: i16, sweep_angle: i16,
+    layer: u8 = 4,
+};
+
+pub const Text = struct {
+    content: []const u8,
+    x: i32, y: i32,
+    layer: u8 = 4,
+    size: u8 = 10,
+    rotation: u2 = 0,
+};
+
+// ── Symbol / resolved data ───────────────────────────────────────────────────
 
 pub const PinRef = struct {
-    // slice first, then i32, then enum, then bool
     name: []const u8,
     x: i32 = 0,
     y: i32 = 0,
@@ -216,116 +211,56 @@ pub const PinRef = struct {
 };
 
 pub const SymData = struct {
-    // slices (8-byte) first, then optional slices
     pins: []const PinRef = &.{},
-    props: []const Prop = &.{},
+    props: []const Property = &.{},
     format: ?[]const u8 = null,
     lvs_format: ?[]const u8 = null,
     template: ?[]const u8 = null,
 };
 
-// ── DeviceKind (re-exported from Devices.zig) ────────────────────────────────
-
-pub const DeviceKind = @import("devices/Devices.zig").DeviceKind;
-
-// ── Helper types used by Devices.zig (private to module) ─────────────────────
-
-pub const ParamDefault = struct {
-    key: []const u8,
-    val: []const u8,
+pub const PrimCacheEntry = struct {
+    pin_positions: []const PinRef = &.{},
+    injected_net: ?[]const u8 = null,
 };
 
+// ── Net map (union-find point lookup) ────────────────────────────────────────
 
-pub const NameEntry = struct {
-    name: []const u8,
-    ref: CellRef,
-};
+pub const NetMap = struct {
+    root_to_name: std.AutoHashMapUnmanaged(u64, []const u8) = .{},
+    point_to_root: std.AutoHashMapUnmanaged(u64, u64) = .{},
 
-pub const CellTier = enum(u2) { prim = 0, comp = 1, tb = 2, unregistered = 3 };
-
-pub const CellRef = packed struct(u32) {
-    idx: u30,
-    tier: CellTier,
-};
-
-pub const PrimKindIter = struct {
-    kinds: []const DeviceKind,
-    target: DeviceKind,
-    pos: usize = 0,
-
-    pub fn next(self: *PrimKindIter) ?u30 {
-        while (self.pos < self.kinds.len) {
-            const i = self.pos;
-            self.pos += 1;
-            if (self.kinds[i] == self.target) return @intCast(i);
-        }
-        return null;
+    pub fn deinit(self: *NetMap, a: std.mem.Allocator) void {
+        self.root_to_name.deinit(a);
+        self.point_to_root.deinit(a);
     }
 
-    pub fn reset(self: *PrimKindIter) void {
-        self.pos = 0;
+    pub fn pointKey(x: i32, y: i32) u64 {
+        return (@as(u64, @as(u32, @bitCast(x))) << 32) | @as(u64, @as(u32, @bitCast(y)));
+    }
+
+    pub fn getNetName(self: *const NetMap, x: i32, y: i32) ?[]const u8 {
+        const root = self.point_to_root.get(pointKey(x, y)) orelse return null;
+        return self.root_to_name.get(root);
     }
 };
 
-pub const LibInclude = struct {
-    path: []const u8,
-    /// true -> `.lib "path" <corner>`, false -> `.include "path"`
-    has_sections: bool,
-};
+// ── Plugin block (round-trip preserved) ──────────────────────────────────────
 
-pub const Prim = struct {
-    // slices (8-byte) first, then enum/u8
-    cell_name: []const u8,
-    file: []const u8,
-    library: []const u8,
-    pin_order: []const []const u8,
-    model_name: ?[]const u8,
-    default_params: []const ParamDefault,
-    lib_includes: []const LibInclude,
-    kind: DeviceKind,
-    prefix: u8,
-};
-
-pub const Comp = struct {
-    cell_name: []const u8,
-    file: []const u8,
-    library: []const u8,
-    pin_order: []const []const u8,
-};
-
-pub const Tb = struct {
-    cell_name: []const u8,
-    file: []const u8,
-    library: []const u8,
-};
-
-// ── Diagnostic types ─────────────────────────────────────────────────────────
-
-pub const DiagLevel = enum { @"error", warning, info };
-
-pub const Diagnostic = struct {
-    // slices first, then enum
-    code: []const u8,
-    message: []const u8,
-    level: DiagLevel,
-};
-
-pub const LogLevel = enum { info, warn, err };
-
-// ── ComponentDesc (used by Schemify.addComponent) ────────────────────────────
-
-pub const ComponentDesc = struct {
-    // slices (8-byte) first, then i32, then small types
+pub const PluginBlock = struct {
     name: []const u8,
-    symbol: []const u8,
-    props: []const Prop = &.{},
-    conns: []const Conn = &.{},
-    spice_line: ?[]const u8 = null,
-    sym_data: ?SymData = null,
-    x: i32,
-    y: i32,
-    kind: DeviceKind = .unknown,
-    rot: u2 = 0,
-    flip: bool = false,
+    entries: std.ArrayListUnmanaged(Property) = .{},
 };
 
+// ── File type detection ──────────────────────────────────────────────────────
+
+pub const FileType = enum {
+    chn, chn_prim, chn_tb, xschem_sch, unknown,
+
+    pub fn fromPath(path: []const u8) FileType {
+        if (std.mem.endsWith(u8, path, ".chn_prim")) return .chn_prim;
+        if (std.mem.endsWith(u8, path, ".chn_tb")) return .chn_tb;
+        if (std.mem.endsWith(u8, path, ".chn")) return .chn;
+        if (std.mem.endsWith(u8, path, ".sch")) return .xschem_sch;
+        return .unknown;
+    }
+};

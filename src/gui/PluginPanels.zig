@@ -1,18 +1,20 @@
-//! Plugin panel rendering — sidebars, bottom bar, and overlay windows.
+//! Plugin panel rendering -- sidebars, bottom bar, and overlay windows.
 //!
-//! Each panel is drawn from its `ParsedWidget` list (populated by the plugin
-//! runtime).  Layout is determined by `PluginPanelLayout`.
+//! Each panel is drawn from its ParsedWidget list (populated by the plugin
+//! runtime via PluginHost). Layout is determined by PluginPanelLayout.
 
 const std = @import("std");
 const dvui = @import("dvui");
 const st = @import("state");
-const plugin_runtime = @import("runtime");
+const plugins = @import("plugins");
+const PluginHost = plugins.PluginHost.PluginHost;
 
 const AppState = st.AppState;
 const PluginPanelMeta = st.PluginPanelMeta;
 const PluginPanelState = st.PluginPanelState;
 const PluginPanelLayout = st.PluginPanelLayout;
-const Runtime = plugin_runtime.Runtime;
+
+const tc = @import("theme_config");
 
 const sidebar_min_width: f32 = 220;
 const sidebar_padding: f32 = 8;
@@ -20,16 +22,12 @@ const bottom_bar_min_height: f32 = 150;
 const bottom_bar_padding: f32 = 8;
 const overlay_min_width: f32 = 360;
 const overlay_min_height: f32 = 220;
-const panel_bg = dvui.Color{ .r = 24, .g = 24, .b = 30, .a = 255 };
-const awaiting_plugin_msg = "(awaiting plugin response)";
+const awaiting_msg = "(awaiting plugin response)";
 
-/// Maximum row nesting depth (begin_row / end_row).
 const MAX_ROW_NESTING: usize = 8;
-
-/// Maximum tracked collapsible sections per panel.
 const MAX_COLLAPSIBLES: usize = 32;
 
-// ── Public draw entry points ──────────────────────────────────────────────── //
+// -- Public draw entry points -------------------------------------------------
 
 pub fn drawSidebar(app: *AppState, layout: PluginPanelLayout) void {
     const metas = app.gui.cold.plugin_panels_meta.items;
@@ -37,54 +35,42 @@ pub fn drawSidebar(app: *AppState, layout: PluginPanelLayout) void {
     for (states, 0..) |state, i| {
         if (!state.visible or state.layout != layout) continue;
         var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .id_extra = i,
             .background = true,
-            .color_fill = panel_bg,
+            .color_fill = tc.getSidebarBg(),
             .min_size_content = .{ .w = sidebar_min_width },
-            .padding = .{
-                .x = sidebar_padding,
-                .y = sidebar_padding,
-                .w = sidebar_padding,
-                .h = sidebar_padding,
-            },
+            .padding = .{ .x = sidebar_padding, .y = sidebar_padding, .w = sidebar_padding, .h = sidebar_padding },
             .expand = .vertical,
         });
         defer box.deinit();
-        drawPanelBody(metas[i], state, app);
+        drawPanelBody(metas[i], state, app, i);
     }
 }
 
 pub fn drawBottomBar(app: *AppState) void {
-    const metas = app.gui.cold.plugin_panels_meta.items;
     const states = app.gui.cold.plugin_panels_state.items;
-
     var has_bottom = false;
-    for (states) |s| {
-        if (s.visible and s.layout == .bottom_bar) {
-            has_bottom = true;
-            break;
-        }
-    }
+    for (states) |s| if (s.visible and s.layout == .bottom_bar) {
+        has_bottom = true;
+        break;
+    };
     if (!has_bottom) return;
 
     var bar = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .background = true,
-        .color_fill = panel_bg,
+        .color_fill = tc.getBottomBarBg(),
         .min_size_content = .{ .h = bottom_bar_min_height },
-        .padding = .{
-            .x = bottom_bar_padding,
-            .y = bottom_bar_padding,
-            .w = bottom_bar_padding,
-            .h = bottom_bar_padding,
-        },
+        .padding = .{ .x = bottom_bar_padding, .y = bottom_bar_padding, .w = bottom_bar_padding, .h = bottom_bar_padding },
         .expand = .horizontal,
     });
     defer bar.deinit();
 
+    const metas = app.gui.cold.plugin_panels_meta.items;
     for (states, 0..) |state, i| {
         if (!state.visible or state.layout != .bottom_bar) continue;
-        var section = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
+        var section = dvui.box(@src(), .{ .dir = .vertical }, .{ .id_extra = i, .expand = .both });
         defer section.deinit();
-        drawPanelBody(metas[i], state, app);
+        drawPanelBody(metas[i], state, app, i);
     }
 }
 
@@ -92,28 +78,23 @@ pub fn drawOverlays(app: *AppState) void {
     const metas = app.gui.cold.plugin_panels_meta.items;
     for (app.gui.cold.plugin_panels_state.items, 0..) |*state, i| {
         if (!state.visible or state.layout != .overlay) continue;
-
-        var fwin = dvui.floatingWindow(@src(), .{
-            .open_flag = &state.visible,
-        }, .{
+        var fwin = dvui.floatingWindow(@src(), .{ .open_flag = &state.visible }, .{
             .id_extra = i,
             .min_size_content = .{ .w = overlay_min_width, .h = overlay_min_height },
         });
         defer fwin.deinit();
-
         fwin.dragAreaSet(dvui.windowHeader(metas[i].title, "", &state.visible));
-        drawPanelBody(metas[i], state.*, app);
+        drawPanelBody(metas[i], state.*, app, i);
     }
 }
 
 pub fn handlePlainKeyToggle(app: *AppState, key_char: u8) bool {
     if (key_char == 0) return false;
-    const states = app.gui.cold.plugin_panels_state.items;
     const idx_i8 = app.gui.cold.key_to_panel[key_char];
     if (idx_i8 < 0) return false;
     const idx: usize = @intCast(idx_i8);
-    if (idx >= states.len) return false;
-    app.gui.cold.plugin_panels_state.items[idx].visible = !states[idx].visible;
+    if (idx >= app.gui.cold.plugin_panels_state.items.len) return false;
+    app.gui.cold.plugin_panels_state.items[idx].visible = !app.gui.cold.plugin_panels_state.items[idx].visible;
     return true;
 }
 
@@ -128,38 +109,28 @@ pub fn tryHandleVim(app: *AppState, name: []const u8) bool {
     return false;
 }
 
-// ── Private rendering ─────────────────────────────────────────────────────── //
+// -- Private rendering --------------------------------------------------------
 
-/// Tracks collapsible section open/closed state within a single panel draw.
 const CollapsibleTracker = struct {
     collapsed: [MAX_COLLAPSIBLES]bool = .{true} ** MAX_COLLAPSIBLES,
     idx: usize = 0,
     skip_depth: usize = 0,
 
-    /// Returns true if we're inside a collapsed section and content should be skipped.
     fn shouldSkip(self: *CollapsibleTracker, tag: anytype) bool {
         if (self.skip_depth > 0) {
-            if (tag == .collapsible_start) {
-                self.skip_depth += 1;
-            } else if (tag == .collapsible_end) {
-                self.skip_depth -= 1;
-            }
+            if (tag == .collapsible_start) self.skip_depth += 1
+            else if (tag == .collapsible_end) self.skip_depth -= 1;
             return true;
         }
         return false;
     }
 
-    /// Handle a collapsible_start widget. Returns true if content should be rendered.
     fn startSection(self: *CollapsibleTracker, str: []const u8, is_open: bool, id_extra: usize) bool {
         const cidx = self.idx;
         self.idx += 1;
-        if (is_open and cidx < MAX_COLLAPSIBLES) {
-            self.collapsed[cidx] = false;
-        }
+        if (is_open and cidx < MAX_COLLAPSIBLES) self.collapsed[cidx] = false;
         if (dvui.button(@src(), str, .{}, .{ .id_extra = id_extra, .style = .highlight })) {
-            if (cidx < MAX_COLLAPSIBLES) {
-                self.collapsed[cidx] = !self.collapsed[cidx];
-            }
+            if (cidx < MAX_COLLAPSIBLES) self.collapsed[cidx] = !self.collapsed[cidx];
         }
         if (cidx < MAX_COLLAPSIBLES and self.collapsed[cidx]) {
             self.skip_depth = 1;
@@ -169,7 +140,6 @@ const CollapsibleTracker = struct {
     }
 };
 
-/// Manages begin_row / end_row nesting with fixed-depth stack.
 const RowStack = struct {
     boxes: [MAX_ROW_NESTING]*dvui.BoxWidget = undefined,
     depth: usize = 0,
@@ -193,47 +163,38 @@ const RowStack = struct {
     }
 };
 
-/// Render all widgets for a single plugin panel.
-///
-/// Reads the ParsedWidget list from the runtime via the opaque pointer stored
-/// in AppState.  Each widget type maps to a dvui call.  Interactive widgets
-/// (button, slider, checkbox) dispatch events back through the runtime so the
-/// plugin sees them on the next tick.
-fn drawPanelBody(meta: PluginPanelMeta, state: PluginPanelState, app: *AppState) void {
+fn drawPanelBody(meta: PluginPanelMeta, state: PluginPanelState, app: *AppState, panel_idx: usize) void {
+    const id_base = panel_idx *| 0x10000;
+
     switch (state.load_state) {
         .lazy_pending => {
-            const rt_ptr = app.plugin_runtime_ptr orelse return;
-            const rt: *Runtime = @ptrCast(@alignCast(rt_ptr));
-            rt.ensureLoaded(app, meta.id);
-            dvui.labelNoFmt(@src(), "Loading...", .{}, .{});
+            const host = app.plugin_host orelse return;
+            host.loadPlugin(meta.id);
+            dvui.labelNoFmt(@src(), "Loading...", .{}, .{ .id_extra = id_base });
             return;
         },
         .loading => {
-            dvui.labelNoFmt(@src(), "Loading...", .{}, .{});
+            dvui.labelNoFmt(@src(), "Loading...", .{}, .{ .id_extra = id_base });
             return;
         },
         .failed => {
-            dvui.labelNoFmt(@src(), "Plugin failed to load.", .{}, .{});
+            dvui.labelNoFmt(@src(), "Plugin failed to load.", .{}, .{ .id_extra = id_base });
             return;
         },
         .loaded => {},
     }
 
-    // Title (always shown, highlight style).
-    dvui.labelNoFmt(@src(), meta.title, .{}, .{ .style = .highlight });
+    dvui.labelNoFmt(@src(), meta.title, .{}, .{ .id_extra = id_base, .style = .highlight });
 
-    // Obtain runtime pointer -- graceful null check per UI-SPEC.
-    const rt_ptr = app.plugin_runtime_ptr orelse {
-        drawAwaitingPlugin(@as(usize, 0xFFFF));
+    const host = app.plugin_host orelse {
+        dvui.labelNoFmt(@src(), awaiting_msg, .{}, .{ .id_extra = id_base | 0xFFFF });
         return;
     };
-    const rt: *Runtime = @ptrCast(@alignCast(rt_ptr));
 
-    // Fetch the widget list for this panel.
-    const wl = rt.getPanelWidgetList(state.panel_id);
+    const wl = host.widgets(state.panel_id);
     const len = wl.len;
     if (len == 0) {
-        drawAwaitingPlugin(@as(usize, 0xFFFE));
+        dvui.labelNoFmt(@src(), awaiting_msg, .{}, .{ .id_extra = id_base | 0xFFFE });
         return;
     }
 
@@ -250,48 +211,59 @@ fn drawPanelBody(meta: PluginPanelMeta, state: PluginPanelState, app: *AppState)
 
     for (0..len) |i| {
         const tag = tags[i];
+        const wid = id_base + i;
 
         if (collapsibles.shouldSkip(tag)) continue;
 
         switch (tag) {
-            .label => dvui.labelNoFmt(@src(), strs[i], .{}, .{ .id_extra = i }),
+            .label => dvui.labelNoFmt(@src(), strs[i], .{}, .{ .id_extra = wid }),
             .button => {
-                if (dvui.button(@src(), strs[i], .{}, .{ .id_extra = i })) {
-                    rt.dispatchButtonClicked(state.panel_id, widget_ids[i]);
-                }
+                if (dvui.button(@src(), strs[i], .{}, .{ .id_extra = wid }))
+                    host.dispatchButton(state.panel_id, widget_ids[i]);
             },
-            .separator => {
-                _ = dvui.separator(@src(), .{ .id_extra = i });
-            },
-            .begin_row => rows.push(i),
+            .separator => _ = dvui.separator(@src(), .{ .id_extra = wid }),
+            .begin_row => rows.push(wid),
             .end_row => rows.pop(),
             .slider => {
                 const range = maxs[i] - mins[i];
-                var fraction: f32 = sliderFraction(vals[i], mins[i], maxs[i]);
-                if (dvui.slider(@src(), .{ .fraction = &fraction }, .{ .id_extra = i })) {
-                    rt.dispatchSliderChanged(state.panel_id, widget_ids[i], mins[i] + fraction * range);
-                }
+                var fraction: f32 = if (range > 0) std.math.clamp((vals[i] - mins[i]) / range, 0, 1) else 0;
+                if (dvui.slider(@src(), .{ .fraction = &fraction }, .{ .id_extra = wid }))
+                    host.dispatchSlider(state.panel_id, widget_ids[i], mins[i] + fraction * range);
             },
             .checkbox => {
                 var checked: bool = vals[i] != 0;
-                if (dvui.checkbox(@src(), &checked, strs[i], .{ .id_extra = i })) {
-                    rt.dispatchCheckboxChanged(state.panel_id, widget_ids[i], checked);
-                }
+                if (dvui.checkbox(@src(), &checked, strs[i], .{ .id_extra = wid }))
+                    host.dispatchCheckbox(state.panel_id, widget_ids[i], checked);
             },
-            .progress => dvui.progress(@src(), .{ .percent = vals[i] }, .{ .id_extra = i }),
-            .collapsible_start => _ = collapsibles.startSection(strs[i], opens[i], i),
-            .collapsible_end => {},
+            .progress => dvui.progress(@src(), .{ .percent = vals[i] }, .{ .id_extra = wid }),
+            .collapsible_start => _ = collapsibles.startSection(strs[i], opens[i], wid),
+            .text_input => {
+                var te = dvui.textEntry(@src(), .{
+                    .text = .{ .internal = .{ .limit = 4096 } },
+                    .placeholder = strs[i],
+                }, .{ .id_extra = wid, .expand = .horizontal });
+                if (te.enter_pressed) {
+                    const txt = te.getText();
+                    host.dispatchText(state.panel_id, widget_ids[i], txt);
+                }
+                te.deinit();
+            },
+            .text_area => {
+                var te = dvui.textEntry(@src(), .{
+                    .multiline = true,
+                    .break_lines = true,
+                    .text = .{ .internal = .{ .limit = 32768 } },
+                    .placeholder = strs[i],
+                }, .{ .id_extra = wid, .expand = .both, .min_size_content = .{ .h = 200 } });
+                if (te.text_changed) {
+                    const txt = te.getText();
+                    host.dispatchText(state.panel_id, widget_ids[i], txt);
+                }
+                te.deinit();
+            },
+            .collapsible_end, .tooltip => {},
         }
     }
 
     rows.closeAll();
-}
-
-fn drawAwaitingPlugin(id_extra: usize) void {
-    dvui.labelNoFmt(@src(), awaiting_plugin_msg, .{}, .{ .id_extra = id_extra });
-}
-
-fn sliderFraction(val: f32, mn: f32, mx: f32) f32 {
-    const range = mx - mn;
-    return if (range > 0) std.math.clamp((val - mn) / range, 0, 1) else 0;
 }

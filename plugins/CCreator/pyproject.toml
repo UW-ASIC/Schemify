@@ -1,0 +1,20 @@
+[build-system]
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name        = "schemify-ccreator"
+version     = "0.1.0"
+description = "Schemify CCreator plugin — circuit design toolkit with PDK switching, gm/Id optimization, and Schemify export"
+requires-python = ">=3.11"
+dependencies = [
+    "sympy>=1.12",
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "matplotlib>=3.8",
+    "PySpice>=1.5",
+    "botorch",
+    "gpytorch",
+    "torch",
+    "scikit-learn",
+]

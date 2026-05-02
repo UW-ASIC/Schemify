@@ -1,6 +1,6 @@
-//! Canvas module -- orchestrates sub-renderers in z-order.
+//! Canvas module — orchestrates sub-renderers in z-order.
 //!
-//! Z-order (per D-02):
+//! Z-order:
 //!   Grid -> Wires -> Junctions -> Symbols -> Labels -> Selection -> Rubber-band -> Crosshair
 
 const dvui = @import("dvui");
@@ -8,15 +8,14 @@ const st = @import("state");
 const theme = @import("theme_config");
 
 const types = @import("types.zig");
-const grid = @import("Grid.zig");
-const symbol_renderer = @import("SymbolRenderer.zig");
-const wire_renderer = @import("WireRenderer.zig");
-const selection_overlay = @import("SelectionOverlay.zig");
-const interaction = @import("Interaction.zig");
-const tb_overlay = @import("TbOverlay.zig");
-const canvas_bar = @import("CanvasBar.zig");
+const render = @import("render.zig");
+const symbols = @import("symbols.zig");
+const wires = @import("wires.zig");
+const overlays = @import("overlays.zig");
+const interaction = @import("interaction.zig");
 
 const AppState = st.AppState;
+const PluginHost = st.PluginHost;
 const RenderContext = types.RenderContext;
 const RenderViewport = types.RenderViewport;
 const CanvasEvent = types.CanvasEvent;
@@ -43,12 +42,14 @@ pub fn draw(app: *AppState) CanvasEvent {
         .bounds = rs.r,
     };
 
-    // Testbench overlay input (must run before canvas interaction so button
-    // clicks are consumed before the canvas pan/select logic sees them).
-    tb_overlay.preInput(app, wd, rs.r);
+    // Testbench overlay input (before canvas interaction).
+    overlays.tbPreInput(app, wd, rs.r);
 
-    // Input handling (uses app.gui.hot.canvas instead of module-level Renderer state).
+    // Input handling.
     const event = interaction.handleInput(&app.gui.hot.canvas, app, wd, vp);
+
+    // Dispatch hover events to plugins.
+    dispatchPluginHover(app);
 
     const ctx = RenderContext{
         .allocator = app.gpa.allocator(),
@@ -57,51 +58,69 @@ pub fn draw(app: *AppState) CanvasEvent {
         .cmd_flags = app.cmd_flags,
     };
 
-    // Clip every draw below to the canvas widget's physical rect. Without
-    // this, grid dots, instance geometry, and wire-preview overlays can
-    // paint outside the canvas box — e.g. into the toolbar above, when the
-    // user pans so that schematic content's projected position falls above
-    // rs.r.y. `dvui.clip` intersects with the current clip and returns the
-    // previous value, so nested per-renderer clips (WireRenderer,
-    // SymbolRenderer.drawSymbol) remain correct.
+    // Clip to canvas widget.
     const prev_clip = dvui.clip(rs.r);
     defer dvui.clipSet(prev_clip);
 
     // Z-order rendering.
-    if (app.show_grid) grid.draw(&ctx, app.tool.snap_size);
-    grid.drawOrigin(&ctx);
+    if (app.show_grid) render.drawGrid(&ctx, app.tool.snap_size);
+    render.drawOrigin(&ctx);
 
     if (app.active_idx < app.documents.items.len) {
         const doc = &app.documents.items[app.active_idx];
-        const file_type = symbol_renderer.classifyFile(doc.origin);
+        const file_type = symbols.classifyFile(doc.origin);
 
         switch (app.gui.hot.view_mode) {
             .schematic => if (file_type != .prim_only) {
-                // Rebuild prim cache on first frame after any structural
-                // mutation (file load, instance add/remove). Zero string
-                // lookups during the render loop.
                 if (doc.sch.prim_cache_dirty or doc.sch.prim_cache.len != doc.sch.instances.len) {
-                    doc.sch.rebuildPrimCache();
-                    doc.sch.rebuildSymData();
+                    doc.sch.rebuildPrimCache(doc.alloc);
+                    doc.sch.rebuildSymData(doc.alloc);
                     doc.clearMissingSymbols();
                 }
-                wire_renderer.draw(&ctx, &doc.sch, &doc.selection);
-                symbol_renderer.draw(&ctx, &doc.sch, app, &doc.selection, tb_overlay.isHovered());
-                tb_overlay.draw(&ctx, app);
+                wires.draw(&ctx, &doc.sch, &doc.selection);
+                symbols.draw(&ctx, &doc.sch, app, &doc.selection, overlays.tbIsHovered());
+                overlays.tbDraw(&ctx, app);
             },
             .symbol => if (file_type != .tb_only) {
-                symbol_renderer.drawSymbol(&ctx, &doc.sch);
+                symbols.drawSymbol(&ctx, &doc.sch);
             },
         }
 
-        // Wire placement preview overlay.
-        if (app.gui.hot.view_mode == .schematic) selection_overlay.drawWirePreview(&ctx, app);
-
-        // Rubber-band selection rectangle overlay.
-        selection_overlay.drawRubberBand(&ctx, app);
+        if (app.gui.hot.view_mode == .schematic) overlays.drawWirePreview(&ctx, app);
+        overlays.drawRubberBand(&ctx, app);
     }
 
-    canvas_bar.draw(app);
+    renderPluginTooltip(app);
 
     return event;
+}
+
+/// Hit-test cursor and send hover event to subscribed plugins.
+fn dispatchPluginHover(app: *AppState) void {
+    const host = app.plugin_host orelse return;
+    const world = app.gui.hot.canvas.cursor_world;
+
+    var element_type: u8 = 0;
+    var element_idx: i32 = -1;
+    var element_name: []const u8 = "";
+
+    if (app.active()) |doc| {
+        const sch = &doc.sch;
+        if (interaction.hitTestInstance(sch, world)) |idx| {
+            element_type = 1; element_idx = @intCast(idx);
+            if (idx < sch.instances.len) element_name = sch.instances.items(.name)[idx];
+        } else if (interaction.hitTestWire(sch, world)) |idx| {
+            element_type = 2; element_idx = @intCast(idx);
+        }
+    }
+
+    host.dispatchHover(world[0], world[1], element_type, element_idx, element_name);
+}
+
+/// Render tooltip from plugin host if active.
+fn renderPluginTooltip(app: *AppState) void {
+    const host = app.plugin_host orelse return;
+    const text = host.tooltipText();
+    if (text.len == 0) return;
+    dvui.tooltip(@src(), .{ .active_rect = .{} }, "{s}", .{text}, .{});
 }

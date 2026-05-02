@@ -1,0 +1,11 @@
+[plugin]
+name        = "PDKSwitcherino"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libPDKSwitcherino.so"
+description = "Cross-PDK circuit remapping: switch between sky130, ihp-sg13g2, and gf180mcu with gm/Id-preserving transistor resizing."
+tags        = ["pdk", "sky130", "gf180", "ihp", "remapping"]
+scope       = "user"
+
+[build]
+apt_deps = []

@@ -1,67 +1,81 @@
 """
 Schemify Plugin SDK — Python demo
 
-Registers four panels and draws a widget gallery on every on_draw call.
+Registers four panels and draws a widget gallery on every draw_panel call.
 
-Deploy:  zig build run   (copies to ~/.config/Schemify/SchemifyPython/scripts/)
+Run:  python plugin.py   (started by host automatically)
+
+The SDK file (schemify_plugin) is at tools/api/python/src/lib.py.
+Copy it as schemify_plugin.py next to this file for standalone use.
 """
 
-import schemify
+import sys
+import os
+
+# For in-tree examples, add SDK to path.
+_sdk = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                    "..", "..", "..", "tools", "api", "python", "src")
+sys.path.insert(0, _sdk)
+
+from lib import Plugin, Writer, Layout, run  # noqa: E402
 
 
-class PythonDemo(schemify.Plugin):
+class PythonDemo(Plugin):
     def __init__(self) -> None:
-        self.slider_val   = 0.5
+        self.slider_val = 0.5
         self.checkbox_val = True
-        self.tick_count   = 0
+        self.tick_count = 0
 
-    def on_load(self, w: schemify.Writer) -> None:
-        w.register_panel("py-demo-overlay", "Properties",   "pydprop",   schemify.LAYOUT_OVERLAY,       0)
-        w.register_panel("py-demo-left",    "Components",   "pydcomp",   schemify.LAYOUT_LEFT_SIDEBAR,  0)
-        w.register_panel("py-demo-right",   "Design Stats", "pydstats",  schemify.LAYOUT_RIGHT_SIDEBAR, 0)
-        w.register_panel("py-demo-bottom",  "Status",       "pydstatus", schemify.LAYOUT_BOTTOM_BAR,    0)
+    def on_load(self, w: Writer) -> None:
+        w.register_panel("py-demo-overlay", "Properties",   "pydprop",   Layout.OVERLAY)
+        w.register_panel("py-demo-left",    "Components",   "pydcomp",   Layout.LEFT_SIDEBAR)
+        w.register_panel("py-demo-right",   "Design Stats", "pydstats",  Layout.RIGHT_SIDEBAR)
+        w.register_panel("py-demo-bottom",  "Status",       "pydstatus", Layout.BOTTOM_BAR)
         w.set_status("Python Demo loaded")
 
-    def on_tick(self, dt: float, w: schemify.Writer) -> None:
+    def on_tick(self, dt: float, w: Writer) -> None:
         self.tick_count += 1
 
-    def on_draw(self, panel_id: int, w: schemify.Writer) -> None:
-        # panel_id identifies which panel to draw; switch on it when the
-        # host assigns distinct IDs per registration. Currently always 0.
-        self._draw_widgets(w)
+    def on_draw_panel(self, panel_id: int, w: Writer) -> None:
+        w.label("Selected: R1", 0)
+        w.separator(1)
+        w.label("Value (kOhm)", 2)
+        w.slider(self.slider_val, 0.0, 100.0, 3)
+        w.checkbox(self.checkbox_val, "Show in netlist", 4)
+        w.button("Apply", 5)
+        w.separator(6)
+        w.collapsible_start("Component Browser", True, 7)
+        w.label("  Resistors: R1, R2, R3", 8)
+        w.label("  Capacitors: C1", 9)
+        w.label("  Transistors: M1, M2", 10)
+        w.collapsible_end(7)
+        w.separator(11)
+        w.label("Design Stats", 12)
+        w.progress(0.75, 13)
+        w.begin_row(14)
+        w.label("Nets: 12", 15)
+        w.label("Comps: 8", 16)
+        w.button("Simulate", 17)
+        w.end_row(14)
 
-    def on_event(self, msg: dict, w: schemify.Writer) -> None:
-        tag = msg.get("tag")
-        if tag == schemify.TAG_SLIDER_CHANGED and msg.get("widget_id") == 3:
-            self.slider_val = msg["val"]
-        elif tag == schemify.TAG_CHECKBOX_CHANGED and msg.get("widget_id") == 4:
-            self.checkbox_val = msg["val"]
+    def on_slider_changed(self, panel_id: int, widget_id: int,
+                          val: float, w: Writer) -> None:
+        if widget_id == 3:
+            self.slider_val = val
 
-    def _draw_widgets(self, w: schemify.Writer) -> None:
-        w.label("Selected: R1", id=0)
-        w.separator(id=1)
-        w.label("Value (kOhm)", id=2)
-        w.slider(self.slider_val, 0.0, 100.0, id=3)
-        w.checkbox(self.checkbox_val, "Show in netlist", id=4)
-        w.button("Apply", id=5)
-        w.separator(id=6)
-        w.collapsible_start("Component Browser", open=True, id=7)
-        w.label("  Resistors: R1, R2, R3", id=8)
-        w.label("  Capacitors: C1", id=9)
-        w.label("  Transistors: M1, M2", id=10)
-        w.collapsible_end(id=7)
-        w.separator(id=11)
-        w.label("Design Stats", id=12)
-        w.progress(0.75, id=13)
-        w.begin_row(id=14)
-        w.label("Nets: 12", id=15)
-        w.label("Comps: 8", id=16)
-        w.button("Simulate", id=17)
-        w.end_row(id=14)
+    def on_checkbox_changed(self, panel_id: int, widget_id: int,
+                            val: bool, w: Writer) -> None:
+        if widget_id == 4:
+            self.checkbox_val = val
 
 
 _plugin = PythonDemo()
 
 
 def schemify_process(in_bytes: bytes) -> bytes:
-    return schemify.run_plugin(_plugin, in_bytes)
+    """Entry point for native .so bridge (tools/api/python/bridge.c)."""
+    return _plugin.process(in_bytes)
+
+
+if __name__ == "__main__":
+    run(PythonDemo())

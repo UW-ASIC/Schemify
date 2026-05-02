@@ -1,9 +1,6 @@
 name: Build Plugins
 
 # ── Triggers ──────────────────────────────────────────────────────────────────
-# Runs on every push to main that touches any plugin directory, the shared ABI,
-# the SDK helper, or the registry generator itself.
-# Can also be triggered manually (force-rebuild forces all plugins regardless).
 on:
   push:
     branches: [main]
@@ -12,8 +9,10 @@ on:
       - 'plugins/**/src/**'
       - 'plugins/**/build.zig'
       - 'plugins/**/build.zig.zon'
-      - 'src/PluginIF.zig'
-      - 'tools/sdk/**'
+      - 'plugins/**/Makefile'
+      - 'plugins/**/Cargo.toml'
+      - 'plugins/**/flake.nix'
+      - 'tools/api/**'
       - 'tools/scripts/gen_registry.py'
   workflow_dispatch:
     inputs:
@@ -30,9 +29,6 @@ concurrency:
   cancel-in-progress: true
 
 # ── Job 1: Discover buildable plugins ─────────────────────────────────────────
-# Runs gen_registry.py --list-buildable to produce the job matrix automatically.
-# No plugin names are hardcoded here; the matrix is driven entirely by the
-# presence of plugin.toml + build.zig in each plugins/* subdirectory.
 jobs:
 
   discover:
@@ -55,11 +51,9 @@ jobs:
           echo "Discovered plugins:"
           echo "$matrix" | python3 -m json.tool
 
-  # ── Job 2: Build (matrix — one job per plugin) ────────────────────────────
-  # Each job checks whether *this plugin's* files changed before building.
-  # An ABI or SDK change forces every plugin to rebuild.
+  # ── Job 2: Build (matrix — one job per plugin) ──────────────────────────────
   build:
-    name: Build ${{ matrix.plugin.id }}
+    name: Build ${{ matrix.plugin.id }} (${{ matrix.plugin.build_system }})
     needs: discover
     runs-on: ubuntu-latest
     strategy:
@@ -70,20 +64,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2          # need HEAD~1 for diff check
+          fetch-depth: 2
           submodules: recursive
 
-      # ── Incremental check ──────────────────────────────────────────────── //
-      # Skip the build if nothing in this plugin directory (or the shared ABI /
-      # SDK) has changed since the previous commit.  A manual dispatch with
-      # force_rebuild_all=true bypasses this check.
+      # ── Incremental check ──────────────────────────────────────────────────
       - name: Check for changes
         id: changed
         run: |
           FORCE="${{ github.event.inputs.force_rebuild_all }}"
           if [ "$FORCE" = "true" ]; then
             echo "rebuild=true" >> "$GITHUB_OUTPUT"
-            echo "Force-rebuild requested."
             exit 0
           fi
 
@@ -91,78 +81,108 @@ jobs:
           CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "ALL")
 
           if echo "$CHANGED" | grep -qE \
-               "^${PLUGIN_DIR}/|^src/PluginIF\.zig|^tools/sdk/|^tools/scripts/gen_registry\.py"; then
+               "^${PLUGIN_DIR}/|^tools/api/|^tools/scripts/gen_registry\.py"; then
             echo "rebuild=true"  >> "$GITHUB_OUTPUT"
-            echo "Changes detected – will build."
           else
             echo "rebuild=false" >> "$GITHUB_OUTPUT"
-            echo "No changes in $PLUGIN_DIR – skipping build."
+            echo "No changes in $PLUGIN_DIR – skipping."
           fi
 
-      # ── Install system dependencies ──────────────────────────────────────── //
-      # apt_deps from plugin.toml (parsed by gen_registry.py into the matrix).
-      - name: Install apt dependencies
+      # ── Install Nix ───────────────────────────────────────────────────────
+      - name: Install Nix
         if: steps.changed.outputs.rebuild == 'true'
-        run: |
-          APT_DEPS='${{ toJson(matrix.plugin.apt_deps) }}'
-          # Convert JSON array to space-separated string
-          PKGS=$(echo "$APT_DEPS" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)))")
-          if [ -n "$PKGS" ]; then
-            echo "Installing: $PKGS"
-            sudo apt-get update -q
-            sudo apt-get install -y $PKGS
-          else
-            echo "No extra apt deps for this plugin."
-          fi
+        uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Install Zig
+      - name: Cache Nix store
         if: steps.changed.outputs.rebuild == 'true'
-        uses: mlugg/setup-zig@v1
-        with:
-          version: '0.15.2'
+        uses: DeterminateSystems/magic-nix-cache-action@main
 
-      # ── Build ────────────────────────────────────────────────────────────── //
-      - name: Build ${{ matrix.plugin.id }}
+      # ── Build native ────────────────────────────────────────────────────────
+      - name: Build native (.so)
         if: steps.changed.outputs.rebuild == 'true'
         working-directory: '${{ matrix.plugin.dir }}'
-        run: zig build -Doptimize=ReleaseSafe
+        run: |
+          case "${{ matrix.plugin.build_system }}" in
+            zig)
+              nix develop --command zig build -Doptimize=ReleaseSafe
+              ;;
+            make)
+              nix develop --command make native
+              ;;
+            cargo)
+              nix develop --command make native
+              ;;
+          esac
 
-      - name: Install Emscripten
-        if: steps.changed.outputs.rebuild == 'true'
-        uses: mymindstorm/setup-emsdk@v14
-        with:
-          version: latest
-          actions-cache-folder: emsdk-cache
-
-      - name: Build ${{ matrix.plugin.id }} (WASM)
+      # ── Build WASM ──────────────────────────────────────────────────────────
+      - name: Build WASM (.wasm)
         if: steps.changed.outputs.rebuild == 'true'
         working-directory: '${{ matrix.plugin.dir }}'
         continue-on-error: true
-        run: zig build -Dbackend=web -Doptimize=ReleaseSafe
+        run: |
+          case "${{ matrix.plugin.build_system }}" in
+            zig)
+              nix develop --command zig build -Dbackend=web -Doptimize=ReleaseSafe
+              ;;
+            make)
+              nix develop --command make web || echo "WASM build not available for this plugin."
+              ;;
+            cargo)
+              nix develop --command make web || echo "WASM build not available for this plugin."
+              ;;
+          esac
 
-      # ── Collect artifact ─────────────────────────────────────────────────── //
+      # ── Collect artifacts ───────────────────────────────────────────────────
       - name: Collect built artifacts
         if: steps.changed.outputs.rebuild == 'true'
         run: |
           mkdir -p dist
-          # Native: strip lib prefix so MyPlugin.so matches WASM naming MyPlugin.wasm
-          find "${{ matrix.plugin.dir }}/zig-out" \
-               \( -name '*.so' -o -name '*.dylib' \) 2>/dev/null \
-            | while read f; do
-                base=$(basename "$f")
-                # strip lib prefix if present
-                case "$base" in lib*)  base="${base#lib}" ;; esac
-                cp "$f" "dist/$base"
-                echo "Collected native: $base"
+          ENTRY="${{ matrix.plugin.entry }}"
+          DIR="${{ matrix.plugin.dir }}"
+          BUILD="${{ matrix.plugin.build_system }}"
+
+          case "$BUILD" in
+            zig)
+              # Zig outputs to zig-out/
+              find "$DIR/zig-out" \( -name '*.so' -o -name '*.dylib' \) 2>/dev/null \
+                | while read f; do
+                    base=$(basename "$f")
+                    case "$base" in lib*) base="${base#lib}" ;; esac
+                    cp "$f" "dist/$base"
+                    echo "  native: $base"
+                  done
+              find "$DIR/zig-out" -name '*.wasm' 2>/dev/null \
+                | while read f; do
+                    cp "$f" "dist/$(basename $f)"
+                    echo "  wasm: $(basename $f)"
+                  done
+              ;;
+            make|cargo)
+              # Make/Cargo outputs to plugin directory
+              for f in "$DIR"/*.so; do
+                [ -f "$f" ] && cp "$f" "dist/${ENTRY}.so" && echo "  native: ${ENTRY}.so"
               done
-          # WASM: addWasmPlugin outputs to zig-out/plugins/ or zig-out/bin/plugins/
-          find "${{ matrix.plugin.dir }}/zig-out" -name '*.wasm' 2>/dev/null \
-            | while read f; do
-                base=$(basename "$f")
-                cp "$f" "dist/$base"
-                echo "Collected WASM: $base"
+              for f in "$DIR"/*.wasm; do
+                [ -f "$f" ] && cp "$f" "dist/${ENTRY}.wasm" && echo "  wasm: ${ENTRY}.wasm"
               done
-          ls -lh dist/ || echo "(nothing collected)"
+              # Cargo also outputs to target/
+              find "$DIR/target/release" -maxdepth 1 -name '*.so' -o -name '*.dylib' 2>/dev/null \
+                | head -1 | while read f; do
+                    cp "$f" "dist/${ENTRY}.so"
+                    echo "  native: ${ENTRY}.so"
+                  done
+              WASM_DIR="$DIR/target/wasm32-unknown-unknown/release"
+              find "$WASM_DIR" -maxdepth 1 -name '*.wasm' 2>/dev/null \
+                | head -1 | while read f; do
+                    cp "$f" "dist/${ENTRY}.wasm"
+                    echo "  wasm: ${ENTRY}.wasm"
+                  done
+              ;;
+          esac
+
+          echo ""
+          echo "Collected artifacts:"
+          ls -lh dist/ 2>/dev/null || echo "(none)"
 
       - name: Upload artifact
         if: steps.changed.outputs.rebuild == 'true'
@@ -172,10 +192,7 @@ jobs:
           path: dist/
           if-no-files-found: warn
 
-  # ── Job 3: Update registry + publish release ──────────────────────────────
-  # Regenerates registry.json from all plugin.toml files (always runs, even
-  # when no plugins were rebuilt), then commits the result and uploads
-  # any new binaries to the `plugins-latest` rolling release.
+  # ── Job 3: Update registry + publish release ────────────────────────────────
   publish:
     name: Update registry & release
     runs-on: ubuntu-latest
@@ -186,7 +203,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Regenerate registry.json from the current state of all plugin.toml files.
       - name: Regenerate registry.json
         env:
           REGISTRY_REPO:        ${{ github.repository }}
@@ -195,23 +211,20 @@ jobs:
         run: |
           python3 tools/scripts/gen_registry.py
           echo ""
-          echo "Generated plugins/registry.json:"
           cat plugins/registry.json
 
-      # Commit the updated registry back to the branch.
       - name: Commit registry.json
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add plugins/registry.json
           if git diff --cached --quiet; then
-            echo "registry.json unchanged – nothing to commit."
+            echo "registry.json unchanged."
           else
             git commit -m "chore: regenerate plugins/registry.json [skip ci]"
             git push
           fi
 
-      # Download all artifacts produced by the build jobs.
       - name: Download built binaries
         uses: actions/download-artifact@v4
         with:
@@ -219,15 +232,12 @@ jobs:
           merge-multiple: true
 
       - name: List downloaded binaries
-        run: find dist/ -type f | sort || echo "(no binaries downloaded)"
+        run: find dist/ -type f | sort || echo "(none)"
 
-      # Create the rolling release if it doesn't exist, then upload / overwrite
-      # every .so and .dylib found in dist/.
       - name: Publish to plugins-latest release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create the release if it doesn't exist yet.
           if ! gh release view plugins-latest --repo "$GITHUB_REPOSITORY" &>/dev/null; then
             gh release create plugins-latest \
               --repo "$GITHUB_REPOSITORY" \
@@ -237,9 +247,8 @@ jobs:
               --prerelease
           fi
 
-          # Upload (overwrite) every built binary.
           find dist/ -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.wasm' \) | while read f; do
-            echo "Uploading $(basename $f) …"
+            echo "Uploading $(basename $f)"
             gh release upload plugins-latest "$f" \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
@@ -254,4 +263,4 @@ jobs:
           find dist/ -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.wasm' \) | while read f; do
             sz=$(du -sh "$f" | cut -f1)
             echo "| \`$(basename $f)\` | ${sz}B |" >> "$GITHUB_STEP_SUMMARY"
-          done || echo "_(no binaries in this run)_" >> "$GITHUB_STEP_SUMMARY"
+          done || echo "_(no binaries)_" >> "$GITHUB_STEP_SUMMARY"

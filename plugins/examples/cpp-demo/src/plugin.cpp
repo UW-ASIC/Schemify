@@ -1,12 +1,14 @@
 /*
  * Schemify Plugin SDK — C++ demo
  *
- * Same four-panel showcase as c-demo but written in C++17.
+ * Same four-panel showcase as c-demo but written in C++.
+ * Uses the C API directly (works with both C and C++ compilers).
+ * For the C++ wrapper class, see tools/api/cpp/inc/lib.h.
  *
- * Build:  zig build
- * Run:    zig build run
+ * Build:  make
+ * WASM:   make web
  */
-#include "schemify_plugin.h"
+#include "lib.h"
 
 struct CppDemo {
     float    slider_val   = 0.5f;

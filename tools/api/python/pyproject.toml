@@ -1,0 +1,14 @@
+[build-system]
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name        = "schemify-plugin"
+version     = "0.1.0"
+description = "Schemify Plugin SDK — Python bindings (ABI v6)"
+requires-python = ">=3.10"
+dependencies = []   # stdlib only (struct, io, abc)
+
+[project.optional-dependencies]
+# For native .so compilation via cffi:
+native = ["cffi>=1.16"]

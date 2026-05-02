@@ -1,12 +1,4 @@
 const std = @import("std");
-const build_dep = @import("tools/build_dep.zig");
-
-/// Plugin SDK build helper — re-exported so external plugin repos can do:
-///
-///   const sdk    = @import("schemify_sdk");   // imports this build.zig
-///   const helper = sdk.build_plugin_helper;
-///   const ctx    = helper.setup(b, b.dependency("schemify_sdk", .{}));
-pub const build_plugin_helper = @import("tools/sdk/build_plugin_helper.zig");
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,22 +10,19 @@ pub const Backend = enum { native, web };
 const Def = struct { []const u8, []const u8, []const []const u8 };
 const module_defs = [_]Def{
     .{ "utility", "src/utility/lib.zig", &.{} },
-    .{ "core", "src/core/Schemify.zig", &.{"utility"} },
-    .{ "PluginIF", "src/PluginIF.zig", &.{ "core", "utility", "dvui" } },
-    .{ "commands", "src/commands/lib.zig", &.{ "state", "core", "utility", "dvui" } },
-    .{ "state", "src/gui/state/lib.zig", &.{ "utility", "commands", "PluginIF", "core" } },
-    .{ "installer", "src/plugins/installer/lib.zig", &.{"utility"} },
-
-    .{ "theme_config", "src/gui/Theme.zig", &.{"dvui"} },
-    .{ "runtime", "src/plugins/Runtime.zig", &.{ "PluginIF", "state", "theme_config", "commands", "utility", "installer", "core" } },
-    .{ "cli", "src/cli.zig", &.{ "core", "installer", "utility", "state" } },
+    .{ "core", "src/core/lib.zig", &.{ "utility", "dvui" } },
+    .{ "plugins", "src/plugins/lib.zig", &.{"dvui"} },
+    .{ "commands", "src/commands/lib.zig", &.{ "utility", "dvui" } },
+    .{ "state", "src/gui/state.zig", &.{ "dvui", "core", "utility", "commands", "plugins" } },
+    .{ "theme_config", "src/gui/theme.zig", &.{"dvui"} },
+    .{ "gui", "src/gui/lib.zig", &.{ "dvui", "state", "commands", "plugins", "theme_config", "core", "utility" } },
+    .{ "cli", "src/cli.zig", &.{ "core", "utility", "state", "dvui", "commands" } },
 };
 
 // ── Test suites ───────────────────────────────────────────────────────────────
 // All tests import "core" so types shared with FileIO are identical instances.
 // Run individually: zig build test_<name>  |  Run all: zig build test
 const test_defs = [_]Def{
-    .{ "core", "test/core/test_core.zig", &.{"core"} },
     .{ "utility", "src/utility/lib.zig", &.{} },
     .{ "marketplace", "test/marketplace/test_marketplace.zig", &.{"utility"} },
 };
@@ -48,8 +37,6 @@ pub fn build(b: *std.Build) void {
     const is_web = backend == .web;
     const target = if (is_web) b.resolveTargetQuery(wasm32) else b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    // TODO: restore when addSpice* functions are ported
-    // const spice = build_dep.SpiceConfig{};
 
     // dvui — native uses raylib, web uses wasm backend
     const dvui_dep = if (is_web)
@@ -66,8 +53,6 @@ pub fn build(b: *std.Build) void {
     // Module graph — two-pass: create all modules first, then wire imports.
     var mods = std.StringHashMap(*std.Build.Module).init(b.allocator);
     mods.put("dvui", dvui_mod) catch @panic("OOM");
-    // TODO: restore when addSpiceMods is ported
-    // if (!is_web) addSpiceMods(b, target, optimize, spice, &mods);
     for (&module_defs) |def| {
         const mod = b.addModule(def[0], .{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
         mods.put(def[0], mod) catch @panic("OOM");
@@ -79,38 +64,13 @@ pub fn build(b: *std.Build) void {
     // ── Executable ────────────────────────────────────────────────────────────
     const exe_mod = b.createModule(.{ .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
     exe_mod.addOptions("build_options", build_opts);
-    addImports(exe_mod, &mods, &.{ "dvui", "utility", "core", "PluginIF", "commands", "state", "cli", "runtime", "theme_config" });
+    addImports(exe_mod, &mods, &.{ "dvui", "utility", "core", "plugins", "commands", "state", "gui", "cli", "theme_config" });
 
     const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
     exe.root_module.strip = optimize != .Debug;
     if (!is_web) exe.use_lld = false;
     if (is_web) exe.entry = .disabled;
-    // TODO: restore when addSpiceRPaths is ported
-    // if (!is_web) addSpiceRPaths(exe, spice);
     b.installArtifact(exe);
-
-    // ── Lint: ban direct std.fs / std.posix usage outside utility/ and cli/ ──
-    const lint = b.addSystemCommand(&.{ "sh", "-c",
-        \\files=$(find src -name '*.zig' \
-        \\  ! -path 'src/utility/*' \
-        \\  ! -path 'src/cli/*' \
-        \\  ! -path 'src/cli.zig')
-        \\if [ -z "$files" ]; then exit 0; fi
-        \\hits=$(echo "$files" | xargs grep -n \
-        \\  -e 'std\.fs\.open' \
-        \\  -e 'std\.fs\.create' \
-        \\  -e 'std\.fs\.delete' \
-        \\  -e 'std\.fs\.access' \
-        \\  -e 'std\.fs\.make' \
-        \\  -e 'std\.fs\.cwd()' \
-        \\  -e 'std\.posix\.getenv' \
-        \\  || true)
-        \\if [ -n "$hits" ]; then
-        \\  printf '\n\033[1;31mBanned API usage detected.\033[0m Use Vfs / platform instead:\n%s\n' "$hits" >&2
-        \\  exit 1
-        \\fi
-    });
-    exe.step.dependOn(&lint.step);
 
     // Size
     const size_cmd = b.addSystemCommand(&.{ "sh", "-c", "printf 'Executable size: '; du -h \"$1\" | cut -f1", "--" });

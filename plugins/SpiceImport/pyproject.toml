@@ -1,0 +1,10 @@
+[build-system]
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name        = "schemify-spiceimport"
+version     = "0.1.0"
+description = "Schemify SpiceImport plugin — SPICE netlist to schematic converter"
+requires-python = ">=3.11"
+dependencies = []

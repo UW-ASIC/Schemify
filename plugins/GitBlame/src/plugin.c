@@ -2,17 +2,18 @@
 #define _POSIX_C_SOURCE 200809L
 
 /*
- * GitBlame — Schemify Plugin (ABI v6, C99)
+ * GitBlame — Schemify Plugin (ABI v7, C99)
  *
  * Shows git commit history for the active schematic file.
  * When a component is selected, narrows to commits that added or
  * removed that instance name (git log -S pickaxe search).
+ * On hover over an instance, shows a tooltip with latest commit info.
  *
- * Build:  zig build
- * Run:    zig build run   (installs to ~/.config/Schemify/ and launches host)
+ * Build:  make
+ * Install: make install
  */
 
-#include "schemify_plugin.h"
+#include "lib.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +50,19 @@ static Commit  g_commits[MAX_ENTRIES];
 static int     g_commit_count;
 static int     g_ready;               /* 0=pending, 1=done                  */
 static int     g_is_git;              /* 1 = inside a git work-tree         */
+
+/* ── Hover tooltip state ─────────────────────────────────────────────────── */
+
+static int32_t g_hover_idx = -1;      /* last hovered instance index        */
+static char    g_hover_name[MAX_NAME];/* resolved name for hovered instance */
+static int     g_hover_name_len;
+static Commit  g_hover_commit;        /* latest commit for hovered instance */
+static int     g_hover_has_commit;    /* 1 if we found a commit             */
+static int     g_hover_queried;       /* 1 if query_instances was sent      */
+static double  g_hover_dwell;         /* seconds spent hovering on same idx */
+static int     g_hover_shown;         /* 1 if tooltip already shown         */
+
+#define HOVER_DELAY_SEC 3.0
 
 /* ── Shell-escape helper (single-quote safe) ─────────────────────────────── */
 /*
@@ -200,6 +214,41 @@ static void run_blame(void) {
     g_ready = 1;
 }
 
+/* ── Fetch latest commit for a single instance name (for hover tooltip) ── */
+
+static void run_hover_blame(void) {
+    g_hover_has_commit = 0;
+    if (!g_file_len || !g_is_git || !g_hover_name_len) return;
+
+    char dir[MAX_PATH];
+    get_dir(g_file, dir, MAX_PATH);
+
+    char esc_dir[MAX_PATH * 2];
+    char esc_file[MAX_PATH * 2];
+    char esc_name[MAX_NAME * 2];
+    sh_escape(dir,          esc_dir,  (int)sizeof(esc_dir));
+    sh_escape(g_file,       esc_file, (int)sizeof(esc_file));
+    sh_escape(g_hover_name, esc_name, (int)sizeof(esc_name));
+
+    char cmd[CMD_BUF];
+    char raw[512];
+    snprintf(cmd, sizeof(cmd),
+        "git -C '%s' log -1 -S '%s' "
+        "--pretty=format:'%%h|%%an|%%ad|%%s' --date=short "
+        "-- '%s' 2>/dev/null",
+        esc_dir, esc_name, esc_file);
+
+    int len = run_cmd(cmd, raw, (int)sizeof(raw));
+    if (len > 0) {
+        parse_log(raw);
+        if (g_commit_count > 0) {
+            g_hover_commit = g_commits[0];
+            g_hover_has_commit = 1;
+        }
+        /* Restore panel commits — run_blame will repopulate when needed. */
+    }
+}
+
 /* ── Draw panel ──────────────────────────────────────────────────────────── */
 
 static void draw_panel(SpWriter *w) {
@@ -303,9 +352,21 @@ static size_t gitblame_process(
                 "Git Blame", 9,
                 "gb", 2,
                 SP_LAYOUT_RIGHT_SIDEBAR, 0);
+            sp_write_subscribe_events(&w, SP_EVENT_HOVER);
             sp_write_set_status(&w, "GitBlame ready", 14);
             /* Ask for the active file path immediately. */
             sp_write_get_state(&w, "active_file", 11);
+            break;
+
+        case SP_TAG_TICK:
+            /* Accumulate hover dwell time */
+            if (g_hover_idx >= 0 && !g_hover_shown) {
+                g_hover_dwell += (double)msg.u.tick.dt;
+                if (g_hover_dwell >= HOVER_DELAY_SEC) {
+                    g_hover_shown = 1;
+                    sp_write_request_refresh(&w);
+                }
+            }
             break;
 
         case SP_TAG_SCHEMATIC_CHANGED:
@@ -355,12 +416,63 @@ static size_t gitblame_process(
 
         case SP_TAG_INSTANCE_DATA: {
             uint32_t idx = msg.u.instance_data.idx;
+            /* Selection blame lookup */
             if (g_sel_idx >= 0 && (int32_t)idx == g_sel_idx) {
                 sp_str_cstr(msg.u.instance_data.name,
                             g_sel_name, MAX_NAME);
                 g_sel_name_len = (int)strlen(g_sel_name);
                 run_blame();
                 sp_write_request_refresh(&w);
+            }
+            /* Hover tooltip lookup */
+            if (g_hover_queried && g_hover_idx >= 0 && (int32_t)idx == g_hover_idx) {
+                sp_str_cstr(msg.u.instance_data.name,
+                            g_hover_name, MAX_NAME);
+                g_hover_name_len = (int)strlen(g_hover_name);
+                g_hover_queried = 0;
+                run_hover_blame();
+            }
+            break;
+        }
+
+        /* ── Hover (canvas mouse-over) ────────────────────────────────── */
+
+        case SP_TAG_HOVER: {
+            int32_t eidx = msg.u.hover.element_idx;
+            uint8_t etype = msg.u.hover.element_type;
+
+            /* element_type 1 = instance, show tooltip after 3s dwell */
+            if (etype == 1 && eidx >= 0) {
+                if (eidx != g_hover_idx) {
+                    /* New instance — reset dwell timer and resolve name */
+                    g_hover_idx = eidx;
+                    g_hover_name[0] = '\0';
+                    g_hover_name_len = 0;
+                    g_hover_has_commit = 0;
+                    g_hover_queried = 1;
+                    g_hover_dwell = 0.0;
+                    g_hover_shown = 0;
+                    sp_write_query_instances(&w);
+                }
+                /* Only emit tooltip after HOVER_DELAY_SEC */
+                if (g_hover_shown) {
+                    if (g_hover_has_commit) {
+                        char tip[256];
+                        snprintf(tip, sizeof(tip), "%s: %s (%s, %s)",
+                                 g_hover_name, g_hover_commit.subject,
+                                 g_hover_commit.author, g_hover_commit.date);
+                        sp_write_ui_tooltip(&w, tip, strlen(tip), 0);
+                    } else if (g_hover_name_len > 0) {
+                        char tip[160];
+                        snprintf(tip, sizeof(tip), "%s: no git history", g_hover_name);
+                        sp_write_ui_tooltip(&w, tip, strlen(tip), 0);
+                    }
+                }
+            } else {
+                g_hover_idx = -1;
+                g_hover_has_commit = 0;
+                g_hover_dwell = 0.0;
+                g_hover_shown = 0;
             }
             break;
         }

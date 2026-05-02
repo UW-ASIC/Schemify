@@ -1,0 +1,53 @@
+chn_prim 1
+
+SYMBOL ideal_dac_4bit
+  pins:
+    D0  in  x=-80  y=-30
+    D1  in  x=-80  y=-10
+    D2  in  x=-80  y=10
+    D3  in  x=-80  y=30
+    VREF  in  x=0  y=-50
+    VOUT  out  x=80  y=0
+    GND  inout  x=0  y=50
+  params:
+    format = @name @pinlist @symname
+    template = name=XDAC
+    type = primitive
+
+PLUGIN CCreator
+  mode: bidirectional
+  generator: |
+    """4-bit ideal DAC — behavioral model for .chn_prim files."""
+    from ccreator import behavioral
+    from ccreator.core import Port
+
+    @behavioral.analog
+    class IdealDAC4Bit:
+        """Ideal 4-bit DAC: converts a 4-bit digital input to an analog voltage.
+
+        VOUT = VREF * (D3*8 + D2*4 + D1*2 + D0) / 15
+        """
+
+        ports = [
+            Port('D0', 'input', 'digital'),
+            Port('D1', 'input', 'digital'),
+            Port('D2', 'input', 'digital'),
+            Port('D3', 'input', 'digital'),
+            Port('VREF', 'input', 'voltage'),
+            Port('VOUT', 'output', 'voltage'),
+            Port('GND', 'inout', 'voltage'),
+        ]
+
+        parameters = {
+            'bits': 4,
+            'vref': '1.8',
+        }
+
+        def behavior(self, t, inputs):
+            d0 = 1 if inputs['D0'] > 0.9 else 0
+            d1 = 1 if inputs['D1'] > 0.9 else 0
+            d2 = 1 if inputs['D2'] > 0.9 else 0
+            d3 = 1 if inputs['D3'] > 0.9 else 0
+            code = d3 * 8 + d2 * 4 + d1 * 2 + d0
+            vref = inputs.get('VREF', float(self.parameters['vref']))
+            return {'VOUT': vref * code / 15.0}

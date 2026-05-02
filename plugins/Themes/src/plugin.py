@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
+import importlib.util as _ilu
 import json
 import os
-import sys
 from collections.abc import Iterable
 from typing import Any
 
-# SDK path resolution
+# SDK path resolution — load tools/api/python/src/lib.py by path
 _PLUGIN_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
-_SDK_PYTHON_DIR = os.path.normpath(
-    os.path.join(_PLUGIN_SRC_DIR, "..", "..", "..", "tools", "sdk", "bindings", "python")
+_SDK_LIB = os.path.normpath(
+    os.path.join(_PLUGIN_SRC_DIR, "..", "..", "..", "tools", "api", "python", "src", "lib.py")
 )
-if _SDK_PYTHON_DIR not in sys.path:
-    sys.path.insert(0, _SDK_PYTHON_DIR)
-
-import schemify  # noqa: E402
+_spec = _ilu.spec_from_file_location("schemify_plugin", _SDK_LIB)
+schemify_plugin = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(schemify_plugin)  # type: ignore
 
 PANEL_ID = "themes"
 PANEL_TITLE = "Themes"
@@ -142,7 +141,7 @@ def _button_index(widget_id: int, base: int, size: int) -> int | None:
     return idx if 0 <= idx < size else None
 
 
-class ThemesPlugin(schemify.Plugin):
+class ThemesPlugin(schemify_plugin.Plugin):
     """Built-in and user-defined theme switcher."""
 
     def __init__(self) -> None:
@@ -150,26 +149,19 @@ class ThemesPlugin(schemify.Plugin):
         self._theme_names: list[str] = []
         self._current_idx = 0
 
-    def on_load(self, w: schemify.Writer) -> None:
+    def on_load(self, w: schemify_plugin.Writer) -> None:
         self._themes, self._theme_names = _load_all_themes()
-        w.log_info(TAG, f"Loaded {len(self._theme_names)} themes")
-
-        w.register_panel(
-            id=PANEL_ID,
-            title=PANEL_TITLE,
-            vim_cmd="themes",
-            layout=schemify.LAYOUT_OVERLAY,
-            keybind=0,
-        )
+        w.log(0, TAG, f"Loaded {len(self._theme_names)} themes")
+        w.register_panel(PANEL_ID, PANEL_TITLE, "themes", schemify_plugin.Layout.OVERLAY, 0)
         w.set_status(f"Themes plugin ready ({len(self._theme_names)} themes)")
 
-    def on_unload(self, w: schemify.Writer) -> None:
-        w.log_info(TAG, "on_unload")
+    def on_unload(self, w: schemify_plugin.Writer) -> None:
+        w.log(0, TAG, "on_unload")
 
-    def on_tick(self, dt: float, w: schemify.Writer) -> None:
+    def on_tick(self, dt: float, w: schemify_plugin.Writer) -> None:
         pass
 
-    def _set_active_theme(self, payload: dict[str, Any], status: str, w: schemify.Writer) -> None:
+    def _set_active_theme(self, payload: dict[str, Any], status: str, w: schemify_plugin.Writer) -> None:
         w.set_config(THEME_CONFIG_PLUGIN_ID, THEME_CONFIG_KEY, json.dumps(payload))
         w.set_status(status)
         w.request_refresh()
@@ -181,18 +173,18 @@ class ThemesPlugin(schemify.Plugin):
             grouped.setdefault(category, []).append((idx, name))
         return grouped
 
-    def on_draw(self, panel_id: int, w: schemify.Writer) -> None:
-        w.label("Themes", id=0)
-        w.separator(id=1)
+    def on_draw_panel(self, panel_id: int, w: schemify_plugin.Writer) -> None:
+        w.label("Themes", 0)
+        w.separator(1)
 
         if not self._theme_names:
-            w.label("No themes found.", id=2)
-            w.label("Add .json files to:", id=3)
-            w.label(_USER_THEMES_DIR, id=4)
+            w.label("No themes found.", 2)
+            w.label("Add .json files to:", 3)
+            w.label(_USER_THEMES_DIR, 4)
         else:
             current_name = self._theme_names[self._current_idx] if self._theme_names else EMPTY_THEME_NAME
-            w.label(f"Active: {current_name}", id=2)
-            w.separator(id=3)
+            w.label(f"Active: {current_name}", 2)
+            w.separator(3)
 
             # Category labels use IDs 5-8 (4 categories max, all safely below
             # WID_THEME_BASE=10). IDs 0,1 are the header; 2,3 are Active+separator.
@@ -201,41 +193,34 @@ class ThemesPlugin(schemify.Plugin):
             for category_name, entries in self._theme_entries_by_category().items():
                 if not entries:
                     continue
-                w.label(f"-- {category_name} --", id=label_id)
+                w.label(f"-- {category_name} --", label_id)
                 label_id += 1
                 for idx, name in entries:
                     theme = self._themes[name]
                     dark_tag = " (dark)" if theme.get("dark", True) else " (light)"
                     marker = "> " if idx == self._current_idx else "  "
-                    w.button(f"{marker}{name}{dark_tag}", id=WID_THEME_BASE + idx)
+                    w.button(f"{marker}{name}{dark_tag}", WID_THEME_BASE + idx)
 
-        w.separator(id=205)
-        w.label(f"User themes: {USER_THEME_HINT}", id=206)
-        w.label("Add .json files and reload plugin.", id=207)
+        w.separator(205)
+        w.label(f"User themes: {USER_THEME_HINT}", 206)
+        w.label("Add .json files and reload plugin.", 207)
 
-        w.separator(id=208)
-        w.label("Shape Presets", id=209)
+        w.separator(208)
+        w.label("Shape Presets", 209)
         for idx, (label, _corner_radius) in enumerate(SHAPE_PRESETS):
-            w.button(label, id=WID_SHAPE_PRESET_BASE + idx)
+            w.button(label, WID_SHAPE_PRESET_BASE + idx)
 
-        w.separator(id=218)
-        w.label("Wire Width", id=219)
+        w.separator(218)
+        w.label("Wire Width", 219)
         for idx, (label, _wire_width) in enumerate(WIRE_WIDTHS):
-            w.button(label, id=WID_WIRE_WIDTH_BASE + idx)
+            w.button(label, WID_WIRE_WIDTH_BASE + idx)
 
-        w.separator(id=228)
-        w.label("Tab Style", id=229)
+        w.separator(228)
+        w.label("Tab Style", 229)
         for idx, (label, _tab_shape) in enumerate(TAB_STYLES):
-            w.button(label, id=WID_TAB_STYLE_BASE + idx)
+            w.button(label, WID_TAB_STYLE_BASE + idx)
 
-    def on_event(self, msg: dict, w: schemify.Writer) -> None:
-        if msg.get("tag") != schemify.TAG_BUTTON_CLICKED:
-            return
-
-        widget_id = msg.get("widget_id")
-        if not isinstance(widget_id, int):
-            return
-
+    def on_button_clicked(self, panel_id: int, widget_id: int, w: schemify_plugin.Writer) -> None:
         theme_idx = _button_index(widget_id, WID_THEME_BASE, len(self._theme_names))
         if theme_idx is not None:
             self._apply_theme(theme_idx, w)
@@ -258,15 +243,15 @@ class ThemesPlugin(schemify.Plugin):
             label, tab_shape = TAB_STYLES[tab_idx]
             self._set_active_theme({"tab_shape": tab_shape}, f"Tab style: {label}", w)
 
-    def _apply_theme(self, idx: int, w: schemify.Writer) -> None:
+    def _apply_theme(self, idx: int, w: schemify_plugin.Writer) -> None:
         self._current_idx = idx
         name = self._theme_names[idx]
         self._set_active_theme(self._themes[name], f"Theme: {name}", w)
-        w.log_info(TAG, f"Applied theme: {name}")
+        w.log(0, TAG, f"Applied theme: {name}")
 
 
 _plugin = ThemesPlugin()
 
 
 def schemify_process(in_bytes: bytes) -> bytes:
-    return schemify.run_plugin(_plugin, in_bytes)
+    return _plugin.process(in_bytes)

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Plugin registry generator.
 
-Scans every subdirectory of plugins/ that contains both plugin.toml and
-build.zig, then emits a registry descriptor.
+Scans every subdirectory of plugins/ that contains a plugin.toml plus a
+recognized build file (build.zig, Makefile, or Cargo.toml), then emits a
+registry descriptor.
 
 Usage
 -----
@@ -78,7 +79,22 @@ def first_paragraph_of_readme(readme: Path, max_len: int = 260) -> str:
         if len(" ".join(text)) >= max_len:
             break
     result = " ".join(text)
-    return (result[:max_len] + "…") if len(result) > max_len else result
+    return (result[:max_len] + "\u2026") if len(result) > max_len else result
+
+
+def detect_build_system(plugin_dir: Path) -> str | None:
+    """Detect the build system for a plugin directory.
+
+    Returns one of: "zig", "make", "cargo", or None.
+    Priority: build.zig > Makefile > Cargo.toml
+    """
+    if (plugin_dir / "build.zig").exists():
+        return "zig"
+    if (plugin_dir / "Makefile").exists():
+        return "make"
+    if (plugin_dir / "Cargo.toml").exists():
+        return "cargo"
+    return None
 
 
 # ── Discovery ─────────────────────────────────────────────────────────────────
@@ -87,7 +103,6 @@ def discover_plugins(
     repo: str,
     branch: str,
     release_tag: str,
-    require_build_zig: bool = True,
 ) -> list[dict]:
     """Return one dict per discoverable plugin, sorted by name."""
     plugins: list[dict] = []
@@ -95,14 +110,15 @@ def discover_plugins(
     for plugin_dir in sorted(PLUGINS_DIR.iterdir()):
         if not plugin_dir.is_dir():
             continue
+        # Skip the examples directory
+        if plugin_dir.name == "examples":
+            continue
 
         toml_path = plugin_dir / "plugin.toml"
-        build_zig = plugin_dir / "build.zig"
-
         if not toml_path.exists():
             continue
-        if require_build_zig and not build_zig.exists():
-            continue
+
+        build_system = detect_build_system(plugin_dir)
 
         with open(toml_path, "rb") as fh:
             raw = tomllib.load(fh)
@@ -125,6 +141,15 @@ def discover_plugins(
             if readme.exists():
                 description = first_paragraph_of_readme(readme)
 
+        # Download URLs: include wasm only if build system is available
+        download = {
+            "linux": release_download_url(repo, release_tag, entry_base + ".so"),
+            "macos": release_download_url(repo, release_tag, entry_base + ".dylib"),
+        }
+        # Add wasm URL — all build systems support a web target now
+        if build_system:
+            download["wasm"] = release_download_url(repo, release_tag, entry_base + ".wasm")
+
         plugins.append({
             # Registry fields
             "id":          plugin_id,
@@ -135,16 +160,13 @@ def discover_plugins(
             "tags":        p.get("tags", []),
             "repo":        f"https://github.com/{repo}",
             "readme_url":  repo_raw_url(repo, branch, f"{rel_dir}/README.md"),
-            "download": {
-                "linux": release_download_url(repo, release_tag, entry_base + ".so"),
-                "macos": release_download_url(repo, release_tag, entry_base + ".dylib"),
-                "wasm":  release_download_url(repo, release_tag, entry_base + ".wasm"),
-            },
+            "logo_url":    repo_raw_url(repo, branch, f"{rel_dir}/logo.svg"),
+            "download":    download,
             # Build metadata (used by workflow, not stored in registry.json)
-            "_dir":       str(plugin_dir.relative_to(REPO_ROOT)),
-            "_entry":     entry_base,
-            "_apt_deps":  b.get("apt_deps", []),
-            "_has_build": build_zig.exists(),
+            "_dir":          str(plugin_dir.relative_to(REPO_ROOT)),
+            "_entry":        entry_base,
+            "_apt_deps":     b.get("apt_deps", []),
+            "_build_system": build_system,
         })
 
     return plugins
@@ -167,13 +189,14 @@ def mode_list_buildable(plugins: list[dict]) -> None:
     """Print a JSON array suitable for a GitHub Actions matrix."""
     buildable = [
         {
-            "id":       p["id"],
-            "dir":      p["_dir"],
-            "entry":    p["_entry"],
-            "apt_deps": p["_apt_deps"],
+            "id":           p["id"],
+            "dir":          p["_dir"],
+            "entry":        p["_entry"],
+            "apt_deps":     p["_apt_deps"],
+            "build_system": p["_build_system"],
         }
         for p in plugins
-        if p.get("_has_build")
+        if p.get("_build_system")
     ]
     print(json.dumps(buildable))
 

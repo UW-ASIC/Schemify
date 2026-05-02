@@ -1,0 +1,8 @@
+[plugin]
+name        = "VimKeybinds"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libVimKeybinds.so"
+description = "Vim-style modal keybindings: NORMAL/INSERT/VISUAL modes with hjkl navigation, numeric prefixes, and standard vim editing commands."
+tags        = ["vim", "keybinds", "modal", "navigation"]
+scope       = "user"

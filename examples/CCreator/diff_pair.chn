@@ -1,0 +1,95 @@
+chn 1
+
+SYMBOL diff_pair
+  pins:
+    INP  in  x=-80  y=-10
+    INM  in  x=-80  y=10
+    OUTP  out  x=80  y=-10
+    OUTM  out  x=80  y=10
+    VDD  inout  x=0  y=-40
+    VSS  inout  x=0  y=40
+  params:
+    format = @name @pinlist @symname
+    template = name=XDIFF
+    type = subcircuit
+
+SCHEMATIC
+  pmos [N]{name, w, l, nf, model}:
+    MP1  2u  500n  1  pch
+    MP2  2u  500n  1  pch
+
+  nmos [N]{name, w, l, nf, model}:
+    MN1  1u  500n  1  nch
+    MN2  1u  500n  1  nch
+    MN3  2u  1u  1  nch
+
+  instances:
+    l_vdd  vdd  x=200  y=-400  sym=vdd
+    l_vss  gnd  x=200  y=-50  sym=gnd
+
+  nets:
+    INP  -> MN1.gate
+    INM  -> MN2.gate
+    OUTP  -> MN1.drain, MP1.drain
+    OUTM  -> MN2.drain, MP2.drain
+    VDD  -> MP1.source, MP2.source, l_vdd.p
+    tail  -> MN1.source, MN2.source, MN3.drain
+    VSS  -> MN3.source, l_vss.p
+    bias  -> MN3.gate, MP1.gate, MP2.gate
+
+  wires:
+    60 -300 100 -300 INP
+    60 -200 100 -200 INM
+    200 -400 200 -380 VDD
+    200 -50 200 -70 VSS
+
+PLUGIN CCreator
+  mode: bidirectional
+  generator: |
+    """CMOS differential pair — realistic netlist for .chn files."""
+    from ccreator import realistic
+    from ccreator.core import Port
+
+    @realistic.analog
+    class DiffPair:
+        """Simple NMOS differential pair with PMOS active load.
+
+        MN1/MN2: input pair (W=1u, L=500n)
+        MP1/MP2: active load (W=2u, L=500n)
+        MN3: tail current source (W=2u, L=1u)
+        """
+
+        ports = [
+            Port('INP', 'input', 'voltage'),
+            Port('INM', 'input', 'voltage'),
+            Port('OUTP', 'output', 'voltage'),
+            Port('OUTM', 'output', 'voltage'),
+            Port('VDD', 'inout', 'voltage'),
+            Port('VSS', 'inout', 'voltage'),
+        ]
+
+        parameters = {
+            'wn': '1u',
+            'ln': '500n',
+            'wp': '2u',
+            'lp': '500n',
+            'w_tail': '2u',
+            'l_tail': '1u',
+        }
+
+        def build(self, n):
+            # Input differential pair
+            n.MOSFET('MN1', 'OUTP', 'INP', 'tail', 'VSS',
+                      'nch', w=self.parameters['wn'], l=self.parameters['ln'])
+            n.MOSFET('MN2', 'OUTM', 'INM', 'tail', 'VSS',
+                      'nch', w=self.parameters['wn'], l=self.parameters['ln'])
+
+            # PMOS active load
+            n.MOSFET('MP1', 'OUTP', 'bias', 'VDD', 'VDD',
+                      'pch', w=self.parameters['wp'], l=self.parameters['lp'])
+            n.MOSFET('MP2', 'OUTM', 'bias', 'VDD', 'VDD',
+                      'pch', w=self.parameters['wp'], l=self.parameters['lp'])
+
+            # Tail current source
+            n.MOSFET('MN3', 'tail', 'bias', 'VSS', 'VSS',
+                      'nch', w=self.parameters['w_tail'], l=self.parameters['l_tail'])

@@ -1,0 +1,11 @@
+[plugin]
+name        = "SpiceImport"
+version     = "0.1.0"
+author      = "UWASIC"
+entry       = "libSpiceImport.so"
+description = "Import ngspice netlists (.sp/.cir/.net) as Schemify schematics. Performs topological placement, Manhattan wire routing, and power-symbol insertion."
+tags        = ["spice", "ngspice", "import", "netlist", "conversion"]
+scope       = "user"
+
+[build]
+apt_deps = []

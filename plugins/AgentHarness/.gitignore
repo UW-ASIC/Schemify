@@ -1,0 +1,5 @@
+*.so
+*.wasm
+*.dylib
+__pycache__/
+*.pyc

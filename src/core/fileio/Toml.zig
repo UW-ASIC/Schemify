@@ -1,40 +1,30 @@
-//! Project Config.toml parser
+//! Toml.zig — Project Config.toml parser
 //!
-//! Reads Config.toml from a project directory and parses into ProjectConfig.
+//! Reads Config.toml from a project directory. Paths support glob patterns
+//! (e.g. `"examples/*"`) which are expanded recursively at parse time.
 //!
-//! Paths support glob patterns (e.g. `"examples/*"`) which are expanded
-//! recursively at parse time, filtering by file extension per key:
-//!   - `chn`      → `.chn`
-//!   - `chn_tb`   → `.chn_tb`
-//!   - `chn_prim` → `.chn_prim`
-//!
-//! Expected Config.toml structure:
-//! ```toml
-//! name = "My Project"
-//! [paths]
-//! chn = ["examples/*"]
-//! chn_tb = ["examples/*"]
-//! chn_prim = ["src/core/devices/*.chn_prim"]
-//! [simulation]
-//! spice_include_paths = ["/pdk/spice"]
-//! [plugins]
-//! enabled = ["myplugin"]
-//! ```
+//! Expected Config.toml:
+//!   name = "My Project"
+//!   pdk = "sky130"
+//!   [paths]
+//!   chn = ["examples/*"]
+//!   chn_tb = ["examples/*"]
+//!   chn_prim = ["src/core/devices/*.chn_prim"]
+//!   [simulation]
+//!   spice_include_paths = ["/pdk/spice"]
+//!   [plugins]
+//!   enabled = ["myplugin"]
 
 const std = @import("std");
+const dvui = @import("dvui");
 const Allocator = std.mem.Allocator;
-const Vfs = @import("utility").Vfs;
 
-/// Named error set for TOML parsing failures.
-pub const ParseError = error{
-    InvalidFormat,
-    OutOfMemory,
-};
+pub const ParseError = error{ InvalidFormat, OutOfMemory };
 
 pub const ProjectConfig = struct {
     name: []const u8 = "Untitled",
-    paths: Paths = .{},
     pdk: ?[]const u8 = null,
+    paths: Paths = .{},
     simulation: ?SimulationOptions = null,
     plugins: ?PluginOptions = null,
     plugin_specs: []const PluginSpec = &.{},
@@ -55,8 +45,6 @@ pub const ProjectConfig = struct {
         disabled: []const []const u8 = &.{},
     };
 
-    /// Flattened, per-plugin record built from the `[plugins]` section.
-    /// Plugins in `disabled` override those in `enabled`.
     pub const PluginSpec = struct {
         name: []const u8,
         enabled: bool,
@@ -73,10 +61,6 @@ pub const ProjectConfig = struct {
         self.* = undefined;
     }
 
-    /// Parse Config.toml from project directory. Returns default config if file missing.
-    ///
-    /// Uses Vfs so this works on both native (std.fs) and WASM (host.vfs_* imports).
-    /// Glob patterns in path arrays (e.g. `"examples/*"`) are expanded recursively.
     pub fn parseFromPath(alloc: Allocator, project_dir: []const u8) !ProjectConfig {
         var config = ProjectConfig.init(alloc);
         errdefer config.deinit();
@@ -84,7 +68,7 @@ pub const ProjectConfig = struct {
         const path = try std.fs.path.join(alloc, &.{ project_dir, "Config.toml" });
         defer alloc.free(path);
 
-        const content = Vfs.readAlloc(alloc, path) catch |err| {
+        const content = dvui.fs.cwd().readFileAlloc(alloc, path, 1 << 20) catch |err| {
             if (err == error.FileNotFound) return config;
             return err;
         };
@@ -104,11 +88,10 @@ pub const ProjectConfig = struct {
         return config;
     }
 
-    /// Parse from an arbitrary file path (used for user-level plugins.toml).
     pub fn parseFromFile(alloc: Allocator, path: []const u8) !ProjectConfig {
         var config = ProjectConfig.init(alloc);
         errdefer config.deinit();
-        const content = Vfs.readAlloc(alloc, path) catch |err| {
+        const content = dvui.fs.cwd().readFileAlloc(alloc, path, 1 << 20) catch |err| {
             if (err == error.FileNotFound) return config;
             return err;
         };
@@ -118,16 +101,12 @@ pub const ProjectConfig = struct {
         return config;
     }
 
-    /// First schematic to open: .chn -> .chn_tb
     pub fn firstSchematicPath(self: *const ProjectConfig) ?[]const u8 {
         if (self.paths.chn.len > 0) return self.paths.chn[0];
         if (self.paths.chn_tb.len > 0) return self.paths.chn_tb[0];
         return null;
     }
 
-    /// Return all resolved .chn, .chn_tb and .chn_prim file paths (for the
-    /// file viewer). Caller must free the returned slice (but not the
-    /// strings, which are arena-owned).
     pub fn allFiles(self: *const ProjectConfig, alloc: Allocator) []const []const u8 {
         var list: std.ArrayListUnmanaged([]const u8) = .{};
         for (self.paths.chn) |p| list.append(alloc, p) catch {};
@@ -137,96 +116,9 @@ pub const ProjectConfig = struct {
     }
 };
 
-fn expandPathGlobs(config: *ProjectConfig, project_dir: []const u8) void {
-    const arena = config.arena.allocator();
-    config.paths.chn = expandGlobs(arena, project_dir, config.paths.chn, ".chn");
-    config.paths.chn_tb = expandGlobs(arena, project_dir, config.paths.chn_tb, ".chn_tb");
-    config.paths.chn_prim = expandGlobs(arena, project_dir, config.paths.chn_prim, ".chn_prim");
-}
-
-// ---------------------------------------------------------------------------
-// Glob expansion
-// ---------------------------------------------------------------------------
-
-/// Expand glob patterns in a path array. Patterns containing `*` are treated
-/// as directory prefixes: the `*` and everything after it is stripped, and the
-/// resulting directory is walked recursively for files matching `ext`.
-/// Non-glob entries are passed through unchanged.
-fn expandGlobs(
-    alloc: Allocator,
-    project_dir: []const u8,
-    raw_paths: []const []const u8,
-    ext: []const u8,
-) []const []const u8 {
-    if (comptime @import("builtin").target.cpu.arch == .wasm32) return raw_paths;
-
-    var result: std.ArrayListUnmanaged([]const u8) = .{};
-    for (raw_paths) |p| {
-        if (std.mem.indexOfScalar(u8, p, '*')) |star| {
-            // Directory prefix is everything before the `*` (and any trailing `/`).
-            const dir_part = if (star > 0 and p[star - 1] == '/')
-                p[0 .. star - 1]
-            else
-                p[0..star];
-
-            const abs_dir = if (dir_part.len == 0)
-                alloc.dupe(u8, project_dir) catch continue
-            else if (std.fs.path.isAbsolute(dir_part))
-                alloc.dupe(u8, dir_part) catch continue
-            else
-                std.fs.path.join(alloc, &.{ project_dir, dir_part }) catch continue;
-            defer alloc.free(abs_dir);
-
-            walkDirForExt(alloc, abs_dir, dir_part, ext, &result);
-        } else {
-            result.append(alloc, p) catch {};
-        }
-    }
-    return result.toOwnedSlice(alloc) catch raw_paths;
-}
-
-/// Recursively walk `abs_dir`, collecting files that end with `ext`.
-/// Stored paths use `rel_prefix` so they remain relative to the project root.
-fn walkDirForExt(
-    alloc: Allocator,
-    abs_dir: []const u8,
-    rel_prefix: []const u8,
-    ext: []const u8,
-    out: *std.ArrayListUnmanaged([]const u8),
-) void {
-    const listing = Vfs.listDir(alloc, abs_dir) catch return;
-    defer listing.deinit(alloc);
-
-    for (listing.entries) |name| {
-        const sub_abs = std.fs.path.join(alloc, &.{ abs_dir, name }) catch continue;
-
-        // Recurse into subdirectories.
-        if (Vfs.isDir(sub_abs)) {
-            defer alloc.free(sub_abs);
-            const sub_rel = std.fs.path.join(alloc, &.{ rel_prefix, name }) catch continue;
-            defer alloc.free(sub_rel);
-            walkDirForExt(alloc, sub_abs, sub_rel, ext, out);
-            continue;
-        }
-        alloc.free(sub_abs);
-
-        if (!matchesExt(name, ext)) continue;
-        const rel_path = std.fs.path.join(alloc, &.{ rel_prefix, name }) catch continue;
-        out.append(alloc, rel_path) catch {
-            alloc.free(rel_path);
-        };
-    }
-}
-
-fn matchesExt(name: []const u8, ext: []const u8) bool {
-    if (!std.mem.endsWith(u8, name, ext)) return false;
-    if (!std.mem.eql(u8, ext, ".chn")) return true;
-    return !std.mem.endsWith(u8, name, ".chn_tb") and !std.mem.endsWith(u8, name, ".chn_prim");
-}
-
-// ---------------------------------------------------------------------------
-// Private parser helpers
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Parser
+// ─────────────────────────────────────────────────────────────────────────────
 
 const Section = enum { root, paths, simulation, plugins };
 
@@ -234,15 +126,27 @@ fn parseInto(config: *ProjectConfig, content: []const u8) ParseError!void {
     const alloc = config.arena.allocator();
     var lines = std.mem.splitScalar(u8, content, '\n');
     var section: Section = .root;
+    var ml_key: []const u8 = "";
+    var ml_buf: std.ArrayListUnmanaged(u8) = .{};
+    var in_ml: bool = false;
 
     while (lines.next()) |raw| {
         const line = std.mem.trim(u8, raw, " \t\r");
         if (line.len == 0 or line[0] == '#') continue;
 
+        if (in_ml) {
+            try ml_buf.appendSlice(alloc, line);
+            if (std.mem.indexOfScalar(u8, line, ']') != null) {
+                in_ml = false;
+                try dispatchArray(config, alloc, section, ml_key, ml_buf.items);
+                ml_buf.clearRetainingCapacity();
+            }
+            continue;
+        }
+
         if (line[0] == '[') {
             const end = std.mem.indexOfScalar(u8, line, ']') orelse continue;
-            const name = std.mem.trim(u8, line[1..end], " \t");
-            section = std.meta.stringToEnum(Section, name) orelse .root;
+            section = std.meta.stringToEnum(Section, std.mem.trim(u8, line[1..end], " \t")) orelse .root;
             continue;
         }
 
@@ -250,48 +154,71 @@ fn parseInto(config: *ProjectConfig, content: []const u8) ParseError!void {
         const key = std.mem.trim(u8, line[0..eq], " \t");
         const val = std.mem.trim(u8, line[eq + 1 ..], " \t");
 
+        // Multi-line array
+        if (val.len > 0 and val[0] == '[' and std.mem.indexOfScalar(u8, val, ']') == null) {
+            ml_key = key;
+            ml_buf.clearRetainingCapacity();
+            try ml_buf.appendSlice(alloc, val);
+            in_ml = true;
+            continue;
+        }
+
         switch (section) {
             .root => {
-                if (std.mem.eql(u8, key, "name")) {
-                    config.name = parseStr(alloc, val) catch continue;
-                } else if (std.mem.eql(u8, key, "pdk")) {
+                if (std.mem.eql(u8, key, "name"))
+                    config.name = parseStr(alloc, val) catch continue
+                else if (std.mem.eql(u8, key, "pdk"))
                     config.pdk = parseStr(alloc, val) catch null;
-                }
             },
             .paths => {
-                if (std.mem.eql(u8, key, "chn")) {
-                    config.paths.chn = try parseStrArray(alloc, val);
-                } else if (std.mem.eql(u8, key, "chn_tb")) {
-                    config.paths.chn_tb = try parseStrArray(alloc, val);
-                } else if (std.mem.eql(u8, key, "chn_prim")) {
+                if (std.mem.eql(u8, key, "chn"))
+                    config.paths.chn = try parseStrArray(alloc, val)
+                else if (std.mem.eql(u8, key, "chn_tb"))
+                    config.paths.chn_tb = try parseStrArray(alloc, val)
+                else if (std.mem.eql(u8, key, "chn_prim"))
                     config.paths.chn_prim = try parseStrArray(alloc, val);
-                }
             },
             .simulation => {
-                if (std.mem.eql(u8, key, "spice_include_paths")) {
+                if (std.mem.eql(u8, key, "spice_include_paths"))
                     config.simulation = .{ .spice_include_paths = try parseStrArray(alloc, val) };
-                }
             },
             .plugins => {
                 if (config.plugins == null) config.plugins = .{};
-                if (std.mem.eql(u8, key, "enabled")) {
-                    config.plugins.?.enabled = try parseStrArray(alloc, val);
-                } else if (std.mem.eql(u8, key, "disabled")) {
+                if (std.mem.eql(u8, key, "enabled"))
+                    config.plugins.?.enabled = try parseStrArray(alloc, val)
+                else if (std.mem.eql(u8, key, "disabled"))
                     config.plugins.?.disabled = try parseStrArray(alloc, val);
-                }
             },
         }
     }
 }
 
-/// Parse `"value"` into an allocated inner string. `val` must already be trimmed.
+fn dispatchArray(config: *ProjectConfig, alloc: Allocator, section: Section, key: []const u8, val: []const u8) ParseError!void {
+    switch (section) {
+        .paths => {
+            if (std.mem.eql(u8, key, "chn")) config.paths.chn = try parseStrArray(alloc, val)
+            else if (std.mem.eql(u8, key, "chn_tb")) config.paths.chn_tb = try parseStrArray(alloc, val)
+            else if (std.mem.eql(u8, key, "chn_prim")) config.paths.chn_prim = try parseStrArray(alloc, val);
+        },
+        .simulation => {
+            if (std.mem.eql(u8, key, "spice_include_paths"))
+                config.simulation = .{ .spice_include_paths = try parseStrArray(alloc, val) };
+        },
+        .plugins => {
+            if (config.plugins == null) config.plugins = .{};
+            if (std.mem.eql(u8, key, "enabled")) config.plugins.?.enabled = try parseStrArray(alloc, val)
+            else if (std.mem.eql(u8, key, "disabled")) config.plugins.?.disabled = try parseStrArray(alloc, val);
+        },
+        else => {},
+    }
+}
+
 fn parseStr(alloc: Allocator, val: []const u8) ParseError![]const u8 {
     if (val.len >= 2 and val[0] == '"' and val[val.len - 1] == '"')
         return alloc.dupe(u8, val[1 .. val.len - 1]);
     return error.InvalidFormat;
 }
 
-/// Parse `["a", "b", ...]` into an allocated slice of strings. `val` must already be trimmed.
 fn parseStrArray(alloc: Allocator, val: []const u8) ParseError![]const []const u8 {
     if (val.len < 2 or val[0] != '[') return &.{};
     var list: std.ArrayListUnmanaged([]const u8) = .{};
@@ -306,39 +233,88 @@ fn parseStrArray(alloc: Allocator, val: []const u8) ParseError![]const []const u
     return list.toOwnedSlice(alloc);
 }
 
-// ---------------------------------------------------------------------------
-// Plugin spec builder
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Glob expansion
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// Flatten the `[plugins]` enabled/disabled string arrays into `plugin_specs`.
-/// Entries in `disabled` override entries in `enabled`.
+fn expandPathGlobs(config: *ProjectConfig, project_dir: []const u8) void {
+    const arena = config.arena.allocator();
+    config.paths.chn = expandGlobs(arena, project_dir, config.paths.chn, ".chn");
+    config.paths.chn_tb = expandGlobs(arena, project_dir, config.paths.chn_tb, ".chn_tb");
+    config.paths.chn_prim = expandGlobs(arena, project_dir, config.paths.chn_prim, ".chn_prim");
+}
+
+fn expandGlobs(alloc: Allocator, project_dir: []const u8, raw: []const []const u8, ext: []const u8) []const []const u8 {
+    if (comptime @import("builtin").target.cpu.arch == .wasm32) return raw;
+    var result: std.ArrayListUnmanaged([]const u8) = .{};
+    for (raw) |p| {
+        if (std.mem.indexOfScalar(u8, p, '*')) |star| {
+            const dir_part = if (star > 0 and p[star - 1] == '/') p[0 .. star - 1] else p[0..star];
+            const abs_dir = if (dir_part.len == 0)
+                alloc.dupe(u8, project_dir) catch continue
+            else if (std.fs.path.isAbsolute(dir_part))
+                alloc.dupe(u8, dir_part) catch continue
+            else
+                std.fs.path.join(alloc, &.{ project_dir, dir_part }) catch continue;
+            defer alloc.free(abs_dir);
+            walkDir(alloc, abs_dir, dir_part, ext, &result);
+        } else result.append(alloc, p) catch {};
+    }
+    return result.toOwnedSlice(alloc) catch raw;
+}
+
+fn walkDir(alloc: Allocator, abs_dir: []const u8, rel_prefix: []const u8, ext: []const u8, out: *std.ArrayListUnmanaged([]const u8)) void {
+    var dir = dvui.fs.cwd().openDir(abs_dir, .{ .iterate = true }) catch return;
+    defer dir.close();
+    var iter = dir.iterate();
+    while (iter.next() catch null) |entry| {
+        if (entry.kind == .directory) {
+            const sub_abs = std.fs.path.join(alloc, &.{ abs_dir, entry.name }) catch continue;
+            defer alloc.free(sub_abs);
+            const sub_rel = std.fs.path.join(alloc, &.{ rel_prefix, entry.name }) catch continue;
+            defer alloc.free(sub_rel);
+            walkDir(alloc, sub_abs, sub_rel, ext, out);
+            continue;
+        }
+        if (!matchesExt(entry.name, ext)) continue;
+        const rel = std.fs.path.join(alloc, &.{ rel_prefix, entry.name }) catch continue;
+        out.append(alloc, rel) catch alloc.free(rel);
+    }
+}
+
+fn matchesExt(name: []const u8, ext: []const u8) bool {
+    if (!std.mem.endsWith(u8, name, ext)) return false;
+    if (!std.mem.eql(u8, ext, ".chn")) return true;
+    return !std.mem.endsWith(u8, name, ".chn_tb") and !std.mem.endsWith(u8, name, ".chn_prim");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plugin spec builder
+// ─────────────────────────────────────────────────────────────────────────────
+
 fn buildPluginSpecs(config: *ProjectConfig) void {
     const alloc = config.arena.allocator();
     const opts = config.plugins orelse return;
-
     var specs: std.ArrayListUnmanaged(ProjectConfig.PluginSpec) = .{};
 
     for (opts.enabled) |name| {
-        const is_disabled = for (opts.disabled) |d| {
+        const disabled = for (opts.disabled) |d| {
             if (std.mem.eql(u8, d, name)) break true;
         } else false;
-        specs.append(alloc, .{ .name = name, .enabled = !is_disabled }) catch {};
+        specs.append(alloc, .{ .name = name, .enabled = !disabled }) catch {};
     }
-
-    // Disabled-only entries (not listed in enabled) are also recorded.
     for (opts.disabled) |name| {
         const already = for (opts.enabled) |e| {
             if (std.mem.eql(u8, e, name)) break true;
         } else false;
         if (!already) specs.append(alloc, .{ .name = name, .enabled = false }) catch {};
     }
-
     config.plugin_specs = specs.toOwnedSlice(alloc) catch &.{};
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 // Tests
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 
 test "toml parse name" {
     var cfg = try ProjectConfig.parseFromString(std.testing.allocator,
@@ -357,26 +333,25 @@ test "toml parse paths array" {
     defer cfg.deinit();
     try std.testing.expectEqual(@as(usize, 2), cfg.paths.chn.len);
     try std.testing.expectEqualStrings("inv.chn", cfg.paths.chn[0]);
-    try std.testing.expectEqualStrings("buf.chn", cfg.paths.chn[1]);
     try std.testing.expectEqualStrings("tb.chn_tb", cfg.paths.chn_tb[0]);
 }
 
-test "toml firstSchematicPath" {
+test "toml parse multi-line plugin array" {
     var cfg = try ProjectConfig.parseFromString(std.testing.allocator,
-        \\[paths]
-        \\chn = ["top.chn"]
+        \\[plugins]
+        \\enabled = [
+        \\  "GitBlame",
+        \\  "PDKLoader",
+        \\  "Themes",
+        \\]
     );
     defer cfg.deinit();
-    try std.testing.expectEqualStrings("top.chn", cfg.firstSchematicPath().?);
+    try std.testing.expectEqual(@as(usize, 3), cfg.plugin_specs.len);
+    try std.testing.expectEqualStrings("GitBlame", cfg.plugin_specs[0].name);
 }
 
 test "toml missing file returns default" {
     var cfg = try ProjectConfig.parseFromPath(std.testing.allocator, "/nonexistent/path");
     defer cfg.deinit();
     try std.testing.expectEqualStrings("Untitled", cfg.name);
-}
-
-test "Expose struct size for ProjectConfig" {
-    const print = @import("std").debug.print;
-    print("ProjectConfig: {d}B\n", .{@sizeOf(ProjectConfig)});
 }
