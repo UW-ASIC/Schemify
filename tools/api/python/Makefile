@@ -90,6 +90,7 @@ install: $(PLUGIN_NAME).so
 	mkdir -p "$(INSTALL_DIR)"
 	cp $(PLUGIN_NAME).so "$(INSTALL_DIR)/"
 	cp $(PLUGIN_SCRIPT) "$(INSTALL_DIR)/$(PLUGIN_MODULE).py"
+	cp "$(_MKDIR)src/lib.py" "$(INSTALL_DIR)/schemify_sdk.py"
 	$(EXTRA_INSTALL)
 
 # ── Clean ─────────────────────────────────────────────────────────────────

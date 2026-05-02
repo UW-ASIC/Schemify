@@ -30,12 +30,16 @@ from pathlib import Path
 from typing import Any, Optional
 
 # ---------------------------------------------------------------------------
-# SDK path resolution (same pattern as Themes plugin)
+# SDK path resolution — try installed location first, then source-tree fallback
 # ---------------------------------------------------------------------------
 _PLUGIN_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
-_SDK_LIB = os.path.normpath(
-    os.path.join(_PLUGIN_SRC_DIR, "..", "..", "..", "tools", "api", "python", "src", "lib.py")
-)
+_SDK_CANDIDATES = [
+    os.path.join(_PLUGIN_SRC_DIR, "schemify_sdk.py"),                           # installed
+    os.path.normpath(
+        os.path.join(_PLUGIN_SRC_DIR, "..", "..", "..", "tools", "api", "python", "src", "lib.py")
+    ),                                                                           # source tree
+]
+_SDK_LIB = next((p for p in _SDK_CANDIDATES if os.path.isfile(p)), _SDK_CANDIDATES[-1])
 _spec = _ilu.spec_from_file_location("schemify_plugin", _SDK_LIB)
 schemify_plugin = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(schemify_plugin)  # type: ignore

@@ -16,6 +16,42 @@ const U16_SZ = types.U16_SZ;
 const U32_SZ = types.U32_SZ;
 const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
 
+// -- Global-visibility dynamic library loader ---------------------------------
+// Zig's std.DynLib uses ElfDynLib (a custom userspace ELF loader) when
+// link_libc is false.  Libraries loaded that way are invisible to glibc's
+// dlopen, so embedded interpreters (e.g. CPython) that dlopen C extensions
+// cannot resolve symbols from their host library.  We use glibc's dlopen
+// directly with RTLD_GLOBAL to make all plugin symbols (and their transitive
+// deps like libpython) available for later dlopen calls.
+
+const PluginLib = if (is_wasm) void else struct {
+    handle: *anyopaque,
+
+    const RTLD_LAZY: c_int = 0x1;
+    const RTLD_GLOBAL: c_int = 0x100;
+
+    extern "c" fn dlopen(filename: [*:0]const u8, flags: c_int) ?*anyopaque;
+    extern "c" fn dlsym(handle: *anyopaque, symbol: [*:0]const u8) ?*anyopaque;
+    extern "c" fn dlclose(handle: *anyopaque) c_int;
+
+    fn open(path: []const u8) !PluginLib {
+        const path_z = try std.posix.toPosixPath(path);
+        const handle = dlopen(&path_z, RTLD_LAZY | RTLD_GLOBAL) orelse
+            return error.FileNotFound;
+        return .{ .handle = handle };
+    }
+
+    fn lookup(self: PluginLib, comptime T: type, name: [:0]const u8) ?T {
+        const ptr = dlsym(self.handle, name.ptr) orelse return null;
+        return @ptrCast(@alignCast(ptr));
+    }
+
+    fn close(self: *PluginLib) void {
+        _ = dlclose(self.handle);
+        self.* = undefined;
+    }
+};
+
 // -- Event subscription flags -------------------------------------------------
 
 pub const EVENT_HOVER: u8 = 1 << 0;
@@ -69,7 +105,7 @@ const FileResponse = struct { path: []u8, data: []u8 };
 const StateResponse = struct { key: []u8, val: []u8 };
 
 const LoadedPlugin = struct {
-    lib: if (is_wasm) void else std.DynLib,
+    lib: PluginLib,
     desc: *const types.Descriptor,
     buf: []u8 = &.{},
     pending_file_responses: std.ArrayListUnmanaged(FileResponse) = .{},
@@ -173,7 +209,7 @@ pub const Runtime = struct {
     pub fn loadOne(self: *Runtime, alloc: std.mem.Allocator, so_path: []const u8, caps: Cap.Capability) void {
         if (comptime is_wasm) return;
 
-        var lib = std.DynLib.open(so_path) catch |err| {
+        var lib = PluginLib.open(so_path) catch |err| {
             self.logErr(alloc, "dlopen({s}): {}", .{ so_path, err });
             return;
         };

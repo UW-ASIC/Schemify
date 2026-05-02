@@ -84,20 +84,24 @@ static void init_python(void) {
     if (g_init_done) return;
     g_init_done = 1;
 
-    int fresh = !Py_IsInitialized();
-    if (fresh) Py_Initialize();
+    if (!Py_IsInitialized()) Py_Initialize();
 
-    /* Prepend plugin directory to sys.path. */
+    /* Prepend plugin directory (and its src/ subdirectory) to sys.path. */
     const char* pdir = self_dir();
     PyObject* sys_path = PySys_GetObject("path");
     if (sys_path) {
         PyObject* d = PyUnicode_DecodeFSDefault(pdir);
         if (d) { PyList_Insert(sys_path, 0, d); Py_DECREF(d); }
+
+        char src_dir[4096];
+        snprintf(src_dir, sizeof(src_dir), "%s/src", pdir);
+        PyObject* sd = PyUnicode_DecodeFSDefault(src_dir);
+        if (sd) { PyList_Insert(sys_path, 1, sd); Py_DECREF(sd); }
     }
 
     /* Import the plugin module and grab schemify_process. */
     PyObject* mod = PyImport_ImportModule(PLUGIN_MODULE);
-    if (!mod) { PyErr_Print(); goto done; }
+    if (!mod) { PyErr_Print(); return; }
 
     g_process_fn = PyObject_GetAttrString(mod, "schemify_process");
     Py_DECREF(mod);
@@ -108,9 +112,6 @@ static void init_python(void) {
         Py_XDECREF(g_process_fn);
         g_process_fn = NULL;
     }
-
-done:
-    if (fresh) PyEval_SaveThread();   /* release GIL for PyGILState_* */
 }
 
 /* ── Process entry point ───────────────────────────────────────────────── */
@@ -122,24 +123,23 @@ static size_t python_bridge_process(
     init_python();
     if (!g_process_fn) return (size_t)-1;
 
-    PyGILState_STATE gs = PyGILState_Ensure();
+    /* GIL is already held — we never release it (single-threaded bridge). */
 
     PyObject* arg = PyBytes_FromStringAndSize((const char*)in_ptr,
                                               (Py_ssize_t)in_len);
-    if (!arg) { PyGILState_Release(gs); return (size_t)-1; }
+    if (!arg) { return (size_t)-1; }
 
     PyObject* res = PyObject_CallOneArg(g_process_fn, arg);
     Py_DECREF(arg);
 
-    if (!res)              { PyErr_Print(); PyGILState_Release(gs); return (size_t)-1; }
-    if (!PyBytes_Check(res)) { Py_DECREF(res); PyGILState_Release(gs); return (size_t)-1; }
+    if (!res)              { PyErr_Print(); return (size_t)-1; }
+    if (!PyBytes_Check(res)) { Py_DECREF(res); return (size_t)-1; }
 
     Py_ssize_t rlen = PyBytes_GET_SIZE(res);
-    if ((size_t)rlen > out_cap) { Py_DECREF(res); PyGILState_Release(gs); return (size_t)-1; }
+    if ((size_t)rlen > out_cap) { Py_DECREF(res); return (size_t)-1; }
 
     memcpy(out_ptr, PyBytes_AS_STRING(res), (size_t)rlen);
     Py_DECREF(res);
-    PyGILState_Release(gs);
     return (size_t)rlen;
 }
 
