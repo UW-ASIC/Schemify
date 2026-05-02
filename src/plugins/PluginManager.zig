@@ -8,6 +8,7 @@
 //!   <name>.wasm, lib/<name>.wasm                                (wasm)
 
 const std = @import("std");
+const dvui = @import("dvui");
 
 pub const BinaryType = enum { native_so, wasm };
 
@@ -83,7 +84,7 @@ pub const PluginManager = struct {
         config_dir: []const u8,
     ) u32 {
         var found: u32 = 0;
-        var dir = std.fs.cwd().openDir(config_dir, .{ .iterate = true }) catch return 0;
+        var dir = dvui.fs.cwd().openDir(config_dir, .{ .iterate = true }) catch return 0;
         defer dir.close();
 
         var it = dir.iterate();
@@ -154,6 +155,6 @@ fn findBinary(alloc: std.mem.Allocator, dir: []const u8, name: []const u8) ?Find
 }
 
 fn fileExists(path: []const u8) bool {
-    @import("dvui").fs.cwd().access(path, .{}) catch return false;
+    dvui.fs.cwd().access(path, .{}) catch return false;
     return true;
 }

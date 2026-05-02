@@ -23,7 +23,7 @@
 #![no_std]
 use core::mem;
 
-pub const ABI_VERSION: u32 = 7;
+pub const ABI_VERSION: u32 = 8;
 
 // ── Layout ────────────────────────────────────────────────────────────────
 

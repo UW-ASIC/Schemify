@@ -22,7 +22,7 @@
 //!
 //!   export const schemify_plugin = sp.descriptor("my-plugin", "0.1.0", process);
 
-pub const ABI_VERSION: u32 = 7;
+pub const ABI_VERSION: u32 = 8;
 
 // ── Layout ────────────────────────────────────────────────────────────────
 

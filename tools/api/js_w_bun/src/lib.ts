@@ -20,7 +20,7 @@
  *   run(new MyPlugin());
  */
 
-export const ABI_VERSION = 7;
+export const ABI_VERSION = 8;
 
 export const EVENT_HOVER = 0x01;
 export const EVENT_KEYS  = 0x02;

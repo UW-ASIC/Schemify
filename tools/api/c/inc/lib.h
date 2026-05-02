@@ -499,7 +499,7 @@ typedef size_t (*SchemifyProcessFn)(
     uint8_t*       out_ptr, size_t out_cap
 );
 
-#define SCHEMIFY_ABI_VERSION 7
+#define SCHEMIFY_ABI_VERSION 8
 
 typedef struct {
     uint32_t          abi_version;

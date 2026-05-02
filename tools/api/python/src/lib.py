@@ -33,7 +33,7 @@ from enum import IntEnum
 from typing import Optional
 
 
-ABI_VERSION = 7
+ABI_VERSION = 8
 
 
 # ── Layout ────────────────────────────────────────────────────────────────

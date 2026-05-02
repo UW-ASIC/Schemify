@@ -35,7 +35,7 @@
 
 /* ── Plugin ABI ────────────────────────────────────────────────────────── */
 
-#define SCHEMIFY_ABI_VERSION 7
+#define SCHEMIFY_ABI_VERSION 8
 
 #ifndef PLUGIN_NAME
 #define PLUGIN_NAME "python-plugin"
