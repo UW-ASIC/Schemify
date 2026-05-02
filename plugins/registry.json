@@ -2,25 +2,51 @@
   "version": 1,
   "plugins": [
     {
+      "id": "AgentHarness",
+      "name": "AgentHarness",
+      "author": "UWASIC",
+      "version": "0.1.0",
+      "description": "LLM agent harness: JSON-RPC unix socket exposing the full Schemify command surface, file I/O, and plugin skill docs.",
+      "tags": [
+        "agent",
+        "llm",
+        "automation",
+        "ai",
+        "harness"
+      ],
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/AgentHarness/README.md",
+      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/AgentHarness/logo.svg",
+      "download": {
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/AgentHarness.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/AgentHarness.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/AgentHarness.wasm"
+      }
+    },
+    {
       "id": "CCreator",
       "name": "CCreator",
       "author": "UWASIC",
       "version": "0.1.0",
-      "description": "Circuit design toolkit: define behavioral/realistic ADC, DAC, PLL, bandgap, oscillator, and switch circuits with automated testbenching and SPICE export.",
+      "description": "Full-stack circuit toolkit: define PDK-agnostic circuits, switch PDKs with gm/Id-preserving remap, optimize transistor sizing via Bayesian optimization, and export to Schemify schematics.",
       "tags": [
         "analog",
         "circuit",
         "simulation",
         "testbench",
-        "spice"
+        "spice",
+        "pdk",
+        "optimization",
+        "gm/id",
+        "import"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/CCreator/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/CCreator/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/CCreator/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/CCreator.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/CCreator.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/CCreator.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/CCreator.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/CCreator.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/CCreator.wasm"
       }
     },
     {
@@ -35,13 +61,13 @@
         "conversion",
         "dropin"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/EasyImport/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/EasyImport/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/EasyImport/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.wasm"
       }
     },
     {
@@ -57,13 +83,13 @@
         "bayesian",
         "mosfet"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/GMIDOptimizer/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GMIDOptimizer/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GMIDOptimizer/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.wasm"
       }
     },
     {
@@ -78,13 +104,13 @@
         "blame",
         "annotations"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/GitBlame/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GitBlame/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GitBlame/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GitBlame.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GitBlame.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GitBlame.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GitBlame.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GitBlame.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GitBlame.wasm"
       }
     },
     {
@@ -99,13 +125,13 @@
         "characterization",
         "pdk"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/GmIDVisualizer/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GmIDVisualizer/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GmIDVisualizer/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.wasm"
       }
     },
     {
@@ -121,13 +147,13 @@
         "ihp",
         "remapping"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/PDKSwitcherino/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/PDKSwitcherino/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/PDKSwitcherino/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.wasm"
       }
     },
     {
@@ -143,13 +169,13 @@
         "netlist",
         "conversion"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/SpiceImport/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/SpiceImport/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/SpiceImport/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/SpiceImport.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/SpiceImport.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/SpiceImport.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/SpiceImport.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/SpiceImport.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/SpiceImport.wasm"
       }
     },
     {
@@ -164,13 +190,13 @@
         "colors",
         "customization"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/Themes/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/Themes/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/Themes/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Themes.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Themes.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/Themes.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/Themes.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/Themes.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/Themes.wasm"
       }
     },
     {
@@ -185,35 +211,13 @@
         "modal",
         "navigation"
       ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/VimKeybinds/README.md",
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/VimKeybinds/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/VimKeybinds/logo.svg",
       "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/VimKeybinds.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/VimKeybinds.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/VimKeybinds.wasm"
-      }
-    },
-    {
-      "id": "AgentHarness",
-      "name": "AgentHarness",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "LLM agent harness: JSON-RPC unix socket exposing the full Schemify command surface, file I/O, state queries, and plugin skill documentation for AI-driven circuit design.",
-      "tags": [
-        "agent",
-        "llm",
-        "automation",
-        "ai",
-        "harness"
-      ],
-      "repo": "https://github.com/UWASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UWASIC/Schemify/main/plugins/AgentHarness/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/AgentHarness/logo.svg",
-      "download": {
-        "linux": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/AgentHarness.so",
-        "macos": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/AgentHarness.dylib",
-        "wasm": "https://github.com/UWASIC/Schemify/releases/download/plugins-latest/AgentHarness.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/VimKeybinds.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/VimKeybinds.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/VimKeybinds.wasm"
       }
     }
   ]
