@@ -1,6 +1,9 @@
 [submodule "plugins/PDKLoader/dep/volare"]
 	path = plugins/PDKLoader/dep/volare
 	url = https://github.com/efabless/volare.git
+[submodule "plugins/GmIDVisualizer/dep"]
+	path = plugins/GmIDVisualizer/dep
+	url = git@github.com:OmarSiwy/GmIDVisualizer.git
 [submodule "plugins/EasyImport/test/fixtures/xschem_library"]
 	path = plugins/EasyImport/test/fixtures/xschem_library
 	url = https://github.com/StefanSchippers/xschem.git
