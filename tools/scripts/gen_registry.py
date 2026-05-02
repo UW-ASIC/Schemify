@@ -41,7 +41,7 @@ REPO_ROOT    = Path(__file__).resolve().parent.parent.parent
 PLUGINS_DIR  = REPO_ROOT / "plugins"
 REGISTRY_OUT = PLUGINS_DIR / "registry.json"
 
-DEFAULT_REPO        = "UWASIC/Schemify"
+DEFAULT_REPO        = "UW-ASIC/Schemify"
 DEFAULT_BRANCH      = "main"
 DEFAULT_RELEASE_TAG = "plugins-latest"
 

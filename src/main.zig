@@ -128,6 +128,16 @@ fn tickPlugins() void {
     if (app.plugin_refresh_requested) {
         app.plugin_refresh_requested = false;
         const a = app.allocator();
+
+        // Re-discover plugins that may have been installed since startup.
+        if (comptime !is_wasm) {
+            const config_dir = utility.platform.pluginConfigDir(a) catch "";
+            defer if (config_dir.len > 0) a.free(config_dir);
+            if (config_dir.len > 0) {
+                _ = plugin_mgr.autoDiscover(a, config_dir);
+            }
+        }
+
         runtime.refresh(
             a,
             plugin_mgr.names.items,

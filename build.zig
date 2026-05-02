@@ -12,7 +12,7 @@ const module_defs = [_]Def{
     .{ "utility", "src/utility/lib.zig", &.{} },
     .{ "core", "src/core/lib.zig", &.{ "utility", "dvui" } },
     .{ "plugins", "src/plugins/lib.zig", &.{"dvui"} },
-    .{ "commands", "src/commands/lib.zig", &.{ "utility", "dvui" } },
+    .{ "commands", "src/commands/lib.zig", &.{ "utility", "dvui", "core" } },
     .{ "state", "src/gui/state.zig", &.{ "dvui", "core", "utility", "commands", "plugins" } },
     .{ "theme_config", "src/gui/theme.zig", &.{"dvui"} },
     .{ "gui", "src/gui/lib.zig", &.{ "dvui", "state", "commands", "plugins", "theme_config", "core", "utility" } },

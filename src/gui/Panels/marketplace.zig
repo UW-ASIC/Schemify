@@ -34,6 +34,10 @@ fn fetchRegistryThread(ctx: FetchCtx) void {
     };
     defer parsed.deinit();
 
+    // Detect already-installed plugins.
+    const config_dir = utility.platform.pluginConfigDir(ctx.alloc) catch "";
+    defer if (config_dir.len > 0) ctx.alloc.free(config_dir);
+
     for (parsed.value.plugins) |src| {
         var dst = MarketplaceEntry{};
         copyStr(src.name, &dst.name);
@@ -53,6 +57,16 @@ fn fetchRegistryThread(ctx: FetchCtx) void {
             tp += n;
         }
         dst.tags[tp] = 0;
+
+        // Check if plugin binary exists on disk.
+        if (config_dir.len > 0 and src.id.len > 0) {
+            const probe = std.fmt.allocPrint(ctx.alloc, "{s}/{s}/lib{s}.so", .{ config_dir, src.id, src.id }) catch null;
+            if (probe) |p| {
+                defer ctx.alloc.free(p);
+                dst.installed = if (std.fs.cwd().access(p, .{})) true else |_| false;
+            }
+        }
+
         ctx.mkt.entries.append(ctx.alloc, dst) catch break;
     }
     @atomicStore(MktStatus, &ctx.mkt.registry_status, .done, .seq_cst);
@@ -62,6 +76,89 @@ fn copyStr(src: []const u8, dst: []u8) void {
     const n = @min(src.len, dst.len - 1);
     @memcpy(dst[0..n], src[0..n]);
     dst[n] = 0;
+}
+
+// ── Plugin install (background thread) ───────────────────────────────────────
+
+const InstallCtx = struct {
+    mkt: *st.MarketplaceState,
+    entry: *MarketplaceEntry,
+    alloc: std.mem.Allocator,
+    refresh_flag: *bool,
+};
+
+fn installPluginThread(ctx: InstallCtx) void {
+    const url = fixedStr(&ctx.entry.dl_linux);
+    if (url.len == 0) {
+        setInstallMsg(ctx.mkt, "No download URL for this platform");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    }
+
+    const plugin_id = fixedStr(&ctx.entry.id);
+
+    // Build destination directory: ~/.config/Schemify/<id>/
+    const config_dir = utility.platform.pluginConfigDir(ctx.alloc) catch {
+        setInstallMsg(ctx.mkt, "Cannot determine config directory");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    defer ctx.alloc.free(config_dir);
+
+    const plugin_dir = std.fmt.allocPrint(ctx.alloc, "{s}/{s}", .{ config_dir, plugin_id }) catch {
+        setInstallMsg(ctx.mkt, "Out of memory");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    defer ctx.alloc.free(plugin_dir);
+
+    // Create the plugin directory (and config dir if needed).
+    std.fs.cwd().makePath(plugin_dir) catch {
+        setInstallMsg(ctx.mkt, "Cannot create plugin directory");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+
+    // Destination path: <plugin_dir>/lib<id>.so
+    const dest_path = std.fmt.allocPrint(ctx.alloc, "{s}/lib{s}.so", .{ plugin_dir, plugin_id }) catch {
+        setInstallMsg(ctx.mkt, "Out of memory");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    defer ctx.alloc.free(dest_path);
+
+    // Download via curl -o
+    var child = std.process.Child.init(&.{ "curl", "-sfL", "-o", dest_path, url }, ctx.alloc);
+    child.stdin_behavior = .Ignore;
+    child.stdout_behavior = .Ignore;
+    child.stderr_behavior = .Ignore;
+    child.spawn() catch {
+        setInstallMsg(ctx.mkt, "Failed to start download");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    const term = child.wait() catch {
+        setInstallMsg(ctx.mkt, "Download interrupted");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    if (term.Exited != 0) {
+        setInstallMsg(ctx.mkt, "Download failed (check URL)");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    }
+
+    ctx.entry.installed = true;
+    @atomicStore(bool, ctx.refresh_flag, true, .seq_cst);
+    setInstallMsg(ctx.mkt, "Installed successfully");
+    @atomicStore(MktStatus, &ctx.mkt.install_status, .idle, .seq_cst);
+}
+
+fn setInstallMsg(mkt: *st.MarketplaceState, msg: []const u8) void {
+    const n = @min(msg.len, mkt.install_msg.len - 1);
+    @memcpy(mkt.install_msg[0..n], msg[0..n]);
+    mkt.install_msg[n] = 0;
+    mkt.install_msg_len = @intCast(n);
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -75,6 +172,30 @@ pub fn draw(app: *AppState) void {
         const ctx = FetchCtx{ .mkt = mkt, .alloc = app.allocator() };
         const thread = std.Thread.spawn(.{}, fetchRegistryThread, .{ctx}) catch { mkt.registry_status = .failed; return; };
         thread.detach();
+    }
+
+    // Kick off plugin download when requested.
+    if (mkt.install_status == .fetching) {
+        if (mkt.selected >= 0 and @as(usize, @intCast(mkt.selected)) < mkt.entries.items.len) {
+            const entry = &mkt.entries.items[@intCast(mkt.selected)];
+            // Mark as in-progress so we don't re-spawn on next frame.
+            mkt.install_status = .done;
+            setInstallMsg(mkt, "Downloading...");
+            const ctx = InstallCtx{
+                .mkt = mkt,
+                .entry = entry,
+                .alloc = app.allocator(),
+                .refresh_flag = &app.plugin_refresh_requested,
+            };
+            const thread = std.Thread.spawn(.{}, installPluginThread, .{ctx}) catch {
+                setInstallMsg(mkt, "Failed to start install thread");
+                mkt.install_status = .failed;
+                return;
+            };
+            thread.detach();
+        } else {
+            mkt.install_status = .idle;
+        }
     }
 
     var fwin = dvui.floatingWindow(@src(), .{
@@ -160,8 +281,23 @@ fn drawRightPanel(mkt: *st.MarketplaceState) void {
     _ = dvui.separator(@src(), .{ .id_extra = 707 });
 
     { var br = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = 708 }); defer br.deinit();
-      if (entry.installed) { dvui.labelNoFmt(@src(), "Installed", .{}, .{ .id_extra = 709, .style = .control }); }
-      else { if (dvui.button(@src(), "Install", .{}, .{ .id_extra = 710 })) mkt.install_status = .fetching; } }
+      if (entry.installed) {
+          dvui.labelNoFmt(@src(), "Installed \xe2\x9c\x93", .{}, .{ .id_extra = 709, .style = .control });
+      } else if (mkt.install_status == .done) {
+          // Download in progress.
+          dvui.labelNoFmt(@src(), "Installing...", .{}, .{ .id_extra = 709, .style = .control });
+      } else {
+          if (dvui.button(@src(), "Install", .{}, .{ .id_extra = 710 })) {
+              mkt.install_status = .fetching;
+          }
+      }
+    }
+
+    // Show install status message.
+    const msg = mkt.install_msg[0..mkt.install_msg_len];
+    if (msg.len > 0) {
+        dvui.labelNoFmt(@src(), msg, .{}, .{ .id_extra = 713, .style = .control });
+    }
 
     _ = dvui.separator(@src(), .{ .id_extra = 711 });
     dvui.labelNoFmt(@src(), "(README content will appear here)", .{}, .{ .id_extra = 712, .style = .control });
