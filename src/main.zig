@@ -90,6 +90,7 @@ fn appInit(win: *dvui.Window) !void {
         .ctx = @ptrCast(&runtime),
         .ensureLoaded = &phEnsureLoaded,
         .getPanelWidgets = &phGetPanelWidgets,
+        .requestDrawPanel = &phDrawPanel,
         .buttonClicked = &phButtonClicked,
         .sliderChanged = &phSliderChanged,
         .checkboxChanged = &phCheckboxChanged,
@@ -159,6 +160,10 @@ fn phEnsureLoaded(ctx: *anyopaque, name: []const u8) void {
 fn phGetPanelWidgets(ctx: *anyopaque, panel_id: u16) PluginHostMod.WidgetSlice {
     const rt: *Runtime = @ptrCast(@alignCast(ctx));
     return rt.getPanelWidgets(panel_id);
+}
+fn phDrawPanel(ctx: *anyopaque, panel_id: u16) void {
+    const rt: *Runtime = @ptrCast(@alignCast(ctx));
+    rt.drawPanel(app.allocator(), panel_id);
 }
 fn phButtonClicked(ctx: *anyopaque, panel_id: u16, widget_id: u32) void {
     const rt: *Runtime = @ptrCast(@alignCast(ctx));

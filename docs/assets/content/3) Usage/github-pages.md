@@ -41,7 +41,7 @@ jobs:
 
 Push to `main`. The workflow posts the live URL to the **Actions summary** when it completes.
 
-> Copy the full template from [`scripts/templates/schemify-pages.yml`](https://github.com/UWASIC/Schemify/blob/main/scripts/templates/schemify-pages.yml).
+> Copy the full template from [`tools/scripts/templates/schemify-pages.yml`](https://github.com/UWASIC/Schemify/blob/main/tools/scripts/templates/schemify-pages.yml).
 
 ---
 

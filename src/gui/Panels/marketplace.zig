@@ -9,7 +9,13 @@ const AppState = st.AppState;
 const MktStatus = st.MktStatus;
 const MarketplaceEntry = st.MarketplaceEntry;
 
+const builtin = @import("builtin");
+
 const REGISTRY_URL = "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/registry.json";
+
+/// File-level flag to distinguish install vs uninstall when install_status is .fetching.
+/// true = uninstall requested, false = install requested.
+var pending_uninstall: bool = false;
 
 // ── Registry fetch (background thread) ───────────────────────────────────────
 
@@ -127,13 +133,13 @@ fn installPluginThread(ctx: InstallCtx) void {
     };
     defer ctx.alloc.free(dest_path);
 
-    // Download via curl -o
+    // Download the plugin binary via curl.
     var child = std.process.Child.init(&.{ "curl", "-sfL", "-o", dest_path, url }, ctx.alloc);
     child.stdin_behavior = .Ignore;
     child.stdout_behavior = .Ignore;
     child.stderr_behavior = .Ignore;
     child.spawn() catch {
-        setInstallMsg(ctx.mkt, "Failed to start download");
+        setInstallMsg(ctx.mkt, "Failed to start download (is curl installed?)");
         @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
         return;
     };
@@ -143,14 +149,112 @@ fn installPluginThread(ctx: InstallCtx) void {
         return;
     };
     if (term.Exited != 0) {
-        setInstallMsg(ctx.mkt, "Download failed (check URL)");
+        setInstallMsg(ctx.mkt, "Download failed (curl error, check URL)");
         @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
         return;
     }
 
+    // Verify the downloaded file exists and has non-zero size.
+    const file = std.fs.cwd().openFile(dest_path, .{}) catch {
+        setInstallMsg(ctx.mkt, "Download produced no file");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    const stat = file.stat() catch {
+        file.close();
+        setInstallMsg(ctx.mkt, "Cannot stat downloaded file");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    file.close();
+    if (stat.size == 0) {
+        std.fs.cwd().deleteFile(dest_path) catch {};
+        setInstallMsg(ctx.mkt, "Download produced empty file");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    }
+
+    // Make the .so executable (required for dlopen on some systems).
+    if (builtin.os.tag != .windows) {
+        var chmod = std.process.Child.init(&.{ "chmod", "+x", dest_path }, ctx.alloc);
+        chmod.stdin_behavior = .Ignore;
+        chmod.stdout_behavior = .Ignore;
+        chmod.stderr_behavior = .Ignore;
+        chmod.spawn() catch {};
+        _ = chmod.wait() catch {};
+    }
+
+    // Write a minimal plugin.toml so the plugin system has metadata.
+    writePluginManifest(ctx.alloc, plugin_dir, ctx.entry);
+
     ctx.entry.installed = true;
     @atomicStore(bool, ctx.refresh_flag, true, .seq_cst);
     setInstallMsg(ctx.mkt, "Installed successfully");
+    @atomicStore(MktStatus, &ctx.mkt.install_status, .idle, .seq_cst);
+}
+
+/// Write a minimal plugin.toml into the plugin directory.
+fn writePluginManifest(alloc: std.mem.Allocator, plugin_dir: []const u8, entry: *const MarketplaceEntry) void {
+    const toml_path = std.fmt.allocPrint(alloc, "{s}/plugin.toml", .{plugin_dir}) catch return;
+    defer alloc.free(toml_path);
+
+    const id = fixedStr(&entry.id);
+    const name = fixedStr(&entry.name);
+    const ver = fixedStr(&entry.version);
+    const author = fixedStr(&entry.author);
+    const desc = fixedStr(&entry.desc);
+
+    const content = std.fmt.allocPrint(alloc,
+        \\[plugin]
+        \\name        = "{s}"
+        \\version     = "{s}"
+        \\author      = "{s}"
+        \\entry       = "lib{s}.so"
+        \\description = "{s}"
+        \\scope       = "user"
+        \\
+    , .{ name, ver, author, id, desc }) catch return;
+    defer alloc.free(content);
+
+    std.fs.cwd().writeFile(.{ .sub_path = toml_path, .data = content }) catch {};
+}
+
+// ── Plugin uninstall (background thread) ─────────────────────────────────────
+
+const UninstallCtx = struct {
+    mkt: *st.MarketplaceState,
+    entry: *MarketplaceEntry,
+    alloc: std.mem.Allocator,
+    refresh_flag: *bool,
+};
+
+fn uninstallPluginThread(ctx: UninstallCtx) void {
+    const plugin_id = fixedStr(&ctx.entry.id);
+
+    const config_dir = utility.platform.pluginConfigDir(ctx.alloc) catch {
+        setInstallMsg(ctx.mkt, "Cannot determine config directory");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    defer ctx.alloc.free(config_dir);
+
+    const plugin_dir = std.fmt.allocPrint(ctx.alloc, "{s}/{s}", .{ config_dir, plugin_id }) catch {
+        setInstallMsg(ctx.mkt, "Out of memory");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+    defer ctx.alloc.free(plugin_dir);
+
+    // Remove the entire plugin directory.
+    std.fs.cwd().deleteTree(plugin_dir) catch {
+        setInstallMsg(ctx.mkt, "Failed to remove plugin directory");
+        @atomicStore(MktStatus, &ctx.mkt.install_status, .failed, .seq_cst);
+        return;
+    };
+
+    ctx.entry.installed = false;
+    @atomicStore(bool, ctx.refresh_flag, true, .seq_cst);
+    setInstallMsg(ctx.mkt, "Uninstalled successfully");
     @atomicStore(MktStatus, &ctx.mkt.install_status, .idle, .seq_cst);
 }
 
@@ -174,25 +278,43 @@ pub fn draw(app: *AppState) void {
         thread.detach();
     }
 
-    // Kick off plugin download when requested.
+    // Kick off plugin install or uninstall when requested.
     if (mkt.install_status == .fetching) {
         if (mkt.selected >= 0 and @as(usize, @intCast(mkt.selected)) < mkt.entries.items.len) {
             const entry = &mkt.entries.items[@intCast(mkt.selected)];
             // Mark as in-progress so we don't re-spawn on next frame.
             mkt.install_status = .done;
-            setInstallMsg(mkt, "Downloading...");
-            const ctx = InstallCtx{
-                .mkt = mkt,
-                .entry = entry,
-                .alloc = app.allocator(),
-                .refresh_flag = &app.plugin_refresh_requested,
-            };
-            const thread = std.Thread.spawn(.{}, installPluginThread, .{ctx}) catch {
-                setInstallMsg(mkt, "Failed to start install thread");
-                mkt.install_status = .failed;
-                return;
-            };
-            thread.detach();
+
+            if (pending_uninstall) {
+                pending_uninstall = false;
+                setInstallMsg(mkt, "Uninstalling...");
+                const ctx = UninstallCtx{
+                    .mkt = mkt,
+                    .entry = entry,
+                    .alloc = app.allocator(),
+                    .refresh_flag = &app.plugin_refresh_requested,
+                };
+                const thread = std.Thread.spawn(.{}, uninstallPluginThread, .{ctx}) catch {
+                    setInstallMsg(mkt, "Failed to start uninstall thread");
+                    mkt.install_status = .failed;
+                    return;
+                };
+                thread.detach();
+            } else {
+                setInstallMsg(mkt, "Downloading...");
+                const ctx = InstallCtx{
+                    .mkt = mkt,
+                    .entry = entry,
+                    .alloc = app.allocator(),
+                    .refresh_flag = &app.plugin_refresh_requested,
+                };
+                const thread = std.Thread.spawn(.{}, installPluginThread, .{ctx}) catch {
+                    setInstallMsg(mkt, "Failed to start install thread");
+                    mkt.install_status = .failed;
+                    return;
+                };
+                thread.detach();
+            }
         } else {
             mkt.install_status = .idle;
         }
@@ -281,13 +403,19 @@ fn drawRightPanel(mkt: *st.MarketplaceState) void {
     _ = dvui.separator(@src(), .{ .id_extra = 707 });
 
     { var br = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = 708 }); defer br.deinit();
-      if (entry.installed) {
-          dvui.labelNoFmt(@src(), "Installed \xe2\x9c\x93", .{}, .{ .id_extra = 709, .style = .control });
-      } else if (mkt.install_status == .done) {
-          // Download in progress.
-          dvui.labelNoFmt(@src(), "Installing...", .{}, .{ .id_extra = 709, .style = .control });
+      if (mkt.install_status == .done) {
+          // Operation in progress (install or uninstall).
+          dvui.labelNoFmt(@src(), "Working...", .{}, .{ .id_extra = 709, .style = .control });
+      } else if (entry.installed) {
+          dvui.labelNoFmt(@src(), "Installed", .{}, .{ .id_extra = 709, .style = .control });
+          _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 12 }, .id_extra = 715 });
+          if (dvui.button(@src(), "Uninstall", .{}, .{ .id_extra = 716 })) {
+              pending_uninstall = true;
+              mkt.install_status = .fetching;
+          }
       } else {
           if (dvui.button(@src(), "Install", .{}, .{ .id_extra = 710 })) {
+              pending_uninstall = false;
               mkt.install_status = .fetching;
           }
       }
@@ -300,7 +428,11 @@ fn drawRightPanel(mkt: *st.MarketplaceState) void {
     }
 
     _ = dvui.separator(@src(), .{ .id_extra = 711 });
-    dvui.labelNoFmt(@src(), "(README content will appear here)", .{}, .{ .id_extra = 712, .style = .control });
+    dvui.labelNoFmt(@src(), "Visit the plugin repository for documentation.", .{}, .{ .id_extra = 712, .style = .control });
+    const repo = fixedStr(&entry.repo_url);
+    if (repo.len > 0) {
+        dvui.labelNoFmt(@src(), repo, .{}, .{ .id_extra = 714, .style = .control });
+    }
 }
 
 fn fixedStr(buf: []const u8) []const u8 {

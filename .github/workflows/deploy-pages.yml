@@ -72,7 +72,7 @@ jobs:
           ref: main
           path: .schemify-tools
           sparse-checkout: |
-            scripts/build-viewer.mjs
+            tools/scripts/
           sparse-checkout-cone-mode: false
 
       - name: Resolve Schemify version
@@ -103,7 +103,7 @@ jobs:
       - name: Generate viewer
         working-directory: ${{ inputs.project_dir }}
         run: |
-          node "$GITHUB_WORKSPACE/.schemify-tools/scripts/build-viewer.mjs" \
+          node "$GITHUB_WORKSPACE/.schemify-tools/tools/scripts/build-viewer.mjs" \
             "$GITHUB_WORKSPACE/.schemify-assets/schemify.wasm" \
             "$GITHUB_WORKSPACE/.schemify-assets/web.js"       \
             "$GITHUB_WORKSPACE/schemify-out"

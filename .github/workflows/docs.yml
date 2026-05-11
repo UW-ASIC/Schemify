@@ -5,8 +5,7 @@ on:
     branches: [main]
     paths:
       - 'docs_site/**'
-      - 'examples/**'
-      - 'scripts/build-viewer.mjs'
+      - 'tools/scripts/build-viewer.mjs'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -72,9 +71,8 @@ jobs:
 
       - name: Build schematic viewer
         if: steps.version.outputs.tag != ''
-        working-directory: examples
         run: |
-          node "$GITHUB_WORKSPACE/scripts/build-viewer.mjs" \
+          node "$GITHUB_WORKSPACE/tools/scripts/build-viewer.mjs" \
             "$GITHUB_WORKSPACE/.schemify-assets/schemify.wasm" \
             "$GITHUB_WORKSPACE/.schemify-assets/web.js"       \
             "$GITHUB_WORKSPACE/docs_site/dist/schematic"

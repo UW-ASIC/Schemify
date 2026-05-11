@@ -4,6 +4,7 @@ const std = @import("std");
 const dvui = @import("dvui");
 const st = @import("state");
 const core = @import("core");
+const theme = @import("theme_config");
 const actions = @import("../actions.zig");
 
 const AppState = st.AppState;
@@ -24,7 +25,7 @@ pub fn draw(app: *AppState) void {
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .padding = .{ .x = 8, .y = 6, .w = 8, .h = 6 } });
     defer body.deinit();
 
-    dvui.labelNoFmt(@src(), "Built-in Devices", .{}, .{ .id_extra = 100, .style = .control, .color_text = .{ .r = 136, .g = 144, .b = 160, .a = 255 } });
+    dvui.labelNoFmt(@src(), "Built-in Devices", .{}, .{ .id_extra = 100, .style = .control, .color_text = theme.chromeTextSecondary() });
     _ = dvui.separator(@src(), .{ .id_extra = 101 });
 
     // Entry list
@@ -37,8 +38,8 @@ pub fn draw(app: *AppState) void {
             var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .id_extra = pi * 2, .expand = .horizontal, .background = true,
                 .padding = .{ .x = 6, .y = 3, .w = 6, .h = 3 },
-                .color_fill = if (is_sel) dvui.Color{ .r = 30, .g = 58, .b = 110, .a = 255 } else dvui.Color{ .r = 0, .g = 0, .b = 0, .a = 0 },
-                .color_fill_hover = .{ .r = 42, .g = 44, .b = 54, .a = 180 },
+                .color_fill = if (is_sel) blk: { const a = theme.chromeAccent(); break :blk dvui.Color{ .r = a.r / 4, .g = a.g / 4, .b = a.b / 2, .a = 255 }; } else dvui.Color{ .r = 0, .g = 0, .b = 0, .a = 0 },
+                .color_fill_hover = theme.chromeHoverBg(),
             });
             defer card.deinit();
 
@@ -52,7 +53,7 @@ pub fn draw(app: *AppState) void {
                 std.fmt.bufPrint(&ib, "{c} {d}p", .{ prim.prefix, prim.pin_count }) catch ""
             else
                 std.fmt.bufPrint(&ib, "  {d}p", .{prim.pin_count}) catch "";
-            dvui.labelNoFmt(@src(), info, .{}, .{ .id_extra = pi * 10 + 4, .gravity_y = 0.5, .color_text = .{ .r = 136, .g = 144, .b = 160, .a = 255 } });
+            dvui.labelNoFmt(@src(), info, .{}, .{ .id_extra = pi * 10 + 4, .gravity_y = 0.5, .color_text = theme.chromeTextSecondary() });
 
             if (dvui.clicked(&card.wd, .{})) {
                 if (is_sel) placeSelected(app) else lb.selected_prim = @intCast(pi);

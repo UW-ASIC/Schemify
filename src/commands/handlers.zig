@@ -203,22 +203,40 @@ pub fn handleDialog(imm: Immediate, state: anytype) void {
     switch (imm) {
         .open_find_dialog => { state.gui.cold.find_dialog.is_open = true; state.setStatus("Find"); },
         .open_props_dialog, .edit_properties => {
-            const pd = &state.gui.cold.props_dialog;
-            // Find the selected instance and populate edit buffers
+            // Count selected instances to decide single vs multi-props dialog.
             if (state.active()) |fio| {
                 if (fio.selection.instances.bit_length > 0) {
                     var it = fio.selection.instances.iterator(.{});
-                    if (it.next()) |idx| {
+                    var sel_count: usize = 0;
+                    var first_idx: ?usize = null;
+                    while (it.next()) |idx| {
                         if (idx < fio.sch.instances.len) {
-                            pd.inst_idx = idx;
-                            pd.view_only = false;
-                            pd.initialized = false;
-                            pd.populateFrom(fio.sch.instances.get(idx), fio.sch.props.items);
+                            if (first_idx == null) first_idx = idx;
+                            sel_count += 1;
                         }
+                    }
+                    if (sel_count > 1) {
+                        // Multi-selection: open batch edit dialog
+                        const mpd = &state.gui.cold.multi_props_dialog;
+                        mpd.populateFrom(fio.sch.instances, fio.sch.instances.len, &fio.selection.instances, fio.sch.props.items);
+                        mpd.is_open = true;
+                        state.setStatus("Batch edit properties");
+                        return;
+                    } else if (sel_count == 1) {
+                        const pd = &state.gui.cold.props_dialog;
+                        const idx = first_idx.?;
+                        pd.inst_idx = idx;
+                        pd.view_only = false;
+                        pd.initialized = false;
+                        pd.populateFrom(fio.sch.instances.get(idx), fio.sch.props.items);
+                        pd.is_open = true;
+                        state.setStatus("Properties");
+                        return;
                     }
                 }
             }
-            pd.is_open = true;
+            // No selection: open empty single-props dialog
+            state.gui.cold.props_dialog.is_open = true;
             state.setStatus("Properties");
         },
         .open_spice_code_dialog => { state.gui.cold.spice_code_dialog.is_open = true; state.setStatus("SPICE Code"); },

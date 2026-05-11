@@ -11,6 +11,7 @@ pub const PluginHost = struct {
     ctx: *anyopaque,
     ensureLoaded: *const fn (*anyopaque, []const u8) void,
     getPanelWidgets: *const fn (*anyopaque, u16) WidgetSlice,
+    requestDrawPanel: *const fn (*anyopaque, u16) void,
     buttonClicked: *const fn (*anyopaque, u16, u32) void,
     sliderChanged: *const fn (*anyopaque, u16, u32, f32) void,
     checkboxChanged: *const fn (*anyopaque, u16, u32, bool) void,
@@ -19,6 +20,11 @@ pub const PluginHost = struct {
     getTooltip: *const fn (*anyopaque) []const u8,
     keyEvent: *const fn (*anyopaque, u8, u8, u8) bool,
 
+    /// Request that a panel's widgets be populated by sending draw_panel to the plugin.
+    /// Must be called before widgets() to ensure the widget list is current.
+    pub inline fn drawPanel(self: PluginHost, panel_id: u16) void {
+        self.requestDrawPanel(self.ctx, panel_id);
+    }
     pub inline fn dispatchButton(self: PluginHost, panel: u16, widget: u32) void {
         self.buttonClicked(self.ctx, panel, widget);
     }
@@ -52,6 +58,7 @@ pub fn from(comptime T: type, ptr: *T) PluginHost {
     const S = struct {
         fn ensureLoaded(c: *anyopaque, n: []const u8) void { castPtr(T, c).ensureLoaded(n); }
         fn getPanelWidgets(c: *anyopaque, p: u16) WidgetSlice { return castPtr(T, c).getPanelWidgets(p); }
+        fn requestDrawPanel(c: *anyopaque, p: u16) void { castPtr(T, c).requestDrawPanel(p); }
         fn buttonClicked(c: *anyopaque, p: u16, w: u32) void { castPtr(T, c).buttonClicked(p, w); }
         fn sliderChanged(c: *anyopaque, p: u16, w: u32, v: f32) void { castPtr(T, c).sliderChanged(p, w, v); }
         fn checkboxChanged(c: *anyopaque, p: u16, w: u32, v: bool) void { castPtr(T, c).checkboxChanged(p, w, v); }
@@ -64,6 +71,7 @@ pub fn from(comptime T: type, ptr: *T) PluginHost {
         .ctx = ptr,
         .ensureLoaded = &S.ensureLoaded,
         .getPanelWidgets = &S.getPanelWidgets,
+        .requestDrawPanel = &S.requestDrawPanel,
         .buttonClicked = &S.buttonClicked,
         .sliderChanged = &S.sliderChanged,
         .checkboxChanged = &S.checkboxChanged,

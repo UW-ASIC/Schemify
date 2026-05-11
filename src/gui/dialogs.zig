@@ -217,41 +217,134 @@ fn drawMultiPropsDialog(app: *AppState) void {
 }
 
 fn drawMultiPropsContent(app: *AppState) void {
+    const mpd = &app.gui.cold.multi_props_dialog;
     const fio = app.active() orelse return;
+
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 } });
     defer body.deinit();
 
     if (fio.selection.instances.bit_length == 0) { dvui.labelNoFmt(@src(), "No instances selected", .{}, .{ .id_extra = 0 }); return; }
 
+    // Header: count of selected instances
     var sel_count: usize = 0;
     { var it = fio.selection.instances.iterator(.{}); while (it.next()) |_| sel_count += 1; }
     { var hb: [64]u8 = undefined; dvui.labelNoFmt(@src(), std.fmt.bufPrint(&hb, "{d} instances selected", .{sel_count}) catch "Selected", .{}, .{ .id_extra = 1, .style = .control }); }
     _ = dvui.separator(@src(), .{ .id_extra = 2 });
 
-    var it2 = fio.selection.instances.iterator(.{});
-    var id: u16 = 10;
-    while (it2.next()) |idx| {
-        if (idx >= fio.sch.instances.len) continue;
-        const inst = fio.sch.instances.get(idx);
-        var nb: [128]u8 = undefined;
-        dvui.labelNoFmt(@src(), std.fmt.bufPrint(&nb, "{s} ({s})", .{ inst.name, inst.symbol }) catch "(instance)", .{}, .{ .id_extra = id, .style = .control });
-        id +%= 1;
-        const pe = inst.prop_start + inst.prop_count;
-        var pi: usize = inst.prop_start;
-        while (pi < pe and pi < fio.sch.props.items.len) : (pi += 1) {
-            var rb: [256]u8 = undefined;
-            dvui.labelNoFmt(@src(), std.fmt.bufPrint(&rb, "    {s} = {s}", .{ fio.sch.props.items[pi].key, fio.sch.props.items[pi].val }) catch "(prop)", .{}, .{ .id_extra = id });
+    var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both, .id_extra = 3 });
+
+    // List selected instance names (read-only summary)
+    {
+        var it2 = fio.selection.instances.iterator(.{});
+        var id: u16 = 10;
+        while (it2.next()) |idx| {
+            if (idx >= fio.sch.instances.len) continue;
+            const inst = fio.sch.instances.get(idx);
+            var nb: [128]u8 = undefined;
+            dvui.labelNoFmt(@src(), std.fmt.bufPrint(&nb, "  {s} ({s})", .{ inst.name, inst.symbol }) catch "(instance)", .{}, .{ .id_extra = id });
             id +%= 1;
+            if (id > 100) { dvui.labelNoFmt(@src(), "  ... (more)", .{}, .{ .id_extra = id }); break; }
         }
-        _ = dvui.separator(@src(), .{ .id_extra = id }); id +%= 1;
-        if (id > 500) { dvui.labelNoFmt(@src(), "... (truncated)", .{}, .{ .id_extra = id }); break; }
     }
 
-    _ = dvui.spacer(@src(), .{ .expand = .vertical });
-    _ = dvui.separator(@src(), .{ .id_extra = 900 });
+    _ = dvui.separator(@src(), .{ .id_extra = 200 });
+
+    // Editable common properties
+    if (mpd.common_count == 0) {
+        dvui.labelNoFmt(@src(), "(no common properties across selected instances)", .{}, .{ .id_extra = 201, .style = .control });
+    } else {
+        dvui.labelNoFmt(@src(), "Common Properties (edit to apply to all):", .{}, .{ .id_extra = 202, .style = .control });
+        for (0..mpd.common_count) |i| {
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = 300 + i });
+            defer row.deinit();
+
+            const key = sliceToNull(&mpd.key_bufs[i]);
+
+            // Show "(mixed)" indicator for non-uniform values
+            if (!mpd.was_uniform[i]) {
+                var lbl_buf: [80]u8 = undefined;
+                dvui.labelNoFmt(@src(), std.fmt.bufPrint(&lbl_buf, "{s} (mixed)", .{key}) catch key, .{}, .{ .min_size_content = .{ .w = 130 }, .gravity_y = 0.5, .id_extra = 400 + i });
+            } else {
+                dvui.labelNoFmt(@src(), key, .{}, .{ .min_size_content = .{ .w = 130 }, .gravity_y = 0.5, .id_extra = 400 + i });
+            }
+
+            var te = dvui.textEntry(@src(), .{
+                .text = .{ .buffer = &mpd.val_bufs[i] },
+            }, .{ .id_extra = 500 + i, .expand = .horizontal });
+            te.deinit();
+        }
+    }
+
+    scroll.deinit();
+
+    _ = dvui.separator(@src(), .{ .id_extra = 700 });
+
+    // Bottom buttons
     var btns = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = 901 });
     defer btns.deinit();
-    if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 902 })) app.gui.cold.multi_props_dialog.is_open = false;
+
+    if (mpd.common_count > 0) {
+        if (dvui.button(@src(), "Apply to All", .{}, .{ .id_extra = 903 })) {
+            applyMultiPropsChanges(app);
+        }
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 }, .id_extra = 904 });
+    }
+    if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 902 })) mpd.is_open = false;
+}
+
+fn applyMultiPropsChanges(app: *AppState) void {
+    const mpd = &app.gui.cold.multi_props_dialog;
+    const fio = app.active() orelse return;
+
+    var applied: usize = 0;
+
+    for (0..mpd.common_count) |i| {
+        const new_val = sliceToNull(&mpd.val_bufs[i]);
+        const key = sliceToNull(&mpd.key_bufs[i]);
+
+        // Skip empty values on properties that were mixed (user hasn't typed anything)
+        if (!mpd.was_uniform[i] and new_val.len == 0) continue;
+
+        // Skip if value unchanged from original (uniform case)
+        if (mpd.was_uniform[i]) {
+            const orig_val = sliceToNull(&mpd.orig_vals[i]);
+            if (std.mem.eql(u8, new_val, orig_val)) continue;
+        }
+
+        // Apply to every selected instance that has this property
+        var it = fio.selection.instances.iterator(.{});
+        while (it.next()) |idx| {
+            if (idx >= fio.sch.instances.len) continue;
+            const inst = fio.sch.instances.get(idx);
+            const start: usize = inst.prop_start;
+            const count: usize = @min(@as(usize, inst.prop_count), fio.sch.props.items.len -| start);
+
+            // Verify this instance actually has this key before applying
+            for (0..count) |pi| {
+                const prop = fio.sch.props.items[start + pi];
+                if (std.mem.eql(u8, prop.key, key)) {
+                    if (!std.mem.eql(u8, prop.val, new_val)) {
+                        actions.enqueue(app, .{ .undoable = .{ .set_instance_prop = .{
+                            .idx = @intCast(idx),
+                            .key = key,
+                            .val = new_val,
+                        } } }, "Batch property set");
+                        applied += 1;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    if (applied > 0) {
+        var msg_buf: [64]u8 = undefined;
+        const msg = std.fmt.bufPrint(&msg_buf, "Applied {d} property change(s)", .{applied}) catch "Properties applied";
+        app.setStatusBuf(msg);
+    } else {
+        app.status_msg = "No changes to apply";
+    }
+    mpd.is_open = false;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -272,8 +365,62 @@ fn drawFindContent(app: *AppState) void {
     _ = dvui.separator(@src(), .{ .id_extra = 4 });
     var btns = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = 5 });
     defer btns.deinit();
-    if (dvui.button(@src(), "Select All Matches", .{}, .{ .id_extra = 6 })) { app.status_msg = "Select all matches: not yet implemented"; fd.is_open = false; }
+    if (dvui.button(@src(), "Select All Matches", .{}, .{ .id_extra = 6 })) { selectAllMatches(app); fd.is_open = false; }
     if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 7 })) fd.is_open = false;
+}
+
+fn selectAllMatches(app: *AppState) void {
+    const fd = &app.gui.cold.find_dialog;
+    const query = fd.query_buf[0..fd.query_len];
+    if (query.len == 0) {
+        app.status_msg = "No search query";
+        return;
+    }
+
+    const doc = app.active() orelse {
+        app.status_msg = "No active document";
+        return;
+    };
+    const a = app.allocator();
+    doc.selection.ensureCapacity(a, doc.sch.instances.len, doc.sch.wires.len, false) catch return;
+    doc.selection.clear();
+
+    var count: usize = 0;
+    const names = doc.sch.instances.items(.name);
+    for (0..doc.sch.instances.len) |i| {
+        if (containsInsensitive(names[i], query)) {
+            doc.selection.instances.set(i);
+            count += 1;
+        }
+    }
+
+    fd.result_count = count;
+    if (count > 0) {
+        app.status_msg = "Matched instances selected";
+    } else {
+        app.status_msg = "No matches found";
+    }
+}
+
+fn containsInsensitive(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len == 0) return true;
+    if (haystack.len < needle.len) return false;
+    const end = haystack.len - needle.len + 1;
+    for (0..end) |i| {
+        var match = true;
+        for (0..needle.len) |j| {
+            if (toLowerA(haystack[i + j]) != toLowerA(needle[j])) {
+                match = false;
+                break;
+            }
+        }
+        if (match) return true;
+    }
+    return false;
+}
+
+fn toLowerA(c: u8) u8 {
+    return if (c >= 'A' and c <= 'Z') c + 32 else c;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

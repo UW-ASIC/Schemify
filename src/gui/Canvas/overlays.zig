@@ -51,7 +51,9 @@ pub fn drawRubberBand(ctx: *const RenderContext, app: *st.AppState) void {
     const tl = h.w2p(tl_world, vp);
     const br = h.w2p(br_world, vp);
 
-    const fill_col = Color{ .r = 60, .g = 120, .b = 200, .a = 30 };
+    // Rubber band colors derived from palette wire color
+    const pal = ctx.pal;
+    const fill_col = Color{ .r = pal.wire.r, .g = pal.wire.g, .b = pal.wire.b, .a = 30 };
     dvui.Path.stroke(.{
         .points = &.{
             .{ .x = tl[0], .y = tl[1] }, .{ .x = br[0], .y = tl[1] },
@@ -59,7 +61,7 @@ pub fn drawRubberBand(ctx: *const RenderContext, app: *st.AppState) void {
             .{ .x = tl[0], .y = tl[1] },
         },
     }, .{ .thickness = 1, .color = fill_col });
-    h.strokeRectOutline(tl, br, 1.0, Color{ .r = 91, .g = 156, .b = 245, .a = 160 });
+    h.strokeRectOutline(tl, br, 1.0, Color{ .r = pal.wire.r, .g = pal.wire.g, .b = pal.wire.b, .a = 160 });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -88,13 +90,7 @@ const BTN_PAD_X: f32 = 8.0;
 const BTN_MARGIN_RIGHT: f32 = 10.0;
 const BTN_MARGIN_TOP: f32 = 10.0;
 
-// Colors
-const btn_bg_normal = Color{ .r = 34, .g = 36, .b = 44, .a = 200 };
-const btn_bg_hover = Color{ .r = 42, .g = 74, .b = 140, .a = 220 };
-const btn_border = Color{ .r = 50, .g = 52, .b = 64, .a = 150 };
-const btn_border_hover = Color{ .r = 91, .g = 156, .b = 245, .a = 200 };
-const btn_text = Color{ .r = 180, .g = 184, .b = 196, .a = 220 };
-const btn_text_hover = Color{ .r = 220, .g = 224, .b = 232, .a = 255 };
+// Colors — derived from palette in tbColors()
 
 const BtnPos = struct { x: f32, y: f32 };
 
@@ -144,6 +140,25 @@ pub fn tbPreInput(app: *st.AppState, wd: *dvui.WidgetData, bounds: dvui.Rect.Phy
     }
 }
 
+/// Compute TB button colors from the active palette.
+fn tbColors(pal: types.Palette) struct {
+    bg_normal: Color,
+    bg_hover: Color,
+    border_normal: Color,
+    border_hover: Color,
+    text_normal: Color,
+    text_hover: Color,
+} {
+    return .{
+        .bg_normal = Color{ .r = pal.canvas_bg.r +| 19, .g = pal.canvas_bg.g +| 19, .b = pal.canvas_bg.b +| 21, .a = 200 },
+        .bg_hover = Color{ .r = pal.wire.r / 2, .g = pal.wire.g / 2, .b = pal.wire.b / 2, .a = 220 },
+        .border_normal = Color{ .r = pal.grid_dot.r, .g = pal.grid_dot.g, .b = pal.grid_dot.b, .a = 150 },
+        .border_hover = Color{ .r = pal.wire.r, .g = pal.wire.g, .b = pal.wire.b, .a = 200 },
+        .text_normal = Color{ .r = pal.symbol_line.r, .g = pal.symbol_line.g, .b = pal.symbol_line.b, .a = 220 },
+        .text_hover = Color{ .r = pal.symbol_line.r +| 32, .g = pal.symbol_line.g +| 32, .b = pal.symbol_line.b +| 32, .a = 255 },
+    };
+}
+
 /// Draw ghost wire overlay + button strip.
 pub fn tbDraw(ctx: *const RenderContext, app: *st.AppState) void {
     const tbs = getTbs(app) orelse return;
@@ -151,6 +166,7 @@ pub fn tbDraw(ctx: *const RenderContext, app: *st.AppState) void {
     const pal = ctx.pal;
     const bounds = vp.bounds;
     const cw = dvui.currentWindow();
+    const cols = tbColors(pal);
 
     // Ghost wire overlay
     if (hovered_idx >= 0 and cached_wire_count > 0) {
@@ -175,8 +191,8 @@ pub fn tbDraw(ctx: *const RenderContext, app: *st.AppState) void {
         for (tbs, 0..) |_, idx| {
             const p = btnPos(bounds, idx);
             const hov = hovered_idx == @as(i32, @intCast(idx));
-            batch.addLine(p.x, p.y + BTN_H * 0.5, p.x + BTN_W, p.y + BTN_H * 0.5, BTN_H, if (hov) btn_bg_hover else btn_bg_normal);
-            batch.addRectOutline(.{ p.x, p.y }, .{ p.x + BTN_W, p.y + BTN_H }, 1.0, if (hov) btn_border_hover else btn_border);
+            batch.addLine(p.x, p.y + BTN_H * 0.5, p.x + BTN_W, p.y + BTN_H * 0.5, BTN_H, if (hov) cols.bg_hover else cols.bg_normal);
+            batch.addRectOutline(.{ p.x, p.y }, .{ p.x + BTN_W, p.y + BTN_H }, 1.0, if (hov) cols.border_hover else cols.border_normal);
         }
         batch.flush();
     }
@@ -185,7 +201,7 @@ pub fn tbDraw(ctx: *const RenderContext, app: *st.AppState) void {
     for (tbs, 0..) |tb_path, idx| {
         const p = btnPos(bounds, idx);
         const hov = hovered_idx == @as(i32, @intCast(idx));
-        h.drawLabel(tbBaseName(tb_path), p.x + BTN_PAD_X, p.y + 3.0, if (hov) btn_text_hover else btn_text, vp, idx + 80_000);
+        h.drawLabel(tbBaseName(tb_path), p.x + BTN_PAD_X, p.y + 3.0, if (hov) cols.text_hover else cols.text_normal, vp, idx + 80_000);
     }
 }
 
@@ -200,11 +216,10 @@ fn getTbs(app: *st.AppState) ?[]const []const u8 {
 }
 
 fn tbHandleClick(app: *st.AppState, tb_path: []const u8, shift: bool) void {
-    const alloc = app.allocator();
-    const path_dup = alloc.dupe(u8, tb_path) catch return;
     _ = shift;
-    // TODO: implement load_schematic command for testbench navigation
-    alloc.free(path_dup);
+    app.openPath(tb_path) catch {
+        app.status_msg = "Failed to open testbench";
+    };
 }
 
 fn loadWireCache(tb_path: []const u8) void {

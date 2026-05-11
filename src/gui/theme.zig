@@ -3,13 +3,14 @@
 
 const std = @import("std");
 const dvui = @import("dvui");
-const Color = dvui.Color;
+pub const Color = dvui.Color;
 
 // ── Plugin overrides (written by Themes plugin via SET_CONFIG) ───────────────
 
 pub var current_overrides: ThemeOverrides = .{};
 
 pub const ThemeOverrides = struct {
+    // Canvas colors
     canvas_bg: ?[3]u8 = null,
     grid_dot: ?[4]u8 = null,
     wire: ?[3]u8 = null,
@@ -18,9 +19,22 @@ pub const ThemeOverrides = struct {
     instance_body: ?[3]u8 = null,
     instance_pin: ?[3]u8 = null,
     symbol_line: ?[3]u8 = null,
+    symbol_pin: ?[3]u8 = null,
     wire_preview: ?[4]u8 = null,
+    origin: ?[4]u8 = null,
+    // Chrome colors
     sidebar_bg: ?[3]u8 = null,
     bottombar_bg: ?[3]u8 = null,
+    toolbar_bg: ?[3]u8 = null,
+    tabbar_bg: ?[3]u8 = null,
+    tab_active_bg: ?[3]u8 = null,
+    statusbar_bg: ?[3]u8 = null,
+    text_primary: ?[3]u8 = null,
+    text_secondary: ?[3]u8 = null,
+    accent: ?[3]u8 = null,
+    separator: ?[3]u8 = null,
+    hover_bg: ?[3]u8 = null,
+    // Shape / spacing
     corner_radius: ?f32 = null,
     border_width: ?f32 = null,
     button_padding_h: ?f32 = null,
@@ -28,6 +42,9 @@ pub const ThemeOverrides = struct {
     wire_width: ?f32 = null,
     grid_dot_size: ?f32 = null,
     tab_shape: ?u8 = null,
+    toolbar_height: ?f32 = null,
+    tabbar_height: ?f32 = null,
+    statusbar_height: ?f32 = null,
 };
 
 // ── Shape / spacing getters ──────────────────────────────────────────────────
@@ -42,13 +59,34 @@ pub fn getTabShape() u8 { return current_overrides.tab_shape orelse 1; }
 
 // ── Chrome color getters (consumed by panels, respects plugin overrides) ─────
 
+pub fn chromeToolbarBg() Color { return rgb3(current_overrides.toolbar_bg, 35, 38, 48); }
+pub fn chromeTabbarBg() Color { return rgb3(current_overrides.tabbar_bg, 22, 24, 30); }
+pub fn chromeTabActiveBg() Color { return rgb3(current_overrides.tab_active_bg, 50, 55, 70); }
+pub fn chromeStatusbarBg() Color { return rgb3(current_overrides.statusbar_bg, 26, 28, 36); }
+pub fn chromeSidebarBg() Color { return rgb3(current_overrides.sidebar_bg, 30, 32, 40); }
+pub fn chromeTextPrimary() Color { return rgb3(current_overrides.text_primary, 220, 224, 235); }
+pub fn chromeTextSecondary() Color { return rgb3(current_overrides.text_secondary, 160, 164, 176); }
+pub fn chromeAccent() Color { return rgb3(current_overrides.accent, 137, 180, 250); }
+pub fn chromeSeparator() Color { return rgb3(current_overrides.separator, 60, 62, 72); }
+pub fn chromeHoverBg() Color { return rgb3(current_overrides.hover_bg, 55, 60, 78); }
+pub fn chromeCornerRadius() f32 { return current_overrides.corner_radius orelse 4.0; }
+pub fn chromeToolbarH() f32 { return current_overrides.toolbar_height orelse 32; }
+pub fn chromeTabbarH() f32 { return current_overrides.tabbar_height orelse 28; }
+pub fn chromeStatusbarH() f32 { return current_overrides.statusbar_height orelse 24; }
+pub fn chromeTabShape() u8 { return current_overrides.tab_shape orelse 1; }
+
 pub fn getSidebarBg() Color {
     if (current_overrides.sidebar_bg) |rgb| return .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
-    return .{ .r = 28, .g = 30, .b = 38, .a = 255 }; // #1c1e26
+    return .{ .r = 28, .g = 30, .b = 38, .a = 255 };
 }
 pub fn getBottomBarBg() Color {
     if (current_overrides.bottombar_bg) |rgb| return .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
-    return .{ .r = 28, .g = 30, .b = 38, .a = 255 }; // #1c1e26
+    return .{ .r = 28, .g = 30, .b = 38, .a = 255 };
+}
+
+fn rgb3(ov: ?[3]u8, dr: u8, dg: u8, db: u8) Color {
+    if (ov) |c| return .{ .r = c[0], .g = c[1], .b = c[2], .a = 255 };
+    return .{ .r = dr, .g = dg, .b = db, .a = 255 };
 }
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -66,6 +104,44 @@ pub const Palette = struct {
     symbol_pin: Color,
     wire_preview: Color,
     origin: Color,
+
+    /// Returns a hardcoded dark-theme palette with plugin overrides applied.
+    pub fn dark() Palette {
+        const canvas_bg = Color{ .r = 15, .g = 17, .b = 23, .a = 255 };
+        const grid_dot = Color{ .r = 47, .g = 47, .b = 51, .a = 90 };
+        const wire = Color{ .r = 71, .g = 146, .b = 212, .a = 255 };
+        const wire_sel = Color{ .r = 168, .g = 128, .b = 59, .a = 255 };
+        const wire_endpoint = Color{ .r = 56, .g = 176, .b = 131, .a = 255 };
+        const inst_body = Color{ .r = 56, .g = 105, .b = 148, .a = 255 };
+        const inst_pin = Color{ .r = 214, .g = 205, .b = 142, .a = 255 };
+        const symbol_line = Color{ .r = 188, .g = 188, .b = 188, .a = 255 };
+        const symbol_pin = Color{ .r = 102, .g = 152, .b = 109, .a = 255 };
+        const wire_preview = Color{ .r = 87, .g = 183, .b = 122, .a = 170 };
+        const origin = Color{ .r = 110, .g = 110, .b = 110, .a = 160 };
+
+        var result = Palette{
+            .canvas_bg = canvas_bg, .grid_dot = grid_dot, .wire = wire, .wire_sel = wire_sel,
+            .wire_endpoint = wire_endpoint, .inst_body = inst_body, .inst_sel = wire_sel,
+            .inst_pin = inst_pin, .symbol_line = symbol_line, .symbol_pin = symbol_pin,
+            .wire_preview = wire_preview, .origin = origin,
+        };
+
+        // Apply plugin overrides
+        const ov = &current_overrides;
+        inline for (.{
+            .{ "canvas_bg", "canvas_bg" }, .{ "wire", "wire" }, .{ "wire_endpoint", "wire_endpoint" },
+            .{ "instance_body", "inst_body" }, .{ "instance_pin", "inst_pin" },
+            .{ "symbol_line", "symbol_line" }, .{ "symbol_pin", "symbol_pin" },
+        }) |pair| {
+            if (@field(ov, pair[0])) |rgb| @field(result, pair[1]) = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 };
+        }
+        if (ov.grid_dot) |rgba| result.grid_dot = .{ .r = rgba[0], .g = rgba[1], .b = rgba[2], .a = rgba[3] };
+        if (ov.wire_preview) |rgba| result.wire_preview = .{ .r = rgba[0], .g = rgba[1], .b = rgba[2], .a = rgba[3] };
+        if (ov.origin) |rgba| result.origin = .{ .r = rgba[0], .g = rgba[1], .b = rgba[2], .a = rgba[3] };
+        if (ov.wire_selected) |rgb| { result.wire_sel = .{ .r = rgb[0], .g = rgb[1], .b = rgb[2], .a = 255 }; result.inst_sel = result.wire_sel; }
+
+        return result;
+    }
 
     pub fn fromDvui(t: dvui.Theme) Palette {
         const focus = t.focus;

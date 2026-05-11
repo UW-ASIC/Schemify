@@ -191,6 +191,9 @@ fn drawPanelBody(meta: PluginPanelMeta, state: PluginPanelState, app: *AppState,
         return;
     };
 
+    // Send draw_panel to the plugin so it emits current widgets.
+    host.drawPanel(state.panel_id);
+
     const wl = host.widgets(state.panel_id);
     const len = wl.len;
     if (len == 0) {

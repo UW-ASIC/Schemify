@@ -2,6 +2,7 @@
 zig-out/
 zig-cache/
 .zig-cache/
+zig-pkg/
 
 # Nix
 result
@@ -24,12 +25,24 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 docs_site/node_modules/
 
-# toolchain
+# Python
+__pycache__/
+*.pyc
+*.pyo
 
+# Plugin build artifacts
+plugins/**/*.so
+plugins/**/.zig-cache/
+plugins/**/zig-out/
+plugins/**/.venv/
+
+# Dep build artifacts
+dep/**/.zig-cache/
+dep/**/zig-pkg/
+
+# Toolchain
 zig-lsp-plugin/
 .mcp.json
-.planning/
-.claude/worktrees/
 
 # Claude
 .omc/

@@ -20,6 +20,7 @@ const interaction = @import("Canvas/interaction.zig");
 const CanvasEvent = @import("Canvas/types.zig").CanvasEvent;
 
 // Panels & browsers
+const welcome = @import("welcome.zig");
 const plugin_panels = @import("PluginPanels.zig");
 const marketplace = @import("Panels/marketplace.zig");
 pub const file_explorer = @import("Panels/file_explorer.zig");
@@ -36,7 +37,9 @@ pub fn frame(app: *AppState) !void {
 
     bars.drawToolbar(app);
     bars.drawTabBar(app);
-    {
+    if (app.documents.items.len == 0) {
+        welcome.draw(app, 0, 0, 800, 600);
+    } else {
         var middle = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
         defer middle.deinit();
         plugin_panels.drawSidebar(app, .left_sidebar);

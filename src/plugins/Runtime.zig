@@ -517,12 +517,16 @@ pub const Runtime = struct {
         defer alloc.free(out);
 
         const arena_alloc = ps.arena.allocator();
-        iterOutMsgs(out, struct {
-            fn cb(tag: Tag, payload: []const u8, ctx: struct { a: std.mem.Allocator, ps: *PanelState, backing: std.mem.Allocator }) void {
+        const DrawCtx = struct {
+            a: std.mem.Allocator,
+            ps_ptr: *PanelState,
+            backing: std.mem.Allocator,
+            fn cb(tag: Tag, payload: []const u8, ctx: @This()) void {
                 if (parseWidget(ctx.a, tag, payload)) |widget|
-                    ctx.ps.widgets.append(ctx.backing, widget) catch {};
+                    ctx.ps_ptr.widgets.append(ctx.backing, widget) catch {};
             }
-        }.cb, .{ .a = arena_alloc, .ps = ps, .backing = alloc });
+        };
+        iterOutMsgs(out, DrawCtx.cb, DrawCtx{ .a = arena_alloc, .ps_ptr = ps, .backing = alloc });
     }
 
     // -- Internal: output message dispatch ------------------------------------

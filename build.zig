@@ -123,23 +123,7 @@ pub fn build(b: *std.Build) void {
         install.dependOn(&b.addInstallFileWithDir(b.path("src/web/schemify_host.js"), .bin, "schemify_host.js").step);
 
         // Bundled data files so first-run can pre-populate the OPFS VFS.
-        install.dependOn(&b.addInstallFileWithDir(b.path("Config.toml"), .bin, "Config.toml").step);
-        {
-            var examples_dir = std.fs.cwd().openDir("examples", .{ .iterate = true }) catch @panic("cannot open examples/");
-            defer examples_dir.close();
-            var it = examples_dir.iterate();
-            while (it.next() catch null) |entry| {
-                if (entry.kind != .file) continue;
-                if (std.mem.endsWith(u8, entry.name, ".chn") or
-                    std.mem.endsWith(u8, entry.name, ".chn_tb") or
-                    std.mem.endsWith(u8, entry.name, ".chn_prim"))
-                {
-                    const dest = b.fmt("examples/{s}", .{entry.name});
-                    const src = b.fmt("examples/{s}", .{entry.name});
-                    install.dependOn(&b.addInstallFileWithDir(b.path(src), .bin, dest).step);
-                }
-            }
-        }
+        // TODO: re-add Config.toml and examples/ once they have a new home
 
         const kill = b.addSystemCommand(&.{ "sh", "-c", "fuser -k 8080/tcp 2>/dev/null; sleep 0.3; exit 0" });
         kill.step.dependOn(install);

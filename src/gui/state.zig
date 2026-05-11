@@ -317,6 +317,110 @@ pub const GuiStateHot = struct {
     command_mode: bool = false,
 };
 
+pub const MultiPropsDialogState = struct {
+    pub const MAX_COMMON_PROPS = 16;
+    pub const KEY_BUF_LEN = 64;
+    pub const VAL_BUF_LEN = 128;
+
+    is_open: bool = false,
+    win_rect: WinRect = .{ .x = 100, .y = 80, .w = 540, .h = 420 },
+    /// Number of common property keys found across all selected instances.
+    common_count: usize = 0,
+    /// Property key names (copied at populate time).
+    key_bufs: [MAX_COMMON_PROPS][KEY_BUF_LEN]u8 = [_][KEY_BUF_LEN]u8{[_]u8{0} ** KEY_BUF_LEN} ** MAX_COMMON_PROPS,
+    /// Editable value buffers — initialized to "<mixed>" or the shared value.
+    val_bufs: [MAX_COMMON_PROPS][VAL_BUF_LEN]u8 = [_][VAL_BUF_LEN]u8{[_]u8{0} ** VAL_BUF_LEN} ** MAX_COMMON_PROPS,
+    /// Whether the property had the same value across all selected instances at open time.
+    /// If false, the field was initialized with "" (user must type a value to apply).
+    was_uniform: [MAX_COMMON_PROPS]bool = [_]bool{false} ** MAX_COMMON_PROPS,
+    /// Original uniform value (for change detection).  Null-terminated in buffer.
+    orig_vals: [MAX_COMMON_PROPS][VAL_BUF_LEN]u8 = [_][VAL_BUF_LEN]u8{[_]u8{0} ** VAL_BUF_LEN} ** MAX_COMMON_PROPS,
+
+    /// Populate common keys from the intersection of properties on all selected instances.
+    pub fn populateFrom(
+        self: *MultiPropsDialogState,
+        instances: anytype, // MultiArrayList slice type
+        inst_len: usize,
+        sel_bits: *const std.DynamicBitSetUnmanaged,
+        props: []const core.types.Property,
+    ) void {
+        self.common_count = 0;
+        // Reset buffers
+        for (0..MAX_COMMON_PROPS) |i| {
+            self.key_bufs[i] = [_]u8{0} ** KEY_BUF_LEN;
+            self.val_bufs[i] = [_]u8{0} ** VAL_BUF_LEN;
+            self.orig_vals[i] = [_]u8{0} ** VAL_BUF_LEN;
+            self.was_uniform[i] = false;
+        }
+
+        // Collect all unique property keys from selected instances.
+        // For each key, track whether all instances have it and whether values match.
+        var key_count: usize = 0;
+        var keys: [MAX_COMMON_PROPS][]const u8 = undefined;
+        var first_vals: [MAX_COMMON_PROPS][]const u8 = undefined;
+        var all_same: [MAX_COMMON_PROPS]bool = [_]bool{true} ** MAX_COMMON_PROPS;
+        var all_have: [MAX_COMMON_PROPS]usize = [_]usize{0} ** MAX_COMMON_PROPS;
+        var sel_count: usize = 0;
+
+        var it = sel_bits.iterator(.{});
+        while (it.next()) |idx| {
+            if (idx >= inst_len) continue;
+            sel_count += 1;
+            const inst = instances.get(idx);
+            const start: usize = inst.prop_start;
+            const count: usize = @min(@as(usize, inst.prop_count), props.len -| start);
+            for (0..count) |pi| {
+                const prop = props[start + pi];
+                // Find or insert key
+                var ki: usize = 0;
+                while (ki < key_count) : (ki += 1) {
+                    if (std.mem.eql(u8, keys[ki], prop.key)) break;
+                }
+                if (ki == key_count) {
+                    if (key_count >= MAX_COMMON_PROPS) continue;
+                    keys[key_count] = prop.key;
+                    first_vals[key_count] = prop.val;
+                    all_have[key_count] = 1;
+                    key_count += 1;
+                } else {
+                    all_have[ki] += 1;
+                    if (!std.mem.eql(u8, first_vals[ki], prop.val)) {
+                        all_same[ki] = false;
+                    }
+                }
+            }
+        }
+
+        // Keep only keys that ALL selected instances share.
+        var out: usize = 0;
+        for (0..key_count) |ki| {
+            if (all_have[ki] != sel_count) continue;
+            if (out >= MAX_COMMON_PROPS) break;
+
+            // Copy key
+            const klen = @min(keys[ki].len, KEY_BUF_LEN - 1);
+            @memcpy(self.key_bufs[out][0..klen], keys[ki][0..klen]);
+            self.key_bufs[out][klen] = 0;
+
+            // Copy value (or leave empty if mixed)
+            if (all_same[ki]) {
+                const vlen = @min(first_vals[ki].len, VAL_BUF_LEN - 1);
+                @memcpy(self.val_bufs[out][0..vlen], first_vals[ki][0..vlen]);
+                self.val_bufs[out][vlen] = 0;
+                @memcpy(self.orig_vals[out][0..vlen], first_vals[ki][0..vlen]);
+                self.orig_vals[out][vlen] = 0;
+                self.was_uniform[out] = true;
+            } else {
+                self.was_uniform[out] = false;
+                // Leave val_bufs as zeroed (empty) so user must type to apply
+            }
+
+            out += 1;
+        }
+        self.common_count = out;
+    }
+};
+
 pub const GuiStateCold = struct {
     plugin_panels_meta: std.ArrayListUnmanaged(PluginPanelMeta) = .{},
     plugin_panels_state: std.ArrayListUnmanaged(PluginPanelState) = .{},
@@ -331,7 +435,7 @@ pub const GuiStateCold = struct {
     spice_code_dialog: SpiceCodeDialogState = .{},
     new_prim_dialog: NewPrimDialogState = .{},
     marketplace_win: DialogState = .{ .win_rect = .{ .x = 80, .y = 50, .w = 820, .h = 560 } },
-    multi_props_dialog: DialogState = .{ .win_rect = .{ .x = 100, .y = 80, .w = 540, .h = 420 } },
+    multi_props_dialog: MultiPropsDialogState = .{},
     ctx_menu: CtxMenu = .{},
     command_buf: [128]u8 = [_]u8{0} ** 128,
     key_to_panel: [256]i8 = [_]i8{-1} ** 256,
