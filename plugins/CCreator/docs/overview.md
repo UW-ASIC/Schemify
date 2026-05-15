@@ -1,24 +1,13 @@
 # CCreator Overview
 
-CCreator is Schemify's full-stack circuit design toolkit. It lets you define circuits in Python, switch them between PDKs, optimize transistor sizing against testbench targets, and export the result as Schemify `.chn` schematics — all from a single unified API.
+CCreator is Schemify's circuit design toolkit for templates, behavioral modeling, and circuit generation. It lets you define circuits in Python, simulate them, and export the result as SPICE, Verilog-A, or Schemify `.chn` schematics.
 
-## The Problem
-
-Analog circuit design typically involves four disconnected steps:
-
-1. **Define** the circuit (schematic entry or netlist).
-2. **Target a PDK** — manually rewrite model names, rescale W/L for a new process.
-3. **Size transistors** — hand-tune or sweep parameters to meet specs.
-4. **Import into the editor** — redraw everything in the schematic tool.
-
-Each step uses a different tool, a different format, and a different mental model. CCreator collapses them into one Python API.
-
-## The Unified Workflow
+## The Workflow
 
 ```
-            define              switch             optimize           export
- Python ──────────> Circuit ──────────> Circuit' ──────────> Circuit'' ──────────> .chn
-  class               (PDK-agnostic)     (target PDK)        (sized)              (Schemify)
+            define              simulate            export
+ Python ──────────> Circuit ──────────> Results ──────────> SPICE / Verilog-A / .chn
+  class               (PDK-agnostic)                        (Schemify)
 ```
 
 ```python
@@ -37,39 +26,32 @@ class FoldedCascode:
     ]
     def build(self, n):
         # Diff pair
-        n.MOSFET('M1', 'tail1', 'inp', 'vs', 'vss', 'sky130_fd_pr__nfet_01v8', W='5u', L='0.5u')
-        n.MOSFET('M2', 'tail2', 'inn', 'vs', 'vss', 'sky130_fd_pr__nfet_01v8', W='5u', L='0.5u')
+        n.MOSFET('M1', 'tail1', 'inp', 'vs', 'vss', 'nch', W='5u', L='0.5u')
+        n.MOSFET('M2', 'tail2', 'inn', 'vs', 'vss', 'nch', W='5u', L='0.5u')
         # Active load
-        n.MOSFET('M3', 'tail1', 'tail1', 'vdd', 'vdd', 'sky130_fd_pr__pfet_01v8', W='10u', L='0.5u')
-        n.MOSFET('M4', 'out',   'tail1', 'vdd', 'vdd', 'sky130_fd_pr__pfet_01v8', W='10u', L='0.5u')
+        n.MOSFET('M3', 'tail1', 'tail1', 'vdd', 'vdd', 'pch', W='10u', L='0.5u')
+        n.MOSFET('M4', 'out',   'tail1', 'vdd', 'vdd', 'pch', W='10u', L='0.5u')
         # Tail current
-        n.MOSFET('M5', 'vs', 'vbias', 'vss', 'vss', 'sky130_fd_pr__nfet_01v8', W='20u', L='1u')
+        n.MOSFET('M5', 'vs', 'vbias', 'vss', 'vss', 'nch', W='20u', L='1u')
 
 amp = FoldedCascode()
 
-# 2. Switch to GF180MCU
-remapped = amp.switch_pdk('gf180mcuA')
+# 2. Simulate
+result = simulate(amp).ac(fstart=1, fstop=1e9, points=200)
+print(result.metrics())
 
-# 3. Optimize against testbench specs
-result = amp.optimize(
-    targets=[
-        {'name': 'gain_db', 'kind': 'maximize'},
-        {'name': 'phase_margin', 'kind': '>=', 'target': 60.0},
-        {'name': 'power_uw', 'kind': '<=', 'target': 500.0},
-    ],
-    testbench=my_tb,
-    model_lib='/path/to/models.lib',
-    vdd=3.3,
-    max_iter=100,
-)
+# 3. Export to SPICE
+amp.export.spice('./output/folded_cascode.sp')
 
-# 4. Export to Schemify
-amp.export.schemify('./output/')
+# 4. Export to Verilog-A (behavioral)
+amp.export.veriloga('./output/folded_cascode.va')
 ```
 
-## Architecture
+**Note:** PDK switching is handled by the PDKSwitcher plugin.
+gm/Id optimization is handled by the core optimizer via the Schemify host API.
+SPICE import with full placement/routing is handled by core Schemify (spiceImport command).
 
-CCreator integrates three previously standalone plugins as subpackages:
+## Architecture
 
 ```
 ccreator/
@@ -83,27 +65,8 @@ ccreator/
 ├── testbench/             Testbench framework and SPICE export
 ├── simulators/            SciPy, PySpice/ngspice, Verilator backends
 ├── public/                Built-in circuit library (ADC, DAC, PLL, bandgap, etc.)
-├── compare/               Result comparison and metrics
-│
-├── pdk_switcherino/       [Integrated] Cross-PDK gm/Id-preserving remap
-├── gmid_optimizer/        [Integrated] Bayesian transistor sizing
-└── spice2schematic/       [Integrated] SPICE netlist → .chn schematic converter
+└── compare/               Result comparison and metrics
 ```
-
-Each integrated subpackage is independently importable:
-
-```python
-# Use the PDK switcher directly
-from ccreator.pdk_switcherino import PDKSwitcher, get_pdk
-
-# Use the optimizer directly
-from ccreator.gmid_optimizer import GMIDOptimizer, Problem
-
-# Use the SPICE importer directly
-from ccreator.spice2schematic import parse, import_spice
-```
-
-The standalone plugins (PDKSwitcherino, GMIDOptimizer, SpiceImport) also continue to work independently with their own Schemify panel UIs.
 
 ## Two Circuit Abstractions
 
@@ -117,10 +80,8 @@ CCreator provides two levels of circuit definition:
 | **Speed** | Milliseconds | Seconds |
 | **Accuracy** | Ideal, no parasitics | Process-accurate with PDK models |
 | **Use case** | Architecture exploration | Final sizing and verification |
-| **PDK switching** | N/A (PDK-agnostic by nature) | `circuit.switch_pdk()` |
-| **Optimization** | N/A (no transistors) | `circuit.optimize()` |
 
-Both support `circuit.export.schemify()` for schematic export.
+Both support `circuit.export.spice()` and `circuit.export.veriloga()`.
 
 ## Dependencies
 
@@ -129,26 +90,15 @@ Both support `circuit.export.schemify()` for schematic export.
 - numpy, scipy, sympy, matplotlib
 - PySpice >= 1.5
 
-**PDK Switching** (needed for `switch_pdk()`):
-- ngspice (for characterization sweeps)
-- PDK installation (sky130, gf180mcu, or ihp-sg13g2)
-
-**Optimization** (needed for `optimize()`):
-- torch, botorch, gpytorch (Bayesian optimization)
-- scikit-learn
-- ngspice (for testbench evaluation)
-
 **Schemify Export** (needed for `export.schemify()`):
 - No additional dependencies (pure Python)
 
-Dependencies are lazy-loaded. Importing `ccreator` does not pull in torch.
+Dependencies are lazy-loaded. Importing `ccreator` does not pull in heavy libraries.
 
 ## Next
 
 - [Circuits](circuits.md) — Defining behavioral and realistic circuits
-- [PDK Switching](pdk-switching.md) — The gm/Id-preserving remap engine
-- [Optimization](optimization.md) — Bayesian transistor sizing
-- [Schemify Export](schemify-export.md) — The SPICE-to-schematic pipeline
+- [Schemify Export](schemify-export.md) — Exporting circuits to Schemify
 - [Testbenches](testbenches.md) — Automated testbench framework
 - [Built-in Library](builtin-library.md) — ADC, DAC, PLL, bandgap, oscillator, switch
 - [API Reference](api-reference.md) — Complete module reference

@@ -1,0 +1,76 @@
+chn_testbench 1.0
+
+TESTBENCH diff_pair
+
+# NMOS Differential Pair
+# Two matched NMOS transistors with a tail current source.
+# Fundamental building block for operational amplifiers.
+
+  nmos [3]{name, x, y, rot, flip, W, L}:
+    M1  300  -300  0  1  10u  1u
+    M2  600  -300  0  0  10u  1u
+    M3  450  -120  0  0  20u  2u
+
+  resistors [2]{name, x, y, rot, flip, value}:
+    RD1  300  -460  0  0  10k
+    RD2  600  -460  0  0  10k
+
+  vsource [4]{name, x, y, rot, flip, value}:
+    VDD   100  -550  0  0  3.3
+    VBIAS 450  -50   0  0  0.8
+    VIP   100  -300  0  0  dc 1.65 ac 0.5
+    VIM   800  -300  0  0  dc 1.65 ac -0.5
+
+  nets:
+    VDD    -> VDD.p, RD1.p, RD2.p
+    GND    -> VDD.m, VBIAS.m, VIP.m, VIM.m, M3.S, M3.B
+    INP    -> VIP.p, M1.G
+    INM    -> VIM.p, M2.G
+    OUTP   -> RD1.m, M1.D
+    OUTM   -> RD2.m, M2.D
+    TAIL   -> M1.S, M2.S, M3.D
+    VBIAS  -> VBIAS.p, M3.G
+    BULK   -> M1.B, M2.B
+
+  wires:
+    # VDD to resistor tops
+    100 -610 100 -580
+    100 -610 300 -610
+    300 -610 300 -500
+    300 -610 600 -610
+    600 -610 600 -500
+    # Resistor bottoms to drains
+    300 -420 300 -340
+    600 -420 600 -340
+    # Sources to tail node
+    300 -260 300 -220
+    300 -220 450 -220
+    450 -220 600 -220
+    600 -260 600 -220
+    # Tail current source
+    450 -220 450 -160
+    # Tail source to GND
+    450 -80 450 -40
+    100 -40 450 -40
+    # Bias voltage
+    450 -80 450 -50
+    # Input connections
+    100 -360 100 -330
+    100 -360 260 -360
+    260 -360 260 -300
+    800 -360 800 -330
+    640 -300 800 -360
+    # Bulk connections
+    300 -260 300 -260 GND
+    600 -260 600 -260 GND
+    # Labels
+    100 -610 100 -610 VDD
+    100 -40 100 -40 GND
+    100 -270 100 -270 GND
+    800 -270 800 -270 GND
+    300 -380 220 -380
+    220 -380 220 -380 OUTP
+    600 -380 680 -380
+    680 -380 680 -380 OUTM
+    100 -360 100 -360 INP
+    800 -360 800 -360 INM

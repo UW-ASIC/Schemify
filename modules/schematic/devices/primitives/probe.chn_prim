@@ -1,0 +1,22 @@
+chn_prim 1.0
+
+SYMBOL probe
+  desc: Voltage probe marker
+
+  pins [1]:
+    p  in
+
+  params [1]:
+    lab = ""
+
+  drawing:
+    lines:
+      # Probe tip
+      (0,0) (0,-8)
+      # Arrowhead
+      (-3,-5) (0,-8)
+      (3,-5) (0,-8)
+    circle: (0,-12) r=4
+    text: (8,-12) "@lab"
+    pin_positions:
+      p: (0,0)

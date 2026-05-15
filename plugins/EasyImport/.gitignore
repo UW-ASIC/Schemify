@@ -1,7 +1,0 @@
-zig-out/
-.zig-cache/
-*.so
-*.dylib
-*.wasm
-*.o
-*.a

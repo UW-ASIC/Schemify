@@ -13,9 +13,9 @@ import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 from project.gemm_sky130 import IMCTileSky130, SampleHoldBankSky130, TGateMuxSky130
-from ccreator.spice2schematic import import_spice
 from ccreator.testbench.spice_export import to_spice_string
 from ccreator.testbench.builder import TestbenchBuilder
+from ccreator.core.circuit import _fallback_parse_spice
 
 OUT_DIR = pathlib.Path('./schematics')
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -33,17 +33,19 @@ def export_circuit(circuit, label):
 
 
 def export_testbench(tb_builder, label):
-    """Export a TestbenchBuilder to .chn_tb via SPICE -> import_spice."""
+    """Export a TestbenchBuilder to JSON via SPICE -> fallback parser.
+
+    NOTE: For full-fidelity SPICE import with placement and routing, use
+    the core Schemify host API (spiceImport command) instead.
+    """
+    import json
     spice = to_spice_string(tb_builder)
-    # Replace the title line so the converter uses the TB name, not "CCreator"
     name = tb_builder._name
-    spice = f'* {name}\n' + '\n'.join(spice.split('\n')[1:])
-    outputs = import_spice(spice, source_path=name)
-    for o in outputs:
-        o.write_chn(OUT_DIR)
-        print(f"  {o.filename}: {len(o.components)} devices, "
-              f"{len(o.wires)} wires")
-    return outputs
+    components = _fallback_parse_spice(spice)
+    out_file = OUT_DIR / f"{name}_tb.json"
+    out_file.write_text(json.dumps(components, indent=2))
+    print(f"  {name}_tb.json: {len(components)} components")
+    return components
 
 
 # ===================================================================

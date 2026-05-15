@@ -7,24 +7,32 @@ pub const Backend = enum { native, web };
 // ── Module graph ──────────────────────────────────────────────────────────────
 // Two-pass creation: first create all modules, then wire imports.
 // This allows commands ↔ state to share types without ordering issues.
+//
+// Module layout lives in modules/ (bounded contexts with CONTEXT.md each).
 const Def = struct { []const u8, []const u8, []const []const u8 };
 const module_defs = [_]Def{
-    .{ "utility", "src/utility/lib.zig", &.{} },
-    .{ "core", "src/core/lib.zig", &.{ "utility", "dvui" } },
-    .{ "plugins", "src/plugins/lib.zig", &.{"dvui"} },
-    .{ "commands", "src/commands/lib.zig", &.{ "utility", "dvui", "core" } },
-    .{ "state", "src/gui/state.zig", &.{ "dvui", "core", "utility", "commands", "plugins" } },
-    .{ "theme_config", "src/gui/theme.zig", &.{"dvui"} },
-    .{ "gui", "src/gui/lib.zig", &.{ "dvui", "state", "commands", "plugins", "theme_config", "core", "utility" } },
-    .{ "cli", "src/cli.zig", &.{ "core", "utility", "state", "dvui", "commands" } },
+    .{ "utility", "modules/utility/lib.zig", &.{} },
+    .{ "settings", "modules/settings/lib.zig", &.{} },
+    .{ "schematic", "modules/schematic/lib.zig", &.{ "utility", "dvui", "simulation" } },
+    .{ "simulation", "modules/simulation/lib.zig", &.{"schematic"} },
+    .{ "plugins", "modules/plugins/lib.zig", &.{ "dvui", "utility" } },
+    .{ "commands", "modules/commands/lib.zig", &.{ "utility", "dvui", "schematic", "simulation" } },
+    .{ "state", "modules/gui/state.zig", &.{ "dvui", "schematic", "utility", "commands", "plugins", "settings", "simulation" } },
+    .{ "theme_config", "modules/gui/theme.zig", &.{"dvui"} },
+    .{ "import", "modules/import/lib.zig", &.{"schematic"} },
+    .{ "agent", "modules/agent/lib.zig", &.{ "schematic", "simulation" } },
+    .{ "gui", "modules/gui/lib.zig", &.{ "dvui", "state", "commands", "plugins", "theme_config", "schematic", "utility", "import", "settings", "simulation" } },
+    .{ "cli", "modules/cli.zig", &.{ "schematic", "utility", "state", "dvui", "commands" } },
 };
 
 // ── Test suites ───────────────────────────────────────────────────────────────
-// All tests import "core" so types shared with FileIO are identical instances.
 // Run individually: zig build test_<name>  |  Run all: zig build test
 const test_defs = [_]Def{
-    .{ "utility", "src/utility/lib.zig", &.{} },
+    .{ "utility", "modules/utility/lib.zig", &.{} },
+    .{ "optimizer", "modules/simulation/optimizer/lib.zig", &.{} },
+    .{ "agent", "modules/schematic/lib.zig", &.{ "utility", "dvui" } },
     .{ "marketplace", "test/marketplace/test_marketplace.zig", &.{"utility"} },
+    .{ "spice", "modules/import/lib.zig", &.{"schematic"} },
 };
 
 // ── web-specific ───────────────────────────────────────────────────────────────
@@ -62,9 +70,9 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Executable ────────────────────────────────────────────────────────────
-    const exe_mod = b.createModule(.{ .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
+    const exe_mod = b.createModule(.{ .root_source_file = b.path("modules/main.zig"), .target = target, .optimize = optimize });
     exe_mod.addOptions("build_options", build_opts);
-    addImports(exe_mod, &mods, &.{ "dvui", "utility", "core", "plugins", "commands", "state", "gui", "cli", "theme_config" });
+    addImports(exe_mod, &mods, &.{ "dvui", "utility", "schematic", "plugins", "commands", "state", "gui", "cli", "theme_config", "import", "settings", "simulation", "agent" });
 
     const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
     exe.root_module.strip = optimize != .Debug;
@@ -83,7 +91,7 @@ pub fn build(b: *std.Build) void {
         run.setCwd(b.path("."));
         run.step.dependOn(b.getInstallStep());
         if (b.args) |args| run.addArgs(args);
-        b.step("run", "Run N1Schem GUI (-- --cli for CLI)").dependOn(&run.step);
+        b.step("run", "Run Schemify GUI (-- --cli for CLI)").dependOn(&run.step);
 
         const test_step = b.step("test", "Run all tests");
         for (&test_defs) |def| {
@@ -94,36 +102,23 @@ pub fn build(b: *std.Build) void {
                 .test_runner = .{ .path = b.path("test/test_runner.zig"), .mode = .simple },
             });
             const test_run = b.addRunArtifact(test_exe);
-            test_run.setCwd(b.path(".")); // file paths in tests resolve from project root
+            test_run.setCwd(b.path("."));
             test_step.dependOn(&test_run.step);
             const step_name = b.fmt("test_{s}", .{def[0]});
             b.step(step_name, b.fmt("Run {s} tests", .{def[0]})).dependOn(&test_run.step);
-            // Hyphenated alias (e.g. test-xschem) for developer convenience
             const step_name_hyphen = b.fmt("test-{s}", .{def[0]});
             b.step(step_name_hyphen, b.fmt("Run {s} tests (alias)", .{def[0]})).dependOn(&test_run.step);
-            if (std.mem.eql(u8, def[0], "core")) {
-                b.step("core", "Build and test core module").dependOn(&test_run.step);
-            }
         }
     }
 
     // ── Web: install assets + run_local dev server ────────────────────────────
     if (is_web) {
         const install = b.getInstallStep();
-
-        // dvui's web.js runtime
         install.dependOn(&b.addInstallFileWithDir(dvui_dep.path("src/backends/web.js"), .bin, "web.js").step);
-
-        // Schemify web shell: index.html, boot.js, vfs.js, vfs-worker.js
         for ([_][]const u8{ "index.html", "boot.js", "vfs.js", "vfs-worker.js" }) |name| {
             install.dependOn(&b.addInstallFileWithDir(b.path(b.fmt("web/{s}", .{name})), .bin, name).step);
         }
-
-        // Schemify host imports (VFS + platform)
         install.dependOn(&b.addInstallFileWithDir(b.path("src/web/schemify_host.js"), .bin, "schemify_host.js").step);
-
-        // Bundled data files so first-run can pre-populate the OPFS VFS.
-        // TODO: re-add Config.toml and examples/ once they have a new home
 
         const kill = b.addSystemCommand(&.{ "sh", "-c", "fuser -k 8080/tcp 2>/dev/null; sleep 0.3; exit 0" });
         kill.step.dependOn(install);

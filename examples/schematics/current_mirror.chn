@@ -1,0 +1,53 @@
+chn_testbench 1.0
+
+TESTBENCH current_mirror
+
+# Simple NMOS Current Mirror
+# M1 is diode-connected (gate tied to drain) and sets the reference current.
+# M2 mirrors the current with ratio W2/W1.
+
+  nmos [2]{name, x, y, rot, flip, W, L}:
+    M1  200  -200  0  1  5u  1u
+    M2  500  -200  0  0  5u  1u
+
+  vsource [1]{name, x, y, rot, flip, value}:
+    VDD  100  -450  0  0  3.3
+
+  isource [1]{name, x, y, rot, flip, value}:
+    IREF  200  -380  0  0  100u
+
+  resistors [1]{name, x, y, rot, flip, value}:
+    RLOAD  500  -380  0  0  10k
+
+  nets:
+    VDD   -> VDD.p, IREF.p, RLOAD.p
+    GND   -> VDD.m, M1.S, M1.B, M2.S, M2.B
+    GATE  -> M1.G, M1.D, M2.G, IREF.m
+    IOUT  -> M2.D, RLOAD.m
+
+  wires:
+    # VDD to current source and load
+    100 -510 100 -480
+    100 -510 200 -510
+    200 -510 200 -420
+    200 -510 500 -510
+    500 -510 500 -420
+    # IREF to diode-connected drain
+    200 -340 200 -240
+    # Diode connection: gate to drain
+    160 -200 160 -280
+    160 -280 200 -280
+    # Gate connection: M1 gate to M2 gate
+    160 -200 540 -200
+    # M2 drain to load
+    500 -340 500 -240
+    # Sources to GND
+    200 -160 200 -100
+    500 -160 500 -100
+    200 -100 500 -100
+    100 -100 200 -100
+    # Labels
+    100 -510 100 -510 VDD
+    100 -100 100 -100 GND
+    500 -300 580 -300
+    580 -300 580 -300 IOUT

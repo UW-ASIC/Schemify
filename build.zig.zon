@@ -4,13 +4,11 @@
     .fingerprint = 0x2594d2f60f269de2,
     .minimum_zig_version = "0.15.0",
     .dependencies = .{
-        // DVUI - General-purpose Zig GUI toolkit (fetched from GitHub)
         .dvui = .{
-            .url = "https://github.com/OmarSiwy/HTML2DVUI/archive/refs/heads/main.tar.gz",
-            .hash = "12202559d26aabb512eeeafac143d22e4edb403fd31d00247409d94cb1e1c317de06",
+            .url = "git+https://github.com/david-vanderson/dvui?ref=v0.4.0#85c4cb4c28813743b191c691ba74ccd1cf52eff6",
+            .hash = "dvui-0.4.0-AQFJmQjU3wBQi8tkUTwHgtqWhhGlghgmBExQ-jqPRQBR",
         },
     },
-
     .paths = .{
         "build.zig",
         "build.zig.zon",

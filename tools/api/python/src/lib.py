@@ -264,6 +264,10 @@ class Writer:
         self._hdr(0xAE, struct.pack("<H", len(bh)) + bh +
                   struct.pack("<H", len(bt)) + bt + struct.pack("<I", widget_id))
 
+    def html_layout(self, panel_id: int, html: str) -> None:
+        b = html.encode()
+        self._hdr(0x95, struct.pack("<HH", panel_id, len(b)) + b)
+
     def push_command(self, cmd_tag: str, payload: str = "") -> None:
         def sp(s): b = s.encode(); return struct.pack("<H", len(b)) + b
         self._hdr(0x83, sp(cmd_tag) + sp(payload))

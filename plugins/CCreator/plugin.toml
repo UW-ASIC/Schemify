@@ -1,10 +1,10 @@
 [plugin]
 name        = "CCreator"
-version     = "0.1.0"
+version     = "0.2.0"
 author      = "UWASIC"
 entry       = "libCCreator.so"
-description = "Full-stack circuit toolkit: define PDK-agnostic circuits, switch PDKs with gm/Id-preserving remap, optimize transistor sizing via Bayesian optimization, and export to Schemify schematics."
-tags        = ["analog", "circuit", "simulation", "testbench", "spice", "pdk", "optimization", "gm/id", "import"]
+description = "Circuit toolkit: define PDK-agnostic circuits with templates, behavioral modeling, and circuit generation. Export as Python generators, SPICE, or Verilog-A."
+tags        = ["analog", "circuit", "simulation", "testbench", "templates", "behavioral", "generation"]
 scope       = "user"
 
 [build]

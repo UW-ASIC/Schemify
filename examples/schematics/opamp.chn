@@ -1,0 +1,107 @@
+chn_testbench 1.0
+
+TESTBENCH opamp
+
+# Two-Stage Miller-Compensated OTA
+# Stage 1: PMOS-loaded NMOS differential pair with tail current source
+# Stage 2: Common-source PMOS amplifier with NMOS current source load
+# Miller compensation capacitor Cc between stage 1 and stage 2 outputs
+
+  pmos [3]{name, x, y, rot, flip, W, L}:
+    M3  300  -500  0  1  20u  1u
+    M4  600  -500  0  0  20u  1u
+    M7  750  -500  0  0  40u  1u
+
+  nmos [4]{name, x, y, rot, flip, W, L}:
+    M1  300  -300  0  1  10u  1u
+    M2  600  -300  0  0  10u  1u
+    M5  450  -140  0  0  20u  2u
+    M8  750  -300  0  0  20u  2u
+
+  capacitors [2]{name, x, y, rot, flip, value}:
+    CC    680  -400  0  0  2p
+    CLOAD 900  -400  0  0  10p
+
+  vsource [4]{name, x, y, rot, flip, value}:
+    VDD   100  -600  0  0  3.3
+    VBIAS 100  -100  0  0  0.7
+    VIP   100  -350  0  0  dc 1.65 ac 0.5
+    VIM   850  -350  0  0  dc 1.65 ac -0.5
+
+  nets:
+    VDD    -> VDD.p, M3.S, M3.B, M4.S, M4.B, M7.S, M7.B
+    GND    -> VDD.m, VBIAS.m, VIP.m, VIM.m, M5.S, M5.B, M8.S, M8.B, CLOAD.m
+    INP    -> VIP.p, M1.G
+    INM    -> VIM.p, M2.G
+    MIRROR -> M3.G, M3.D, M4.G
+    VDIFF  -> M4.D, M2.D, CC.p
+    TAIL   -> M1.S, M2.S, M5.D
+    VBIAS  -> VBIAS.p, M5.G, M8.G
+    VA     -> M1.D, M3.D
+    VOUT   -> M7.D, M8.D, CC.m, CLOAD.p
+
+  wires:
+    # VDD rail
+    100 -660 100 -630
+    100 -660 300 -660
+    300 -660 300 -540
+    300 -660 600 -660
+    600 -660 600 -540
+    600 -660 750 -660
+    750 -660 750 -540
+    # Stage 1: PMOS loads
+    # M3 drain = M3 gate (diode connected)
+    260 -500 260 -460
+    260 -460 300 -460
+    300 -460 300 -340
+    # M3 gate to M4 gate (mirror)
+    260 -500 640 -500
+    # M4 drain to M2 drain (high-impedance node)
+    600 -460 600 -340
+    # Stage 1: Diff pair
+    300 -260 300 -220
+    300 -220 450 -220
+    450 -220 600 -220
+    600 -260 600 -220
+    # Tail current source
+    450 -220 450 -180
+    450 -100 450 -60
+    100 -60 450 -60
+    # Bias voltage to M5 gate and M8 gate
+    100 -160 100 -130
+    100 -160 410 -160
+    410 -160 410 -140
+    410 -160 710 -160
+    710 -160 710 -300
+    # Stage 2: M7 drain to M8 drain (output)
+    750 -460 750 -340
+    # Compensation cap
+    600 -420 640 -420
+    640 -420 640 -440
+    640 -360 640 -340
+    640 -340 750 -340
+    # Output load cap
+    750 -400 900 -400
+    900 -440 900 -400
+    900 -360 900 -320
+    900 -320 750 -320
+    750 -320 750 -60
+    450 -60 750 -60
+    # Input connections
+    100 -410 100 -380
+    100 -410 260 -410
+    260 -410 260 -300
+    850 -410 850 -380
+    640 -300 850 -410
+    # Bulk connections
+    300 -260 300 -260 GND
+    600 -260 600 -260 GND
+    # Labels
+    100 -660 100 -660 VDD
+    100 -60 100 -60 GND
+    100 -310 100 -310 GND
+    850 -310 850 -310 GND
+    850 -410 850 -410 INM
+    100 -410 100 -410 INP
+    750 -400 820 -400
+    820 -400 820 -400 VOUT

@@ -1,0 +1,28 @@
+chn_prim 1.0
+
+SYMBOL spice_block
+  desc: SPICE subcircuit block
+  pins [4]:
+    p1  io
+    p2  io
+    p3  io
+    p4  io
+  params [4]:
+    lib_file =
+    cell_name =
+    corner = tt
+    params = ""
+  block_type: lib
+  spice_prefix: X
+  spice_format: "@name @pins"
+  drawing:
+    rect: (-30,-30) (30,30)
+    text: (0,0) "SPICE"
+    lines:
+      (-30,0) (-15,0)
+      (15,0) (30,0)
+    pin_positions:
+      p1: (-30,0)
+      p2: (-30,-10)
+      p3: (30,0)
+      p4: (30,-10)

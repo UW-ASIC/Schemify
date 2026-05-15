@@ -1,4 +1,4 @@
-"""Schemify CCreator plugin — bidirectional .chn <-> Python circuit generator.
+"""Schemify CCreator plugin — templates, behavioral modeling, circuit generation.
 
 Features:
   - Embed: Write Python generator code into the .chn PLUGIN CCreator block
@@ -14,6 +14,10 @@ Commands:
   :ccreator export [path]       — export current schematic as Python generator
   :ccreator import <path>       — import a CCreator Python file into schematic
   :ccreator template <name>     — import a built-in template by class name
+
+Note: SPICE import, PDK switching, and gm/Id optimization are now handled by
+core Schemify (host API) and dedicated plugins (PDKSwitcher). This plugin
+focuses on templates, behavioral modeling, and circuit generation only.
 """
 
 from __future__ import annotations
@@ -47,15 +51,11 @@ _spec.loader.exec_module(schemify_plugin)  # type: ignore
 TAG = "CCreator"
 
 # ---------------------------------------------------------------------------
-# Ensure ccreator and spice2schematic packages are importable
+# Ensure ccreator package is importable
 # ---------------------------------------------------------------------------
 _CCREATOR_PKG = os.path.normpath(os.path.join(_PLUGIN_SRC_DIR))
-_SPICE2SCHEM_PKG = os.path.normpath(
-    os.path.join(_PLUGIN_SRC_DIR, "..", "..", "SpiceImport", "src")
-)
-for _p in (_CCREATOR_PKG, _SPICE2SCHEM_PKG):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if _CCREATOR_PKG not in sys.path:
+    sys.path.insert(0, _CCREATOR_PKG)
 
 
 # ---------------------------------------------------------------------------
@@ -480,23 +480,16 @@ def _load_circuit_from_file(file_path: str) -> Any:
 
 
 def _spice_to_components(spice_text: str) -> list[dict[str, Any]]:
-    """Convert SPICE netlist text to a list of component dicts via spice2schematic."""
-    try:
-        from spice2schematic import import_spice
-        outputs = import_spice(spice_text, source_path="ccreator")
-        components: list[dict[str, Any]] = []
-        for out in outputs:
-            d = out.to_dict()
-            for comp in d.get("components", []):
-                components.append(comp)
-        return components
-    except ImportError:
-        # Fallback: basic SPICE line parsing
-        return _fallback_parse_spice(spice_text)
+    """Convert SPICE netlist text to a list of component dicts.
+
+    Uses a built-in minimal parser. For full SPICE import with placement
+    and routing, use the core Schemify host API (spiceImport command).
+    """
+    return _fallback_parse_spice(spice_text)
 
 
 def _fallback_parse_spice(spice_text: str) -> list[dict[str, Any]]:
-    """Minimal SPICE parser fallback when spice2schematic is unavailable."""
+    """Minimal SPICE parser for extracting component info from netlist text."""
     components: list[dict[str, Any]] = []
     x_offset = 100
     y_offset = -100

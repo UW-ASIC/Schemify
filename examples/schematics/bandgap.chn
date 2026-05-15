@@ -1,0 +1,79 @@
+chn_testbench 1.0
+
+TESTBENCH bandgap
+
+# Bandgap Voltage Reference (Brokaw topology)
+# Uses two BJTs at different current densities to generate a PTAT voltage
+# across R1. The opamp forces equal collector currents, producing a
+# temperature-independent reference voltage VREF ~1.25V.
+
+  pmos [2]{name, x, y, rot, flip, W, L}:
+    M1  300  -500  0  1  20u  1u
+    M2  600  -500  0  0  20u  1u
+
+  instances:
+    Q1  npn  x=300  y=-200  m=1
+    Q2  npn  x=600  y=-200  m=8
+
+  resistors [3]{name, x, y, rot, flip, value}:
+    R1  450  -280  0  0  10k
+    R2  450  -120  0  0  40k
+    R3  300  -120  0  0  40k
+
+  vsource [1]{name, x, y, rot, flip, value}:
+    VDD  100  -550  0  0  3.3
+
+  instances:
+    XAMP  subckt  x=450  y=-420  sym=opamp
+
+  nets:
+    VDD   -> VDD.p, M1.S, M1.B, M2.S, M2.B, XAMP.VDD
+    GND   -> VDD.m, Q1.E, Q2.E, R2.m, R3.m, XAMP.VSS
+    GATE  -> M1.G, M2.G, XAMP.OUT
+    INP   -> XAMP.INP, M1.D, Q1.C
+    INM   -> XAMP.INM, M2.D, R1.p
+    VREF  -> Q1.B, R3.p, R2.p
+    VE2   -> Q2.C, Q2.B, R1.m
+
+  wires:
+    # VDD rail
+    100 -610 100 -580
+    100 -610 300 -610
+    300 -610 300 -540
+    300 -610 600 -610
+    600 -610 600 -540
+    # M1 drain to Q1 collector
+    300 -460 300 -240
+    # M2 drain to R1 top
+    600 -460 600 -340
+    600 -340 490 -340
+    490 -340 490 -320
+    # R1 bottom to Q2 collector/base
+    450 -240 450 -220
+    450 -220 600 -220
+    600 -220 600 -240
+    # Q1 base to R3 top / VREF node
+    260 -200 260 -160
+    260 -160 300 -160
+    # Q2 emitter to GND
+    600 -160 600 -60
+    # Q1 emitter to GND
+    300 -60 600 -60
+    100 -60 300 -60
+    # R2 and R3 bottoms to GND
+    450 -80 450 -60
+    300 -80 300 -60
+    # Opamp output to gates
+    490 -420 490 -500
+    490 -500 260 -500
+    260 -500 260 -530
+    260 -530 540 -530
+    540 -530 540 -500
+    # Opamp inputs
+    410 -440 300 -440
+    410 -400 600 -400
+    # VREF output
+    300 -160 300 -160 VREF
+    # Labels
+    100 -610 100 -610 VDD
+    100 -60 100 -60 GND
