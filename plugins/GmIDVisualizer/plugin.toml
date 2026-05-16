@@ -1,8 +1,0 @@
-[plugin]
-name        = "GmIDVisualizer"
-version     = "0.1.0"
-author      = "UWASIC"
-entry       = "libGmIDVisualizer.so"
-description = "gm/ID characterization: DC sweep MOSFET/BJT models, generate plots and LUT data."
-tags        = ["analog", "gm/id", "characterization", "pdk"]
-scope       = "user"

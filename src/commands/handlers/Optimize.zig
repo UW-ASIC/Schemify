@@ -1,0 +1,22 @@
+const std = @import("std");
+const builtin = @import("builtin");
+const is_wasm = builtin.cpu.arch == .wasm32;
+
+pub fn handleOptimize(state: anytype) void {
+    if (is_wasm) {
+        state.setStatus("Optimizer not available in browser");
+        return;
+    }
+    _ = state.active() orelse {
+        state.setStatus("No active document");
+        return;
+    };
+    const cold = &state.gui.cold;
+    if (cold.n_optimizer_windows < 4) {
+        cold.optimizer_windows[cold.n_optimizer_windows].is_open = true;
+        cold.n_optimizer_windows += 1;
+        state.setStatus("Optimizer window opened");
+    } else {
+        state.setStatus("Maximum optimizer windows reached");
+    }
+}

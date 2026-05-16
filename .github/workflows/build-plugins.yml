@@ -1,18 +1,18 @@
 name: Build Plugins
 
-# ── Triggers ──────────────────────────────────────────────────────────────────
+# Plugins are Python subprocess processes communicating via JSON-RPC 2.0.
+# This workflow validates, packages, and publishes them.
+#
+# Native:  Python source + SDK bundled as .tar.gz (run via `python3`)
+# Web:     Same bundle + Pyodide loader for in-browser execution via Web Worker
+
 on:
   push:
     branches: [main]
     paths:
       - 'plugins/**/plugin.toml'
       - 'plugins/**/src/**'
-      - 'plugins/**/build.zig'
-      - 'plugins/**/build.zig.zon'
-      - 'plugins/**/Makefile'
-      - 'plugins/**/Cargo.toml'
-      - 'plugins/**/flake.nix'
-      - 'tools/api/**'
+      - 'sdk/python/**'
       - 'tools/scripts/gen_registry.py'
   workflow_dispatch:
     inputs:
@@ -28,7 +28,7 @@ concurrency:
   group: build-plugins-${{ github.ref }}
   cancel-in-progress: true
 
-# ── Job 1: Discover buildable plugins ─────────────────────────────────────────
+# ── Job 1: Discover plugins ──────────────────────────────────────────────────
 jobs:
 
   discover:
@@ -51,9 +51,9 @@ jobs:
           echo "Discovered plugins:"
           echo "$matrix" | python3 -m json.tool
 
-  # ── Job 2: Build (matrix — one job per plugin) ──────────────────────────────
+  # ── Job 2: Validate & package (one per plugin) ─────────────────────────────
   build:
-    name: Build ${{ matrix.plugin.id }} (${{ matrix.plugin.build_system }})
+    name: Package ${{ matrix.plugin.id }}
     needs: discover
     runs-on: ubuntu-latest
     strategy:
@@ -65,9 +65,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-          submodules: recursive
 
-      # ── Incremental check ──────────────────────────────────────────────────
+      # ── Incremental check ────────────────────────────────────────────────
       - name: Check for changes
         id: changed
         run: |
@@ -81,118 +80,142 @@ jobs:
           CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "ALL")
 
           if echo "$CHANGED" | grep -qE \
-               "^${PLUGIN_DIR}/|^tools/api/|^tools/scripts/gen_registry\.py"; then
+               "^${PLUGIN_DIR}/|^sdk/python/|^tools/scripts/gen_registry\.py"; then
             echo "rebuild=true"  >> "$GITHUB_OUTPUT"
           else
             echo "rebuild=false" >> "$GITHUB_OUTPUT"
-            echo "No changes in $PLUGIN_DIR – skipping."
+            echo "No changes in $PLUGIN_DIR or SDK -- skipping."
           fi
 
-      # ── Install Nix ───────────────────────────────────────────────────────
-      - name: Install Nix
+      - uses: actions/setup-python@v5
         if: steps.changed.outputs.rebuild == 'true'
-        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          python-version: '3.12'
 
-      - name: Cache Nix store
-        if: steps.changed.outputs.rebuild == 'true'
-        uses: DeterminateSystems/magic-nix-cache-action@main
-
-      # ── Build native ────────────────────────────────────────────────────────
-      - name: Build native (.so)
+      # ── Validate Python ──────────────────────────────────────────────────
+      - name: Validate syntax
         if: steps.changed.outputs.rebuild == 'true'
         working-directory: '${{ matrix.plugin.dir }}'
         run: |
-          case "${{ matrix.plugin.build_system }}" in
-            zig)
-              nix develop --command zig build -Doptimize=ReleaseSafe
-              ;;
-            make)
-              nix develop --command make native
-              ;;
-            cargo)
-              nix develop --command make native
-              ;;
-          esac
+          echo "Checking Python syntax..."
+          find src/ -name '*.py' -exec python3 -m py_compile {} +
+          echo "All files compile OK."
 
-      # ── Build WASM ──────────────────────────────────────────────────────────
-      - name: Build WASM (.wasm)
-        if: steps.changed.outputs.rebuild == 'true'
-        working-directory: '${{ matrix.plugin.dir }}'
-        continue-on-error: true
-        run: |
-          case "${{ matrix.plugin.build_system }}" in
-            zig)
-              nix develop --command zig build -Dbackend=web -Doptimize=ReleaseSafe
-              ;;
-            make)
-              nix develop --command make web || echo "WASM build not available for this plugin."
-              ;;
-            cargo)
-              nix develop --command make web || echo "WASM build not available for this plugin."
-              ;;
-          esac
-
-      # ── Collect artifacts ───────────────────────────────────────────────────
-      - name: Collect built artifacts
+      # ── Package native bundle ────────────────────────────────────────────
+      - name: Package native bundle
         if: steps.changed.outputs.rebuild == 'true'
         run: |
+          PLUGIN_DIR="${{ matrix.plugin.dir }}"
+          PLUGIN_ID="${{ matrix.plugin.id }}"
           mkdir -p dist
-          ENTRY="${{ matrix.plugin.entry }}"
-          DIR="${{ matrix.plugin.dir }}"
-          BUILD="${{ matrix.plugin.build_system }}"
 
-          case "$BUILD" in
-            zig)
-              # Zig outputs to zig-out/
-              find "$DIR/zig-out" \( -name '*.so' -o -name '*.dylib' \) 2>/dev/null \
-                | while read f; do
-                    base=$(basename "$f")
-                    case "$base" in lib*) base="${base#lib}" ;; esac
-                    cp "$f" "dist/$base"
-                    echo "  native: $base"
-                  done
-              find "$DIR/zig-out" -name '*.wasm' 2>/dev/null \
-                | while read f; do
-                    cp "$f" "dist/$(basename $f)"
-                    echo "  wasm: $(basename $f)"
-                  done
-              ;;
-            make|cargo)
-              # Make/Cargo outputs to plugin directory
-              for f in "$DIR"/*.so; do
-                [ -f "$f" ] && cp "$f" "dist/${ENTRY}.so" && echo "  native: ${ENTRY}.so"
-              done
-              for f in "$DIR"/*.wasm; do
-                [ -f "$f" ] && cp "$f" "dist/${ENTRY}.wasm" && echo "  wasm: ${ENTRY}.wasm"
-              done
-              # Cargo also outputs to target/
-              find "$DIR/target/release" -maxdepth 1 -name '*.so' -o -name '*.dylib' 2>/dev/null \
-                | head -1 | while read f; do
-                    cp "$f" "dist/${ENTRY}.so"
-                    echo "  native: ${ENTRY}.so"
-                  done
-              WASM_DIR="$DIR/target/wasm32-unknown-unknown/release"
-              find "$WASM_DIR" -maxdepth 1 -name '*.wasm' 2>/dev/null \
-                | head -1 | while read f; do
-                    cp "$f" "dist/${ENTRY}.wasm"
-                    echo "  wasm: ${ENTRY}.wasm"
-                  done
-              ;;
-          esac
+          # Bundle: plugin source + SDK
+          BUNDLE_DIR="dist/${PLUGIN_ID}"
+          mkdir -p "${BUNDLE_DIR}/sdk"
+          cp -r "${PLUGIN_DIR}/plugin.toml" "${BUNDLE_DIR}/"
+          cp -r "${PLUGIN_DIR}/src" "${BUNDLE_DIR}/"
+          cp sdk/python/schemify_plugin.py "${BUNDLE_DIR}/sdk/"
 
-          echo ""
-          echo "Collected artifacts:"
-          ls -lh dist/ 2>/dev/null || echo "(none)"
+          # Create tarball
+          tar -czf "dist/${PLUGIN_ID}.tar.gz" -C dist "${PLUGIN_ID}"
+          echo "Native bundle: dist/${PLUGIN_ID}.tar.gz"
+          ls -lh "dist/${PLUGIN_ID}.tar.gz"
+
+      # ── Package web bundle (Pyodide-ready) ───────────────────────────────
+      - name: Package web bundle
+        if: steps.changed.outputs.rebuild == 'true'
+        run: |
+          PLUGIN_DIR="${{ matrix.plugin.dir }}"
+          PLUGIN_ID="${{ matrix.plugin.id }}"
+
+          WEB_DIR="dist/${PLUGIN_ID}-web"
+          mkdir -p "${WEB_DIR}"
+
+          # Copy plugin source + SDK
+          cp -r "${PLUGIN_DIR}/plugin.toml" "${WEB_DIR}/"
+          cp -r "${PLUGIN_DIR}/src" "${WEB_DIR}/"
+          cp sdk/python/schemify_plugin.py "${WEB_DIR}/"
+
+          # Pyodide loader: runs the plugin in a Web Worker, bridges
+          # JSON-RPC from postMessage to the SDK's stdin/stdout contract.
+          cat > "${WEB_DIR}/worker.js" << 'WORKER_EOF'
+          // Schemify Plugin Web Worker -- loads Python plugin via Pyodide.
+          // JSON-RPC messages arrive via postMessage, delivered to the plugin
+          // as if they were stdin lines. Plugin stdout writes are posted back.
+          importScripts("https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js");
+
+          let pyodide = null;
+
+          async function init() {
+            pyodide = await loadPyodide();
+
+            // Load SDK + plugin source
+            const sdkResp = await fetch("schemify_plugin.py");
+            const sdkCode = await sdkResp.text();
+            const pluginResp = await fetch("src/plugin.py");
+            const pluginCode = await pluginResp.text();
+
+            // Patch stdin/stdout to use postMessage
+            pyodide.runPython(`
+          import sys, io, json
+
+          class JsonRpcStdin:
+              def __init__(self):
+                  self._lines = []
+              def readline(self):
+                  while not self._lines:
+                      pass  # will be fed by JS
+                  return self._lines.pop(0)
+              def __iter__(self):
+                  return self
+              def __next__(self):
+                  line = self.readline()
+                  if not line:
+                      raise StopIteration
+                  return line
+
+          class JsonRpcStdout:
+              def write(self, data):
+                  from js import postMessage
+                  if data.strip():
+                      postMessage(data.strip())
+              def flush(self):
+                  pass
+
+          sys.stdin = JsonRpcStdin()
+          sys.stdout = JsonRpcStdout()
+            `);
+
+            // Load SDK and plugin
+            pyodide.runPython(sdkCode);
+            pyodide.runPython(pluginCode);
+
+            postMessage(JSON.stringify({jsonrpc: "2.0", method: "_worker/ready", params: {}}));
+          }
+
+          self.onmessage = (e) => {
+            if (!pyodide) return;
+            const stdin = pyodide.globals.get("sys").stdin;
+            stdin._lines.append(e.data + "\n");
+          };
+
+          init();
+          WORKER_EOF
+
+          tar -czf "dist/${PLUGIN_ID}-web.tar.gz" -C dist "${PLUGIN_ID}-web"
+          echo "Web bundle: dist/${PLUGIN_ID}-web.tar.gz"
+          ls -lh "dist/${PLUGIN_ID}-web.tar.gz"
 
       - name: Upload artifact
         if: steps.changed.outputs.rebuild == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin.id }}-artifacts
-          path: dist/
+          path: |
+            dist/*.tar.gz
           if-no-files-found: warn
 
-  # ── Job 3: Update registry + publish release ────────────────────────────────
+  # ── Job 3: Update registry + publish release ───────────────────────────────
   publish:
     name: Update registry & release
     runs-on: ubuntu-latest
@@ -225,13 +248,13 @@ jobs:
             git push
           fi
 
-      - name: Download built binaries
+      - name: Download built bundles
         uses: actions/download-artifact@v4
         with:
           path: dist/
           merge-multiple: true
 
-      - name: List downloaded binaries
+      - name: List downloaded bundles
         run: find dist/ -type f | sort || echo "(none)"
 
       - name: Publish to plugins-latest release
@@ -241,13 +264,15 @@ jobs:
           if ! gh release view plugins-latest --repo "$GITHUB_REPOSITORY" &>/dev/null; then
             gh release create plugins-latest \
               --repo "$GITHUB_REPOSITORY" \
-              --title "Plugin Binaries (latest)" \
-              --notes "Rolling release – updated automatically on every push to main.
-          Download by the in-app Plugin Marketplace." \
+              --title "Plugin Bundles (latest)" \
+              --notes "Rolling release -- updated automatically on every push to main.
+          Each plugin ships as two bundles:
+          - \`.tar.gz\` — native (run via python3 subprocess)
+          - \`-web.tar.gz\` — web (run via Pyodide in a Web Worker)" \
               --prerelease
           fi
 
-          find dist/ -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.wasm' \) | while read f; do
+          find dist/ -type f -name '*.tar.gz' | while read f; do
             echo "Uploading $(basename $f)"
             gh release upload plugins-latest "$f" \
               --repo "$GITHUB_REPOSITORY" \
@@ -256,11 +281,11 @@ jobs:
 
       - name: Step summary
         run: |
-          echo "### Plugin release updated" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Plugin bundles updated" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| File | Size |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
-          find dist/ -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.wasm' \) | while read f; do
+          echo "| Bundle | Size |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|------|" >> "$GITHUB_STEP_SUMMARY"
+          find dist/ -type f -name '*.tar.gz' | sort | while read f; do
             sz=$(du -sh "$f" | cut -f1)
             echo "| \`$(basename $f)\` | ${sz}B |" >> "$GITHUB_STEP_SUMMARY"
-          done || echo "_(no binaries)_" >> "$GITHUB_STEP_SUMMARY"
+          done || echo "_(no bundles)_" >> "$GITHUB_STEP_SUMMARY"

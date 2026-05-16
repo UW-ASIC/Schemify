@@ -1,0 +1,13 @@
+[plugin]
+name        = "Counter"
+version     = "0.1.0"
+author      = "Schemify"
+description = "Minimal plugin example — counter with buttons"
+command     = "python3 src/plugin.py"
+runtime     = "subprocess"
+api         = 1
+
+[[panels]]
+id       = "main"
+title    = "Counter"
+layout   = "right_sidebar"

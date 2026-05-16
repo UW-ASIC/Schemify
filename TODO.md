@@ -1,1 +1,1 @@
-1. Implement my simulation core to essentially use PySpice, so a hard dependency is python and PySpice, and it should essentially fully change modules/simulation/
+1. cli.zig should have all the features from the handler exposed through the cli.

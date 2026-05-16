@@ -1,0 +1,17 @@
+[plugin]
+name        = "File Reader"
+version     = "0.1.0"
+author      = "Schemify"
+description = "Demonstrates host API: file read/write and state queries"
+command     = "python3 src/plugin.py"
+runtime     = "subprocess"
+api         = 1
+
+[capabilities]
+file_read_project = true
+file_write_project = true
+
+[[panels]]
+id       = "reader"
+title    = "File Reader"
+layout   = "right_sidebar"

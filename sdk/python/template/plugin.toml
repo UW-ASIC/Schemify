@@ -1,0 +1,16 @@
+[plugin]
+name        = "My Plugin"
+version     = "0.1.0"
+author      = "Your Name"
+description = "A Schemify plugin"
+command     = "python3 src/plugin.py"
+runtime     = "subprocess"
+api         = 1
+
+[capabilities]
+file_read_project = true
+
+[[panels]]
+id       = "main"
+title    = "My Plugin"
+layout   = "right_sidebar"

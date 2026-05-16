@@ -2,7 +2,8 @@
 name        = "PDKSwitcher"
 version     = "1.0.0"
 author      = "UWASIC"
-entry       = "libPDKSwitcher.so"
+command     = "python3 src/plugin.py"
+runtime     = "subprocess"
 description = "PDK management and cross-PDK circuit remapping via CIEL and LambdaPDK. Supports Sky130, GF180MCU, IHP SG13G2."
 tags        = ["pdk", "sky130", "gf180", "ihp", "ciel", "lambdapdk", "remapping"]
 scope       = "user"

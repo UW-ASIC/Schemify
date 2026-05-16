@@ -8,31 +8,31 @@ pub const Backend = enum { native, web };
 // Two-pass creation: first create all modules, then wire imports.
 // This allows commands ↔ state to share types without ordering issues.
 //
-// Module layout lives in modules/ (bounded contexts with CONTEXT.md each).
+// Module layout lives in src/ (bounded contexts with CONTEXT.md each).
 const Def = struct { []const u8, []const u8, []const []const u8 };
 const module_defs = [_]Def{
-    .{ "utility", "modules/utility/lib.zig", &.{} },
-    .{ "settings", "modules/settings/lib.zig", &.{} },
-    .{ "schematic", "modules/schematic/lib.zig", &.{ "utility", "dvui", "simulation" } },
-    .{ "simulation", "modules/simulation/lib.zig", &.{"schematic"} },
-    .{ "plugins", "modules/plugins/lib.zig", &.{ "dvui", "utility" } },
-    .{ "commands", "modules/commands/lib.zig", &.{ "utility", "dvui", "schematic", "simulation" } },
-    .{ "state", "modules/gui/state.zig", &.{ "dvui", "schematic", "utility", "commands", "plugins", "settings", "simulation" } },
-    .{ "theme_config", "modules/gui/theme.zig", &.{"dvui"} },
-    .{ "import", "modules/import/lib.zig", &.{"schematic"} },
-    .{ "agent", "modules/agent/lib.zig", &.{ "schematic", "simulation" } },
-    .{ "gui", "modules/gui/lib.zig", &.{ "dvui", "state", "commands", "plugins", "theme_config", "schematic", "utility", "import", "settings", "simulation" } },
-    .{ "cli", "modules/cli.zig", &.{ "schematic", "utility", "state", "dvui", "commands" } },
+    .{ "utility", "src/utility/lib.zig", &.{} },
+    .{ "schematic", "src/schematic/lib.zig", &.{ "utility", "dvui" } },
+    .{ "simulation", "src/simulation/lib.zig", &.{"schematic"} },
+    .{ "plugins", "src/plugins/lib.zig", &.{ "dvui", "utility" } },
+    .{ "commands", "src/commands/lib.zig", &.{ "utility", "dvui", "schematic", "simulation" } },
+    .{ "state", "src/gui/state.zig", &.{ "dvui", "schematic", "utility", "commands", "plugins", "simulation" } },
+    .{ "theme_config", "src/gui/theme.zig", &.{"dvui"} },
+    .{ "import", "src/import/lib.zig", &.{ "schematic", "simulation", "utility" } },
+    .{ "agent", "src/agent/lib.zig", &.{ "schematic", "simulation" } },
+    .{ "gui", "src/gui/lib.zig", &.{ "dvui", "state", "commands", "plugins", "theme_config", "schematic", "utility", "import", "simulation" } },
+    .{ "cli", "src/cli.zig", &.{ "schematic", "utility", "state", "dvui", "commands", "import" } },
 };
 
 // ── Test suites ───────────────────────────────────────────────────────────────
 // Run individually: zig build test_<name>  |  Run all: zig build test
 const test_defs = [_]Def{
-    .{ "utility", "modules/utility/lib.zig", &.{} },
-    .{ "optimizer", "modules/simulation/optimizer/lib.zig", &.{} },
-    .{ "agent", "modules/schematic/lib.zig", &.{ "utility", "dvui" } },
-    .{ "marketplace", "test/marketplace/test_marketplace.zig", &.{"utility"} },
-    .{ "spice", "modules/import/lib.zig", &.{"schematic"} },
+    .{ "utility", "src/utility/lib.zig", &.{} },
+    .{ "optimizer", "src/simulation/optimizer/lib.zig", &.{} },
+    .{ "json_results", "src/simulation/json_results.zig", &.{} },
+    .{ "agent", "src/schematic/lib.zig", &.{ "utility", "dvui" } },
+    .{ "spice", "src/import/lib.zig", &.{ "schematic", "simulation", "utility" } },
+    .{ "plugins", "src/plugins/lib.zig", &.{ "dvui", "utility" } },
 };
 
 // ── web-specific ───────────────────────────────────────────────────────────────
@@ -46,12 +46,12 @@ pub fn build(b: *std.Build) void {
     const target = if (is_web) b.resolveTargetQuery(wasm32) else b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // dvui — native uses raylib, web uses wasm backend
+    // dvui — native uses SDL3 backend, web uses wasm backend
     const dvui_dep = if (is_web)
         b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .web })
     else
-        b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .raylib, .linux_display_backend = .X11, .freetype = false });
-    const dvui_mod = if (is_web) dvui_dep.module("dvui_web_wasm") else dvui_dep.module("dvui_raylib");
+        b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl3 });
+    const dvui_mod = if (is_web) dvui_dep.module("dvui_web_wasm") else dvui_dep.module("dvui_sdl3");
 
     // Executable-level build options.
     const build_opts = b.addOptions();
@@ -65,14 +65,15 @@ pub fn build(b: *std.Build) void {
         const mod = b.addModule(def[0], .{ .root_source_file = b.path(def[1]), .target = target, .optimize = optimize });
         mods.put(def[0], mod) catch @panic("OOM");
     }
+
     for (&module_defs) |def| {
         addImports(mods.get(def[0]).?, &mods, def[2]);
     }
 
     // ── Executable ────────────────────────────────────────────────────────────
-    const exe_mod = b.createModule(.{ .root_source_file = b.path("modules/main.zig"), .target = target, .optimize = optimize });
+    const exe_mod = b.createModule(.{ .root_source_file = b.path("src/main.zig"), .target = target, .optimize = optimize });
     exe_mod.addOptions("build_options", build_opts);
-    addImports(exe_mod, &mods, &.{ "dvui", "utility", "schematic", "plugins", "commands", "state", "gui", "cli", "theme_config", "import", "settings", "simulation", "agent" });
+    addImports(exe_mod, &mods, &.{ "dvui", "utility", "schematic", "plugins", "commands", "state", "gui", "cli", "theme_config", "import", "simulation", "agent" });
 
     const exe = b.addExecutable(.{ .name = "schemify", .root_module = exe_mod });
     exe.root_module.strip = optimize != .Debug;
@@ -118,7 +119,7 @@ pub fn build(b: *std.Build) void {
         for ([_][]const u8{ "index.html", "boot.js", "vfs.js", "vfs-worker.js" }) |name| {
             install.dependOn(&b.addInstallFileWithDir(b.path(b.fmt("web/{s}", .{name})), .bin, name).step);
         }
-        install.dependOn(&b.addInstallFileWithDir(b.path("src/web/schemify_host.js"), .bin, "schemify_host.js").step);
+        install.dependOn(&b.addInstallFileWithDir(b.path("web/schemify_host.js"), .bin, "schemify_host.js").step);
 
         const kill = b.addSystemCommand(&.{ "sh", "-c", "fuser -k 8080/tcp 2>/dev/null; sleep 0.3; exit 0" });
         kill.step.dependOn(install);
@@ -127,8 +128,6 @@ pub fn build(b: *std.Build) void {
         b.step("run_local", "Build WASM + serve at http://localhost:8080").dependOn(&serve.step);
     }
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────
 
 fn addImports(
     mod: *std.Build.Module,

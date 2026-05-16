@@ -29,6 +29,7 @@ docs_site/node_modules/
 __pycache__/
 *.pyc
 *.pyo
+.venv/
 
 # Plugin build artifacts
 plugins/**/*.so

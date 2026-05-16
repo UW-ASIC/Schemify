@@ -1,0 +1,12 @@
+// Spectre Format — Common Source Amplifier
+simulator lang=spectre
+
+subckt cs_amp (in out vdd vss)
+    M0 (out in net1 vss) sky130_fd_pr__nfet_01v8 w=2u l=500n m=1
+    M1 (out out vdd vdd) sky130_fd_pr__pfet_01v8 w=4u l=500n m=1
+    R0 (net1 vss) resistor r=1k
+ends cs_amp
+
+V0 (vdd 0) vsource dc=1.8
+V1 (in 0) vsource dc=0.9 mag=1
+I0 (cs_amp)

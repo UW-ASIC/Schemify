@@ -1,1 +1,0 @@
-/home/omare/Documents/Projects/Active/Schemify/tools/plugins/rust/target/debug/libschemify_plugin.rlib: /home/omare/Documents/Projects/Active/Schemify/tools/plugins/rust/build.rs /home/omare/Documents/Projects/Active/Schemify/tools/plugins/rust/src/lib.rs

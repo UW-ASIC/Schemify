@@ -1,0 +1,13 @@
+[plugin]
+name        = "Widget Gallery"
+version     = "0.1.0"
+author      = "Schemify"
+description = "Demonstrates all available widget types"
+command     = "python3 src/plugin.py"
+runtime     = "subprocess"
+api         = 1
+
+[[panels]]
+id       = "gallery"
+title    = "Widget Gallery"
+layout   = "right_sidebar"

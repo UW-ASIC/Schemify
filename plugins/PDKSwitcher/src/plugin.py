@@ -16,7 +16,7 @@ Core flow:
   3. Select target PDK
   4. Preview remap: model mapping table, before/after W/L/nf
   5. BLOCK apply if any model has no mapping (hard error)
-  6. Apply: update instance properties via set_instance_prop()
+  6. Apply: update instance properties via push_command()
 
 Vim command: :pdkswitch [source] [target]
              :pdkswitch list-pdks
@@ -25,61 +25,49 @@ Vim command: :pdkswitch [source] [target]
 
 from __future__ import annotations
 
-import importlib.util as _ilu
 import os
 import re
-import traceback
+import sys
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-# ---------------------------------------------------------------------------
-# SDK bootstrap -- load tools/api/python/src/lib.py by path
-# ---------------------------------------------------------------------------
+# Add the SDK directory to sys.path so schemify_plugin is importable.
+# The SDK lives at <repo>/sdk/python/schemify_plugin.py; this file lives at
+# <repo>/plugins/PDKSwitcher/src/plugin.py.
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_SDK_DIR = os.path.normpath(os.path.join(_THIS_DIR, "..", "..", "..", "sdk", "python"))
+if _SDK_DIR not in sys.path:
+    sys.path.insert(0, _SDK_DIR)
 
-_PLUGIN_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
-_SDK_CANDIDATES = [
-    os.path.join(_PLUGIN_SRC_DIR, "schemify_sdk.py"),                           # installed
-    os.path.normpath(
-        os.path.join(_PLUGIN_SRC_DIR, "..", "..", "..", "tools", "api", "python", "src", "lib.py")
-    ),                                                                           # source tree
-]
-_SDK_LIB = next((p for p in _SDK_CANDIDATES if os.path.isfile(p)), _SDK_CANDIDATES[-1])
-_spec = _ilu.spec_from_file_location("schemify_plugin", _SDK_LIB)
-schemify_plugin = _ilu.module_from_spec(_spec)
-_spec.loader.exec_module(schemify_plugin)  # type: ignore
-
-Plugin = schemify_plugin.Plugin
-Writer = schemify_plugin.Writer
-Reader = schemify_plugin.Reader
-Layout = schemify_plugin.Layout
-_Tag = schemify_plugin._Tag
+from schemify_plugin import (
+    Plugin,
+    Widget,
+    label,
+    button,
+    separator,
+    checkbox,
+    collapsible_start,
+    collapsible_end,
+    tooltip,
+    begin_row,
+    end_row,
+)
 
 TAG = "PDKSwitcher"
 
 # ---------------------------------------------------------------------------
-# Widget ID allocation
+# Widget ID allocation (string-based for JSON-RPC protocol)
 # ---------------------------------------------------------------------------
 
-# Source PDK buttons: 100..119
-WID_SRC_BASE = 100
-# Target PDK buttons: 120..139
-WID_TGT_BASE = 120
+# Source PDK buttons: src_<index>
+# Target PDK buttons: tgt_<index>
 # Options
-WID_CB_USE_LUT = 200
+WID_CB_USE_LUT = "cb_use_lut"
 # Actions
-WID_REMAP = 300
-WID_APPLY = 301
-WID_REFRESH = 302
-WID_INSTALL_BASE = 310  # install buttons per PDK: 310..319
-# Preview table rows: 400..599
-WID_PREVIEW_BASE = 400
-# Mapping table rows: 600..699
-WID_MAP_BASE = 600
-# Error rows: 700..799
-WID_ERR_BASE = 700
-# Misc labels
-WID_STATUS = 900
-WID_PDK_STATUS = 901
+WID_REMAP = "remap"
+WID_APPLY = "apply"
+WID_REFRESH = "refresh"
+# Install buttons: install_<index>
 
 # ---------------------------------------------------------------------------
 # CIEL / LambdaPDK integration layer
@@ -450,32 +438,6 @@ def _get_mapped_models(src_key: str, tgt_key: str) -> dict[str, str]:
     return result
 
 
-def _scale_wl_in_line(line: str, vdd_ratio: float, lmin_ratio: float) -> str:
-    """Scale W= and L= values in a line using VDD and Lmin ratios."""
-
-    def scale_match(match: re.Match, scale: float) -> str:
-        val_str = match.group(1)
-        parsed = _parse_spice_value(val_str)
-        if parsed is not None:
-            new_val = parsed * scale
-            return match.group(0).replace(val_str, _format_spice_value(new_val))
-        return match.group(0)
-
-    # Scale W values: W *= vdd_ratio * lmin_ratio
-    line = re.sub(
-        r'\bW\s*=\s*([^\s,]+)',
-        lambda m: scale_match(m, vdd_ratio * lmin_ratio),
-        line, flags=re.IGNORECASE,
-    )
-    # Scale L values: L *= lmin_ratio
-    line = re.sub(
-        r'\bL\s*=\s*([^\s,]+)',
-        lambda m: scale_match(m, lmin_ratio),
-        line, flags=re.IGNORECASE,
-    )
-    return line
-
-
 # ---------------------------------------------------------------------------
 # Plugin
 # ---------------------------------------------------------------------------
@@ -484,6 +446,7 @@ class PDKSwitcherPlugin(Plugin):
     """PDK management and cross-PDK circuit remapping."""
 
     def __init__(self) -> None:
+        super().__init__()
         self._src_idx: int = 0
         self._tgt_idx: int = 1
         self._use_lut: bool = False
@@ -506,103 +469,51 @@ class PDKSwitcherPlugin(Plugin):
         self._discovery_done: bool = False
 
     # ------------------------------------------------------------------
-    # Override process() to handle tags the base class doesn't dispatch
-    # ------------------------------------------------------------------
-
-    def process(self, in_data: bytes) -> bytes:
-        r = Reader(in_data)
-        w = Writer()
-        for msg in r:
-            t = msg["tag"]
-            if t == "load":
-                self.on_load(w)
-            elif t == "unload":
-                self.on_unload(w)
-            elif t == "tick":
-                self.on_tick(msg["dt"], w)
-            elif t == "draw_panel":
-                self.on_draw_panel(msg["panel_id"], w)
-            elif t == "button_clicked":
-                self.on_button_clicked(msg["panel_id"], msg["widget_id"], w)
-            elif t == "slider_changed":
-                self.on_slider_changed(msg["panel_id"], msg["widget_id"], msg["val"], w)
-            elif t == "checkbox_changed":
-                self.on_checkbox_changed(msg["panel_id"], msg["widget_id"], msg["val"], w)
-            elif t == "command":
-                self.on_command(msg["cmd_tag"], msg["payload"], w)
-            elif t == "state_response":
-                self.on_state_response(msg["key"], msg["val"], w)
-            elif t == "config_response":
-                self._on_config_response(msg["key"], msg["val"], w)
-            elif t == "selection_changed":
-                self.on_selection_changed(msg["instance_idx"], w)
-            elif t == "schematic_changed":
-                self.on_schematic_changed(w)
-            elif t == "schematic_snapshot":
-                self._on_schematic_snapshot(
-                    msg["instance_count"], msg["wire_count"], msg["net_count"], w
-                )
-            elif t == "instance_data":
-                self.on_instance_data(msg["idx"], msg["name"], msg["symbol"], w)
-            elif t == "instance_prop":
-                self._on_instance_prop(msg["idx"], msg["key"], msg["val"], w)
-            elif t == "hover":
-                self.on_hover(
-                    msg["world_x"], msg["world_y"], msg["element_type"],
-                    msg["element_idx"], msg["element_name"], w
-                )
-            elif t == "key_event":
-                self.on_key_event(msg["key"], msg["mods"], msg["action"], w)
-        return w.get_bytes()
-
-    # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def on_load(self, w: Writer) -> None:
-        w.register_panel(
-            "pdk-switch", "PDK Switcher", "pdkswitch", Layout.OVERLAY, 0
-        )
-        w.set_status("PDKSwitcher loaded")
-        w.log(0, TAG, "PDKSwitcher plugin loaded (api=1)")
+    def on_load(self) -> None:
+        self.register_panel("pdk-switch", "PDK Switcher", "overlay")
+        self.set_status("PDKSwitcher loaded")
+        self.log("PDKSwitcher plugin loaded (api=1)")
 
-        self._discover_backends(w)
+        self._discover_backends()
 
-    def on_unload(self, w: Writer) -> None:
-        w.log(0, TAG, "PDKSwitcher unloaded")
+    def on_unload(self) -> None:
+        self.log("PDKSwitcher unloaded")
 
     # ------------------------------------------------------------------
     # Backend discovery
     # ------------------------------------------------------------------
 
-    def _discover_backends(self, w: Writer) -> None:
+    def _discover_backends(self) -> None:
         """Probe CIEL and LambdaPDK availability and merge discovered PDKs."""
         self._ciel_ok = _probe_ciel()
         self._lambdapdk_ok = _probe_lambdapdk()
 
         if self._ciel_ok:
-            w.log(0, TAG, "CIEL backend available")
+            self.log("CIEL backend available")
             ciel_pdks = _ciel_list_pdks()
             if ciel_pdks:
                 _merge_external_pdks(ciel_pdks)
-                w.log(0, TAG, f"CIEL: discovered {len(ciel_pdks)} PDK(s)")
+                self.log(f"CIEL: discovered {len(ciel_pdks)} PDK(s)")
         else:
-            w.log(0, TAG, f"CIEL not available: {_CIEL_ERROR}")
+            self.log(f"CIEL not available: {_CIEL_ERROR}")
 
         if self._lambdapdk_ok:
-            w.log(0, TAG, "LambdaPDK backend available")
+            self.log("LambdaPDK backend available")
             lambda_pdks = _lambdapdk_list_pdks()
             if lambda_pdks:
                 _merge_external_pdks(lambda_pdks)
-                w.log(0, TAG, f"LambdaPDK: discovered {len(lambda_pdks)} PDK(s)")
+                self.log(f"LambdaPDK: discovered {len(lambda_pdks)} PDK(s)")
         else:
-            w.log(0, TAG, f"LambdaPDK not available: {_LAMBDAPDK_ERROR}")
+            self.log(f"LambdaPDK not available: {_LAMBDAPDK_ERROR}")
 
         # Try to detect installed PDKs by checking common paths
-        self._detect_installed_pdks(w)
+        self._detect_installed_pdks()
         self._discovery_done = True
 
-    def _detect_installed_pdks(self, w: Writer) -> None:
+    def _detect_installed_pdks(self) -> None:
         """Detect locally installed PDKs by checking standard paths."""
         pdk_root = os.environ.get("PDK_ROOT", "")
         if not pdk_root:
@@ -636,92 +547,104 @@ class PDKSwitcherPlugin(Plugin):
                 pdk_path = os.path.join(pdk_root, dirname)
                 if os.path.isdir(pdk_path):
                     pdk_info["installed"] = True
-                    w.log(0, TAG, f"Found installed PDK: {key} at {pdk_path}")
+                    self.log(f"Found installed PDK: {key} at {pdk_path}")
                     break
 
     # ------------------------------------------------------------------
     # Drawing
     # ------------------------------------------------------------------
 
-    def on_draw_panel(self, panel_id: int, w: Writer) -> None:
-        w.label("PDK Switcher", 1)
-        w.separator(2)
+    def on_draw_panel(self, panel_id: str) -> list[Widget]:
+        widgets: list[Widget] = []
+
+        widgets.append(label("PDK Switcher"))
+        widgets.append(separator())
 
         # Backend status (compact)
-        self._draw_backend_status(w)
-        w.separator(8)
+        widgets.extend(self._build_backend_status())
+        widgets.append(separator())
 
-        self._draw_source_section(w)
-        w.separator(19)
-        self._draw_target_section(w)
-        w.separator(39)
-        self._draw_comparison(w)
-        w.separator(49)
-        self._draw_options(w)
-        w.separator(59)
-        self._draw_mapping_table(w)
-        w.separator(69)
-        self._draw_actions(w)
-        w.separator(79)
-        self._draw_errors(w)
-        self._draw_preview(w)
-        w.separator(89)
+        widgets.extend(self._build_source_section())
+        widgets.append(separator())
+        widgets.extend(self._build_target_section())
+        widgets.append(separator())
+        widgets.extend(self._build_comparison())
+        widgets.append(separator())
+        widgets.extend(self._build_options())
+        widgets.append(separator())
+        widgets.extend(self._build_mapping_table())
+        widgets.append(separator())
+        widgets.extend(self._build_actions())
+        widgets.append(separator())
+        widgets.extend(self._build_errors())
+        widgets.extend(self._build_preview())
+        widgets.append(separator())
 
-        w.label(f"Status: {self._status}", WID_STATUS)
+        widgets.append(label(f"Status: {self._status}", widget_id="status"))
 
-    def _draw_backend_status(self, w: Writer) -> None:
-        """Draw a compact status line showing CIEL/LambdaPDK availability."""
+        return widgets
+
+    def _build_backend_status(self) -> list[Widget]:
+        """Build compact status showing CIEL/LambdaPDK availability."""
+        widgets: list[Widget] = []
         ciel_str = "CIEL: available" if self._ciel_ok else "CIEL: not installed"
         lambda_str = "LambdaPDK: available" if self._lambdapdk_ok else "LambdaPDK: not installed"
-        w.label(f"{ciel_str}  |  {lambda_str}", 3)
+        widgets.append(label(f"{ciel_str}  |  {lambda_str}"))
 
         installed_count = sum(1 for p in BUILTIN_PDKS if p.get("installed"))
         total_count = len(BUILTIN_PDKS)
-        w.label(f"PDKs: {installed_count}/{total_count} installed", 4)
+        widgets.append(label(f"PDKs: {installed_count}/{total_count} installed"))
 
         if not self._ciel_ok and not self._lambdapdk_ok:
-            w.collapsible_start("Install Instructions", False, 5)
-            w.label("CIEL and LambdaPDK provide automated PDK management.", 6)
-            w.label("Without them, manual PDK path setup is required.", 7)
-            w.label("", 8)
-            w.label("Install CIEL:", 9)
-            w.label("  pip install ciel", 10)
-            w.label("", 11)
-            w.label("Install LambdaPDK:", 12)
-            w.label("  pip install lambdapdk", 13)
-            w.label("", 14)
-            w.label("Or install both:", 15)
-            w.label("  pip install ciel lambdapdk", 16)
-            w.label("", 17)
-            w.label("After installing, restart Schemify or use :pdkswitch refresh.", 18)
-            w.collapsible_end(5)
+            widgets.append(collapsible_start("Install Instructions", "install_info"))
+            widgets.append(label("CIEL and LambdaPDK provide automated PDK management."))
+            widgets.append(label("Without them, manual PDK path setup is required."))
+            widgets.append(label(""))
+            widgets.append(label("Install CIEL:"))
+            widgets.append(label("  pip install ciel"))
+            widgets.append(label(""))
+            widgets.append(label("Install LambdaPDK:"))
+            widgets.append(label("  pip install lambdapdk"))
+            widgets.append(label(""))
+            widgets.append(label("Or install both:"))
+            widgets.append(label("  pip install ciel lambdapdk"))
+            widgets.append(label(""))
+            widgets.append(label("After installing, restart Schemify or use :pdkswitch refresh."))
+            widgets.append(collapsible_end())
 
-    def _draw_source_section(self, w: Writer) -> None:
-        w.label("Source PDK:", 20)
-        w.tooltip("Auto-detected from schematic model names, or select manually.", 20)
+        return widgets
+
+    def _build_source_section(self) -> list[Widget]:
+        widgets: list[Widget] = []
+        widgets.append(label("Source PDK:"))
+        widgets.append(tooltip("Auto-detected from schematic model names, or select manually."))
         for i, pdk in enumerate(BUILTIN_PDKS):
             marker = "> " if i == self._src_idx else "  "
             installed = " [installed]" if pdk.get("installed") else ""
             source_tag = f" ({pdk['source']})" if pdk.get("source", "builtin") != "builtin" else ""
-            w.button(
+            widgets.append(button(
                 f"{marker}{pdk['display']} ({pdk['vdd']}V){installed}{source_tag}",
-                WID_SRC_BASE + i,
-            )
+                widget_id=f"src_{i}",
+            ))
+        return widgets
 
-    def _draw_target_section(self, w: Writer) -> None:
-        w.label("Target PDK:", 30)
+    def _build_target_section(self) -> list[Widget]:
+        widgets: list[Widget] = []
+        widgets.append(label("Target PDK:"))
         for i, pdk in enumerate(BUILTIN_PDKS):
             if i == self._src_idx:
                 continue
             marker = "> " if i == self._tgt_idx else "  "
             installed = " [installed]" if pdk.get("installed") else ""
             source_tag = f" ({pdk['source']})" if pdk.get("source", "builtin") != "builtin" else ""
-            w.button(
+            widgets.append(button(
                 f"{marker}{pdk['display']} ({pdk['vdd']}V){installed}{source_tag}",
-                WID_TGT_BASE + i,
-            )
+                widget_id=f"tgt_{i}",
+            ))
+        return widgets
 
-    def _draw_comparison(self, w: Writer) -> None:
+    def _build_comparison(self) -> list[Widget]:
+        widgets: list[Widget] = []
         src = BUILTIN_PDKS[self._src_idx]
         tgt = BUILTIN_PDKS[self._tgt_idx]
 
@@ -734,23 +657,27 @@ class PDKSwitcherPlugin(Plugin):
         vdd_ratio = src_vdd / tgt_vdd if tgt_vdd != 0 else 0
         lmin_ratio = tgt_lmin / src_lmin if src_lmin != 0 else 0
 
-        w.collapsible_start("PDK Comparison", True, 40)
-        w.label(f"  VDD:     {src_vdd}V  ->  {tgt_vdd}V", 41)
-        w.label(f"  L_min:   {src_lmin}um  ->  {tgt_lmin}um", 42)
-        w.label(f"  VDD ratio:   {vdd_ratio:.2f}x", 43)
-        w.label(f"  L_min ratio: {lmin_ratio:.2f}x", 44)
-        w.collapsible_end(40)
+        widgets.append(collapsible_start("PDK Comparison", "pdk_cmp", open=True))
+        widgets.append(label(f"  VDD:     {src_vdd}V  ->  {tgt_vdd}V"))
+        widgets.append(label(f"  L_min:   {src_lmin}um  ->  {tgt_lmin}um"))
+        widgets.append(label(f"  VDD ratio:   {vdd_ratio:.2f}x"))
+        widgets.append(label(f"  L_min ratio: {lmin_ratio:.2f}x"))
+        widgets.append(collapsible_end())
+        return widgets
 
-    def _draw_options(self, w: Writer) -> None:
+    def _build_options(self) -> list[Widget]:
+        widgets: list[Widget] = []
         lut_label = "Use gm/Id LUT (higher accuracy)"
         if self._use_lut and self._luts_available:
             lut_label += " -- LUTs loaded"
         elif self._use_lut:
             lut_label += " -- will use linear scaling if LUTs unavailable"
-        w.checkbox(self._use_lut, lut_label, WID_CB_USE_LUT)
+        widgets.append(checkbox(lut_label, WID_CB_USE_LUT, checked=self._use_lut))
+        return widgets
 
-    def _draw_mapping_table(self, w: Writer) -> None:
-        """Draw the model mapping table between source and target PDKs."""
+    def _build_mapping_table(self) -> list[Widget]:
+        """Build the model mapping table between source and target PDKs."""
+        widgets: list[Widget] = []
         src_key = BUILTIN_PDKS[self._src_idx]["key"]
         tgt_key = BUILTIN_PDKS[self._tgt_idx]["key"]
 
@@ -764,77 +691,72 @@ class PDKSwitcherPlugin(Plugin):
                 tgt_generics[generic] = model
 
         if not src_generics:
-            return
+            return widgets
 
-        w.collapsible_start("Model Mapping", True, WID_MAP_BASE)
-        wid = WID_MAP_BASE + 1
-        w.label(f"  {'Source (' + src_key + ')':<36s}  ->  Target ({tgt_key})", wid)
-        wid += 1
-        w.label("  " + "-" * 60, wid)
-        wid += 1
+        widgets.append(collapsible_start("Model Mapping", "model_map", open=True))
+        widgets.append(label(f"  {'Source (' + src_key + ')':<36s}  ->  Target ({tgt_key})"))
+        widgets.append(label("  " + "-" * 60))
 
         for generic in sorted(src_generics):
             src_model = src_generics[generic]
             if generic in tgt_generics:
                 tgt_model = tgt_generics[generic]
-                w.label(f"  {src_model:<36s}  ->  {tgt_model}", wid)
+                widgets.append(label(f"  {src_model:<36s}  ->  {tgt_model}"))
             else:
-                w.label(f"  {src_model:<36s}  ->  [no mapping]", wid)
-            wid += 1
+                widgets.append(label(f"  {src_model:<36s}  ->  [no mapping]"))
 
-        w.collapsible_end(WID_MAP_BASE)
+        widgets.append(collapsible_end())
+        return widgets
 
-    def _draw_actions(self, w: Writer) -> None:
-        w.begin_row(70)
-        w.button("Remap Schematic", WID_REMAP)
-        w.button("Refresh PDKs", WID_REFRESH)
-        w.end_row(70)
+    def _build_actions(self) -> list[Widget]:
+        widgets: list[Widget] = []
+        widgets.append(begin_row())
+        widgets.append(button("Remap Schematic", widget_id=WID_REMAP))
+        widgets.append(button("Refresh PDKs", widget_id=WID_REFRESH))
+        widgets.append(end_row())
+        return widgets
 
-    def _draw_errors(self, w: Writer) -> None:
-        """Draw errors section if any models are unmapped -- blocks apply."""
+    def _build_errors(self) -> list[Widget]:
+        """Build errors section if any models are unmapped -- blocks apply."""
+        widgets: list[Widget] = []
         preview = self._preview
         if preview is None:
-            return
+            return widgets
         if not preview.unmapped_models:
-            return
+            return widgets
 
-        w.separator(WID_ERR_BASE)
-        w.label("ERRORS -- cannot apply remap:", WID_ERR_BASE + 1)
-        wid = WID_ERR_BASE + 2
+        widgets.append(separator())
+        widgets.append(label("ERRORS -- cannot apply remap:"))
         for model in preview.unmapped_models:
-            w.label(f"  [ERROR] No target mapping for: {model}", wid)
-            wid += 1
-        w.label(
-            f"  {len(preview.unmapped_models)} unmapped model(s) -- resolve before applying.",
-            wid,
-        )
+            widgets.append(label(f"  [ERROR] No target mapping for: {model}"))
+        widgets.append(label(
+            f"  {len(preview.unmapped_models)} unmapped model(s) -- resolve before applying."
+        ))
+        return widgets
 
-    def _draw_preview(self, w: Writer) -> None:
-        """Draw the before/after preview table and apply button."""
+    def _build_preview(self) -> list[Widget]:
+        """Build the before/after preview table and apply button."""
+        widgets: list[Widget] = []
         preview = self._preview
         if preview is None:
-            return
+            return widgets
 
         devices = preview.devices
         if not devices:
-            w.label("No MOSFETs found in schematic.", WID_PREVIEW_BASE)
-            return
+            widgets.append(label("No MOSFETs found in schematic."))
+            return widgets
 
         mode_str = "gm/Id LUT" if preview.mode == "lut" else "linear scaling"
-        w.collapsible_start(
-            f"Preview ({len(devices)} devices, {mode_str})", True, WID_PREVIEW_BASE
-        )
+        widgets.append(collapsible_start(
+            f"Preview ({len(devices)} devices, {mode_str})", "preview", open=True
+        ))
 
-        wid = WID_PREVIEW_BASE + 1
         # Header
-        w.label(
+        widgets.append(label(
             f"  {'Instance':<14s} {'Model (src)':<32s} {'W':>8s} {'L':>8s} {'nf':>4s}"
-            f"  ->  {'Model (tgt)':<32s} {'W':>8s} {'L':>8s} {'nf':>4s}",
-            wid,
-        )
-        wid += 1
-        w.label("  " + "-" * 120, wid)
-        wid += 1
+            f"  ->  {'Model (tgt)':<32s} {'W':>8s} {'L':>8s} {'nf':>4s}"
+        ))
+        widgets.append(label("  " + "-" * 120))
 
         for dev in devices:
             src_w = dev.w if dev.w else "?"
@@ -859,294 +781,132 @@ class PDKSwitcherPlugin(Plugin):
                 tgt_l = "?"
                 tgt_nf = "?"
 
-            w.label(
+            widgets.append(label(
                 f"  {dev.name:<14s} {dev.model:<32s} {src_w:>8s} {src_l:>8s} {src_nf:>4s}"
-                f"  ->  {tgt_model:<32s} {tgt_w:>8s} {tgt_l:>8s} {tgt_nf:>4s}",
-                wid,
-            )
-            wid += 1
+                f"  ->  {tgt_model:<32s} {tgt_w:>8s} {tgt_l:>8s} {tgt_nf:>4s}"
+            ))
 
-        w.collapsible_end(WID_PREVIEW_BASE)
+        widgets.append(collapsible_end())
 
         # Warnings
         for warn in preview.warnings:
-            w.label(f"  [warn] {warn}", wid)
-            wid += 1
+            widgets.append(label(f"  [warn] {warn}"))
 
         # Apply button -- only if no unmapped errors
         if preview.has_errors:
-            w.label(
-                "Apply blocked: fix unmapped model errors above.",
-                WID_APPLY,
-            )
+            widgets.append(label("Apply blocked: fix unmapped model errors above."))
         else:
-            w.button(
-                f"Apply Remap ({len(devices)} devices)", WID_APPLY
-            )
+            widgets.append(button(
+                f"Apply Remap ({len(devices)} devices)", widget_id=WID_APPLY
+            ))
+
+        return widgets
 
     # ------------------------------------------------------------------
     # Event handlers
     # ------------------------------------------------------------------
 
-    def on_button_clicked(self, panel_id: int, widget_id: int, w: Writer) -> None:
-        # Source PDK selection
-        src_idx = widget_id - WID_SRC_BASE
-        if 0 <= src_idx < len(BUILTIN_PDKS):
-            self._src_idx = src_idx
-            if self._tgt_idx == self._src_idx:
-                self._tgt_idx = (self._src_idx + 1) % len(BUILTIN_PDKS)
-            self._preview = None
-            self._phase = _Phase.IDLE
-            w.request_refresh()
+    def on_button_clicked(self, panel_id: str, widget_id: str) -> None:
+        # Source PDK selection: "src_0", "src_1", ...
+        if widget_id.startswith("src_"):
+            try:
+                src_idx = int(widget_id[4:])
+            except ValueError:
+                return
+            if 0 <= src_idx < len(BUILTIN_PDKS):
+                self._src_idx = src_idx
+                if self._tgt_idx == self._src_idx:
+                    self._tgt_idx = (self._src_idx + 1) % len(BUILTIN_PDKS)
+                self._preview = None
+                self._phase = _Phase.IDLE
+                self.request_refresh()
             return
 
-        # Target PDK selection
-        tgt_idx = widget_id - WID_TGT_BASE
-        if 0 <= tgt_idx < len(BUILTIN_PDKS):
-            if tgt_idx != self._src_idx:
+        # Target PDK selection: "tgt_0", "tgt_1", ...
+        if widget_id.startswith("tgt_"):
+            try:
+                tgt_idx = int(widget_id[4:])
+            except ValueError:
+                return
+            if 0 <= tgt_idx < len(BUILTIN_PDKS) and tgt_idx != self._src_idx:
                 self._tgt_idx = tgt_idx
                 self._preview = None
                 self._phase = _Phase.IDLE
-            w.request_refresh()
+            self.request_refresh()
             return
 
         if widget_id == WID_REMAP:
-            self._start_remap(w)
+            self._start_remap()
             return
 
         if widget_id == WID_APPLY:
-            self._apply_remap(w)
+            self._apply_remap()
             return
 
         if widget_id == WID_REFRESH:
-            self._refresh_pdks(w)
-            w.request_refresh()
+            self._refresh_pdks()
+            self.request_refresh()
             return
 
-        # PDK install buttons
-        install_idx = widget_id - WID_INSTALL_BASE
-        if 0 <= install_idx < len(BUILTIN_PDKS):
-            pdk_key = BUILTIN_PDKS[install_idx]["key"]
-            self._install_pdk(pdk_key, w)
-            w.request_refresh()
+        # PDK install buttons: "install_0", "install_1", ...
+        if widget_id.startswith("install_"):
+            try:
+                install_idx = int(widget_id[8:])
+            except ValueError:
+                return
+            if 0 <= install_idx < len(BUILTIN_PDKS):
+                pdk_key = BUILTIN_PDKS[install_idx]["key"]
+                self._install_pdk(pdk_key)
+                self.request_refresh()
             return
 
-    def on_checkbox_changed(self, panel_id: int, widget_id: int, val: bool, w: Writer) -> None:
+    def on_checkbox_changed(self, panel_id: str, widget_id: str, checked: bool) -> None:
         if widget_id == WID_CB_USE_LUT:
-            self._use_lut = val
+            self._use_lut = checked
             if self._preview is not None:
                 self._preview = None
                 self._phase = _Phase.IDLE
-            w.request_refresh()
-
-    def on_command(self, cmd_tag: str, payload: str, w: Writer) -> None:
-        """Handle :pdkswitch [source] [target] vim command."""
-        if cmd_tag != "pdkswitch":
-            return
-
-        parts = payload.strip().split()
-
-        # --- Subcommands ---
-
-        if parts and parts[0] == "list-pdks":
-            lines = []
-            for i, pdk in enumerate(BUILTIN_PDKS):
-                installed = "[installed]" if pdk.get("installed") else "[not installed]"
-                source = pdk.get("source", "builtin")
-                marker = "*" if i == self._src_idx else " "
-                lines.append(
-                    f"{marker} {pdk['key']}: {pdk['display']} "
-                    f"VDD={pdk['vdd']}V Lmin={pdk['lmin_um']}um "
-                    f"{installed} ({source})"
-                )
-            self._status = " | ".join(lines)
-            w.set_status(self._status)
-            w.request_refresh()
-            return
-
-        if parts and parts[0] == "refresh":
-            self._refresh_pdks(w)
-            w.request_refresh()
-            return
-
-        if parts and parts[0] == "install":
-            if len(parts) < 2:
-                self._status = "Usage: :pdkswitch install <pdk_key>"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            self._install_pdk(parts[1], w)
-            w.request_refresh()
-            return
-
-        if parts and parts[0] == "add-pdk":
-            arg = " ".join(parts[1:])
-            add_parts = arg.split()
-            if len(add_parts) < 4:
-                self._status = "Usage: :pdkswitch add-pdk <key> <display> <vdd> <lmin_um>"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            key = add_parts[0]
-            display = add_parts[1]
-            try:
-                vdd = float(add_parts[2])
-                lmin = float(add_parts[3])
-            except ValueError:
-                self._status = "Error: vdd and lmin_um must be numbers"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            if _pdk_index(key) is not None:
-                self._status = f"PDK {key} already exists"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            BUILTIN_PDKS.append({
-                "key": key, "display": display, "vdd": vdd, "lmin_um": lmin,
-                "source": "user", "installed": False,
-            })
-            self._status = f"Added PDK: {key} ({display}) VDD={vdd}V Lmin={lmin}um"
-            w.set_status(self._status)
-            w.log(0, TAG, self._status)
-            w.request_refresh()
-            return
-
-        # :pdkswitch <source> <target>
-        if len(parts) >= 2:
-            src_name, tgt_name = parts[0], parts[1]
-            src_i = _pdk_index(src_name)
-            tgt_i = _pdk_index(tgt_name)
-            if src_i is None:
-                self._status = f"Unknown source PDK: {src_name}"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            if tgt_i is None:
-                self._status = f"Unknown target PDK: {tgt_name}"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            if src_i == tgt_i:
-                self._status = "Source and target PDK cannot be the same"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            self._src_idx = src_i
-            self._tgt_idx = tgt_i
-            self._preview = None
-            self._start_remap(w)
-            return
-
-        # :pdkswitch <target>
-        if len(parts) == 1:
-            tgt_name = parts[0]
-            tgt_i = _pdk_index(tgt_name)
-            if tgt_i is None:
-                self._status = f"Unknown target PDK: {tgt_name}"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            if tgt_i == self._src_idx:
-                self._status = "Target cannot be the same as source"
-                w.set_status(self._status)
-                w.request_refresh()
-                return
-            self._tgt_idx = tgt_i
-            self._preview = None
-            self._start_remap(w)
-            return
-
-        # No args: start remap with current selections
-        self._start_remap(w)
-
-    def on_schematic_changed(self, w: Writer) -> None:
-        """Schematic changed externally -- invalidate everything."""
-        self._instances.clear()
-        self._preview = None
-        self._phase = _Phase.IDLE
-        self._status = "Schematic changed -- re-remap needed"
-
-    def on_instance_data(self, idx: int, name: str, symbol: str, w: Writer) -> None:
-        """Receive instance data from query_instances(). Collect MOSFETs."""
-        if self._phase != _Phase.QUERYING:
-            return
-        if symbol in _MOSFET_SYMBOLS:
-            self._instances[idx] = InstanceInfo(idx=idx, name=name, symbol=symbol)
-
-    def _on_schematic_snapshot(self, instance_count: int, wire_count: int,
-                               net_count: int, w: Writer) -> None:
-        """Received after query_instances(), before instance_data messages."""
-        if self._phase == _Phase.QUERYING:
-            self._instance_count = instance_count
-
-    def _on_instance_prop(self, idx: int, key: str, val: str, w: Writer) -> None:
-        """Receive property for an instance we're tracking."""
-        if self._phase != _Phase.COLLECTING_PROPS:
-            return
-
-        inst = self._instances.get(idx)
-        if inst is None:
-            return
-
-        if key == "model":
-            inst.model = val
-        elif key in ("W", "w"):
-            inst.w = val
-        elif key in ("L", "l"):
-            inst.l = val
-        elif key in ("nf", "NF", "mult"):
-            inst.nf = val
-
-        self._pending_props -= 1
-
-        # When all properties collected, compute remap preview
-        if self._pending_props <= 0:
-            self._compute_preview(w)
-
-    def _on_config_response(self, key: str, val: str, w: Writer) -> None:
-        """Handle config responses."""
-        pass
+            self.request_refresh()
 
     # ------------------------------------------------------------------
     # PDK management
     # ------------------------------------------------------------------
 
-    def _refresh_pdks(self, w: Writer) -> None:
+    def _refresh_pdks(self) -> None:
         """Re-probe backends and re-scan installed PDKs."""
-        self._discover_backends(w)
+        self._discover_backends()
         installed_count = sum(1 for p in BUILTIN_PDKS if p.get("installed"))
         self._status = f"Refreshed: {len(BUILTIN_PDKS)} PDK(s) known, {installed_count} installed"
-        w.set_status(self._status)
+        self.set_status(self._status)
 
-    def _install_pdk(self, pdk_key: str, w: Writer) -> None:
+    def _install_pdk(self, pdk_key: str) -> None:
         """Install a PDK via CIEL."""
         success, message = _ciel_install_pdk(pdk_key)
         if success:
             self._status = message
-            w.log(0, TAG, message)
+            self.log(message)
             # Re-detect installed PDKs
-            self._detect_installed_pdks(w)
+            self._detect_installed_pdks()
         else:
             self._status = message
-            w.log(2, TAG, message)
-        w.set_status(self._status)
+            self.log(message, level="err")
+        self.set_status(self._status)
 
     # ------------------------------------------------------------------
     # Remap logic
     # ------------------------------------------------------------------
 
-    def _start_remap(self, w: Writer) -> None:
+    def _start_remap(self) -> None:
         """Begin remap: query all instances from the schematic."""
         self._instances.clear()
         self._preview = None
         self._phase = _Phase.QUERYING
         self._status = "Querying schematic instances..."
-        w.query_instances()
-        w.set_status(self._status)
-        w.request_refresh()
+        self.push_command("query_instances")
+        self.set_status(self._status)
+        self.request_refresh()
 
-    def _compute_preview(self, w: Writer) -> None:
+    def _compute_preview(self) -> None:
         """Compute the full remap preview after all instance data is collected."""
         src_key = BUILTIN_PDKS[self._src_idx]["key"]
         tgt_key = BUILTIN_PDKS[self._tgt_idx]["key"]
@@ -1256,17 +1016,17 @@ class PDKSwitcherPlugin(Plugin):
         else:
             self._status = f"Preview ready: {n} device(s), {preview.mode} mode"
 
-        w.set_status(self._status)
-        w.log(0, TAG, self._status)
-        w.request_refresh()
+        self.set_status(self._status)
+        self.log(self._status)
+        self.request_refresh()
 
-    def _apply_remap(self, w: Writer) -> None:
+    def _apply_remap(self) -> None:
         """Apply the computed remap to the schematic."""
         preview = self._preview
         if preview is None:
             self._status = "No remap preview -- run Remap first"
-            w.set_status(self._status)
-            w.request_refresh()
+            self.set_status(self._status)
+            self.request_refresh()
             return
 
         # BLOCK if any unmapped models
@@ -1275,9 +1035,9 @@ class PDKSwitcherPlugin(Plugin):
                 f"BLOCKED: {len(preview.unmapped_models)} unmapped model(s). "
                 "Cannot apply remap with unmapped devices."
             )
-            w.set_status(self._status)
-            w.log(2, TAG, self._status)
-            w.request_refresh()
+            self.set_status(self._status)
+            self.log(self._status, level="err")
+            self.request_refresh()
             return
 
         self._phase = _Phase.APPLYING
@@ -1290,13 +1050,13 @@ class PDKSwitcherPlugin(Plugin):
             idx = dev.idx
 
             if dev.new_model != dev.model:
-                w.set_instance_prop(idx, "model", dev.new_model)
+                self.push_command(f"set_instance_prop {idx} model {dev.new_model}")
             if dev.new_w and dev.new_w != dev.w:
-                w.set_instance_prop(idx, "W", dev.new_w)
+                self.push_command(f"set_instance_prop {idx} W {dev.new_w}")
             if dev.new_l and dev.new_l != dev.l:
-                w.set_instance_prop(idx, "L", dev.new_l)
+                self.push_command(f"set_instance_prop {idx} L {dev.new_l}")
             if dev.new_nf and dev.new_nf != dev.nf:
-                w.set_instance_prop(idx, "nf", dev.new_nf)
+                self.push_command(f"set_instance_prop {idx} nf {dev.new_nf}")
 
             applied += 1
 
@@ -1305,24 +1065,20 @@ class PDKSwitcherPlugin(Plugin):
         self._status = (
             f"Applied: {applied} device(s) remapped from {src_key} to {tgt_key}"
         )
-        w.set_status(self._status)
-        w.log(0, TAG, self._status)
+        self.set_status(self._status)
+        self.log(self._status)
 
         # Set the global PDK to the target
-        w.set_state("current_pdk", tgt_key)
-        w.log(0, TAG, f"Global PDK set to: {tgt_key}")
+        self.push_command(f"set_state current_pdk {tgt_key}")
+        self.log(f"Global PDK set to: {tgt_key}")
 
         self._preview = None
         self._phase = _Phase.IDLE
-        w.request_refresh()
+        self.request_refresh()
 
 
 # ---------------------------------------------------------------------------
-# Module-level plugin instance + ABI entry point
+# Entry point
 # ---------------------------------------------------------------------------
 
-_plugin = PDKSwitcherPlugin()
-
-
-def schemify_process(in_bytes: bytes) -> bytes:
-    return _plugin.process(in_bytes)
+PDKSwitcherPlugin().run()

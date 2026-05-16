@@ -39,15 +39,15 @@
 
 | Module | Path | Purpose | Deps |
 |--------|------|---------|------|
-| **utility** | `modules/utility/` | Logger, platform, RingBuffer | (none) |
-| **settings** | `modules/settings/` | User config: theme.json, keybinds.json | (none) |
-| **schematic** | `modules/schematic/` | Domain model: types, Schemify, devices, fileio, digital | utility |
-| **simulation** | `modules/simulation/` | Netlist, SPICE, results, optimizer | schematic |
-| **import** | `modules/import/` | XSchem, Virtuoso, SPICE importers | schematic |
-| **agent** | `modules/agent/` | MCP server for AI-assisted design | schematic, simulation |
-| **plugins** | `modules/plugins/` | Native plugin loading and lifecycle | utility, dvui |
-| **commands** | `modules/commands/` | Command types, dispatch, handlers | schematic, simulation |
-| **gui** | `modules/gui/` | Frame, canvas, panels, input, state | schematic, commands, plugins, settings, simulation, import |
+| **utility** | `src/utility/` | Logger, platform, RingBuffer | (none) |
+| **settings** | `src/settings/` | User config: theme.json, keybinds.json | (none) |
+| **schematic** | `src/schematic/` | Domain model: types, Schemify, devices, fileio, digital | utility |
+| **simulation** | `src/simulation/` | Netlist, SPICE, results, optimizer | schematic |
+| **import** | `src/import/` | XSchem, Virtuoso, SPICE importers | schematic |
+| **agent** | `src/agent/` | MCP server for AI-assisted design | schematic, simulation |
+| **plugins** | `src/plugins/` | Native plugin loading and lifecycle | utility, dvui |
+| **commands** | `src/commands/` | Command types, dispatch, handlers | schematic, simulation |
+| **gui** | `src/gui/` | Frame, canvas, panels, input, state | schematic, commands, plugins, settings, simulation, import |
 
 ## Relationships
 
@@ -65,9 +65,9 @@ Two files in `gui/` are separate **build modules** (not just directory members):
 
 ## Entry Points
 
-- `modules/main.zig` — Application lifecycle, dvui callbacks
-- `modules/cli.zig` — CLI subcommands (plugin install, netlist export, etc.)
+- `src/main.zig` — Application lifecycle, dvui callbacks
+- `src/cli.zig` — CLI subcommands (plugin install, netlist export, etc.)
 
 ## Cleanup
 
-See `modules/CLEANUP-PROTOCOL.md` for the operational cleanup guide (processing order, dead code detection, commit strategy, decision rules).
+See `src/CLEANUP-PROTOCOL.md` for the operational cleanup guide (processing order, dead code detection, commit strategy, decision rules).

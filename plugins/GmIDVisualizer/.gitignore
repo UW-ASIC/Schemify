@@ -1,5 +1,0 @@
-*.so
-*.dylib
-*.wasm
-*.o
-gmid_runner
