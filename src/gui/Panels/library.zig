@@ -1,4 +1,4 @@
-//! Library browser — browse and place built-in devices.
+//! Library browser — browse and place built-in devices + example schematics.
 
 const std = @import("std");
 const dvui = @import("dvui");
@@ -9,6 +9,7 @@ const actions = @import("../actions.zig");
 
 const AppState = st.AppState;
 const primitives = core.devices.primitives;
+
 
 pub fn draw(app: *AppState) void {
     if (!app.open_library_browser) return;
@@ -61,7 +62,8 @@ pub fn draw(app: *AppState) void {
             dvui.labelNoFmt(@src(), info, .{}, .{ .id_extra = pi * 10 + 4, .gravity_y = 0.5, .color_text = theme.chromeTextSecondary() });
 
             if (dvui.clicked(&card.wd, .{})) {
-                if (is_sel) placeSelected(app) else lb.selected_prim = @intCast(pi);
+                lb.selected_prim = @intCast(pi);
+                placeSelected(app);
             }
         }
     }

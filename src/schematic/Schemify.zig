@@ -25,6 +25,7 @@ pub const PinRef = types.PinRef;
 pub const SymData = types.SymData;
 pub const PrimCacheEntry = types.PrimCacheEntry;
 pub const PluginBlock = types.PluginBlock;
+pub const ModelDef = types.ModelDef;
 pub const SchematicType = types.SchematicType;
 pub const DeviceKind = types.DeviceKind;
 pub const InstanceFlags = types.InstanceFlags;
@@ -48,6 +49,7 @@ pub const Schemify = struct {
     props: List(Property) = .{},
     sym_props: List(Property) = .{},
     sym_data: List(SymData) = .{},
+    model_defs: List(ModelDef) = .{},
     globals: List(StringRef) = .{},
     plugin_blocks: List(PluginBlock) = .{},
 
@@ -56,6 +58,7 @@ pub const Schemify = struct {
     inline_spice: StringRef = .empty,
     pyspice_source: StringRef = .empty,
     documentation: StringRef = .empty,
+    measurements_decl: StringRef = .empty,
     skip_toplevel_code: bool = false,
     prim_cache_dirty: bool = true,
     stype: SchematicType = .schematic,
@@ -87,6 +90,7 @@ pub const Schemify = struct {
         // List deinits (no per-string frees)
         self.props.deinit(a);
         self.sym_props.deinit(a);
+        self.model_defs.deinit(a);
         self.globals.deinit(a);
 
         // sym_data: free .pins/.props slices only (string content is in pool)
@@ -160,6 +164,9 @@ pub const Schemify = struct {
 
         try out.globals.resize(a, self.globals.items.len);
         if (self.globals.items.len > 0) @memcpy(out.globals.items, self.globals.items);
+
+        try out.model_defs.resize(a, self.model_defs.items.len);
+        if (self.model_defs.items.len > 0) @memcpy(out.model_defs.items, self.model_defs.items);
 
         // sym_data: copy struct + dupe .pins/.props slices (no per-string dupe)
         try out.sym_data.resize(a, self.sym_data.items.len);
@@ -256,6 +263,8 @@ pub const Schemify = struct {
         try self.wires.append(a, .{
             .x0 = wire.x0, .y0 = wire.y0, .x1 = wire.x1, .y1 = wire.y1,
             .net_name = if (!wire.net_name.isEmpty()) try self.strings.add(a, self.strings.get(wire.net_name)) else .empty,
+            .color = wire.color,
+            .thickness = wire.thickness,
             .bus = wire.bus,
         });
         return idx;
@@ -377,15 +386,15 @@ pub const Schemify = struct {
         const duped_pins = try a.alloc(PinRef, data.pins.len);
         for (data.pins, 0..) |pin, i| {
             duped_pins[i] = .{
-                .name = if (!pin.name.isEmpty()) try self.strings.add(a, self.strings.get(pin.name)) else .empty,
+                .name = if (!pin.name.isEmpty()) try self.strings.addSafe(a, self.strings.get(pin.name)) else .empty,
                 .dir = pin.dir, .x = pin.x, .y = pin.y, .propag = pin.propag,
             };
         }
         const duped_props = try a.alloc(Property, data.props.len);
         for (data.props, 0..) |prop, i| {
             duped_props[i] = .{
-                .key = if (!prop.key.isEmpty()) try self.strings.add(a, self.strings.get(prop.key)) else .empty,
-                .val = if (!prop.val.isEmpty()) try self.strings.add(a, self.strings.get(prop.val)) else .empty,
+                .key = if (!prop.key.isEmpty()) try self.strings.addSafe(a, self.strings.get(prop.key)) else .empty,
+                .val = if (!prop.val.isEmpty()) try self.strings.addSafe(a, self.strings.get(prop.val)) else .empty,
             };
         }
         try self.sym_data.append(a, .{

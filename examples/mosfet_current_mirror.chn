@@ -1,0 +1,33 @@
+chn_testbench 1
+
+TESTBENCH NMOS Current Mirror
+  instances:
+    Vdd  vsource  x=-50  y=0  sym=vsource  value=1.8
+    Iref  isource  x=60  y=0  sym=isource  value=50u
+    M1  nmos  x=-110  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=500n  M=1 }
+    M2  nmos  x=10  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=500n  M=1 }
+    Rload  resistor  x=110  y=120  sym=res  value=10k  device=resistor
+    iout  lab_pin  x=30  y=90  sym=lab_pin
+    iref  lab_pin  x=-10  y=120  sym=lab_pin
+    gnd0  gnd  x=-50  y=40  sym=gnd
+    gnd1  gnd  x=-90  y=160  sym=gnd
+    gnd2  gnd  x=-90  y=130  sym=gnd
+    gnd3  gnd  x=30  y=160  sym=gnd
+    gnd4  gnd  x=30  y=130  sym=gnd
+    vdd5  vdd  x=-50  y=-40  sym=vdd
+    vdd6  vdd  x=60  y=-40  sym=vdd
+    vdd7  vdd  x=110  y=80  sym=vdd
+
+  wires:
+    30 90 70 90
+    70 90 70 150
+    70 150 110 150
+    -10 120 -50 120
+    -50 120 -50 90
+    -50 90 -90 90
+    -90 90 -130 90
+    -130 90 -130 120
+    60 30 -10 30
+    -10 30 -10 120

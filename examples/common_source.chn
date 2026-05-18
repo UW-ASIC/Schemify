@@ -1,0 +1,23 @@
+chn_testbench 1
+
+TESTBENCH Common Source Amplifier
+  instances:
+    Vdd  vsource  x=-160  y=0  sym=vsource  value=1.8
+    Vin  vsource  x=-50  y=0  sym=vsource  value=700m
+    Rd  resistor  x=60  y=-120  sym=res  value=5k  device=resistor
+    M1  nmos  x=160  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=10u  L=180n  M=1 }
+    vout  lab_pin  x=60  y=-90  sym=lab_pin
+    vin  lab_pin  x=-50  y=-30  sym=lab_pin
+    gnd0  gnd  x=-160  y=40  sym=gnd
+    gnd1  gnd  x=-50  y=40  sym=gnd
+    gnd2  gnd  x=180  y=160  sym=gnd
+    gnd3  gnd  x=180  y=130  sym=gnd
+    vdd4  vdd  x=-160  y=-40  sym=vdd
+    vdd5  vdd  x=60  y=-160  sym=vdd
+
+  wires:
+    60 -90 180 -90
+    180 -90 180 90
+    -50 -30 140 -30
+    140 -30 140 120

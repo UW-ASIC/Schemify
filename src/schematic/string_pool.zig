@@ -28,6 +28,25 @@ pub const StringPool = struct {
         return .{ .offset = offset, .len = @intCast(s.len) };
     }
 
+    /// Like add, but safe when `s` may alias the pool's own buffer.
+    /// Copies to a temp buffer before appending to avoid invalidation on realloc.
+    pub fn addSafe(self: *StringPool, a: Allocator, s: []const u8) Allocator.Error!StringRef {
+        if (s.len == 0) return StringRef.empty;
+        // Check if s aliases our buffer
+        if (self.bytes.items.len > 0) {
+            const pool_start = @intFromPtr(self.bytes.items.ptr);
+            const pool_end = pool_start + self.bytes.items.len;
+            const s_start = @intFromPtr(s.ptr);
+            if (s_start >= pool_start and s_start < pool_end) {
+                // s aliases our buffer — copy to temp allocation
+                const tmp = try a.dupe(u8, s);
+                defer a.free(tmp);
+                return self.add(a, tmp);
+            }
+        }
+        return self.add(a, s);
+    }
+
     /// Resolve a StringRef to its slice. Returns "" for empty refs.
     pub fn get(self: *const StringPool, ref: StringRef) []const u8 {
         if (ref.len == 0) return "";

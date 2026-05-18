@@ -5,7 +5,7 @@ Extension system for Schemify. Manages plugins that communicate via JSON-RPC 2.0
 ## Language
 
 **Plugin**:
-A separate process (or Web Worker) that extends Schemify through JSON-RPC 2.0 messages. Spawned at runtime, lifecycle-managed by the host. Can be written in any language (Python SDK provided in `sdk/python/`).
+A separate process (or Web Worker) that extends Schemify through JSON-RPC 2.0 messages. Spawned at runtime, lifecycle-managed by the host. Can be written in any language (Python SDK provided in `tools/sdk/python/`).
 _Avoid_: extension (too vague), add-on, module (overloaded with Zig build modules)
 
 **Manifest**:
@@ -45,7 +45,7 @@ _Avoid_: backend (overloaded with render backend), channel
 > **Domain expert:** "The PluginManager discovers `plugin.toml` files in the config directory and extracts the run command. The Runtime spawns the plugin using the comptime-selected Transport -- a subprocess on native, a Web Worker on WASM -- and sends a `lifecycle/initialize` JSON-RPC notification. From then on the host sends notifications (tick, draw_panel, UI events) and reads back JSON-RPC messages (register_panel, set_status, emit_widgets)."
 
 > **Dev:** "How do plugins work in the browser?"
-> **Domain expert:** "On WASM, the Transport is WebWorkerTransport. It calls `extern 'host'` functions implemented in `web/schemify_host.js` to spawn Web Workers, send messages via postMessage, and poll for responses. Each plugin's web bundle includes a `worker.js` that loads Pyodide and bridges postMessage to the Python SDK's stdin/stdout contract."
+> **Domain expert:** "On WASM, the Transport is WebWorkerTransport. It calls `extern 'host'` functions implemented in `src/web/schemify_host.js` to spawn Web Workers, send messages via postMessage, and poll for responses. Each plugin's web bundle includes a `worker.js` that loads Pyodide and bridges postMessage to the Python SDK's stdin/stdout contract."
 
 > **Dev:** "Can a Plugin modify the Schematic?"
 > **Domain expert:** "Only if its Manifest declares the `schematic_mutate` capability. The Plugin sends a `host/push_command` notification with the command name -- it never touches the Schematic directly."

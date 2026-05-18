@@ -56,6 +56,21 @@ pub const Pdk = struct {
     name_idx: List(NameEntry) = .{},
 
     pub fn deinit(self: *Pdk, a: Allocator) void {
+        if (self.name.len > 0) a.free(self.name);
+        // Free owned strings in prims
+        const ps = self.prims.slice();
+        for (0..self.prims.len) |i| {
+            const cell = ps.items(.cell_name)[i];
+            const file = ps.items(.file)[i];
+            const model = ps.items(.model_name)[i];
+            const pins = ps.items(.pin_order)[i];
+            for (pins) |p| if (p.len > 0) a.free(p);
+            if (pins.len > 0) a.free(pins);
+            if (file.len > 0) a.free(file);
+            // model_name may alias cell_name
+            if (model) |m| if (m.ptr != cell.ptr and m.len > 0) a.free(m);
+            if (cell.len > 0) a.free(cell);
+        }
         self.prims.deinit(a);
         self.comps.deinit(a);
         self.tbs.deinit(a);

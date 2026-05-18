@@ -1,5 +1,0 @@
-.SUBCKT rc_filter in out gnd
-R1 in mid res r=1k
-C1 mid gnd cap c=10p
-R2 mid out res r=1k
-.ENDS rc_filter

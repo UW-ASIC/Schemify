@@ -1,0 +1,47 @@
+{
+  "name": "Tokyo Night",
+  "dark": true,
+  "roles": {
+    "control": { "fill": "#24283b", "corner_radius": [4, 4, 4, 4] },
+    "window": { "fill": "#1a1b26" },
+    "accent": { "fill": "#7aa2f7" }
+  },
+  "widgets": {
+    "button": {
+      "fill": "#292e42",
+      "fill_hover": "#3b4261",
+      "text": "#c0caf5",
+      "variants": {
+        "primary": { "fill": "#7aa2f7" },
+        "danger": { "fill": "#f7768e" }
+      }
+    },
+    "tab": {
+      "variants": { "active": { "fill": "#24283b" } }
+    }
+  },
+  "canvas": {
+    "wire": { "color": "#7aa2f7", "color_selected": "#e0af68", "stroke_width": 1.8, "style": "ortho" },
+    "pin": { "color": "#e0af68", "radius": 2.5, "shape": "circle" },
+    "instance_body": { "fill": "#24283b", "stroke_color": "#bb9af7" },
+    "grid": { "color": "#3b4261", "style": "dots", "dot_size": 1.0 },
+    "selection_rect": { "color": "#7aa2f7", "fill_color": "#7aa2f722" }
+  },
+  "toolbar_bg": [26, 27, 38],
+  "tabbar_bg": [26, 27, 38],
+  "tab_active_bg": [36, 40, 59],
+  "statusbar_bg": [26, 27, 38],
+  "sidebar_bg": [26, 27, 38],
+  "text_primary": [192, 202, 245],
+  "text_secondary": [120, 131, 175],
+  "accent": [122, 162, 247],
+  "separator": [59, 66, 97],
+  "hover_bg": [59, 66, 97],
+  "canvas_bg": [26, 27, 38],
+  "wire": [122, 162, 247],
+  "wire_selected": [224, 175, 104],
+  "instance_body": [36, 40, 59],
+  "instance_pin": [224, 175, 104],
+  "symbol_line": [187, 154, 247],
+  "grid_dot": [59, 66, 97, 70]
+}

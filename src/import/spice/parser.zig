@@ -37,6 +37,7 @@ pub const Element = struct {
 pub const Model = struct {
     name: []const u8,
     kind: []const u8, // "nmos", "pmos", "npn", "pnp", "d", etc.
+    params: []const Param = &.{},
 };
 
 pub const Subckt = struct {
@@ -122,7 +123,7 @@ pub fn parseNetlist(arena: Allocator, source: []const u8) !Netlist {
                 }
             } else if (std.mem.eql(u8, cmd, ".model")) {
                 if (toks.len >= 3) {
-                    try models.append(arena, .{ .name = toks[1], .kind = toks[2] });
+                    try models.append(arena, try parseModelDef(arena, toks));
                 }
             } else if (std.mem.eql(u8, cmd, ".param")) {
                 const parsed = try parseParams(arena, toks, 1);
@@ -352,13 +353,30 @@ pub fn parseElement(arena: Allocator, line: []const u8) !Element {
             };
         },
         'v', 'i' => {
-            // V/I name n+ n- [value]
+            // V/I name n+ n- [value [AC val] [transient_spec...]]
             if (toks.len < 3) return error.TooFewTokens;
+            // Concatenate all tokens after nodes to preserve full source spec
+            const val: ?[]const u8 = if (toks.len > 3) blk: {
+                var total: usize = 0;
+                for (toks[3..]) |t| total += t.len + 1;
+                if (total == 0) break :blk null;
+                const buf = try arena.alloc(u8, total - 1);
+                var pos: usize = 0;
+                for (toks[3..], 0..) |t, ti| {
+                    if (ti > 0) {
+                        buf[pos] = ' ';
+                        pos += 1;
+                    }
+                    @memcpy(buf[pos..][0..t.len], t);
+                    pos += t.len;
+                }
+                break :blk buf[0..pos];
+            } else null;
             return .{
                 .prefix = prefix,
                 .name = name,
                 .nodes = try arena.dupe([]const u8, toks[1..3]),
-                .value = if (toks.len > 3) toks[3] else null,
+                .value = val,
             };
         },
         'e', 'g' => {
@@ -438,6 +456,39 @@ fn parseParams(arena: Allocator, toks: []const []const u8, start: usize) ![]cons
         }
     }
     return result.items;
+}
+
+/// Parse `.model name kind(param=val ...)` into Model with params.
+fn parseModelDef(arena: Allocator, toks: []const []const u8) !Model {
+    // toks[1] = name, toks[2] = "kind(param=val" or "kind", rest = "param=val" or "param=val)"
+    const raw_kind = toks[2];
+    var kind: []const u8 = raw_kind;
+    var model_params: List(Param) = .{};
+
+    // Strip kind from paren-fused token: "nmos(level=1" → kind="nmos", first_param="level=1"
+    if (std.mem.indexOfScalar(u8, raw_kind, '(')) |paren| {
+        kind = raw_kind[0..paren];
+        const after = raw_kind[paren + 1 ..];
+        const cleaned = stripParens(after);
+        if (parseOneParam(cleaned)) |p| try model_params.append(arena, p);
+    }
+
+    // Parse remaining tokens as params
+    for (toks[3..]) |tok| {
+        const cleaned = stripParens(tok);
+        if (parseOneParam(cleaned)) |p| try model_params.append(arena, p);
+    }
+
+    return .{ .name = toks[1], .kind = kind, .params = model_params.items };
+}
+
+/// Strip leading/trailing parentheses from a token.
+fn stripParens(tok: []const u8) []const u8 {
+    var s: usize = 0;
+    var e: usize = tok.len;
+    if (e > 0 and tok[0] == '(') s = 1;
+    if (e > s and tok[e - 1] == ')') e -= 1;
+    return tok[s..e];
 }
 
 /// Parse a single "key=value" token. Returns null if no '=' found or key is empty.

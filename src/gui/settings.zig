@@ -43,6 +43,7 @@ pub const ThemeConfig = struct {
     toolbar_height: ?f32 = null,
     tabbar_height: ?f32 = null,
     statusbar_height: ?f32 = null,
+    ui_scale: ?f32 = null,
 };
 
 pub const ThemePreset = struct {
@@ -127,6 +128,22 @@ pub const LlmSettings = struct {
 pub const SettingsDialogTab = st.SettingsDialogTab;
 pub const SettingsDialogState = st.SettingsDialogState;
 
+// ── UI Scale ─────────────────────────────────────────────────────────────────
+
+var base_content_scale: f32 = 1.0;
+
+pub fn initBaseScale(scale: f32) void {
+    base_content_scale = scale;
+}
+
+pub fn getUiScale() f32 {
+    return theme_persistence.getActiveConfig().ui_scale orelse 1.0;
+}
+
+pub fn applyUiScale() void {
+    dvui.currentWindow().content_scale = base_content_scale * getUiScale();
+}
+
 // ── Config directory ─────────────────────────────────────────────────────────
 
 var config_dir_buf: [512]u8 = undefined;
@@ -163,6 +180,7 @@ pub fn reload(a: std.mem.Allocator) void {
 }
 
 pub fn deinit(a: std.mem.Allocator) void {
+    theme_persistence.freeRawJson();
     keybind_persistence.deinit(a);
 }
 
@@ -210,6 +228,24 @@ pub const theme_persistence = struct {
     var active_name_buf: [64]u8 = [_]u8{0} ** 64;
     var active_name_len: u8 = 0;
 
+    // Raw JSON storage — preserves nested format through round-trips.
+    var raw_json: ?[]const u8 = null;
+    var raw_json_alloc: ?std.mem.Allocator = null;
+
+    fn storeRawJson(a: std.mem.Allocator, json: []const u8) void {
+        freeRawJson();
+        raw_json = a.dupe(u8, json) catch null;
+        raw_json_alloc = a;
+    }
+
+    fn freeRawJson() void {
+        if (raw_json) |rj| {
+            if (raw_json_alloc) |a| a.free(rj);
+        }
+        raw_json = null;
+        raw_json_alloc = null;
+    }
+
     fn setActiveConfig(config: ThemeConfig) void {
         active_config = config;
         const name = config.name;
@@ -239,7 +275,8 @@ pub const theme_persistence = struct {
     pub fn saveToDisk(cfg_dir: []const u8, a: std.mem.Allocator) bool {
         var path_buf: [512]u8 = undefined;
         const path = std.fmt.bufPrint(&path_buf, "{s}/theme.json", .{cfg_dir}) catch return false;
-        const json = serializeConfig(&active_config, a) orelse return false;
+        // Prefer stored raw JSON (preserves nested format).
+        const json = if (raw_json) |rj| (a.dupe(u8, rj) catch return false) else (serializeConfig(&active_config, a) orelse return false);
         defer a.free(json);
         const file = platform.fs.cwd().createFile(path, .{}) catch return false;
         defer file.close();
@@ -250,6 +287,7 @@ pub const theme_persistence = struct {
     pub fn applyPreset(idx: usize, cfg_dir: []const u8, a: std.mem.Allocator) bool {
         if (idx >= presets_count) return false;
         setActiveConfig(presets_buf[idx].config);
+        freeRawJson(); // Preset is flat format.
         return saveToDisk(cfg_dir, a);
     }
 
@@ -260,6 +298,8 @@ pub const theme_persistence = struct {
     }
 
     pub fn toOverridesJson(a: std.mem.Allocator) ?[]const u8 {
+        // Prefer stored raw JSON (preserves nested format).
+        if (raw_json) |rj| return a.dupe(u8, rj) catch null;
         return serializeConfig(&active_config, a);
     }
 
@@ -318,6 +358,14 @@ pub const theme_persistence = struct {
             return;
         };
         defer a.free(data);
+
+        // Store raw JSON for nested format round-trip preservation.
+        if (theme_config.isNestedFormat(data)) {
+            storeRawJson(a, data);
+        } else {
+            freeRawJson();
+        }
+
         if (parseThemeJson(data, a)) |config| {
             setActiveConfig(config);
         }
@@ -360,6 +408,7 @@ pub const theme_persistence = struct {
         toolbar_height: ?f64 = null,
         tabbar_height: ?f64 = null,
         statusbar_height: ?f64 = null,
+        ui_scale: ?f64 = null,
     };
 
     fn parseThemeJson(json_str: []const u8, a: std.mem.Allocator) ?ThemeConfig {
@@ -411,7 +460,7 @@ pub const theme_persistence = struct {
         inline for (.{
             "corner_radius", "border_width", "button_padding_h", "button_padding_v",
             "wire_width",    "grid_dot_size", "toolbar_height",  "tabbar_height",
-            "statusbar_height",
+            "statusbar_height", "ui_scale",
         }) |name| {
             if (@field(v, name)) |fval| {
                 @field(config, name) = @floatCast(fval);
@@ -496,6 +545,10 @@ pub const theme_persistence = struct {
             if (@field(config, pair[1])) |v| {
                 writer.print("  \"{s}\": {d:.0},\n", .{ pair[0], v }) catch return null;
             }
+        }
+
+        if (config.ui_scale) |v| {
+            writer.print("  \"ui_scale\": {d:.2},\n", .{v}) catch return null;
         }
 
         if (buf.items.len >= 2 and buf.items[buf.items.len - 2] == ',') {
@@ -657,7 +710,7 @@ pub const keybind_persistence = struct {
 var settings_win_rect: st.WinRect = .{ .x = 80, .y = 60, .w = 640, .h = 520 };
 
 pub fn draw(app: *AppState) void {
-    const sd = &app.gui.cold.settings_dialog;
+    const sd = &app.gui.cold.dialogs.settings;
     if (!sd.is_open) return;
 
     const win = dvui.windowRect();
@@ -717,121 +770,283 @@ pub fn draw(app: *AppState) void {
 }
 
 fn drawThemeTab(app: *AppState) void {
-    const sd = &app.gui.cold.settings_dialog;
+    const sd = &app.gui.cold.dialogs.settings;
+    const active = theme_persistence.getActiveConfig();
+    const current_radius = theme_config.chromeCornerRadius();
+    const current_tab_shape = theme_config.chromeTabShape();
 
-    var body = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .both,
-        .padding = .{ .x = 10, .y = 6, .w = 10, .h = 6 },
-        .id_extra = 11000,
-    });
-    defer body.deinit();
-
-    {
-        const active = theme_persistence.getActiveConfig();
-        var name_buf: [80]u8 = undefined;
-        dvui.labelNoFmt(@src(), std.fmt.bufPrint(&name_buf, "Active: {s}", .{active.name}) catch "Active: (unknown)", .{}, .{
-            .id_extra = 11001,
-            .style = .control,
-        });
-    }
-
-    _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11002 });
-    dvui.labelNoFmt(@src(), "Presets:", .{}, .{ .id_extra = 11003, .style = .control });
-
+    // ── Scrollable content area ─────────────────────────────────────────
     {
         var scroll = dvui.scrollArea(@src(), .{}, .{
             .expand = .both,
-            .min_size_content = .{ .h = 120 },
-            .max_size_content = .{ .w = 0, .h = 200 },
-            .id_extra = 11004,
+            .padding = .{ .x = 16, .y = 10, .w = 16, .h = 10 },
+            .id_extra = 11000,
         });
         defer scroll.deinit();
 
-        const presets = theme_persistence.getPresets();
-        for (presets, 0..) |preset, i| {
-            const name = preset.nameSlice();
-            const is_selected = sd.selected_preset >= 0 and @as(usize, @intCast(sd.selected_preset)) == i;
-            if (dvui.button(@src(), name, .{}, .{
-                .id_extra = 11100 + i,
+        // ── Section 1: Active Theme ─────────────────────────────────────
+        dvui.labelNoFmt(@src(), "ACTIVE THEME", .{}, .{
+            .id_extra = 11001,
+            .color_text = theme_config.chromeTextSecondary(),
+            .padding = .{ .x = 0, .y = 8, .w = 0, .h = 4 },
+        });
+        _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11002 });
+
+        {
+            var name_buf: [80]u8 = undefined;
+            dvui.labelNoFmt(@src(), std.fmt.bufPrint(&name_buf, "{s}", .{active.name}) catch "(unknown)", .{}, .{
+                .id_extra = 11003,
+                .padding = .{ .x = 0, .y = 6, .w = 0, .h = 2 },
+            });
+        }
+
+        // Dark / Light toggle
+        {
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .horizontal,
-                .style = if (is_selected) .highlight else .control,
-                .padding = .{ .x = 8, .y = 3, .w = 8, .h = 3 },
-                .margin = .{ .x = 0, .y = 1, .w = 0, .h = 1 },
-            })) {
-                sd.selected_preset = @intCast(i);
-            }
-        }
+                .id_extra = 11010,
+                .padding = .{ .x = 0, .y = 4, .w = 0, .h = 8 },
+            });
+            defer row.deinit();
 
-        if (presets.len == 0) {
-            dvui.labelNoFmt(@src(), "(no presets found)", .{}, .{ .id_extra = 11099, .style = .control });
-        }
-    }
-
-    _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11500 });
-
-    dvui.labelNoFmt(@src(), "Shape:", .{}, .{ .id_extra = 11501, .style = .control });
-    {
-        var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .horizontal,
-            .id_extra = 11502,
-        });
-        defer row.deinit();
-        const shapes = [_]struct { []const u8, f32 }{
-            .{ "Sharp", 0.0 },
-            .{ "Balanced", 4.0 },
-            .{ "Rounded", 8.0 },
-            .{ "Pill", 16.0 },
-        };
-        inline for (shapes, 0..) |shape, si| {
-            if (dvui.button(@src(), shape[0], .{}, .{
-                .id_extra = 11510 + si,
+            if (dvui.button(@src(), "Dark", .{}, .{
+                .id_extra = 11011,
+                .style = if (app.cmd_flags.dark_mode) .highlight else .control,
                 .margin = .{ .x = 0, .y = 0, .w = 4, .h = 0 },
             })) {
-                applyShapePreset(app, shape[1]);
+                app.cmd_flags.dark_mode = true;
+                theme_config.active_config.dark = true;
+                theme_config.active_config.dirty = true;
+                theme_persistence.getActiveConfigMut().dark = true;
+                theme_persistence.freeRawJson();
+                _ = theme_persistence.saveToDisk(configDir(), app.allocator());
             }
-        }
-    }
 
-    dvui.labelNoFmt(@src(), "Tab Style:", .{}, .{ .id_extra = 11520, .style = .control });
-    {
-        var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .horizontal,
-            .id_extra = 11521,
-        });
-        defer row.deinit();
-        const tabs = [_]struct { []const u8, u8 }{
-            .{ "Rect", 0 },
-            .{ "Rounded", 1 },
-            .{ "Arrow", 2 },
-            .{ "Angled", 3 },
-            .{ "Underline", 4 },
-        };
-        inline for (tabs, 0..) |tab, ti| {
-            if (dvui.button(@src(), tab[0], .{}, .{
-                .id_extra = 11530 + ti,
+            if (dvui.button(@src(), "Light", .{}, .{
+                .id_extra = 11012,
+                .style = if (!app.cmd_flags.dark_mode) .highlight else .control,
                 .margin = .{ .x = 0, .y = 0, .w = 4, .h = 0 },
             })) {
-                applyTabStyle(app, tab[1]);
+                app.cmd_flags.dark_mode = false;
+                theme_config.active_config.dark = false;
+                theme_config.active_config.dirty = true;
+                theme_persistence.getActiveConfigMut().dark = false;
+                theme_persistence.freeRawJson();
+                _ = theme_persistence.saveToDisk(configDir(), app.allocator());
             }
         }
+
+        // ── Section 2: Presets ───────────────────────────────────────────
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .h = 8 }, .id_extra = 11019 });
+        dvui.labelNoFmt(@src(), "PRESETS", .{}, .{
+            .id_extra = 11020,
+            .color_text = theme_config.chromeTextSecondary(),
+            .padding = .{ .x = 0, .y = 8, .w = 0, .h = 4 },
+        });
+        _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11021 });
+
+        {
+            var preset_scroll = dvui.scrollArea(@src(), .{}, .{
+                .expand = .horizontal,
+                .min_size_content = .{ .h = 100 },
+                .max_size_content = .{ .w = 0, .h = 180 },
+                .id_extra = 11022,
+                .padding = .{ .x = 0, .y = 4, .w = 0, .h = 4 },
+            });
+            defer preset_scroll.deinit();
+
+            const presets = theme_persistence.getPresets();
+            for (presets, 0..) |preset, i| {
+                const name = preset.nameSlice();
+                const is_selected = sd.selected_preset >= 0 and @as(usize, @intCast(sd.selected_preset)) == i;
+                if (dvui.button(@src(), name, .{}, .{
+                    .id_extra = 11100 + i,
+                    .expand = .horizontal,
+                    .style = if (is_selected) .highlight else .control,
+                    .padding = .{ .x = 10, .y = 4, .w = 10, .h = 4 },
+                    .margin = .{ .x = 0, .y = 1, .w = 0, .h = 1 },
+                })) {
+                    sd.selected_preset = @intCast(i);
+                }
+            }
+
+            if (presets.len == 0) {
+                dvui.labelNoFmt(@src(), "(no presets found)", .{}, .{
+                    .id_extra = 11099,
+                    .color_text = theme_config.chromeTextSecondary(),
+                    .padding = .{ .x = 4, .y = 4, .w = 0, .h = 4 },
+                });
+            }
+        }
+
+        if (dvui.button(@src(), "Apply", .{}, .{
+            .id_extra = 11200,
+            .padding = .{ .x = 16, .y = 5, .w = 16, .h = 5 },
+            .margin = .{ .x = 0, .y = 4, .w = 0, .h = 0 },
+        })) {
+            applySelectedPreset(app);
+        }
+
+        // ── Section 3: Corner Radius ────────────────────────────────────
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .h = 8 }, .id_extra = 11299 });
+        dvui.labelNoFmt(@src(), "CORNER RADIUS", .{}, .{
+            .id_extra = 11300,
+            .color_text = theme_config.chromeTextSecondary(),
+            .padding = .{ .x = 0, .y = 8, .w = 0, .h = 4 },
+        });
+        _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11301 });
+
+        {
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+                .id_extra = 11302,
+                .padding = .{ .x = 0, .y = 6, .w = 0, .h = 6 },
+            });
+            defer row.deinit();
+            const shapes = [_]struct { []const u8, f32 }{
+                .{ "Sharp", 0.0 },
+                .{ "Balanced", 4.0 },
+                .{ "Rounded", 8.0 },
+                .{ "Pill", 16.0 },
+            };
+            inline for (shapes, 0..) |shape, si| {
+                const is_active = @abs(current_radius - shape[1]) < 1.0;
+                if (dvui.button(@src(), shape[0], .{}, .{
+                    .id_extra = 11310 + si,
+                    .style = if (is_active) .highlight else .control,
+                    .margin = .{ .x = 0, .y = 0, .w = 6, .h = 0 },
+                })) {
+                    applyShapePreset(app, shape[1]);
+                }
+            }
+        }
+
+        // ── Section 4: Tab Style ────────────────────────────────────────
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .h = 8 }, .id_extra = 11399 });
+        dvui.labelNoFmt(@src(), "TAB STYLE", .{}, .{
+            .id_extra = 11400,
+            .color_text = theme_config.chromeTextSecondary(),
+            .padding = .{ .x = 0, .y = 8, .w = 0, .h = 4 },
+        });
+        _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11401 });
+
+        {
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+                .id_extra = 11402,
+                .padding = .{ .x = 0, .y = 6, .w = 0, .h = 6 },
+            });
+            defer row.deinit();
+            const tabs = [_]struct { []const u8, u8 }{
+                .{ "Rect", 0 },
+                .{ "Rounded", 1 },
+                .{ "Arrow", 2 },
+                .{ "Angled", 3 },
+                .{ "Underline", 4 },
+            };
+            inline for (tabs, 0..) |tab, ti| {
+                const is_active = current_tab_shape == tab[1];
+                if (dvui.button(@src(), tab[0], .{}, .{
+                    .id_extra = 11410 + ti,
+                    .style = if (is_active) .highlight else .control,
+                    .margin = .{ .x = 0, .y = 0, .w = 6, .h = 0 },
+                })) {
+                    applyTabStyle(app, tab[1]);
+                }
+            }
+        }
+
+        // ── Section 5: UI Scale ──────────────────────────────────────────
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .h = 8 }, .id_extra = 11449 });
+        dvui.labelNoFmt(@src(), "UI SCALE", .{}, .{
+            .id_extra = 11450,
+            .color_text = theme_config.chromeTextSecondary(),
+            .padding = .{ .x = 0, .y = 8, .w = 0, .h = 4 },
+        });
+        _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11451 });
+
+        {
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+                .id_extra = 11452,
+                .padding = .{ .x = 0, .y = 6, .w = 0, .h = 6 },
+            });
+            defer row.deinit();
+            const current_scale = getUiScale();
+            const scales = [_]struct { []const u8, f32 }{
+                .{ "75%", 0.75 },
+                .{ "100%", 1.0 },
+                .{ "125%", 1.25 },
+                .{ "150%", 1.5 },
+                .{ "200%", 2.0 },
+            };
+            inline for (scales, 0..) |entry, si| {
+                const is_active = @abs(current_scale - entry[1]) < 0.01;
+                if (dvui.button(@src(), entry[0], .{}, .{
+                    .id_extra = 11460 + si,
+                    .style = if (is_active) .highlight else .control,
+                    .margin = .{ .x = 0, .y = 0, .w = 6, .h = 0 },
+                })) {
+                    applyScaleSetting(app, entry[1]);
+                }
+            }
+        }
+
+        // ── Section 6: Edit Manually ────────────────────────────────────
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .h = 8 }, .id_extra = 11499 });
+        dvui.labelNoFmt(@src(), "EDIT MANUALLY", .{}, .{
+            .id_extra = 11500,
+            .color_text = theme_config.chromeTextSecondary(),
+            .padding = .{ .x = 0, .y = 8, .w = 0, .h = 4 },
+        });
+        _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11501 });
+
+        {
+            var edit_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+                .id_extra = 11502,
+                .padding = .{ .x = 0, .y = 8, .w = 0, .h = 4 },
+            });
+            defer edit_row.deinit();
+
+            if (dvui.button(@src(), "Edit JSON", .{}, .{
+                .id_extra = 11510,
+                .padding = .{ .x = 16, .y = 5, .w = 16, .h = 5 },
+            })) {
+                openThemeJsonInEditor(app);
+            }
+
+            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 12 }, .id_extra = 11511 });
+
+            {
+                var hint_buf: [128]u8 = undefined;
+                const dir = configDir();
+                dvui.labelNoFmt(@src(), std.fmt.bufPrint(&hint_buf, "{s}/theme.json", .{dir}) catch "~/.config/Schemify/theme.json", .{}, .{
+                    .id_extra = 11512,
+                    .color_text = theme_config.chromeTextSecondary(),
+                    .gravity_y = 0.5,
+                });
+            }
+        }
+
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .h = 12 }, .id_extra = 11598 });
     }
 
+    // ── Section 6: Bottom action bar (outside scroll) ───────────────────
     _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 11599 });
 
     {
         var btns = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .horizontal,
             .id_extra = 11600,
+            .padding = .{ .x = 16, .y = 8, .w = 16, .h = 4 },
         });
         defer btns.deinit();
 
-        if (dvui.button(@src(), "Apply Preset", .{}, .{ .id_extra = 11601 })) {
-            applySelectedPreset(app);
-        }
-
-        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 }, .id_extra = 11602 });
-
-        if (dvui.button(@src(), "Save", .{}, .{ .id_extra = 11603 })) {
+        if (dvui.button(@src(), "Save", .{}, .{
+            .id_extra = 11601,
+            .padding = .{ .x = 16, .y = 5, .w = 16, .h = 5 },
+        })) {
             const a = app.allocator();
             if (theme_persistence.saveToDisk(configDir(), a)) {
                 setStatus(sd, "Theme saved");
@@ -840,25 +1055,19 @@ fn drawThemeTab(app: *AppState) void {
             }
         }
 
-        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 }, .id_extra = 11604 });
+        _ = dvui.spacer(@src(), .{ .expand = .horizontal, .id_extra = 11602 });
 
-        if (dvui.button(@src(), "Reload from Disk", .{}, .{ .id_extra = 11605 })) {
-            const a = app.allocator();
-            reload(a);
-            applyThemeToGui(app);
-            setStatus(sd, "Settings reloaded from disk");
-        }
-
-        _ = dvui.spacer(@src(), .{ .expand = .horizontal, .id_extra = 11606 });
-
-        if (dvui.button(@src(), "Close", .{}, .{ .id_extra = 11607 })) {
+        if (dvui.button(@src(), "Close", .{}, .{
+            .id_extra = 11603,
+            .padding = .{ .x = 16, .y = 5, .w = 16, .h = 5 },
+        })) {
             sd.is_open = false;
         }
     }
 }
 
 fn drawKeybindsTab(app: *AppState) void {
-    const sd = &app.gui.cold.settings_dialog;
+    const sd = &app.gui.cold.dialogs.settings;
 
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
@@ -1014,7 +1223,7 @@ fn setStatus(sd: *SettingsDialogState, msg: []const u8) void {
 }
 
 fn applySelectedPreset(app: *AppState) void {
-    const sd = &app.gui.cold.settings_dialog;
+    const sd = &app.gui.cold.dialogs.settings;
     if (sd.selected_preset < 0) {
         setStatus(sd, "No preset selected");
         return;
@@ -1038,6 +1247,7 @@ fn applyShapePreset(app: *AppState, corner_radius: f32) void {
     theme_config.current_overrides.corner_radius = corner_radius;
     const a = app.allocator();
     theme_persistence.getActiveConfigMut().corner_radius = corner_radius;
+    theme_persistence.freeRawJson(); // Flat field changed — drop nested cache.
     _ = theme_persistence.saveToDisk(configDir(), a);
     var msg_buf: [64]u8 = undefined;
     app.setStatusBuf(std.fmt.bufPrint(&msg_buf, "Corner radius: {d:.0}", .{corner_radius}) catch "Shape applied");
@@ -1047,9 +1257,59 @@ fn applyTabStyle(app: *AppState, tab_shape: u8) void {
     theme_config.current_overrides.tab_shape = tab_shape;
     const a = app.allocator();
     theme_persistence.getActiveConfigMut().tab_shape = tab_shape;
+    theme_persistence.freeRawJson(); // Flat field changed — drop nested cache.
     _ = theme_persistence.saveToDisk(configDir(), a);
     var msg_buf: [64]u8 = undefined;
     app.setStatusBuf(std.fmt.bufPrint(&msg_buf, "Tab style: {d}", .{tab_shape}) catch "Tab style applied");
+}
+
+fn applyScaleSetting(app: *AppState, scale: f32) void {
+    const a = app.allocator();
+    theme_persistence.getActiveConfigMut().ui_scale = scale;
+    theme_persistence.freeRawJson();
+    _ = theme_persistence.saveToDisk(configDir(), a);
+    applyUiScale();
+    var msg_buf: [64]u8 = undefined;
+    app.setStatusBuf(std.fmt.bufPrint(&msg_buf, "UI scale: {d:.0}%", .{scale * 100.0}) catch "Scale applied");
+}
+
+fn openThemeJsonInEditor(app: *AppState) void {
+    const sd = &app.gui.cold.dialogs.settings;
+    const a = app.allocator();
+    const dir = configDir();
+    if (dir.len == 0) {
+        setStatus(sd, "Config directory not initialized");
+        return;
+    }
+
+    // Build theme.json path and read file contents
+    var path_buf: [520]u8 = undefined;
+    const path = std.fmt.bufPrint(&path_buf, "{s}/theme.json", .{dir}) catch {
+        setStatus(sd, "Path too long");
+        return;
+    };
+
+    // Try to get JSON content: read from disk, or serialize current config
+    const json = platform.fs.cwd().readFileAlloc(a, path, 64 * 1024) catch blk: {
+        break :blk theme_persistence.toOverridesJson(a) orelse {
+            setStatus(sd, "Failed to read theme.json");
+            return;
+        };
+    };
+    defer a.free(json);
+
+    // Load into doc editor
+    var editor = &app.gui.cold.doc_editor;
+    editor.setText(json);
+    editor.loaded = true;
+    editor.mode = .edit;
+
+    // Set flag so doc_view saves to theme.json instead of schematic docs
+    sd.editing_theme_json = true;
+
+    // Switch to doc view and close settings
+    app.gui.hot.view_mode = .doc;
+    sd.is_open = false;
 }
 
 fn applyThemeToGui(app: *AppState) void {

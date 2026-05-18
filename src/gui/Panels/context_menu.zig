@@ -4,6 +4,7 @@ const dvui = @import("dvui");
 const st = @import("state");
 const command = @import("commands");
 const actions = @import("../actions.zig");
+const core_types = @import("schematic").types;
 
 const AppState = st.AppState;
 
@@ -36,6 +37,18 @@ const canvas_items: []const MenuItem = &.{
     .{ .label = "Insert from Library", .cmd = .{ .immediate = .insert_from_library }, .status = "Insert from library" },
 };
 
+const ColorPreset = struct { label: []const u8, r: u8, g: u8, b: u8 };
+const wire_color_presets = [_]ColorPreset{
+    .{ .label = "Red", .r = 220, .g = 50, .b = 50 },
+    .{ .label = "Green", .r = 50, .g = 180, .b = 80 },
+    .{ .label = "Yellow", .r = 220, .g = 200, .b = 50 },
+    .{ .label = "Orange", .r = 230, .g = 140, .b = 40 },
+    .{ .label = "Purple", .r = 160, .g = 90, .b = 220 },
+    .{ .label = "Cyan", .r = 50, .g = 200, .b = 210 },
+    .{ .label = "Pink", .r = 220, .g = 100, .b = 170 },
+    .{ .label = "White", .r = 220, .g = 224, .b = 232 },
+};
+
 var menu_subwindow_id: ?dvui.Id = null;
 
 pub fn draw(app: *AppState) void {
@@ -64,9 +77,10 @@ pub fn draw(app: *AppState) void {
         break :blk it.next() != null;
     };
 
+    const is_wire = app.gui.cold.ctx_menu.wire_idx >= 0;
     const items: []const MenuItem = if (multi and app.gui.cold.ctx_menu.inst_idx >= 0) group_items
         else if (app.gui.cold.ctx_menu.inst_idx >= 0) instance_items
-        else if (app.gui.cold.ctx_menu.wire_idx >= 0) wire_items
+        else if (is_wire) wire_items
         else canvas_items;
 
     for (items, 0..) |item, i| {
@@ -75,6 +89,32 @@ pub fn draw(app: *AppState) void {
             fm.close();
             app.gui.cold.ctx_menu.open = false;
             menu_subwindow_id = null;
+            return;
+        }
+    }
+
+    // Wire color submenu
+    if (is_wire) {
+        const wire_idx: u32 = @intCast(app.gui.cold.ctx_menu.wire_idx);
+        if (dvui.expander(@src(), "Set Color", .{}, .{ .expand = .horizontal })) {
+            for (wire_color_presets, 0..) |preset, ci| {
+                const col = core_types.Wire.packColor(preset.r, preset.g, preset.b);
+                if (dvui.menuItemLabel(@src(), preset.label, .{}, .{ .id_extra = ci + 100, .expand = .horizontal }) != null) {
+                    actions.enqueue(app, .{ .undoable = .{ .set_wire_color = .{ .wire_idx = wire_idx, .color = col } } }, "Wire color set");
+                    fm.close();
+                    app.gui.cold.ctx_menu.open = false;
+                    menu_subwindow_id = null;
+                    return;
+                }
+            }
+            // "Default" option to clear override
+            if (dvui.menuItemLabel(@src(), "Default (theme)", .{}, .{ .id_extra = 200, .expand = .horizontal }) != null) {
+                actions.enqueue(app, .{ .undoable = .{ .set_wire_color = .{ .wire_idx = wire_idx, .color = 0 } } }, "Wire color cleared");
+                fm.close();
+                app.gui.cold.ctx_menu.open = false;
+                menu_subwindow_id = null;
+                return;
+            }
         }
     }
 }

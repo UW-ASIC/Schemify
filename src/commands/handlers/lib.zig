@@ -14,6 +14,7 @@ const primitive_mod = @import("Primitive.zig");
 const import_mod = @import("Import.zig");
 const optimize_mod = @import("Optimize.zig");
 const layout_mod = @import("Layout.zig");
+const canvas_mod = @import("Canvas.zig");
 
 // ── Error type (union of all handler errors) ─────────────────────────────────
 
@@ -69,6 +70,7 @@ pub const handleInsertPrimitive = primitive_mod.handleInsertPrimitive;
 // Simulation
 pub const handleRunSim = sim_mod.handleRunSim;
 pub const handleOpenWaveformViewer = sim_mod.handleOpenWaveformViewer;
+pub const handleViewPySpiceNetlist = sim_mod.handleViewPySpiceNetlist;
 
 // Undo / Redo
 pub const handleUndo = undo_mod.handleUndo;
@@ -83,6 +85,9 @@ pub const handleOptimize = optimize_mod.handleOptimize;
 
 // Layout
 pub const handleAutoLayout = layout_mod.handleAutoLayout;
+
+// Canvas interaction
+pub const handleCanvas = canvas_mod.handleCanvas;
 
 test {
     @import("std").testing.refAllDecls(@This());

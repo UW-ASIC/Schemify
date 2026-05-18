@@ -1,5 +1,6 @@
 const std = @import("std");
 const utility = @import("utility");
+const types = @import("types.zig");
 
 pub const PluginSpec = struct {
     name: []const u8,
@@ -20,6 +21,7 @@ pub const PluginManager = struct {
     lazys: std.ArrayListUnmanaged(bool) = .{},
     commands: std.ArrayListUnmanaged([]const u8) = .{},
     dirs: std.ArrayListUnmanaged([]const u8) = .{},
+    theme_infos: std.ArrayListUnmanaged(types.PluginThemeInfo) = .{},
 
     pub fn deinit(self: *PluginManager, alloc: std.mem.Allocator) void {
         for (self.names.items) |n| alloc.free(n);
@@ -31,6 +33,7 @@ pub const PluginManager = struct {
         self.lazys.deinit(alloc);
         self.commands.deinit(alloc);
         self.dirs.deinit(alloc);
+        self.theme_infos.deinit(alloc);
     }
 
     pub fn hasSpec(self: *const PluginManager, name: []const u8) bool {
@@ -56,25 +59,26 @@ pub const PluginManager = struct {
             };
 
             const plugin_dir = std.fmt.allocPrint(alloc, "{s}/{s}", .{ config_dir, spec.name }) catch {
-                self.appendEntry(alloc, name_owned, null, spec.lazy, "", "");
+                self.appendEntry(alloc, name_owned, null, spec.lazy, "", "", .{});
                 fail_count += 1;
                 continue;
             };
 
             const toml_path = std.fmt.allocPrint(alloc, "{s}/plugin.toml", .{plugin_dir}) catch {
                 alloc.free(plugin_dir);
-                self.appendEntry(alloc, name_owned, null, spec.lazy, "", "");
+                self.appendEntry(alloc, name_owned, null, spec.lazy, "", "", .{});
                 fail_count += 1;
                 continue;
             };
 
             if (fileExists(toml_path)) {
                 const cmd = readCommandFromToml(alloc, toml_path);
+                const theme = readThemeFromToml(alloc, toml_path);
                 const dir_owned = alloc.dupe(u8, plugin_dir) catch "";
-                self.appendEntry(alloc, name_owned, toml_path, spec.lazy, cmd, dir_owned);
+                self.appendEntry(alloc, name_owned, toml_path, spec.lazy, cmd, dir_owned, theme);
             } else {
                 alloc.free(toml_path);
-                self.appendEntry(alloc, name_owned, null, spec.lazy, "", "");
+                self.appendEntry(alloc, name_owned, null, spec.lazy, "", "", .{});
                 fail_count += 1;
             }
             alloc.free(plugin_dir);
@@ -109,8 +113,9 @@ pub const PluginManager = struct {
                     continue;
                 };
                 const cmd = readCommandFromToml(alloc, toml_path);
+                const theme = readThemeFromToml(alloc, toml_path);
                 const dir_owned = alloc.dupe(u8, plugin_dir) catch "";
-                self.appendEntry(alloc, name_owned, toml_path, false, cmd, dir_owned);
+                self.appendEntry(alloc, name_owned, toml_path, false, cmd, dir_owned, theme);
                 found += 1;
             } else {
                 alloc.free(toml_path);
@@ -127,7 +132,7 @@ pub const PluginManager = struct {
         return false;
     }
 
-    fn appendEntry(self: *PluginManager, alloc: std.mem.Allocator, name: []const u8, path: ?[]const u8, lazy: bool, cmd: []const u8, dir: []const u8) void {
+    fn appendEntry(self: *PluginManager, alloc: std.mem.Allocator, name: []const u8, path: ?[]const u8, lazy: bool, cmd: []const u8, dir: []const u8, theme: types.PluginThemeInfo) void {
         self.names.append(alloc, name) catch {
             alloc.free(name);
             if (path) |p| alloc.free(p);
@@ -142,6 +147,7 @@ pub const PluginManager = struct {
         self.lazys.append(alloc, lazy) catch {};
         self.commands.append(alloc, cmd) catch {};
         self.dirs.append(alloc, dir) catch {};
+        self.theme_infos.append(alloc, theme) catch {};
     }
 };
 
@@ -167,6 +173,80 @@ fn readCommandFromToml(alloc: std.mem.Allocator, toml_path: []const u8) []const 
         return alloc.dupe(u8, unquoted) catch "";
     }
     return "";
+}
+
+fn readThemeFromToml(alloc: std.mem.Allocator, toml_path: []const u8) types.PluginThemeInfo {
+    const data = utility.platform.fs.cwd().readFileAlloc(alloc, toml_path, 64 * 1024) catch return .{};
+    defer alloc.free(data);
+
+    const Section = enum { none, widgets, extra_props };
+    var section: Section = .none;
+    var info: types.PluginThemeInfo = .{};
+
+    var line_iter = std.mem.splitScalar(u8, data, '\n');
+    while (line_iter.next()) |raw_line| {
+        const line = std.mem.trimRight(u8, raw_line, &[_]u8{ '\r', ' ', '\t' });
+        const trimmed = std.mem.trimLeft(u8, line, &[_]u8{ ' ', '\t' });
+        if (trimmed.len == 0) continue;
+
+        // Detect section headers.
+        if (trimmed[0] == '[') {
+            if (std.mem.startsWith(u8, trimmed, "[[theme.widgets]]")) {
+                section = .widgets;
+                info.widgets.append(.{});
+            } else if (std.mem.startsWith(u8, trimmed, "[[theme.extra_props]]")) {
+                section = .extra_props;
+                info.extra_props.append(.{});
+            } else {
+                // Any other section header — leave this parser's scope.
+                section = .none;
+            }
+            continue;
+        }
+
+        // Parse key = "value" pairs within the active section.
+        const kv = parseKeyValue(trimmed) orelse continue;
+
+        switch (section) {
+            .widgets => {
+                if (info.widgets.len == 0) continue;
+                const w = &info.widgets.buffer[info.widgets.len - 1];
+                if (std.mem.eql(u8, kv.key, "name")) {
+                    w.name_len = copyToBuf(&w.name, kv.val);
+                } else if (std.mem.eql(u8, kv.key, "inherit_role")) {
+                    w.inherit_role_len = copyToBuf(&w.inherit_role, kv.val);
+                }
+            },
+            .extra_props => {
+                if (info.extra_props.len == 0) continue;
+                const p = &info.extra_props.buffer[info.extra_props.len - 1];
+                if (std.mem.eql(u8, kv.key, "name")) {
+                    p.name_len = copyToBuf(&p.name, kv.val);
+                } else if (std.mem.eql(u8, kv.key, "type")) {
+                    p.prop_type_len = copyToBuf(&p.prop_type, kv.val);
+                } else if (std.mem.eql(u8, kv.key, "default")) {
+                    p.default_val_len = copyToBuf(&p.default_val, kv.val);
+                }
+            },
+            .none => {},
+        }
+    }
+    return info;
+}
+
+const KeyValue = struct { key: []const u8, val: []const u8 };
+
+fn parseKeyValue(trimmed: []const u8) ?KeyValue {
+    const eq_pos = std.mem.indexOfScalar(u8, trimmed, '=') orelse return null;
+    const key = std.mem.trimRight(u8, trimmed[0..eq_pos], &[_]u8{ ' ', '\t' });
+    const val_raw = std.mem.trimLeft(u8, trimmed[eq_pos + 1 ..], &[_]u8{ ' ', '\t' });
+    return .{ .key = key, .val = unquote(val_raw) };
+}
+
+fn copyToBuf(buf: []u8, src: []const u8) u8 {
+    const len = @min(src.len, buf.len);
+    @memcpy(buf[0..len], src[0..len]);
+    return @intCast(len);
 }
 
 fn unquote(s: []const u8) []const u8 {

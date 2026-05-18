@@ -12,7 +12,7 @@ on:
     paths:
       - 'plugins/**/plugin.toml'
       - 'plugins/**/src/**'
-      - 'sdk/python/**'
+      - 'tools/sdk/python/**'
       - 'tools/scripts/gen_registry.py'
   workflow_dispatch:
     inputs:
@@ -80,7 +80,7 @@ jobs:
           CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "ALL")
 
           if echo "$CHANGED" | grep -qE \
-               "^${PLUGIN_DIR}/|^sdk/python/|^tools/scripts/gen_registry\.py"; then
+               "^${PLUGIN_DIR}/|^tools/sdk/python/|^tools/scripts/gen_registry\.py"; then
             echo "rebuild=true"  >> "$GITHUB_OUTPUT"
           else
             echo "rebuild=false" >> "$GITHUB_OUTPUT"
@@ -114,7 +114,7 @@ jobs:
           mkdir -p "${BUNDLE_DIR}/sdk"
           cp -r "${PLUGIN_DIR}/plugin.toml" "${BUNDLE_DIR}/"
           cp -r "${PLUGIN_DIR}/src" "${BUNDLE_DIR}/"
-          cp sdk/python/schemify_plugin.py "${BUNDLE_DIR}/sdk/"
+          cp tools/sdk/python/schemify_plugin.py "${BUNDLE_DIR}/sdk/"
 
           # Create tarball
           tar -czf "dist/${PLUGIN_ID}.tar.gz" -C dist "${PLUGIN_ID}"
@@ -134,7 +134,7 @@ jobs:
           # Copy plugin source + SDK
           cp -r "${PLUGIN_DIR}/plugin.toml" "${WEB_DIR}/"
           cp -r "${PLUGIN_DIR}/src" "${WEB_DIR}/"
-          cp sdk/python/schemify_plugin.py "${WEB_DIR}/"
+          cp tools/sdk/python/schemify_plugin.py "${WEB_DIR}/"
 
           # Pyodide loader: runs the plugin in a Web Worker, bridges
           # JSON-RPC from postMessage to the SDK's stdin/stdout contract.

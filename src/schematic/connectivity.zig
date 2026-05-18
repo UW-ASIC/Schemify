@@ -95,7 +95,10 @@ pub const Connectivity = struct {
         const wy0 = wires.items(.y0);
         const wx1 = wires.items(.x1);
         const wy1 = wires.items(.y1);
+        const wbus = wires.items(.bus);
+        const w_net = wires.items(.net_name);
 
+        // Step 1: Connect each wire's two endpoints via position key
         for (0..wires.len) |i| {
             const k0 = NetMap.pointKey(wx0[i], wy0[i]);
             const k1 = NetMap.pointKey(wx1[i], wy1[i]);
@@ -104,8 +107,7 @@ pub const Connectivity = struct {
             unite(&parents, a, k0, k1);
         }
 
-        // T-junctions: wire endpoint touching interior of another wire
-        const wbus = wires.items(.bus);
+        // Step 2: T-junctions — wire endpoint touching interior of another wire
         for (0..wires.len) |i| {
             for ([2]struct { x: i32, y: i32 }{
                 .{ .x = wx0[i], .y = wy0[i] },
@@ -114,6 +116,12 @@ pub const Connectivity = struct {
                 const kp = NetMap.pointKey(pt.x, pt.y);
                 for (0..wires.len) |j| {
                     if (j == i or wbus[j]) continue;
+                    // Don't merge wires with different explicit net names
+                    if (!w_net[i].isEmpty() and !w_net[j].isEmpty()) {
+                        const ni = src_pool.get(w_net[i]);
+                        const nj = src_pool.get(w_net[j]);
+                        if (!std.mem.eql(u8, ni, nj)) continue;
+                    }
                     const on_interior = blk: {
                         if (wy0[j] == wy1[j] and pt.y == wy0[j]) {
                             break :blk @min(wx0[j], wx1[j]) < pt.x and pt.x < @max(wx0[j], wx1[j]);
@@ -127,7 +135,7 @@ pub const Connectivity = struct {
             }
         }
 
-        // Instance pin positions from sym_data
+        // Step 3: Instance pin positions from sym_data
         if (sym_data.len > 0) {
             const ix = instances.items(.x);
             const iy = instances.items(.y);
@@ -141,39 +149,54 @@ pub const Connectivity = struct {
                     const abs = applyRotFlip(pin.x, pin.y, iflags[i].rot, iflags[i].flip, ix[i], iy[i]);
                     const k = NetMap.pointKey(abs.x, abs.y);
                     makeSet(&parents, a, k);
+
+                    // Find first touching wire and check for contested point
+                    var first_wire: ?usize = null;
+                    var first_net_str: []const u8 = "";
+                    var contested = false;
                     for (0..wires.len) |wi| {
                         const touches = (abs.x == wx0[wi] and abs.y == wy0[wi]) or
                             (abs.x == wx1[wi] and abs.y == wy1[wi]);
                         if (touches) {
+                            const wn_str = if (!w_net[wi].isEmpty()) src_pool.get(w_net[wi]) else "";
+                            if (first_wire == null) {
+                                first_wire = wi;
+                                first_net_str = wn_str;
+                            } else if (wn_str.len > 0 and first_net_str.len > 0 and
+                                !std.mem.eql(u8, wn_str, first_net_str))
+                            {
+                                contested = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!contested) {
+                        if (first_wire) |wi| {
                             unite(&parents, a, k, NetMap.pointKey(wx0[wi], wy0[wi]));
-                            break;
                         }
                     }
                 }
             }
         }
 
-        // Collect root -> name from wire net_name annotations
+        // Collect root -> name from wire net_name annotations and label/power instances
         const RootName = struct { root: u64, name: StringRef };
         var root_names = List(RootName){};
         defer root_names.deinit(a);
 
         {
-            const wnn = wires.items(.net_name);
             for (0..wires.len) |i| {
-                const ref = wnn[i];
-                if (ref.isEmpty()) continue;
+                if (w_net[i].isEmpty()) continue;
+                const name_str = src_pool.get(w_net[i]);
                 const k = NetMap.pointKey(wx0[i], wy0[i]);
                 makeSet(&parents, a, k);
                 const root = find(&parents, k);
-                const name_str = src_pool.get(ref);
+                const ref = self.pool.add(a, name_str) catch continue;
                 var found = false;
                 for (root_names.items) |*rn| {
                     if (rn.root == root) {
-                        const existing_str = if (rn.name.offset < ref.offset)
-                            src_pool.get(rn.name)
-                        else
-                            self.pool.get(rn.name);
+                        const existing_str = self.pool.get(rn.name);
                         if (netNameRank(name_str) > netNameRank(existing_str)) rn.name = ref;
                         found = true;
                         break;
@@ -183,10 +206,51 @@ pub const Connectivity = struct {
             }
         }
 
+        // Collect net names from label pins and power instances
+        if (sym_data.len > 0) {
+            const ix = instances.items(.x);
+            const iy = instances.items(.y);
+            const iflags = instances.items(.flags);
+            const ikind = instances.items(.kind);
+            const iname = instances.items(.name);
+            for (0..instances.len) |i| {
+                if (i >= sym_data.len) continue;
+                const kind = ikind[i];
+                const name_str: []const u8 = if (kind.isLabel())
+                    src_pool.get(iname[i])
+                else if (kind == .gnd)
+                    "0"
+                else if (kind == .vdd)
+                    "vdd"
+                else
+                    continue;
+
+                const sd = sym_data[i];
+                if (sd.pins.len == 0) continue;
+                const abs = applyRotFlip(sd.pins[0].x, sd.pins[0].y, iflags[i].rot, iflags[i].flip, ix[i], iy[i]);
+                const k = NetMap.pointKey(abs.x, abs.y);
+                makeSet(&parents, a, k);
+                const root = find(&parents, k);
+
+                const net_ref = self.pool.add(a, name_str) catch continue;
+
+                var found = false;
+                for (root_names.items) |*rn| {
+                    if (rn.root == root) {
+                        const existing_str = self.pool.get(rn.name);
+                        if (netNameRank(name_str) > netNameRank(existing_str)) rn.name = net_ref;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) root_names.append(a, .{ .root = root, .name = net_ref }) catch {};
+            }
+        }
+
         // Auto-name unnamed nets
         var auto_idx: u32 = 1;
         for (root_names.items) |rn| {
-            const s = src_pool.get(rn.name);
+            const s = self.pool.get(rn.name);
             if (isAutoNetName(s)) {
                 const n = std.fmt.parseInt(u32, s[3..], 10) catch continue;
                 if (n >= auto_idx) auto_idx = n + 1;
@@ -246,6 +310,16 @@ pub const Connectivity = struct {
                 if (sd.pins.len == 0) continue;
                 self.conn_starts[i] = @intCast(self.conns.items.len);
                 for (sd.pins) |pin| {
+                    // Explicit net from import: use directly, skip geometry
+                    if (!pin.net.isEmpty()) {
+                        const net_str = src_pool.get(pin.net);
+                        const net_ref = self.pool.add(a, net_str) catch unknown_ref;
+                        self.conns.append(a, .{
+                            .pin = pin.name,
+                            .net = net_ref,
+                        }) catch {};
+                        continue;
+                    }
                     const abs = applyRotFlip(pin.x, pin.y, iflags[i].rot, iflags[i].flip, ix[i], iy[i]);
                     const k = NetMap.pointKey(abs.x, abs.y);
                     makeSet(&parents, a, k);
@@ -295,7 +369,8 @@ pub const Connectivity = struct {
     // ── Union-find helpers ───────────────────────────────────────────────────
 
     fn makeSet(p: *std.AutoHashMapUnmanaged(u64, u64), alloc: Allocator, k: u64) void {
-        _ = p.getOrPut(alloc, k) catch return;
+        const gop = p.getOrPut(alloc, k) catch return;
+        if (!gop.found_existing) gop.value_ptr.* = k;
     }
 
     fn find(p: *std.AutoHashMapUnmanaged(u64, u64), k: u64) u64 {

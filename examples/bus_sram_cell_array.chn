@@ -1,0 +1,1008 @@
+chn_testbench 1
+
+TESTBENCH 4x4 SRAM Array
+  instances:
+    Vdd  vsource  x=-2040  y=0  sym=vsource  value=1.8
+    Vwl[0]  vsource  x=-1760  y=0  sym=vsource  value=1.8
+    Vwl[1]  vsource  x=-1650  y=0  sym=vsource  value=0
+    Vwl[2]  vsource  x=-1540  y=0  sym=vsource  value=0
+    Vwl[3]  vsource  x=-1430  y=0  sym=vsource  value=0
+    Vpre_bl[0]  vsource  x=-1930  y=0  sym=vsource  value=900m
+    Vpre_blb[0]  vsource  x=-1820  y=0  sym=vsource  value=900m
+    Vpre_bl[1]  vsource  x=-1870  y=0  sym=vsource  value=900m
+    Vpre_blb[1]  vsource  x=-1760  y=140  sym=vsource  value=900m
+    Vpre_bl[2]  vsource  x=-1710  y=0  sym=vsource  value=900m
+    Vpre_blb[2]  vsource  x=-1600  y=0  sym=vsource  value=900m
+    Vpre_bl[3]  vsource  x=-1650  y=140  sym=vsource  value=900m
+    Vpre_blb[3]  vsource  x=-1540  y=140  sym=vsource  value=900m
+    Mr0c0_p1  pmos  x=-2100  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c0_n1  nmos  x=-2100  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr0c0_p2  pmos  x=-1980  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c0_n2  nmos  x=-1980  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr0c0_acc1  nmos  x=180  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c0_acc2  nmos  x=300  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c1_p1  pmos  x=-1980  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c1_n1  nmos  x=-1980  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr0c1_p2  pmos  x=-1860  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c1_n2  nmos  x=-1860  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr0c1_acc1  nmos  x=300  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c1_acc2  nmos  x=420  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c2_p1  pmos  x=-1860  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c2_n1  nmos  x=-1860  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr0c2_p2  pmos  x=-1740  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c2_n2  nmos  x=-1740  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr0c2_acc1  nmos  x=420  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c2_acc2  nmos  x=540  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c3_p1  pmos  x=-1740  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c3_n1  nmos  x=-1740  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr0c3_p2  pmos  x=-1620  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c3_n2  nmos  x=-1620  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr0c3_acc1  nmos  x=540  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr0c3_acc2  nmos  x=660  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c0_p1  pmos  x=-1620  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c0_n1  nmos  x=-1620  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr1c0_p2  pmos  x=-1500  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c0_n2  nmos  x=-1500  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr1c0_acc1  nmos  x=660  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c0_acc2  nmos  x=780  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c1_p1  pmos  x=-1500  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c1_n1  nmos  x=-1500  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr1c1_p2  pmos  x=-1380  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c1_n2  nmos  x=-1380  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr1c1_acc1  nmos  x=780  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c1_acc2  nmos  x=900  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c2_p1  pmos  x=-1380  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c2_n1  nmos  x=-1380  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr1c2_p2  pmos  x=-1260  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c2_n2  nmos  x=-1260  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr1c2_acc1  nmos  x=900  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c2_acc2  nmos  x=1020  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c3_p1  pmos  x=-1260  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c3_n1  nmos  x=-1260  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr1c3_p2  pmos  x=-1140  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c3_n2  nmos  x=-1140  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr1c3_acc1  nmos  x=1020  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr1c3_acc2  nmos  x=1140  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c0_p1  pmos  x=-1140  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c0_n1  nmos  x=-1140  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr2c0_p2  pmos  x=-1020  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c0_n2  nmos  x=-1020  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr2c0_acc1  nmos  x=1140  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c0_acc2  nmos  x=1260  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c1_p1  pmos  x=-1020  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c1_n1  nmos  x=-1020  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr2c1_p2  pmos  x=-900  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c1_n2  nmos  x=-900  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr2c1_acc1  nmos  x=1260  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c1_acc2  nmos  x=1380  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c2_p1  pmos  x=-900  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c2_n1  nmos  x=-900  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr2c2_p2  pmos  x=-780  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c2_n2  nmos  x=-780  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr2c2_acc1  nmos  x=1380  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c2_acc2  nmos  x=1500  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c3_p1  pmos  x=-780  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c3_n1  nmos  x=-780  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr2c3_p2  pmos  x=-660  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c3_n2  nmos  x=-660  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr2c3_acc1  nmos  x=1500  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr2c3_acc2  nmos  x=1620  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c0_p1  pmos  x=-660  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c0_n1  nmos  x=-660  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr3c0_p2  pmos  x=-540  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c0_n2  nmos  x=-540  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr3c0_acc1  nmos  x=1620  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c0_acc2  nmos  x=1740  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c1_p1  pmos  x=-540  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c1_n1  nmos  x=-540  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr3c1_p2  pmos  x=-420  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c1_n2  nmos  x=-420  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr3c1_acc1  nmos  x=1740  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c1_acc2  nmos  x=1860  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c2_p1  pmos  x=-420  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c2_n1  nmos  x=-420  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr3c2_p2  pmos  x=-300  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c2_n2  nmos  x=-300  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr3c2_acc1  nmos  x=1860  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c2_acc2  nmos  x=1980  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c3_p1  pmos  x=-300  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c3_n1  nmos  x=-300  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr3c3_p2  pmos  x=-180  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c3_n2  nmos  x=-180  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Mr3c3_acc1  nmos  x=1980  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mr3c3_acc2  nmos  x=2100  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Msa_p0  pmos  x=-180  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Msa_n0  nmos  x=-180  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Msa_p1  pmos  x=-60  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Msa_n1  nmos  x=-60  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Msa_p2  pmos  x=-60  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Msa_n2  nmos  x=-60  y=260  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Msa_p3  pmos  x=60  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Msa_n3  nmos  x=60  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    data[3]  lab_pin  x=40  y=-150  sym=lab_pin
+    data[0]  lab_pin  x=-200  y=-10  sym=lab_pin
+    data[2]  lab_pin  x=-80  y=-10  sym=lab_pin
+    data[1]  lab_pin  x=-80  y=-150  sym=lab_pin
+    r0c0_q  lab_pin  x=-2120  y=-150  sym=lab_pin
+    r0c0_q  lab_pin  x=-2040  y=90  sym=lab_pin
+    r0c0_q  lab_pin  x=200  y=120  sym=lab_pin
+    wl[0]  lab_pin  x=-1760  y=-30  sym=lab_pin
+    wl[0]  lab_pin  x=160  y=-30  sym=lab_pin
+    wl[0]  lab_pin  x=280  y=260  sym=lab_pin
+    wl[0]  lab_pin  x=520  y=120  sym=lab_pin
+    r2c3_q  lab_pin  x=-680  y=120  sym=lab_pin
+    r2c3_q  lab_pin  x=380  y=230  sym=lab_pin
+    r2c1_q  lab_pin  x=-920  y=120  sym=lab_pin
+    r2c1_q  lab_pin  x=140  y=230  sym=lab_pin
+    r0c2_q  lab_pin  x=-1760  y=120  sym=lab_pin
+    r0c2_q  lab_pin  x=-1880  y=-70  sym=lab_pin
+    r0c2_q  lab_pin  x=-1840  y=230  sym=lab_pin
+    r0c1_q  lab_pin  x=-1880  y=120  sym=lab_pin
+    r0c1_q  lab_pin  x=-2000  y=-70  sym=lab_pin
+    r0c1_q  lab_pin  x=-1960  y=230  sym=lab_pin
+    r0c1_q  lab_pin  x=-820  y=230  sym=lab_pin
+    r2c0_q  lab_pin  x=-1040  y=120  sym=lab_pin
+    r2c0_q  lab_pin  x=1160  y=230  sym=lab_pin
+    r3c0_q  lab_pin  x=-560  y=120  sym=lab_pin
+    r3c0_q  lab_pin  x=1640  y=230  sym=lab_pin
+    r3c2_q  lab_pin  x=-320  y=120  sym=lab_pin
+    r1c3_q  lab_pin  x=-1160  y=120  sym=lab_pin
+    r1c3_q  lab_pin  x=1040  y=260  sym=lab_pin
+    r1c1_q  lab_pin  x=-1400  y=120  sym=lab_pin
+    r1c1_q  lab_pin  x=-1520  y=-70  sym=lab_pin
+    r1c1_q  lab_pin  x=-1480  y=230  sym=lab_pin
+    r3c3_q  lab_pin  x=-200  y=120  sym=lab_pin
+    r3c3_q  lab_pin  x=2000  y=230  sym=lab_pin
+    r1c2_q  lab_pin  x=-1280  y=120  sym=lab_pin
+    r1c2_q  lab_pin  x=920  y=260  sym=lab_pin
+    r0c3_q  lab_pin  x=-1640  y=120  sym=lab_pin
+    r0c3_q  lab_pin  x=-1760  y=-70  sym=lab_pin
+    r0c3_q  lab_pin  x=-1720  y=230  sym=lab_pin
+    r2c2_q  lab_pin  x=-800  y=120  sym=lab_pin
+    r2c2_q  lab_pin  x=1400  y=230  sym=lab_pin
+    r3c1_q  lab_pin  x=-440  y=120  sym=lab_pin
+    r3c1_q  lab_pin  x=1760  y=230  sym=lab_pin
+    r1c0_q  lab_pin  x=-1520  y=120  sym=lab_pin
+    r1c0_q  lab_pin  x=680  y=260  sym=lab_pin
+    r0c0_qb  lab_pin  x=-2080  y=-120  sym=lab_pin
+    r0c0_qb  lab_pin  x=-1960  y=90  sym=lab_pin
+    r0c0_qb  lab_pin  x=-820  y=90  sym=lab_pin
+    r1c1_qb  lab_pin  x=-1480  y=20  sym=lab_pin
+    r1c1_qb  lab_pin  x=-220  y=90  sym=lab_pin
+    r2c2_qb  lab_pin  x=-880  y=20  sym=lab_pin
+    r2c2_qb  lab_pin  x=380  y=90  sym=lab_pin
+    r2c1_qb  lab_pin  x=-1000  y=20  sym=lab_pin
+    r3c0_qb  lab_pin  x=-640  y=20  sym=lab_pin
+    r3c0_qb  lab_pin  x=1760  y=90  sym=lab_pin
+    r1c3_qb  lab_pin  x=-1240  y=20  sym=lab_pin
+    r2c0_qb  lab_pin  x=-1120  y=20  sym=lab_pin
+    r2c0_qb  lab_pin  x=1280  y=90  sym=lab_pin
+    r3c2_qb  lab_pin  x=-400  y=20  sym=lab_pin
+    r3c2_qb  lab_pin  x=2000  y=90  sym=lab_pin
+    r0c1_qb  lab_pin  x=-1960  y=20  sym=lab_pin
+    r0c1_qb  lab_pin  x=440  y=90  sym=lab_pin
+    r1c0_qb  lab_pin  x=-1600  y=20  sym=lab_pin
+    r1c2_qb  lab_pin  x=-1360  y=20  sym=lab_pin
+    r0c2_qb  lab_pin  x=-1840  y=20  sym=lab_pin
+    r0c2_qb  lab_pin  x=560  y=90  sym=lab_pin
+    r2c3_qb  lab_pin  x=-760  y=20  sym=lab_pin
+    r2c3_qb  lab_pin  x=1640  y=90  sym=lab_pin
+    r3c1_qb  lab_pin  x=-520  y=20  sym=lab_pin
+    r3c3_qb  lab_pin  x=-280  y=20  sym=lab_pin
+    r3c3_qb  lab_pin  x=2120  y=90  sym=lab_pin
+    r0c3_qb  lab_pin  x=-1720  y=20  sym=lab_pin
+    r0c3_qb  lab_pin  x=680  y=120  sym=lab_pin
+    wl[1]  lab_pin  x=760  y=260  sym=lab_pin
+    wl[1]  lab_pin  x=-1650  y=-30  sym=lab_pin
+    wl[1]  lab_pin  x=760  y=-30  sym=lab_pin
+    wl[1]  lab_pin  x=880  y=260  sym=lab_pin
+    wl[2]  lab_pin  x=1240  y=260  sym=lab_pin
+    wl[2]  lab_pin  x=-1540  y=-30  sym=lab_pin
+    wl[2]  lab_pin  x=1240  y=-30  sym=lab_pin
+    wl[2]  lab_pin  x=1360  y=260  sym=lab_pin
+    blb[0]  lab_pin  x=-160  y=20  sym=lab_pin
+    blb[0]  lab_pin  x=320  y=60  sym=lab_pin
+    blb[0]  lab_pin  x=800  y=90  sym=lab_pin
+    blb[0]  lab_pin  x=1280  y=90  sym=lab_pin
+    blb[0]  lab_pin  x=-1820  y=-30  sym=lab_pin
+    blb[0]  lab_pin  x=-160  y=-30  sym=lab_pin
+    blb[2]  lab_pin  x=-40  y=20  sym=lab_pin
+    blb[2]  lab_pin  x=560  y=20  sym=lab_pin
+    blb[2]  lab_pin  x=1040  y=90  sym=lab_pin
+    blb[2]  lab_pin  x=1520  y=90  sym=lab_pin
+    blb[2]  lab_pin  x=-1600  y=-30  sym=lab_pin
+    blb[2]  lab_pin  x=-40  y=-30  sym=lab_pin
+    bl[3]  lab_pin  x=40  y=120  sym=lab_pin
+    bl[3]  lab_pin  x=560  y=180  sym=lab_pin
+    bl[3]  lab_pin  x=1040  y=230  sym=lab_pin
+    bl[3]  lab_pin  x=1520  y=230  sym=lab_pin
+    bl[3]  lab_pin  x=-1650  y=110  sym=lab_pin
+    bl[3]  lab_pin  x=-810  y=110  sym=lab_pin
+    wl[3]  lab_pin  x=1720  y=260  sym=lab_pin
+    wl[3]  lab_pin  x=-1430  y=-30  sym=lab_pin
+    wl[3]  lab_pin  x=1720  y=-30  sym=lab_pin
+    wl[3]  lab_pin  x=1840  y=260  sym=lab_pin
+    bl[0]  lab_pin  x=-200  y=260  sym=lab_pin
+    bl[0]  lab_pin  x=200  y=180  sym=lab_pin
+    bl[0]  lab_pin  x=680  y=160  sym=lab_pin
+    bl[0]  lab_pin  x=1160  y=230  sym=lab_pin
+    bl[0]  lab_pin  x=-1930  y=-30  sym=lab_pin
+    bl[0]  lab_pin  x=-200  y=-30  sym=lab_pin
+    blb[1]  lab_pin  x=-40  y=-120  sym=lab_pin
+    blb[1]  lab_pin  x=440  y=-120  sym=lab_pin
+    blb[1]  lab_pin  x=920  y=90  sym=lab_pin
+    blb[1]  lab_pin  x=1400  y=90  sym=lab_pin
+    blb[1]  lab_pin  x=-1760  y=110  sym=lab_pin
+    blb[1]  lab_pin  x=-40  y=110  sym=lab_pin
+    bl[2]  lab_pin  x=-80  y=260  sym=lab_pin
+    bl[2]  lab_pin  x=440  y=250  sym=lab_pin
+    bl[2]  lab_pin  x=920  y=230  sym=lab_pin
+    bl[2]  lab_pin  x=1400  y=230  sym=lab_pin
+    bl[2]  lab_pin  x=-1710  y=-30  sym=lab_pin
+    bl[2]  lab_pin  x=-80  y=-30  sym=lab_pin
+    bl[1]  lab_pin  x=-80  y=120  sym=lab_pin
+    bl[1]  lab_pin  x=320  y=180  sym=lab_pin
+    bl[1]  lab_pin  x=800  y=230  sym=lab_pin
+    bl[1]  lab_pin  x=1280  y=230  sym=lab_pin
+    bl[1]  lab_pin  x=-1870  y=-30  sym=lab_pin
+    bl[1]  lab_pin  x=-80  y=-30  sym=lab_pin
+    blb[3]  lab_pin  x=80  y=-120  sym=lab_pin
+    blb[3]  lab_pin  x=680  y=-120  sym=lab_pin
+    blb[3]  lab_pin  x=1160  y=90  sym=lab_pin
+    blb[3]  lab_pin  x=1640  y=90  sym=lab_pin
+    blb[3]  lab_pin  x=-1540  y=110  sym=lab_pin
+    blb[3]  lab_pin  x=80  y=110  sym=lab_pin
+    vdd0  vdd  x=-2040  y=-40  sym=vdd
+    vdd1  vdd  x=-2120  y=-100  sym=vdd
+    vdd2  vdd  x=-2120  y=-130  sym=vdd
+    vdd3  vdd  x=-2000  y=-100  sym=vdd
+    vdd4  vdd  x=-2000  y=-130  sym=vdd
+    vdd5  vdd  x=-2000  y=40  sym=vdd
+    vdd6  vdd  x=-2000  y=10  sym=vdd
+    vdd7  vdd  x=-1880  y=-100  sym=vdd
+    vdd8  vdd  x=-1880  y=-130  sym=vdd
+    vdd9  vdd  x=-1880  y=40  sym=vdd
+    vdd10  vdd  x=-1880  y=10  sym=vdd
+    vdd11  vdd  x=-1760  y=-100  sym=vdd
+    vdd12  vdd  x=-1760  y=-130  sym=vdd
+    vdd13  vdd  x=-1760  y=40  sym=vdd
+    vdd14  vdd  x=-1760  y=10  sym=vdd
+    vdd15  vdd  x=-1640  y=-100  sym=vdd
+    vdd16  vdd  x=-1640  y=-130  sym=vdd
+    vdd17  vdd  x=-1640  y=40  sym=vdd
+    vdd18  vdd  x=-1640  y=10  sym=vdd
+    vdd19  vdd  x=-1520  y=-100  sym=vdd
+    vdd20  vdd  x=-1520  y=-130  sym=vdd
+    vdd21  vdd  x=-1520  y=40  sym=vdd
+    vdd22  vdd  x=-1520  y=10  sym=vdd
+    vdd23  vdd  x=-1400  y=-100  sym=vdd
+    vdd24  vdd  x=-1400  y=-130  sym=vdd
+    vdd25  vdd  x=-1400  y=40  sym=vdd
+    vdd26  vdd  x=-1400  y=10  sym=vdd
+    vdd27  vdd  x=-1280  y=-100  sym=vdd
+    vdd28  vdd  x=-1280  y=-130  sym=vdd
+    vdd29  vdd  x=-1280  y=40  sym=vdd
+    vdd30  vdd  x=-1280  y=10  sym=vdd
+    vdd31  vdd  x=-1160  y=-100  sym=vdd
+    vdd32  vdd  x=-1160  y=-130  sym=vdd
+    vdd33  vdd  x=-1160  y=40  sym=vdd
+    vdd34  vdd  x=-1160  y=10  sym=vdd
+    vdd35  vdd  x=-1040  y=-100  sym=vdd
+    vdd36  vdd  x=-1040  y=-130  sym=vdd
+    vdd37  vdd  x=-1040  y=40  sym=vdd
+    vdd38  vdd  x=-1040  y=10  sym=vdd
+    vdd39  vdd  x=-920  y=-100  sym=vdd
+    vdd40  vdd  x=-920  y=-130  sym=vdd
+    vdd41  vdd  x=-920  y=40  sym=vdd
+    vdd42  vdd  x=-920  y=10  sym=vdd
+    vdd43  vdd  x=-800  y=-100  sym=vdd
+    vdd44  vdd  x=-800  y=-130  sym=vdd
+    vdd45  vdd  x=-800  y=40  sym=vdd
+    vdd46  vdd  x=-800  y=10  sym=vdd
+    vdd47  vdd  x=-680  y=-100  sym=vdd
+    vdd48  vdd  x=-680  y=-130  sym=vdd
+    vdd49  vdd  x=-680  y=40  sym=vdd
+    vdd50  vdd  x=-680  y=10  sym=vdd
+    vdd51  vdd  x=-560  y=-100  sym=vdd
+    vdd52  vdd  x=-560  y=-130  sym=vdd
+    vdd53  vdd  x=-560  y=40  sym=vdd
+    vdd54  vdd  x=-560  y=10  sym=vdd
+    vdd55  vdd  x=-440  y=-100  sym=vdd
+    vdd56  vdd  x=-440  y=-130  sym=vdd
+    vdd57  vdd  x=-440  y=40  sym=vdd
+    vdd58  vdd  x=-440  y=10  sym=vdd
+    vdd59  vdd  x=-320  y=-100  sym=vdd
+    vdd60  vdd  x=-320  y=-130  sym=vdd
+    vdd61  vdd  x=-320  y=40  sym=vdd
+    vdd62  vdd  x=-320  y=10  sym=vdd
+    vdd63  vdd  x=-200  y=-100  sym=vdd
+    vdd64  vdd  x=-200  y=-130  sym=vdd
+    vdd65  vdd  x=-200  y=40  sym=vdd
+    vdd66  vdd  x=-200  y=10  sym=vdd
+    vdd67  vdd  x=-80  y=-100  sym=vdd
+    vdd68  vdd  x=-80  y=-130  sym=vdd
+    vdd69  vdd  x=-80  y=40  sym=vdd
+    vdd70  vdd  x=-80  y=10  sym=vdd
+    vdd71  vdd  x=40  y=-100  sym=vdd
+    vdd72  vdd  x=40  y=-130  sym=vdd
+    gnd73  gnd  x=-2040  y=40  sym=gnd
+    gnd74  gnd  x=-1760  y=40  sym=gnd
+    gnd75  gnd  x=-1650  y=40  sym=gnd
+    gnd76  gnd  x=-1540  y=40  sym=gnd
+    gnd77  gnd  x=-1430  y=40  sym=gnd
+    gnd78  gnd  x=-1930  y=40  sym=gnd
+    gnd79  gnd  x=-1820  y=40  sym=gnd
+    gnd80  gnd  x=-1870  y=40  sym=gnd
+    gnd81  gnd  x=-1760  y=180  sym=gnd
+    gnd82  gnd  x=-1710  y=40  sym=gnd
+    gnd83  gnd  x=-1600  y=40  sym=gnd
+    gnd84  gnd  x=-1650  y=180  sym=gnd
+    gnd85  gnd  x=-1540  y=180  sym=gnd
+    gnd86  gnd  x=-2080  y=160  sym=gnd
+    gnd87  gnd  x=-2080  y=130  sym=gnd
+    gnd88  gnd  x=-1960  y=160  sym=gnd
+    gnd89  gnd  x=-1960  y=130  sym=gnd
+    gnd90  gnd  x=200  y=130  sym=gnd
+    gnd91  gnd  x=320  y=130  sym=gnd
+    gnd92  gnd  x=-1960  y=300  sym=gnd
+    gnd93  gnd  x=-1960  y=270  sym=gnd
+    gnd94  gnd  x=-1840  y=160  sym=gnd
+    gnd95  gnd  x=-1840  y=130  sym=gnd
+    gnd96  gnd  x=320  y=270  sym=gnd
+    gnd97  gnd  x=440  y=130  sym=gnd
+    gnd98  gnd  x=-1840  y=300  sym=gnd
+    gnd99  gnd  x=-1840  y=270  sym=gnd
+    gnd100  gnd  x=-1720  y=160  sym=gnd
+    gnd101  gnd  x=-1720  y=130  sym=gnd
+    gnd102  gnd  x=440  y=270  sym=gnd
+    gnd103  gnd  x=560  y=130  sym=gnd
+    gnd104  gnd  x=-1720  y=300  sym=gnd
+    gnd105  gnd  x=-1720  y=270  sym=gnd
+    gnd106  gnd  x=-1600  y=160  sym=gnd
+    gnd107  gnd  x=-1600  y=130  sym=gnd
+    gnd108  gnd  x=560  y=270  sym=gnd
+    gnd109  gnd  x=680  y=130  sym=gnd
+    gnd110  gnd  x=-1600  y=300  sym=gnd
+    gnd111  gnd  x=-1600  y=270  sym=gnd
+    gnd112  gnd  x=-1480  y=160  sym=gnd
+    gnd113  gnd  x=-1480  y=130  sym=gnd
+    gnd114  gnd  x=680  y=270  sym=gnd
+    gnd115  gnd  x=800  y=130  sym=gnd
+    gnd116  gnd  x=-1480  y=300  sym=gnd
+    gnd117  gnd  x=-1480  y=270  sym=gnd
+    gnd118  gnd  x=-1360  y=160  sym=gnd
+    gnd119  gnd  x=-1360  y=130  sym=gnd
+    gnd120  gnd  x=800  y=270  sym=gnd
+    gnd121  gnd  x=920  y=130  sym=gnd
+    gnd122  gnd  x=-1360  y=300  sym=gnd
+    gnd123  gnd  x=-1360  y=270  sym=gnd
+    gnd124  gnd  x=-1240  y=160  sym=gnd
+    gnd125  gnd  x=-1240  y=130  sym=gnd
+    gnd126  gnd  x=920  y=270  sym=gnd
+    gnd127  gnd  x=1040  y=130  sym=gnd
+    gnd128  gnd  x=-1240  y=300  sym=gnd
+    gnd129  gnd  x=-1240  y=270  sym=gnd
+    gnd130  gnd  x=-1120  y=160  sym=gnd
+    gnd131  gnd  x=-1120  y=130  sym=gnd
+    gnd132  gnd  x=1040  y=270  sym=gnd
+    gnd133  gnd  x=1160  y=130  sym=gnd
+    gnd134  gnd  x=-1120  y=300  sym=gnd
+    gnd135  gnd  x=-1120  y=270  sym=gnd
+    gnd136  gnd  x=-1000  y=160  sym=gnd
+    gnd137  gnd  x=-1000  y=130  sym=gnd
+    gnd138  gnd  x=1160  y=270  sym=gnd
+    gnd139  gnd  x=1280  y=130  sym=gnd
+    gnd140  gnd  x=-1000  y=300  sym=gnd
+    gnd141  gnd  x=-1000  y=270  sym=gnd
+    gnd142  gnd  x=-880  y=160  sym=gnd
+    gnd143  gnd  x=-880  y=130  sym=gnd
+    gnd144  gnd  x=1280  y=270  sym=gnd
+    gnd145  gnd  x=1400  y=130  sym=gnd
+    gnd146  gnd  x=-880  y=300  sym=gnd
+    gnd147  gnd  x=-880  y=270  sym=gnd
+    gnd148  gnd  x=-760  y=160  sym=gnd
+    gnd149  gnd  x=-760  y=130  sym=gnd
+    gnd150  gnd  x=1400  y=270  sym=gnd
+    gnd151  gnd  x=1520  y=130  sym=gnd
+    gnd152  gnd  x=-760  y=300  sym=gnd
+    gnd153  gnd  x=-760  y=270  sym=gnd
+    gnd154  gnd  x=-640  y=160  sym=gnd
+    gnd155  gnd  x=-640  y=130  sym=gnd
+    gnd156  gnd  x=1520  y=270  sym=gnd
+    gnd157  gnd  x=1640  y=130  sym=gnd
+    gnd158  gnd  x=-640  y=300  sym=gnd
+    gnd159  gnd  x=-640  y=270  sym=gnd
+    gnd160  gnd  x=-520  y=160  sym=gnd
+    gnd161  gnd  x=-520  y=130  sym=gnd
+    gnd162  gnd  x=1640  y=270  sym=gnd
+    gnd163  gnd  x=1760  y=130  sym=gnd
+    gnd164  gnd  x=-520  y=300  sym=gnd
+    gnd165  gnd  x=-520  y=270  sym=gnd
+    gnd166  gnd  x=-400  y=160  sym=gnd
+    gnd167  gnd  x=-400  y=130  sym=gnd
+    gnd168  gnd  x=1760  y=270  sym=gnd
+    gnd169  gnd  x=1880  y=130  sym=gnd
+    gnd170  gnd  x=-400  y=300  sym=gnd
+    gnd171  gnd  x=-400  y=270  sym=gnd
+    gnd172  gnd  x=-280  y=160  sym=gnd
+    gnd173  gnd  x=-280  y=130  sym=gnd
+    gnd174  gnd  x=1880  y=270  sym=gnd
+    gnd175  gnd  x=2000  y=130  sym=gnd
+    gnd176  gnd  x=-280  y=300  sym=gnd
+    gnd177  gnd  x=-280  y=270  sym=gnd
+    gnd178  gnd  x=-160  y=160  sym=gnd
+    gnd179  gnd  x=-160  y=130  sym=gnd
+    gnd180  gnd  x=2000  y=270  sym=gnd
+    gnd181  gnd  x=2120  y=130  sym=gnd
+    gnd182  gnd  x=-160  y=300  sym=gnd
+    gnd183  gnd  x=-160  y=270  sym=gnd
+    gnd184  gnd  x=-40  y=160  sym=gnd
+    gnd185  gnd  x=-40  y=130  sym=gnd
+    gnd186  gnd  x=-40  y=300  sym=gnd
+    gnd187  gnd  x=-40  y=270  sym=gnd
+    gnd188  gnd  x=80  y=160  sym=gnd
+    gnd189  gnd  x=80  y=130  sym=gnd
+
+  wires:
+    40 -150 40 -30 bus=1
+    40 -30 80 -30 bus=1
+    80 -30 80 90 bus=1
+    -200 -10 -160 -10 bus=1
+    -160 -10 -160 230 bus=1
+    -80 -10 -40 -10 bus=1
+    -40 -10 -40 230 bus=1
+    -80 -150 -80 -30 bus=1
+    -80 -30 -40 -30 bus=1
+    -40 -30 -40 90 bus=1
+    -2120 -150 -2120 -30
+    -2120 -30 -2080 -30
+    -2080 -30 -2080 90
+    -2120 -150 -2040 -150
+    -2040 -150 -2040 -120
+    -2040 -120 -1960 -120
+    -2080 90 -2040 90
+    -2040 90 -2040 120
+    -2040 120 -2000 120
+    -2000 120 200 120
+    200 120 200 150
+    -1760 -30 160 -30 bus=1
+    160 -30 160 120 bus=1
+    160 120 280 120 bus=1
+    280 120 280 260 bus=1
+    280 120 400 120 bus=1
+    280 260 400 260 bus=1
+    400 120 520 120 bus=1
+    400 260 520 260 bus=1
+    520 120 640 120 bus=1
+    -680 120 -680 180
+    -680 180 -760 180
+    -760 180 -760 230
+    -800 -10 -720 -10
+    -720 -10 -720 -120
+    -720 -120 -640 -120
+    -800 -10 -800 60
+    -800 60 -680 60
+    -680 60 -680 120
+    -760 230 380 230
+    380 230 380 290
+    380 290 1520 290
+    -920 120 -920 180
+    -920 180 -1000 180
+    -1000 180 -1000 230
+    -1040 -10 -960 -10
+    -960 -10 -960 -120
+    -960 -120 -880 -120
+    -1040 -10 -1040 60
+    -1040 60 -920 60
+    -920 60 -920 120
+    -1000 230 140 230
+    140 230 140 290
+    140 290 1280 290
+    -1760 120 -1760 180
+    -1760 180 -1840 180
+    -1840 180 -1840 230
+    -1880 -10 -1880 -70
+    -1880 -70 -1720 -70
+    -1720 -70 -1720 -120
+    -1880 -10 -1880 60
+    -1880 60 -1760 60
+    -1760 60 -1760 120
+    -1840 230 -1840 290
+    -1840 290 440 290
+    -1880 120 -1880 180
+    -1880 180 -1960 180
+    -1960 180 -1960 230
+    -2000 -10 -2000 -70
+    -2000 -70 -1840 -70
+    -1840 -70 -1840 -120
+    -2000 -10 -2000 60
+    -2000 60 -1880 60
+    -1880 60 -1880 120
+    -1960 230 -820 230
+    -820 230 -820 290
+    -820 290 320 290
+    -1040 120 -1040 180
+    -1040 180 -1120 180
+    -1120 180 -1120 230
+    -1160 -10 -1080 -10
+    -1080 -10 -1080 -120
+    -1080 -120 -1000 -120
+    -1160 -10 -1160 60
+    -1160 60 -1040 60
+    -1040 60 -1040 120
+    -1120 230 1160 230
+    1160 230 1160 290
+    -560 120 -560 180
+    -560 180 -640 180
+    -640 180 -640 230
+    -680 -10 -600 -10
+    -600 -10 -600 -120
+    -600 -120 -520 -120
+    -680 -10 -680 60
+    -680 60 -560 60
+    -560 60 -560 120
+    -640 230 1640 230
+    1640 230 1640 290
+    -320 120 -320 180
+    -320 180 -400 180
+    -400 180 -400 230
+    -440 -10 -360 -10
+    -360 -10 -360 -120
+    -360 -120 -280 -120
+    -440 -10 -440 60
+    -440 60 -320 60
+    -320 60 -320 120
+    -400 230 -400 290
+    -400 290 1880 290
+    -1160 120 -1160 180
+    -1160 180 -1240 180
+    -1240 180 -1240 230
+    -1280 -10 -1200 -10
+    -1200 -10 -1200 -120
+    -1200 -120 -1120 -120
+    -1280 -10 -1280 60
+    -1280 60 -1160 60
+    -1160 60 -1160 120
+    -1240 230 -1240 260
+    -1240 260 1040 260
+    1040 260 1040 290
+    -1400 120 -1400 180
+    -1400 180 -1480 180
+    -1480 180 -1480 230
+    -1520 -10 -1520 -70
+    -1520 -70 -1360 -70
+    -1360 -70 -1360 -120
+    -1520 -10 -1520 60
+    -1520 60 -1400 60
+    -1400 60 -1400 120
+    -1480 230 -1480 290
+    -1480 290 800 290
+    -200 120 -200 180
+    -200 180 -280 180
+    -280 180 -280 230
+    -320 -10 -240 -10
+    -240 -10 -240 -120
+    -240 -120 -160 -120
+    -320 -10 -320 60
+    -320 60 -200 60
+    -200 60 -200 120
+    -280 230 2000 230
+    2000 230 2000 290
+    -1280 120 -1280 180
+    -1280 180 -1360 180
+    -1360 180 -1360 230
+    -1400 -10 -1320 -10
+    -1320 -10 -1320 -120
+    -1320 -120 -1240 -120
+    -1400 -10 -1400 60
+    -1400 60 -1280 60
+    -1280 60 -1280 120
+    -1360 230 -1360 260
+    -1360 260 920 260
+    920 260 920 290
+    -1640 120 -1640 180
+    -1640 180 -1720 180
+    -1720 180 -1720 230
+    -1760 -10 -1760 -70
+    -1760 -70 -1600 -70
+    -1600 -70 -1600 -120
+    -1760 -10 -1760 60
+    -1760 60 -1640 60
+    -1640 60 -1640 120
+    -1720 230 -1720 290
+    -1720 290 560 290
+    -800 120 -800 180
+    -800 180 -880 180
+    -880 180 -880 230
+    -920 -10 -840 -10
+    -840 -10 -840 -120
+    -840 -120 -760 -120
+    -920 -10 -920 60
+    -920 60 -800 60
+    -800 60 -800 120
+    -880 230 1400 230
+    1400 230 1400 290
+    -440 120 -440 180
+    -440 180 -520 180
+    -520 180 -520 230
+    -560 -10 -480 -10
+    -480 -10 -480 -120
+    -480 -120 -400 -120
+    -560 -10 -560 60
+    -560 60 -440 60
+    -440 60 -440 120
+    -520 230 1760 230
+    1760 230 1760 290
+    -1520 120 -1520 180
+    -1520 180 -1600 180
+    -1600 180 -1600 230
+    -1640 -10 -1560 -10
+    -1560 -10 -1560 -120
+    -1560 -120 -1480 -120
+    -1640 -10 -1640 60
+    -1640 60 -1520 60
+    -1520 60 -1520 120
+    -1600 230 -1600 260
+    -1600 260 680 260
+    680 260 680 290
+    -2080 -120 -2080 0
+    -2080 0 -2120 0
+    -2120 0 -2120 120
+    -2080 -120 -2040 -120
+    -2040 -120 -2040 -150
+    -2040 -150 -2000 -150
+    -2120 120 -2040 120
+    -2040 120 -2040 90
+    -2040 90 -1960 90
+    -1960 90 -820 90
+    -820 90 -820 150
+    -820 150 320 150
+    -1480 20 -1520 20
+    -1520 20 -1520 260
+    -1480 20 -1480 -70
+    -1480 -70 -1400 -70
+    -1400 -70 -1400 -150
+    -1480 20 -1480 60
+    -1480 60 -1360 60
+    -1360 60 -1360 90
+    -1360 90 -220 90
+    -220 90 -220 150
+    -220 150 920 150
+    -880 20 -920 20
+    -920 20 -920 260
+    -880 20 -880 -70
+    -880 -70 -800 -70
+    -800 -70 -800 -150
+    -880 20 -820 20
+    -820 20 -820 90
+    -820 90 -760 90
+    -760 90 380 90
+    380 90 380 150
+    380 150 1520 150
+    -1000 20 -1040 20
+    -1040 20 -1040 260
+    -1000 20 -1000 -70
+    -1000 -70 -920 -70
+    -920 -70 -920 -150
+    -1000 20 -1000 60
+    -1000 60 -880 60
+    -880 60 -880 90
+    -880 90 -880 150
+    -880 150 1400 150
+    -640 20 -680 20
+    -680 20 -680 260
+    -640 20 -640 -70
+    -640 -70 -560 -70
+    -560 -70 -560 -150
+    -640 20 -640 60
+    -640 60 -520 60
+    -520 60 -520 90
+    -520 90 1760 90
+    1760 90 1760 150
+    -1240 20 -1280 20
+    -1280 20 -1280 260
+    -1240 20 -1240 -70
+    -1240 -70 -1160 -70
+    -1160 -70 -1160 -150
+    -1240 20 -1240 60
+    -1240 60 -1120 60
+    -1120 60 -1120 90
+    -1120 90 -1120 150
+    -1120 150 1160 150
+    -1120 20 -1160 20
+    -1160 20 -1160 260
+    -1120 20 -1120 -70
+    -1120 -70 -1040 -70
+    -1040 -70 -1040 -150
+    -1120 20 -1120 60
+    -1120 60 -1000 60
+    -1000 60 -1000 90
+    -1000 90 1280 90
+    1280 90 1280 150
+    -400 20 -440 20
+    -440 20 -440 260
+    -400 20 -400 -70
+    -400 -70 -320 -70
+    -320 -70 -320 -150
+    -400 20 -400 60
+    -400 60 -280 60
+    -280 60 -280 90
+    -280 90 2000 90
+    2000 90 2000 150
+    -1960 20 -2000 20
+    -2000 20 -2000 260
+    -1960 20 -1960 -70
+    -1960 -70 -1880 -70
+    -1880 -70 -1880 -150
+    -1960 20 -1960 60
+    -1960 60 -1840 60
+    -1840 60 -1840 90
+    -1840 90 440 90
+    440 90 440 150
+    -1600 20 -1600 260
+    -1600 260 -1640 260
+    -1600 20 -1600 -70
+    -1600 -70 -1520 -70
+    -1520 -70 -1520 -150
+    -1600 20 -1600 60
+    -1600 60 -1480 60
+    -1480 60 -1480 90
+    -1480 90 -1480 150
+    -1480 150 800 150
+    -1360 20 -1400 20
+    -1400 20 -1400 260
+    -1360 20 -1360 -70
+    -1360 -70 -1280 -70
+    -1280 -70 -1280 -150
+    -1360 20 -1360 60
+    -1360 60 -1240 60
+    -1240 60 -1240 90
+    -1240 90 -1240 150
+    -1240 150 1040 150
+    -1840 20 -1840 260
+    -1840 260 -1880 260
+    -1840 20 -1840 -70
+    -1840 -70 -1760 -70
+    -1760 -70 -1760 -150
+    -1840 20 -1840 60
+    -1840 60 -1720 60
+    -1720 60 -1720 90
+    -1720 90 560 90
+    560 90 560 150
+    -760 20 -800 20
+    -800 20 -800 260
+    -760 20 -760 -70
+    -760 -70 -680 -70
+    -680 -70 -680 -150
+    -760 20 -760 60
+    -760 60 -640 60
+    -640 60 -640 90
+    -640 90 1640 90
+    1640 90 1640 150
+    -520 20 -560 20
+    -560 20 -560 260
+    -520 20 -520 -70
+    -520 -70 -440 -70
+    -440 -70 -440 -150
+    -520 20 -520 60
+    -520 60 -400 60
+    -400 60 -400 90
+    -400 90 -400 150
+    -400 150 1880 150
+    -280 20 -320 20
+    -320 20 -320 260
+    -280 20 -280 -70
+    -280 -70 -200 -70
+    -200 -70 -200 -150
+    -280 20 -280 60
+    -280 60 -160 60
+    -160 60 -160 90
+    -160 90 2120 90
+    2120 90 2120 150
+    -1720 20 -1740 20
+    -1740 20 -1740 260
+    -1740 260 -1760 260
+    -1720 20 -1680 20
+    -1680 20 -1680 -150
+    -1680 -150 -1640 -150
+    -1720 20 -1720 60
+    -1720 60 -1600 60
+    -1600 60 -1600 90
+    -1600 90 -1600 120
+    -1600 120 680 120
+    680 120 680 150
+    760 260 640 260 bus=1
+    -1650 -30 760 -30 bus=1
+    760 -30 760 120 bus=1
+    760 120 760 260 bus=1
+    760 120 880 120 bus=1
+    760 260 880 260 bus=1
+    880 120 1000 120 bus=1
+    880 260 1000 260 bus=1
+    1000 120 1120 120 bus=1
+    1240 260 1120 260 bus=1
+    -1540 -30 1240 -30 bus=1
+    1240 -30 1240 120 bus=1
+    1240 120 1240 260 bus=1
+    1240 120 1360 120 bus=1
+    1240 260 1360 260 bus=1
+    1360 120 1480 120 bus=1
+    1360 260 1480 260 bus=1
+    1480 120 1600 120 bus=1
+    -160 20 -160 60 bus=1
+    -160 60 320 60 bus=1
+    320 60 320 90 bus=1
+    320 90 800 90 bus=1
+    800 90 1280 90 bus=1
+    1280 90 1760 90 bus=1
+    -1820 -30 -160 -30 bus=1
+    -160 -30 -160 20 bus=1
+    -40 20 560 20 bus=1
+    560 20 560 90 bus=1
+    560 90 1040 90 bus=1
+    1040 90 1520 90 bus=1
+    1520 90 2000 90 bus=1
+    -1600 -30 -40 -30 bus=1
+    -40 -30 -40 20 bus=1
+    40 120 40 180 bus=1
+    40 180 560 180 bus=1
+    560 180 560 230 bus=1
+    560 230 1040 230 bus=1
+    1040 230 1520 230 bus=1
+    1520 230 2000 230 bus=1
+    -1650 110 -810 110 bus=1
+    -810 110 -810 120 bus=1
+    -810 120 40 120 bus=1
+    1720 260 1600 260 bus=1
+    -1430 -30 1720 -30 bus=1
+    1720 -30 1720 120 bus=1
+    1720 120 1720 260 bus=1
+    1720 120 1840 120 bus=1
+    1720 260 1840 260 bus=1
+    1840 120 1960 120 bus=1
+    1840 260 1960 260 bus=1
+    1960 120 2080 120 bus=1
+    -200 260 -200 180 bus=1
+    -200 180 200 180 bus=1
+    200 180 200 90 bus=1
+    200 90 200 160 bus=1
+    200 160 680 160 bus=1
+    680 160 680 230 bus=1
+    680 230 1160 230 bus=1
+    1160 230 1640 230 bus=1
+    -1930 -30 -200 -30 bus=1
+    -200 -30 -200 260 bus=1
+    -40 -120 440 -120 bus=1
+    440 -120 440 90 bus=1
+    440 90 920 90 bus=1
+    920 90 1400 90 bus=1
+    1400 90 1880 90 bus=1
+    -1760 110 -40 110 bus=1
+    -40 110 -40 -120 bus=1
+    -80 260 -80 250 bus=1
+    -80 250 440 250 bus=1
+    440 250 440 230 bus=1
+    440 230 920 230 bus=1
+    920 230 1400 230 bus=1
+    1400 230 1880 230 bus=1
+    -1710 -30 -80 -30 bus=1
+    -80 -30 -80 260 bus=1
+    -80 120 -80 180 bus=1
+    -80 180 320 180 bus=1
+    320 180 320 230 bus=1
+    320 230 800 230 bus=1
+    800 230 1280 230 bus=1
+    1280 230 1760 230 bus=1
+    -1870 -30 -80 -30 bus=1
+    -80 -30 -80 120 bus=1
+    80 -120 680 -120 bus=1
+    680 -120 680 90 bus=1
+    680 90 1160 90 bus=1
+    1160 90 1640 90 bus=1
+    1640 90 2120 90 bus=1
+    -1540 110 80 110 bus=1
+    80 110 80 -120 bus=1

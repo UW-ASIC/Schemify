@@ -29,8 +29,8 @@ const MAX_COLLAPSIBLES: usize = 32;
 // -- Public draw entry points -------------------------------------------------
 
 pub fn drawSidebar(app: *AppState, layout: PluginPanelLayout) void {
-    const metas = app.gui.cold.plugin_panels_meta.items;
-    const states = app.gui.cold.plugin_panels_state.items;
+    const metas = app.gui.cold.plugins.panels_meta.items;
+    const states = app.gui.cold.plugins.panels_state.items;
     for (states, 0..) |state, i| {
         if (!state.visible or state.layout != layout) continue;
         var box = dvui.box(@src(), .{ .dir = .vertical }, .{
@@ -47,7 +47,7 @@ pub fn drawSidebar(app: *AppState, layout: PluginPanelLayout) void {
 }
 
 pub fn drawBottomBar(app: *AppState) void {
-    const states = app.gui.cold.plugin_panels_state.items;
+    const states = app.gui.cold.plugins.panels_state.items;
     var has_bottom = false;
     for (states) |s| if (s.visible and s.layout == .bottom_bar) {
         has_bottom = true;
@@ -64,7 +64,7 @@ pub fn drawBottomBar(app: *AppState) void {
     });
     defer bar.deinit();
 
-    const metas = app.gui.cold.plugin_panels_meta.items;
+    const metas = app.gui.cold.plugins.panels_meta.items;
     for (states, 0..) |state, i| {
         if (!state.visible or state.layout != .bottom_bar) continue;
         var section = dvui.box(@src(), .{ .dir = .vertical }, .{ .id_extra = i, .expand = .both });
@@ -74,8 +74,8 @@ pub fn drawBottomBar(app: *AppState) void {
 }
 
 pub fn drawOverlays(app: *AppState) void {
-    const metas = app.gui.cold.plugin_panels_meta.items;
-    for (app.gui.cold.plugin_panels_state.items, 0..) |*state, i| {
+    const metas = app.gui.cold.plugins.panels_meta.items;
+    for (app.gui.cold.plugins.panels_state.items, 0..) |*state, i| {
         if (!state.visible or state.layout != .overlay) continue;
         var fwin = dvui.floatingWindow(@src(), .{ .open_flag = &state.visible }, .{
             .id_extra = i,
@@ -89,19 +89,19 @@ pub fn drawOverlays(app: *AppState) void {
 
 pub fn handlePlainKeyToggle(app: *AppState, key_char: u8) bool {
     if (key_char == 0) return false;
-    const idx_i8 = app.gui.cold.key_to_panel[key_char];
+    const idx_i8 = app.gui.cold.plugins.key_to_panel[key_char];
     if (idx_i8 < 0) return false;
     const idx: usize = @intCast(idx_i8);
-    if (idx >= app.gui.cold.plugin_panels_state.items.len) return false;
-    app.gui.cold.plugin_panels_state.items[idx].visible = !app.gui.cold.plugin_panels_state.items[idx].visible;
+    if (idx >= app.gui.cold.plugins.panels_state.items.len) return false;
+    app.gui.cold.plugins.panels_state.items[idx].visible = !app.gui.cold.plugins.panels_state.items[idx].visible;
     return true;
 }
 
 pub fn tryHandleVim(app: *AppState, name: []const u8) bool {
-    const metas = app.gui.cold.plugin_panels_meta.items;
-    for (app.gui.cold.plugin_panels_state.items, 0..) |state, i| {
+    const metas = app.gui.cold.plugins.panels_meta.items;
+    for (app.gui.cold.plugins.panels_state.items, 0..) |state, i| {
         if (std.mem.eql(u8, metas[i].vim_cmd, name)) {
-            app.gui.cold.plugin_panels_state.items[i].visible = !state.visible;
+            app.gui.cold.plugins.panels_state.items[i].visible = !state.visible;
             return true;
         }
     }

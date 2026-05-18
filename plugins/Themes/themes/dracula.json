@@ -1,0 +1,47 @@
+{
+  "name": "Dracula",
+  "dark": true,
+  "roles": {
+    "control": { "fill": "#44475a", "corner_radius": [4, 4, 4, 4] },
+    "window": { "fill": "#282a36" },
+    "accent": { "fill": "#bd93f9" }
+  },
+  "widgets": {
+    "button": {
+      "fill": "#44475a",
+      "fill_hover": "#6272a4",
+      "text": "#f8f8f2",
+      "variants": {
+        "primary": { "fill": "#bd93f9" },
+        "danger": { "fill": "#ff5555" }
+      }
+    },
+    "tab": {
+      "variants": { "active": { "fill": "#44475a" } }
+    }
+  },
+  "canvas": {
+    "wire": { "color": "#8be9fd", "color_selected": "#ffb86c", "stroke_width": 1.8, "style": "ortho" },
+    "pin": { "color": "#f1fa8c", "radius": 2.5, "shape": "circle" },
+    "instance_body": { "fill": "#44475a", "stroke_color": "#bd93f9" },
+    "grid": { "color": "#6272a4", "style": "dots", "dot_size": 1.0 },
+    "selection_rect": { "color": "#bd93f9", "fill_color": "#bd93f922" }
+  },
+  "toolbar_bg": [40, 42, 54],
+  "tabbar_bg": [40, 42, 54],
+  "tab_active_bg": [68, 71, 90],
+  "statusbar_bg": [40, 42, 54],
+  "sidebar_bg": [40, 42, 54],
+  "text_primary": [248, 248, 242],
+  "text_secondary": [98, 114, 164],
+  "accent": [189, 147, 249],
+  "separator": [68, 71, 90],
+  "hover_bg": [68, 71, 90],
+  "canvas_bg": [40, 42, 54],
+  "wire": [139, 233, 253],
+  "wire_selected": [255, 184, 108],
+  "instance_body": [68, 71, 90],
+  "instance_pin": [241, 250, 140],
+  "symbol_line": [189, 147, 249],
+  "grid_dot": [98, 114, 164, 60]
+}

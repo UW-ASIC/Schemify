@@ -20,15 +20,11 @@ pub fn handleRunSim(p: types.RunSim, state: anytype) void {
         },
     };
 
-    // 2. Derive paths
+    // 2. Derive analysis path
     const chn_dir = std.fs.path.dirname(chn_path) orelse ".";
     const stem = std.fs.path.stem(chn_path);
-
-    var spice_buf: [512]u8 = undefined;
-    const spice_path = std.fmt.bufPrint(&spice_buf, "{s}/{s}.spice", .{ chn_dir, stem }) catch {
-        state.setStatus("Path too long");
-        return;
-    };
+    const alloc = state.allocator();
+    const platform_fs = @import("utility").platform.fs;
 
     var analysis_buf: [512]u8 = undefined;
     const analysis_path = std.fmt.bufPrint(&analysis_buf, "{s}/{s}_analysis.py", .{ chn_dir, stem }) catch {
@@ -36,42 +32,25 @@ pub fn handleRunSim(p: types.RunSim, state: anytype) void {
         return;
     };
 
-    // 3. Generate SPICE netlist
-    const alloc = state.allocator();
-    const spice_text = fio.createNetlist() catch {
-        state.setStatus("Netlist generation failed");
-        return;
-    };
-    defer alloc.free(spice_text);
-
-    // Write SPICE file
-    const platform_fs = @import("utility").platform.fs;
-    platform_fs.cwd().writeFile(.{ .sub_path = spice_path, .data = spice_text }) catch {
-        state.setStatus("Failed to write SPICE netlist");
-        return;
-    };
-
-    // 4. Check if analysis file exists
+    // 3. Create or update analysis file
     const analysis_exists = blk: {
         platform_fs.cwd().access(analysis_path, .{}) catch break :blk false;
         break :blk true;
     };
 
     if (!analysis_exists) {
-        // Generate initial template with PySpice circuit code + boilerplate
         const pyspice_code = @import("simulation").Netlist.emitPySpice(&fio.sch, alloc, null, state.sim_backend) catch null;
         defer if (pyspice_code) |code| alloc.free(code);
-        generateAnalysisTemplate(alloc, analysis_path, stem, spice_path, pyspice_code) catch {
+        generateAnalysisTemplate(alloc, analysis_path, stem, pyspice_code) catch {
             state.setStatus("Failed to create analysis template");
             return;
         };
-        // Try to open in $EDITOR
         openInEditor(alloc, analysis_path);
         state.setStatus("Analysis file created — edit and re-run :sim");
         return;
     }
 
-    // 5. Regenerate the above-marker section with fresh PySpice output (B2)
+    // 4. Regenerate the above-marker section with fresh PySpice output
     regenerateAboveMarker(alloc, analysis_path, &fio.sch, state.sim_backend);
 
     // 6. Execute analysis file
@@ -152,6 +131,56 @@ pub fn handleRunSim(p: types.RunSim, state: anytype) void {
             state.setStatus("Simulation terminated abnormally");
         },
     }
+}
+
+pub fn handleViewPySpiceNetlist(state: anytype) void {
+    if (is_wasm) {
+        state.setStatus("File write not available in browser");
+        return;
+    }
+    const fio = state.active() orelse {
+        state.setStatus("No active document");
+        return;
+    };
+
+    const chn_path: []const u8 = switch (fio.origin) {
+        .chn_file => |path| path,
+        else => {
+            state.setStatus("Save the schematic first");
+            return;
+        },
+    };
+
+    const chn_dir = std.fs.path.dirname(chn_path) orelse ".";
+    const stem = std.fs.path.stem(chn_path);
+    const alloc = state.allocator();
+    const platform_fs = @import("utility").platform.fs;
+
+    var analysis_buf: [512]u8 = undefined;
+    const analysis_path = std.fmt.bufPrint(&analysis_buf, "{s}/{s}_analysis.py", .{ chn_dir, stem }) catch {
+        state.setStatus("Path too long");
+        return;
+    };
+
+    // Create or update analysis file (same as :sim but without running)
+    const analysis_exists = blk: {
+        platform_fs.cwd().access(analysis_path, .{}) catch break :blk false;
+        break :blk true;
+    };
+
+    if (!analysis_exists) {
+        const pyspice_code = @import("simulation").Netlist.emitPySpice(&fio.sch, alloc, null, state.sim_backend) catch null;
+        defer if (pyspice_code) |code| alloc.free(code);
+        generateAnalysisTemplate(alloc, analysis_path, stem, pyspice_code) catch {
+            state.setStatus("Failed to create analysis file");
+            return;
+        };
+    } else {
+        regenerateAboveMarker(alloc, analysis_path, &fio.sch, state.sim_backend);
+    }
+
+    openInEditor(alloc, analysis_path);
+    state.setStatus("Analysis file ready — edit freely below the marker");
 }
 
 fn tryLaunchViewer(alloc: std.mem.Allocator, bin: []const u8, path: []const u8) bool {
@@ -351,7 +380,6 @@ fn generateAnalysisTemplate(
     alloc: std.mem.Allocator,
     path: []const u8,
     stem: []const u8,
-    spice_path: []const u8,
     pyspice_code: ?[]const u8,
 ) !void {
     var buf: std.ArrayListUnmanaged(u8) = .{};
@@ -360,41 +388,27 @@ fn generateAnalysisTemplate(
 
     try w.writeAll("#!/usr/bin/env python3\n");
     try w.writeAll("# === AUTO-GENERATED FROM SCHEMATIC (do not edit above this line) ===\n");
-    try w.writeAll("#\n");
     try w.print("# Analysis script for: {s}\n", .{stem});
-    try w.print("# SPICE netlist: {s}\n", .{spice_path});
-    try w.writeAll("#\n");
     try w.writeAll("# Dependencies: pip install pyspice-rs\n");
     try w.writeAll("#\n\n");
 
-    // Emit PySpice circuit code if available, otherwise fall back to parser-based template
     if (pyspice_code) |code| {
         try w.writeAll(code);
         try w.writeByte('\n');
     } else {
-        try w.writeAll("import sys\n");
-        try w.writeAll("try:\n");
-        try w.writeAll("    from pyspice_rs import Circuit\n");
-        try w.writeAll("    from pyspice_rs.unit import *\n");
-        try w.writeAll("except ImportError:\n");
-        try w.writeAll("    print('pyspice_rs not installed. Run: pip install pyspice-rs', file=sys.stderr)\n");
-        try w.writeAll("    sys.exit(1)\n\n");
-        try w.print("parser = SpiceParser(path='{s}')\n", .{spice_path});
-        try w.writeAll("circuit = parser.build_circuit()\n\n");
+        try w.writeAll("from pyspice_rs import Circuit\n");
+        try w.writeAll("from pyspice_rs.unit import *\n\n");
+        try w.print("circuit = Circuit('{s}')\n\n", .{stem});
     }
 
     try w.writeAll(analysis_marker);
     try w.writeAll("\n\n");
     try w.writeAll("# Example: DC operating point\n");
-    try w.writeAll("# simulator = circuit.simulator()\n");
-    try w.writeAll("# analysis = simulator.operating_point()\n");
+    try w.writeAll("# sim = circuit.simulator(simulator='ngspice')\n");
+    try w.writeAll("# analysis = sim.operating_point()\n");
     try w.writeAll("# for node in analysis.nodes.values():\n");
     try w.writeAll("#     print(f'{node}: {float(node):.4f} V')\n\n");
-    try w.writeAll("# Example: Transient analysis\n");
-    try w.writeAll("# simulator = circuit.simulator()\n");
-    try w.writeAll("# analysis = simulator.transient(step_time=1@u_ns, end_time=100@u_ns)\n\n");
     try w.writeAll("print(f'Circuit: {circuit.title}')\n");
-    try w.writeAll("print(f'Nodes: {len(circuit.nodes)} Devices: {len(circuit.elements)}')\n");
     try w.writeAll("print('Edit this file to add your simulation analysis.')\n");
 
     try @import("utility").platform.fs.cwd().writeFile(.{ .sub_path = path, .data = buf.items });

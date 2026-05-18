@@ -342,7 +342,7 @@ pub fn draw(app: *AppState) void {
     const bg = theme.chromeToolbarBg();
     var fwin = dvui.floatingWindow(@src(), .{
         .modal = true, .open_flag = &mkt.visible,
-        .rect = @ptrCast(&app.gui.cold.marketplace_win.win_rect),
+        .rect = @ptrCast(&app.gui.cold.dialogs.marketplace_win.win_rect),
     }, .{
         .min_size_content = .{ .w = 680, .h = 480 }, .background = true,
         .color_fill = .{ .r = bg.r, .g = bg.g, .b = bg.b, .a = 220 },

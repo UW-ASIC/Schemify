@@ -135,6 +135,30 @@
       }
     },
     {
+      "id": "PDKSwitcher",
+      "name": "PDKSwitcher",
+      "author": "UWASIC",
+      "version": "1.0.0",
+      "description": "PDK management and cross-PDK circuit remapping via CIEL and LambdaPDK. Supports Sky130, GF180MCU, IHP SG13G2.",
+      "tags": [
+        "pdk",
+        "sky130",
+        "gf180",
+        "ihp",
+        "ciel",
+        "lambdapdk",
+        "remapping"
+      ],
+      "repo": "https://github.com/UW-ASIC/Schemify",
+      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/PDKSwitcher/README.md",
+      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/PDKSwitcher/logo.svg",
+      "download": {
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcher.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcher.dylib",
+        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcher.wasm"
+      }
+    },
+    {
       "id": "PDKSwitcherino",
       "name": "PDKSwitcherino",
       "author": "UWASIC",

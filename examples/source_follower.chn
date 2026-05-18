@@ -1,0 +1,28 @@
+chn_testbench 1
+
+TESTBENCH Source Follower
+  instances:
+    Vdd  vsource  x=-230  y=0  sym=vsource  value=1.8
+    Vin  vsource  x=-120  y=0  sym=vsource  value=1.2
+    M1  nmos  x=0  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=20u  L=180n  M=1 }
+    Ibias  isource  x=120  y=0  sym=isource  value=200u
+    Cload  capacitor  x=230  y=120  sym=capa  value=1p  device=capacitor
+    vin  lab_pin  x=-120  y=-30  sym=lab_pin
+    vout  lab_pin  x=230  y=90  sym=lab_pin
+    gnd0  gnd  x=-230  y=40  sym=gnd
+    gnd1  gnd  x=-120  y=40  sym=gnd
+    gnd2  gnd  x=20  y=130  sym=gnd
+    gnd3  gnd  x=120  y=40  sym=gnd
+    gnd4  gnd  x=230  y=160  sym=gnd
+    vdd5  vdd  x=-230  y=-40  sym=vdd
+    vdd6  vdd  x=20  y=80  sym=vdd
+
+  wires:
+    -120 -30 -20 -30
+    -20 -30 -20 120
+    230 90 120 90
+    120 90 120 -30
+    20 150 130 150
+    130 150 130 90
+    130 90 230 90

@@ -1,0 +1,33 @@
+chn_testbench 1
+
+TESTBENCH TB Diff Pair Offset
+  instances:
+    Xdut  subckt  x=-340  y=-120  sym=diff_pair
+    Vdd  vsource  x=-200  y=0  sym=vsource  value=1.8
+    Vcm  vsource  x=-90  y=0  sym=vsource  value=900m
+    Vdp  vsource  x=20  y=0  sym=vsource  value=0
+    Vdn  vsource  x=130  y=0  sym=vsource  value=0
+    Rp_p  resistor  x=240  y=120  sym=res  value=1meg  device=resistor
+    Rp_n  resistor  x=340  y=120  sym=res  value=1meg  device=resistor
+    vcm  lab_pin  x=-90  y=-30  sym=lab_pin
+    inp  lab_pin  x=-340  y=-150  sym=lab_pin
+    inp  lab_pin  x=20  y=-150  sym=lab_pin
+    inn  lab_pin  x=-340  y=-90  sym=lab_pin
+    inn  lab_pin  x=130  y=-90  sym=lab_pin
+    vdd0  vdd  x=-200  y=-40  sym=vdd
+    gnd1  gnd  x=-200  y=40  sym=gnd
+    gnd2  gnd  x=-90  y=40  sym=gnd
+    gnd3  gnd  x=240  y=160  sym=gnd
+    gnd4  gnd  x=340  y=160  sym=gnd
+
+  wires:
+    -90 -30 -40 -30
+    -40 -30 -40 30
+    -40 30 20 30
+    20 30 80 30
+    80 30 80 -30
+    80 -30 130 -30
+    -340 -150 20 -150
+    20 -150 20 -30
+    -340 -90 130 -90
+    130 -90 130 30

@@ -11,12 +11,11 @@ Supported PDKs:
   - IHP SG13G2  (1.2 V, 130 nm SiGe BiCMOS)
 
 Core flow:
-  1. Detect installed PDKs via CIEL / LambdaPDK
-  2. Auto-detect source PDK from model names in the schematic
-  3. Select target PDK
-  4. Preview remap: model mapping table, before/after W/L/nf
-  5. BLOCK apply if any model has no mapping (hard error)
-  6. Apply: update instance properties via push_command()
+  1. Read Config.toml -> detect required PDK
+  2. Auto-install via CIEL if not present
+  3. Convert xschem symbols to .chn_prim
+  4. Load into Schemify's PDK library
+  5. Cross-PDK remapping with gm/Id-preserving transistor resizing
 
 Vim command: :pdkswitch [source] [target]
              :pdkswitch list-pdks
@@ -27,15 +26,15 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Optional
 
 # Add the SDK directory to sys.path so schemify_plugin is importable.
-# The SDK lives at <repo>/sdk/python/schemify_plugin.py; this file lives at
-# <repo>/plugins/PDKSwitcher/src/plugin.py.
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_SDK_DIR = os.path.normpath(os.path.join(_THIS_DIR, "..", "..", "..", "sdk", "python"))
+_THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+_SDK_DIR = os.path.normpath(os.path.join(_THIS_DIR, "..", "..", "..", "tools", "sdk", "python"))
 if _SDK_DIR not in sys.path:
     sys.path.insert(0, _SDK_DIR)
 
@@ -51,30 +50,65 @@ from schemify_plugin import (
     tooltip,
     begin_row,
     end_row,
+    progress,
 )
 
 TAG = "PDKSwitcher"
 
 # ---------------------------------------------------------------------------
-# Widget ID allocation (string-based for JSON-RPC protocol)
+# Widget ID allocation
 # ---------------------------------------------------------------------------
 
-# Source PDK buttons: src_<index>
-# Target PDK buttons: tgt_<index>
-# Options
 WID_CB_USE_LUT = "cb_use_lut"
-# Actions
 WID_REMAP = "remap"
 WID_APPLY = "apply"
 WID_REFRESH = "refresh"
-# Install buttons: install_<index>
+WID_CONVERT_ALL = "convert_all"
+WID_INSTALL_CIEL = "install_ciel"
+WID_SETUP_PDK = "setup_pdk"
+
+# ---------------------------------------------------------------------------
+# Config.toml reader (minimal TOML parser for pdk field)
+# ---------------------------------------------------------------------------
+
+
+def _read_config_pdk() -> Optional[str]:
+    """Read the active PDK from Config.toml in the working directory.
+
+    Supports two formats:
+      1. Top-level:          pdk = "sky130A"
+      2. Section-based:      [pdk_switcher]  /  active = "sky130A"
+    """
+    config_path = os.path.join(os.getcwd(), "Config.toml")
+    if not os.path.isfile(config_path):
+        return None
+    try:
+        with open(config_path, "r") as f:
+            in_pdk_switcher = False
+            for line in f:
+                stripped = line.strip()
+                # Track TOML sections
+                if stripped.startswith("["):
+                    section = stripped.strip("[] \t")
+                    in_pdk_switcher = section == "pdk_switcher"
+                    continue
+                # Format 1: top-level  pdk = "sky130A"
+                if not in_pdk_switcher and stripped.startswith("pdk"):
+                    m = re.match(r'^pdk\s*=\s*"([^"]+)"', stripped)
+                    if m:
+                        return m.group(1)
+                # Format 2: [pdk_switcher] / active = "sky130A"
+                if in_pdk_switcher and stripped.startswith("active"):
+                    m = re.match(r'^active\s*=\s*"([^"]+)"', stripped)
+                    if m:
+                        return m.group(1)
+    except OSError:
+        pass
+    return None
+
 
 # ---------------------------------------------------------------------------
 # CIEL / LambdaPDK integration layer
-#
-# We embed the PDK discovery and management logic directly rather than
-# depending on external CLI tools.  All imports are lazy so the plugin
-# degrades gracefully if the libraries are not installed.
 # ---------------------------------------------------------------------------
 
 _CIEL_AVAILABLE: bool = False
@@ -84,7 +118,6 @@ _LAMBDAPDK_ERROR: str = ""
 
 
 def _probe_ciel() -> bool:
-    """Check whether the CIEL Python package is importable."""
     global _CIEL_AVAILABLE, _CIEL_ERROR
     try:
         import ciel  # noqa: F401
@@ -98,7 +131,6 @@ def _probe_ciel() -> bool:
 
 
 def _probe_lambdapdk() -> bool:
-    """Check whether the LambdaPDK Python package is importable."""
     global _LAMBDAPDK_AVAILABLE, _LAMBDAPDK_ERROR
     try:
         import lambdapdk  # noqa: F401
@@ -111,108 +143,166 @@ def _probe_lambdapdk() -> bool:
         return False
 
 
-def _ciel_list_pdks() -> list[dict[str, Any]]:
-    """Query CIEL for available PDK information.
-
-    Returns a list of dicts with keys: key, display, vdd, lmin_um, source.
-    Falls back to empty list if CIEL is unavailable.
-    """
-    if not _CIEL_AVAILABLE:
-        return []
-    try:
-        import ciel
-        pdks = []
-        # CIEL exposes PDK metadata through its registry
-        if hasattr(ciel, "list_pdks"):
-            for pdk_info in ciel.list_pdks():
-                key = pdk_info.get("name", pdk_info.get("id", ""))
-                pdks.append({
-                    "key": key,
-                    "display": pdk_info.get("display_name", key),
-                    "vdd": pdk_info.get("vdd", 0.0),
-                    "lmin_um": pdk_info.get("lmin", 0.0) * 1e6 if pdk_info.get("lmin", 0) < 1 else pdk_info.get("lmin", 0.0),
-                    "source": "ciel",
-                    "installed": pdk_info.get("installed", False),
-                })
-        elif hasattr(ciel, "Registry"):
-            reg = ciel.Registry()
-            for name in reg.available():
-                meta = reg.metadata(name)
-                pdks.append({
-                    "key": name,
-                    "display": meta.get("display_name", name),
-                    "vdd": meta.get("nominal_vdd", 0.0),
-                    "lmin_um": meta.get("min_length_um", 0.0),
-                    "source": "ciel",
-                    "installed": meta.get("installed", False),
-                })
-        return pdks
-    except Exception:
-        return []
+# ---------------------------------------------------------------------------
+# PDK xschem symbol discovery + conversion
+# ---------------------------------------------------------------------------
 
 
-def _lambdapdk_list_pdks() -> list[dict[str, Any]]:
-    """Query LambdaPDK for available PDK information.
+def _find_pdk_root() -> Optional[str]:
+    """Find PDK installation root (CIEL or volare)."""
+    pdk_root = os.environ.get("PDK_ROOT", "")
+    if pdk_root and os.path.isdir(pdk_root):
+        return pdk_root
+    home = os.environ.get("HOME", os.path.expanduser("~"))
+    for candidate in [
+        os.path.join(home, ".pdk", "ciel"),
+        os.path.join(home, ".volare"),
+        os.path.join(home, ".local", "share", "pdk"),
+        "/usr/local/share/pdk",
+    ]:
+        if os.path.isdir(candidate):
+            return candidate
+    return None
 
-    LambdaPDK provides technology-independent (lambda-based) PDKs.
-    Returns a list of dicts matching our standard PDK format.
-    """
-    if not _LAMBDAPDK_AVAILABLE:
-        return []
-    try:
-        import lambdapdk
-        pdks = []
-        # LambdaPDK organizes PDKs under lambdapdk.asap7, lambdapdk.sky130, etc.
-        known_lambdapdk_modules = ["sky130", "gf180", "asap7", "freepdk45"]
-        for mod_name in known_lambdapdk_modules:
-            try:
-                mod = getattr(lambdapdk, mod_name, None)
-                if mod is None:
-                    mod = __import__(f"lambdapdk.{mod_name}", fromlist=[mod_name])
-                if mod is not None:
-                    # Extract metadata from the module
-                    pdk_key = f"lambdapdk-{mod_name}"
-                    display = getattr(mod, "DISPLAY_NAME", mod_name.upper())
-                    vdd = getattr(mod, "VDD", 0.0)
-                    lmin = getattr(mod, "LMIN", 0.0)
-                    pdks.append({
-                        "key": pdk_key,
-                        "display": f"LambdaPDK {display}",
-                        "vdd": vdd,
-                        "lmin_um": lmin * 1e6 if lmin < 1e-3 else lmin,
-                        "source": "lambdapdk",
-                        "installed": True,  # if importable, it's installed
-                    })
-            except (ImportError, AttributeError):
-                continue
-        return pdks
-    except Exception:
-        return []
+
+def _find_xschem_dir(pdk_root: str, pdk_key: str) -> Optional[str]:
+    """Find the xschem symbols directory for a given PDK."""
+    if pdk_key == "sky130A":
+        sky_dir = os.path.join(pdk_root, "sky130")
+        if os.path.isdir(sky_dir):
+            for root, dirs, files in os.walk(sky_dir):
+                if os.path.basename(root) == "sky130_fd_pr" and any(f.endswith(".sym") for f in files):
+                    return root
+        volare = os.path.join(pdk_root, "sky130A", "libs.tech", "xschem", "sky130_fd_pr")
+        if os.path.isdir(volare):
+            return volare
+
+    elif pdk_key == "gf180mcuA":
+        gf_dir = os.path.join(pdk_root, "gf180mcu")
+        if os.path.isdir(gf_dir):
+            for root, dirs, files in os.walk(gf_dir):
+                if os.path.basename(root) == "symbols" and "xschem" in root and any(f.endswith(".sym") for f in files):
+                    return root
+        for variant in ["gf180mcuC", "gf180mcuA", "gf180mcuD"]:
+            volare = os.path.join(pdk_root, variant, "libs.tech", "xschem", "symbols")
+            if os.path.isdir(volare):
+                return volare
+
+    elif pdk_key == "ihp-sg13g2":
+        ihp_dir = os.path.join(pdk_root, "ihp-sg13g2")
+        if os.path.isdir(ihp_dir):
+            for root, dirs, files in os.walk(ihp_dir):
+                if os.path.basename(root) == "sg13g2_pr" and any(f.endswith(".sym") for f in files):
+                    return root
+        volare = os.path.join(pdk_root, "ihp-sg13g2", "libs.tech", "xschem", "sg13g2_pr")
+        if os.path.isdir(volare):
+            return volare
+
+    return None
+
+
+def _get_sym_files(xschem_dir: str, pdk_key: str) -> list[str]:
+    """Get all .sym file paths in an xschem directory."""
+    return sorted(
+        os.path.join(xschem_dir, f)
+        for f in os.listdir(xschem_dir)
+        if f.endswith(".sym")
+    )
+
+
+def _find_schemify_binary() -> Optional[str]:
+    """Locate the schemify binary."""
+    import shutil
+    which = shutil.which("schemify") or shutil.which("Schemify")
+    if which:
+        return which
+    plugin_dir = Path(__file__).resolve().parent.parent.parent.parent
+    candidate = plugin_dir / "zig-out" / "bin" / "Schemify"
+    if candidate.is_file():
+        return str(candidate)
+    return None
+
+
+def _conversion_output_dir(pdk_key: str) -> str:
+    """Return output directory for converted primitives: ~/.cache/schemify/pdk/<key>/"""
+    home = os.environ.get("HOME", os.path.expanduser("~"))
+    return os.path.join(home, ".cache", "schemify", "pdk", pdk_key)
+
+
+def _is_converted(pdk_key: str) -> bool:
+    """Check if a PDK has already been converted."""
+    out_dir = _conversion_output_dir(pdk_key)
+    if not os.path.isdir(out_dir):
+        return False
+    return any(f.endswith(".chn_prim") for f in os.listdir(out_dir))
 
 
 def _ciel_install_pdk(pdk_key: str) -> tuple[bool, str]:
-    """Attempt to install a PDK through CIEL.
-
-    Returns (success, message).
-    """
+    """Attempt to install a PDK through CIEL."""
     if not _CIEL_AVAILABLE:
         return False, "CIEL is not installed. Run: pip install ciel"
     try:
         import ciel
         if hasattr(ciel, "install"):
             ciel.install(pdk_key)
-            return True, f"PDK '{pdk_key}' installed successfully via CIEL"
+            return True, f"PDK '{pdk_key}' installed via CIEL"
         elif hasattr(ciel, "Registry"):
             reg = ciel.Registry()
             reg.install(pdk_key)
-            return True, f"PDK '{pdk_key}' installed successfully via CIEL"
+            return True, f"PDK '{pdk_key}' installed via CIEL"
         return False, "CIEL does not support install() in this version"
     except Exception as exc:
         return False, f"Installation failed: {exc}"
 
 
+def _install_ciel_subprocess() -> tuple[bool, str]:
+    """Install CIEL via pip subprocess."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "ciel"],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode == 0:
+            return True, "CIEL installed successfully"
+        return False, f"pip install ciel failed: {result.stderr.strip()[:200]}"
+    except subprocess.TimeoutExpired:
+        return False, "pip install ciel timed out"
+    except OSError as e:
+        return False, f"Failed to run pip: {e}"
+
+
+def _install_pdk_subprocess(pdk_key: str) -> tuple[bool, str]:
+    """Install a PDK via CIEL CLI subprocess."""
+    # Map our keys to CIEL package names
+    ciel_names = {
+        "sky130A": "sky130",
+        "gf180mcuA": "gf180mcu",
+        "ihp-sg13g2": "ihp-sg13g2",
+    }
+    ciel_name = ciel_names.get(pdk_key, pdk_key)
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "ciel", "install", ciel_name],
+            capture_output=True, text=True, timeout=600,
+        )
+        if result.returncode == 0:
+            return True, f"PDK '{pdk_key}' installed via CIEL"
+        # Fallback: try 'ciel' directly
+        result2 = subprocess.run(
+            ["ciel", "install", ciel_name],
+            capture_output=True, text=True, timeout=600,
+        )
+        if result2.returncode == 0:
+            return True, f"PDK '{pdk_key}' installed via CIEL"
+        return False, f"ciel install {ciel_name} failed: {result.stderr.strip()[:200]}"
+    except subprocess.TimeoutExpired:
+        return False, f"ciel install {ciel_name} timed out (>10min)"
+    except OSError as e:
+        return False, f"Failed to run ciel: {e}"
+
+
 # ---------------------------------------------------------------------------
-# Built-in PDK database (always available, even without CIEL/LambdaPDK)
+# Built-in PDK database
 # ---------------------------------------------------------------------------
 
 BUILTIN_PDKS: list[dict[str, Any]] = [
@@ -245,10 +335,6 @@ BUILTIN_PDKS: list[dict[str, Any]] = [
 
 # ---------------------------------------------------------------------------
 # Model-to-PDK mapping
-#
-# All known MOSFET model names -> (pdk_key, generic_name).
-# Used for auto-detection of source PDK from schematic contents and for
-# computing remap tables between PDKs.
 # ---------------------------------------------------------------------------
 
 _MODEL_TO_PDK: dict[str, tuple[str, str]] = {
@@ -273,57 +359,15 @@ _MODEL_TO_PDK: dict[str, tuple[str, str]] = {
     "pfet_06v0": ("gf180mcuA", "pfet_hv6"),
 }
 
-# Schematic symbols representing MOSFETs.
 _MOSFET_SYMBOLS = frozenset({"nmos4", "pmos4", "nmos", "pmos"})
 
 
 # ---------------------------------------------------------------------------
-# Passive / misc device mapping across PDKs
-# ---------------------------------------------------------------------------
-
-_PASSIVE_MODEL_TO_PDK: dict[str, tuple[str, str]] = {
-    # SKY130 resistors/caps
-    "sky130_fd_pr__res_generic_nd": ("sky130A", "res_nd"),
-    "sky130_fd_pr__res_generic_pd": ("sky130A", "res_pd"),
-    "sky130_fd_pr__cap_mim_m3_1":  ("sky130A", "cap_mim"),
-    # GF180MCU
-    "res_nd":  ("gf180mcuA", "res_nd"),
-    "res_pd":  ("gf180mcuA", "res_pd"),
-    "cap_mim": ("gf180mcuA", "cap_mim"),
-}
-
-
-def _pdk_index(key: str) -> Optional[int]:
-    """Return BUILTIN_PDKS index for a given PDK key, or None."""
-    for i, p in enumerate(BUILTIN_PDKS):
-        if p["key"] == key:
-            return i
-    return None
-
-
-def _merge_external_pdks(external: list[dict[str, Any]]) -> None:
-    """Merge externally-discovered PDKs into BUILTIN_PDKS if not already present."""
-    existing_keys = {p["key"] for p in BUILTIN_PDKS}
-    for ext in external:
-        if ext["key"] not in existing_keys:
-            BUILTIN_PDKS.append(ext)
-            existing_keys.add(ext["key"])
-        else:
-            # Update installed status and source from external discovery
-            idx = _pdk_index(ext["key"])
-            if idx is not None:
-                BUILTIN_PDKS[idx]["installed"] = ext.get("installed", False)
-                if ext.get("source"):
-                    BUILTIN_PDKS[idx]["source"] = ext["source"]
-
-
-# ---------------------------------------------------------------------------
-# Data structures for remap state
+# Data structures
 # ---------------------------------------------------------------------------
 
 @dataclass
 class InstanceInfo:
-    """Collected info about a single MOSFET instance in the schematic."""
     idx: int
     name: str
     symbol: str
@@ -331,7 +375,6 @@ class InstanceInfo:
     w: str = ""
     l: str = ""
     nf: str = ""
-    # Filled after remap:
     new_model: str = ""
     new_w: str = ""
     new_l: str = ""
@@ -340,25 +383,49 @@ class InstanceInfo:
 
 @dataclass
 class RemapPreview:
-    """Full remap preview result."""
     devices: list[InstanceInfo] = field(default_factory=list)
     unmapped_models: list[str] = field(default_factory=list)
     mapping_table: list[tuple[str, str]] = field(default_factory=list)
-    mode: str = "linear"  # "lut" or "linear"
+    mode: str = "linear"
     warnings: list[str] = field(default_factory=list)
     has_errors: bool = False
 
 
-# ---------------------------------------------------------------------------
-# State machine phases
-# ---------------------------------------------------------------------------
-
 class _Phase:
     IDLE = "idle"
-    QUERYING = "querying"            # waiting for instance_data messages
-    COLLECTING_PROPS = "collecting"  # waiting for instance_prop messages
-    PREVIEW_READY = "preview"        # preview computed, waiting for user
-    APPLYING = "applying"            # writing properties back
+    QUERYING = "querying"
+    COLLECTING_PROPS = "collecting"
+    PREVIEW_READY = "preview"
+    APPLYING = "applying"
+
+
+# ---------------------------------------------------------------------------
+# Pipeline state
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PipelineState:
+    """Tracks the automatic PDK setup pipeline."""
+    config_pdk: Optional[str] = None       # from Config.toml
+    ciel_installed: bool = False            # CIEL Python package present
+    pdk_installed: bool = False             # PDK files on disk
+    pdk_converted: bool = False             # .chn_prim files exist
+    pdk_loaded: bool = False                # load_pdk sent to host
+    error: Optional[str] = None            # last pipeline error
+    log: list[str] = field(default_factory=list)
+
+    def stage_str(self) -> str:
+        if self.error:
+            return f"Error: {self.error}"
+        if self.pdk_loaded:
+            return "Ready"
+        if self.pdk_converted:
+            return "Loading..."
+        if self.pdk_installed:
+            return "Converting..."
+        if self.ciel_installed:
+            return "Installing PDK..."
+        return "Setup required"
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +433,6 @@ class _Phase:
 # ---------------------------------------------------------------------------
 
 def _parse_spice_value(s: str) -> Optional[float]:
-    """Parse a SPICE value string like '2u', '0.15e-6', '280n' to float (SI)."""
     if not s:
         return None
     s = s.strip()
@@ -374,13 +440,10 @@ def _parse_spice_value(s: str) -> Optional[float]:
         "T": 1e12, "G": 1e9, "MEG": 1e6, "M": 1e6, "k": 1e3, "K": 1e3,
         "m": 1e-3, "u": 1e-6, "n": 1e-9, "p": 1e-12, "f": 1e-15, "a": 1e-18,
     }
-    # Try direct float first
     try:
         return float(s)
     except ValueError:
         pass
-
-    # Try suffix-based (longest suffix first to match MEG before M)
     for suffix, mult in sorted(multipliers.items(), key=lambda x: -len(x[0])):
         if s.lower().endswith(suffix.lower()):
             num_part = s[: -len(suffix)]
@@ -388,19 +451,15 @@ def _parse_spice_value(s: str) -> Optional[float]:
                 return float(num_part) * mult
             except ValueError:
                 continue
-
-    # Try with trailing 'm' for meters
     if s.endswith("m"):
         try:
             return float(s[:-1]) * 1e-3
         except ValueError:
             pass
-
     return None
 
 
 def _format_spice_value(val: float) -> str:
-    """Format a float to a human-readable SPICE string with SI suffix."""
     if val == 0:
         return "0"
     abs_val = abs(val)
@@ -416,21 +475,21 @@ def _format_spice_value(val: float) -> str:
         return f"{val:.4g}"
 
 
+def _pdk_index(key: str) -> Optional[int]:
+    for i, p in enumerate(BUILTIN_PDKS):
+        if p["key"] == key:
+            return i
+    return None
+
+
 def _get_mapped_models(src_key: str, tgt_key: str) -> dict[str, str]:
-    """Build source_model -> target_model map for two PDKs via generic keys.
-
-    Returns only models that have a valid mapping. Models absent from the
-    returned dict have NO mapping and must be treated as errors.
-    """
-    src_rev: dict[str, str] = {}  # model -> generic
-    tgt_map: dict[str, str] = {}  # generic -> model
-
+    src_rev: dict[str, str] = {}
+    tgt_map: dict[str, str] = {}
     for model, (pdk_key, generic) in _MODEL_TO_PDK.items():
         if pdk_key == src_key:
             src_rev[model] = generic
         elif pdk_key == tgt_key:
             tgt_map[generic] = model
-
     result: dict[str, str] = {}
     for model, generic in src_rev.items():
         if generic in tgt_map:
@@ -443,7 +502,6 @@ def _get_mapped_models(src_key: str, tgt_key: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 class PDKSwitcherPlugin(Plugin):
-    """PDK management and cross-PDK circuit remapping."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -455,18 +513,16 @@ class PDKSwitcherPlugin(Plugin):
         self._phase: str = _Phase.IDLE
         self._status: str = "Ready"
 
-        # Instance collection during QUERYING / COLLECTING_PROPS
         self._instance_count: int = 0
         self._instances: dict[int, InstanceInfo] = {}
         self._pending_props: int = 0
-
-        # Remap results
         self._preview: Optional[RemapPreview] = None
 
-        # Library availability
-        self._ciel_ok: bool = False
-        self._lambdapdk_ok: bool = False
-        self._discovery_done: bool = False
+        # Pipeline
+        self._pipeline = PipelineState()
+        self._schemify_bin: Optional[str] = None
+        self._pdk_root: Optional[str] = None
+        self._convert_log: list[str] = []
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -477,63 +533,119 @@ class PDKSwitcherPlugin(Plugin):
         self.set_status("PDKSwitcher loaded")
         self.log("PDKSwitcher plugin loaded (api=1)")
 
-        self._discover_backends()
+        self._schemify_bin = _find_schemify_binary()
+        self._pdk_root = _find_pdk_root()
+
+        if self._schemify_bin:
+            self.log(f"Schemify binary: {self._schemify_bin}")
+        else:
+            self.log("Schemify binary not found — conversion disabled", level="warn")
+
+        # Probe backends
+        self._pipeline.ciel_installed = _probe_ciel()
+        _probe_lambdapdk()
+
+        # Detect installed PDKs
+        self._detect_installed_pdks()
+
+        # Read Config.toml -> auto-pipeline
+        config_pdk = _read_config_pdk()
+        if config_pdk:
+            self._pipeline.config_pdk = config_pdk
+            self.log(f"Config.toml pdk = \"{config_pdk}\"")
+            self._auto_setup(config_pdk)
 
     def on_unload(self) -> None:
         self.log("PDKSwitcher unloaded")
 
     # ------------------------------------------------------------------
-    # Backend discovery
+    # Automatic PDK setup pipeline
     # ------------------------------------------------------------------
 
-    def _discover_backends(self) -> None:
-        """Probe CIEL and LambdaPDK availability and merge discovered PDKs."""
-        self._ciel_ok = _probe_ciel()
-        self._lambdapdk_ok = _probe_lambdapdk()
+    def _auto_setup(self, pdk_key: str) -> None:
+        """Full automatic pipeline: install -> convert -> load."""
+        pl = self._pipeline
 
-        if self._ciel_ok:
-            self.log("CIEL backend available")
-            ciel_pdks = _ciel_list_pdks()
-            if ciel_pdks:
-                _merge_external_pdks(ciel_pdks)
-                self.log(f"CIEL: discovered {len(ciel_pdks)} PDK(s)")
+        # 1. Check if PDK files are on disk
+        if self._pdk_root:
+            xschem_dir = _find_xschem_dir(self._pdk_root, pdk_key)
+            pl.pdk_installed = xschem_dir is not None
         else:
-            self.log(f"CIEL not available: {_CIEL_ERROR}")
+            pl.pdk_installed = False
 
-        if self._lambdapdk_ok:
-            self.log("LambdaPDK backend available")
-            lambda_pdks = _lambdapdk_list_pdks()
-            if lambda_pdks:
-                _merge_external_pdks(lambda_pdks)
-                self.log(f"LambdaPDK: discovered {len(lambda_pdks)} PDK(s)")
-        else:
-            self.log(f"LambdaPDK not available: {_LAMBDAPDK_ERROR}")
+        # 2. If not installed, try to install
+        if not pl.pdk_installed:
+            pl.log.append(f"PDK '{pdk_key}' not found locally, attempting install...")
+            self.log(f"PDK '{pdk_key}' not found, attempting CIEL install...")
 
-        # Try to detect installed PDKs by checking common paths
-        self._detect_installed_pdks()
-        self._discovery_done = True
+            if not pl.ciel_installed:
+                # Try installing CIEL first
+                ok, msg = _install_ciel_subprocess()
+                pl.log.append(msg)
+                if ok:
+                    pl.ciel_installed = True
+                    _probe_ciel()
+                else:
+                    pl.error = f"CIEL not available: {msg}"
+                    self.log(pl.error, level="err")
+                    self.set_status(f"PDK setup failed: {pl.error}")
+                    return
+
+            # Install PDK via CIEL
+            ok, msg = _install_pdk_subprocess(pdk_key)
+            pl.log.append(msg)
+            if ok:
+                pl.pdk_installed = True
+                # Re-discover root
+                self._pdk_root = _find_pdk_root()
+                self._detect_installed_pdks()
+                self.log(msg)
+            else:
+                pl.error = msg
+                self.log(msg, level="err")
+                self.set_status(f"PDK install failed: {msg}")
+                return
+
+        # 3. Check if already converted
+        pl.pdk_converted = _is_converted(pdk_key)
+
+        # 4. Convert if needed
+        if not pl.pdk_converted:
+            if not self._schemify_bin:
+                pl.error = "Schemify binary not found — cannot convert"
+                self.log(pl.error, level="err")
+                return
+            self._run_convert_pdk(pdk_key)
+            pl.pdk_converted = _is_converted(pdk_key)
+            if not pl.pdk_converted:
+                pl.error = "Conversion produced no .chn_prim files"
+                return
+
+        # 5. Load
+        self.push_command(f"load_pdk {pdk_key}")
+        pl.pdk_loaded = True
+        pl.log.append(f"Loaded PDK: {pdk_key}")
+        self.log(f"Auto-setup complete: {pdk_key}")
+        self.set_status(f"PDK: {pdk_key} (ready)")
+
+        # Set source PDK index
+        idx = _pdk_index(pdk_key)
+        if idx is not None:
+            self._src_idx = idx
+            if self._tgt_idx == self._src_idx:
+                self._tgt_idx = (self._src_idx + 1) % len(BUILTIN_PDKS)
+
+    # ------------------------------------------------------------------
+    # PDK detection
+    # ------------------------------------------------------------------
 
     def _detect_installed_pdks(self) -> None:
         """Detect locally installed PDKs by checking standard paths."""
-        pdk_root = os.environ.get("PDK_ROOT", "")
-        if not pdk_root:
-            # Check common locations
-            home = os.environ.get("HOME", os.path.expanduser("~"))
-            candidates = [
-                os.path.join(home, ".volare"),
-                os.path.join(home, ".local", "share", "pdk"),
-                "/usr/local/share/pdk",
-                "/opt/pdk",
-            ]
-            for c in candidates:
-                if os.path.isdir(c):
-                    pdk_root = c
-                    break
-
-        if not pdk_root or not os.path.isdir(pdk_root):
+        if not self._pdk_root:
+            self._pdk_root = _find_pdk_root()
+        if not self._pdk_root:
             return
 
-        # Check which built-in PDKs have directories under PDK_ROOT
         pdk_key_to_dirs = {
             "sky130A":     ["sky130A", "sky130"],
             "ihp-sg13g2":  ["ihp-sg13g2", "sg13g2", "IHP-Open-PDK"],
@@ -544,10 +656,9 @@ class PDKSwitcherPlugin(Plugin):
             key = pdk_info["key"]
             dirs_to_check = pdk_key_to_dirs.get(key, [key])
             for dirname in dirs_to_check:
-                pdk_path = os.path.join(pdk_root, dirname)
+                pdk_path = os.path.join(self._pdk_root, dirname)
                 if os.path.isdir(pdk_path):
                     pdk_info["installed"] = True
-                    self.log(f"Found installed PDK: {key} at {pdk_path}")
                     break
 
     # ------------------------------------------------------------------
@@ -560,10 +671,15 @@ class PDKSwitcherPlugin(Plugin):
         widgets.append(label("PDK Switcher"))
         widgets.append(separator())
 
-        # Backend status (compact)
-        widgets.extend(self._build_backend_status())
+        # Pipeline status section
+        widgets.extend(self._build_pipeline_section())
         widgets.append(separator())
 
+        # Conversion section
+        widgets.extend(self._build_convert_section())
+        widgets.append(separator())
+
+        # Remap sections
         widgets.extend(self._build_source_section())
         widgets.append(separator())
         widgets.extend(self._build_target_section())
@@ -575,55 +691,186 @@ class PDKSwitcherPlugin(Plugin):
         widgets.extend(self._build_mapping_table())
         widgets.append(separator())
         widgets.extend(self._build_actions())
-        widgets.append(separator())
         widgets.extend(self._build_errors())
         widgets.extend(self._build_preview())
         widgets.append(separator())
 
         widgets.append(label(f"Status: {self._status}", widget_id="status"))
-
         return widgets
 
-    def _build_backend_status(self) -> list[Widget]:
-        """Build compact status showing CIEL/LambdaPDK availability."""
+    def _build_pipeline_section(self) -> list[Widget]:
+        """Show the automatic PDK setup pipeline status."""
         widgets: list[Widget] = []
-        ciel_str = "CIEL: available" if self._ciel_ok else "CIEL: not installed"
-        lambda_str = "LambdaPDK: available" if self._lambdapdk_ok else "LambdaPDK: not installed"
-        widgets.append(label(f"{ciel_str}  |  {lambda_str}"))
+        pl = self._pipeline
 
-        installed_count = sum(1 for p in BUILTIN_PDKS if p.get("installed"))
-        total_count = len(BUILTIN_PDKS)
-        widgets.append(label(f"PDKs: {installed_count}/{total_count} installed"))
+        widgets.append(label("PDK Setup Pipeline"))
 
-        if not self._ciel_ok and not self._lambdapdk_ok:
-            widgets.append(collapsible_start("Install Instructions", "install_info"))
-            widgets.append(label("CIEL and LambdaPDK provide automated PDK management."))
-            widgets.append(label("Without them, manual PDK path setup is required."))
-            widgets.append(label(""))
-            widgets.append(label("Install CIEL:"))
-            widgets.append(label("  pip install ciel"))
-            widgets.append(label(""))
-            widgets.append(label("Install LambdaPDK:"))
-            widgets.append(label("  pip install lambdapdk"))
-            widgets.append(label(""))
-            widgets.append(label("Or install both:"))
-            widgets.append(label("  pip install ciel lambdapdk"))
-            widgets.append(label(""))
-            widgets.append(label("After installing, restart Schemify or use :pdkswitch refresh."))
+        if pl.config_pdk:
+            widgets.append(label(f"  Config.toml: pdk = \"{pl.config_pdk}\""))
+        else:
+            widgets.append(label("  Config.toml: no pdk field set"))
+            widgets.append(tooltip(
+                "Add pdk = \"sky130A\" to your project's Config.toml "
+                "for automatic PDK setup on load."
+            ))
+
+        # Stage indicators
+        stages = [
+            ("CIEL", pl.ciel_installed),
+            ("PDK Installed", pl.pdk_installed),
+            ("Converted", pl.pdk_converted),
+            ("Loaded", pl.pdk_loaded),
+        ]
+        stage_line = "  "
+        for name, done in stages:
+            marker = "[x]" if done else "[ ]"
+            stage_line += f"{marker} {name}  "
+        widgets.append(label(stage_line))
+
+        if pl.error:
+            widgets.append(label(f"  ERROR: {pl.error}"))
+
+        # Action buttons for incomplete stages
+        if not pl.ciel_installed:
+            widgets.append(button("Install CIEL (pip)", widget_id=WID_INSTALL_CIEL))
+
+        if pl.config_pdk and not pl.pdk_loaded:
+            widgets.append(button(f"Setup {pl.config_pdk}", widget_id=WID_SETUP_PDK))
+
+        # Pipeline log
+        if pl.log:
+            widgets.append(collapsible_start("Pipeline Log", "pipeline_log"))
+            for line in pl.log[-15:]:
+                widgets.append(label(f"  {line}"))
             widgets.append(collapsible_end())
 
         return widgets
 
+    def _build_convert_section(self) -> list[Widget]:
+        """Build PDK symbol conversion section."""
+        widgets: list[Widget] = []
+        widgets.append(label("PDK Symbol Conversion"))
+        widgets.append(tooltip(
+            "Convert xschem .sym files to Schemify .chn_prim format. "
+            "Output: ~/.cache/schemify/pdk/<pdk>/"
+        ))
+
+        if not self._schemify_bin:
+            widgets.append(label("  [!] Schemify binary not found — build first"))
+            return widgets
+
+        if not self._pdk_root:
+            widgets.append(label("  [!] No PDK installation found"))
+            widgets.append(label("  Install: pip install ciel && ciel install sky130"))
+            return widgets
+
+        for i, pdk in enumerate(BUILTIN_PDKS):
+            if not pdk.get("installed"):
+                continue
+            key = pdk["key"]
+            xschem_dir = _find_xschem_dir(self._pdk_root, key)
+            out_dir = _conversion_output_dir(key)
+            already_converted = _is_converted(key)
+            sym_count = len(_get_sym_files(xschem_dir, key)) if xschem_dir else 0
+
+            if already_converted:
+                n_prims = len([f for f in os.listdir(out_dir) if f.endswith(".chn_prim")])
+                widgets.append(label(f"  {pdk['display']}: {n_prims} primitives [converted]"))
+            elif xschem_dir and sym_count > 0:
+                widgets.append(begin_row())
+                widgets.append(label(f"  {pdk['display']}: {sym_count} symbols"))
+                widgets.append(button("Convert", widget_id=f"convert_{i}"))
+                widgets.append(end_row())
+            else:
+                widgets.append(label(f"  {pdk['display']}: no xschem symbols found"))
+
+        # Show convert all only if there are unconverted installed PDKs
+        has_unconverted = any(
+            pdk.get("installed") and not _is_converted(pdk["key"])
+            for pdk in BUILTIN_PDKS
+        )
+        if has_unconverted:
+            widgets.append(button("Convert All Installed", widget_id=WID_CONVERT_ALL))
+
+        if self._convert_log:
+            widgets.append(collapsible_start("Conversion Log", "conv_log"))
+            for line in self._convert_log[-20:]:
+                widgets.append(label(f"  {line}"))
+            widgets.append(collapsible_end())
+
+        return widgets
+
+    def _run_convert_pdk(self, pdk_key: str) -> None:
+        """Convert xschem symbols for a single PDK to .chn_prim."""
+        if not self._schemify_bin or not self._pdk_root:
+            return
+
+        xschem_dir = _find_xschem_dir(self._pdk_root, pdk_key)
+        if not xschem_dir:
+            msg = f"{pdk_key}: xschem dir not found"
+            self._convert_log.append(msg)
+            self.log(msg, level="warn")
+            return
+
+        sym_files = _get_sym_files(xschem_dir, pdk_key)
+        if not sym_files:
+            msg = f"{pdk_key}: no .sym files found in {xschem_dir}"
+            self._convert_log.append(msg)
+            self.log(msg, level="warn")
+            return
+
+        out_dir = _conversion_output_dir(pdk_key)
+        os.makedirs(out_dir, exist_ok=True)
+
+        imported = 0
+        failed = 0
+        self._convert_log.append(f"--- {pdk_key}: converting {len(sym_files)} symbols ---")
+        self.log(f"{pdk_key}: converting {len(sym_files)} symbols to {out_dir}")
+
+        for sym_path in sym_files:
+            base = os.path.splitext(os.path.basename(sym_path))[0]
+            try:
+                result = subprocess.run(
+                    [self._schemify_bin, "--import", "-o", out_dir, sym_path, "primitive"],
+                    capture_output=True, text=True, timeout=30,
+                )
+                if "imported:" in result.stdout:
+                    imported += 1
+                else:
+                    failed += 1
+                    err = result.stderr.strip() or result.stdout.strip()
+                    self._convert_log.append(f"  FAIL {base}: {err[:80]}")
+            except subprocess.TimeoutExpired:
+                failed += 1
+                self._convert_log.append(f"  TIMEOUT {base}")
+            except OSError as e:
+                failed += 1
+                self._convert_log.append(f"  ERROR {base}: {e}")
+
+        summary = f"{pdk_key}: {imported} OK, {failed} failed"
+        self._convert_log.append(summary)
+        self.log(summary)
+        self._status = summary
+        self.set_status(self._status)
+
+        if imported > 0:
+            self.push_command(f"load_pdk {pdk_key}")
+
+    def _run_convert_all(self) -> None:
+        """Convert all installed PDKs."""
+        for pdk in BUILTIN_PDKS:
+            if pdk.get("installed") and not _is_converted(pdk["key"]):
+                self._run_convert_pdk(pdk["key"])
+        self.request_refresh()
+
     def _build_source_section(self) -> list[Widget]:
         widgets: list[Widget] = []
         widgets.append(label("Source PDK:"))
-        widgets.append(tooltip("Auto-detected from schematic model names, or select manually."))
         for i, pdk in enumerate(BUILTIN_PDKS):
             marker = "> " if i == self._src_idx else "  "
             installed = " [installed]" if pdk.get("installed") else ""
-            source_tag = f" ({pdk['source']})" if pdk.get("source", "builtin") != "builtin" else ""
             widgets.append(button(
-                f"{marker}{pdk['display']} ({pdk['vdd']}V){installed}{source_tag}",
+                f"{marker}{pdk['display']} ({pdk['vdd']}V){installed}",
                 widget_id=f"src_{i}",
             ))
         return widgets
@@ -636,9 +883,8 @@ class PDKSwitcherPlugin(Plugin):
                 continue
             marker = "> " if i == self._tgt_idx else "  "
             installed = " [installed]" if pdk.get("installed") else ""
-            source_tag = f" ({pdk['source']})" if pdk.get("source", "builtin") != "builtin" else ""
             widgets.append(button(
-                f"{marker}{pdk['display']} ({pdk['vdd']}V){installed}{source_tag}",
+                f"{marker}{pdk['display']} ({pdk['vdd']}V){installed}",
                 widget_id=f"tgt_{i}",
             ))
         return widgets
@@ -647,13 +893,10 @@ class PDKSwitcherPlugin(Plugin):
         widgets: list[Widget] = []
         src = BUILTIN_PDKS[self._src_idx]
         tgt = BUILTIN_PDKS[self._tgt_idx]
-
         src_vdd = src["vdd"]
         tgt_vdd = tgt["vdd"]
         src_lmin = src["lmin_um"]
         tgt_lmin = tgt["lmin_um"]
-
-        # Guard against zero division
         vdd_ratio = src_vdd / tgt_vdd if tgt_vdd != 0 else 0
         lmin_ratio = tgt_lmin / src_lmin if src_lmin != 0 else 0
 
@@ -676,12 +919,10 @@ class PDKSwitcherPlugin(Plugin):
         return widgets
 
     def _build_mapping_table(self) -> list[Widget]:
-        """Build the model mapping table between source and target PDKs."""
         widgets: list[Widget] = []
         src_key = BUILTIN_PDKS[self._src_idx]["key"]
         tgt_key = BUILTIN_PDKS[self._tgt_idx]["key"]
 
-        # Build mapping from known models
         src_generics: dict[str, str] = {}
         tgt_generics: dict[str, str] = {}
         for model, (pdk_key, generic) in _MODEL_TO_PDK.items():
@@ -717,14 +958,10 @@ class PDKSwitcherPlugin(Plugin):
         return widgets
 
     def _build_errors(self) -> list[Widget]:
-        """Build errors section if any models are unmapped -- blocks apply."""
         widgets: list[Widget] = []
         preview = self._preview
-        if preview is None:
+        if preview is None or not preview.unmapped_models:
             return widgets
-        if not preview.unmapped_models:
-            return widgets
-
         widgets.append(separator())
         widgets.append(label("ERRORS -- cannot apply remap:"))
         for model in preview.unmapped_models:
@@ -735,7 +972,6 @@ class PDKSwitcherPlugin(Plugin):
         return widgets
 
     def _build_preview(self) -> list[Widget]:
-        """Build the before/after preview table and apply button."""
         widgets: list[Widget] = []
         preview = self._preview
         if preview is None:
@@ -751,7 +987,6 @@ class PDKSwitcherPlugin(Plugin):
             f"Preview ({len(devices)} devices, {mode_str})", "preview", open=True
         ))
 
-        # Header
         widgets.append(label(
             f"  {'Instance':<14s} {'Model (src)':<32s} {'W':>8s} {'L':>8s} {'nf':>4s}"
             f"  ->  {'Model (tgt)':<32s} {'W':>8s} {'L':>8s} {'nf':>4s}"
@@ -759,22 +994,15 @@ class PDKSwitcherPlugin(Plugin):
         widgets.append(label("  " + "-" * 120))
 
         for dev in devices:
-            src_w = dev.w if dev.w else "?"
-            src_l = dev.l if dev.l else "?"
-            src_nf = dev.nf if dev.nf else "1"
+            src_w = dev.w or "?"
+            src_l = dev.l or "?"
+            src_nf = dev.nf or "1"
 
             if dev.new_model:
                 tgt_model = dev.new_model
-                tgt_w = dev.new_w if dev.new_w else "?"
-                tgt_l = dev.new_l if dev.new_l else "?"
-                tgt_nf = dev.new_nf if dev.new_nf else src_nf
-
-                # Mark unmapped with ERROR
-                if tgt_model == dev.model and dev.model not in _get_mapped_models(
-                    BUILTIN_PDKS[self._src_idx]["key"],
-                    BUILTIN_PDKS[self._tgt_idx]["key"],
-                ):
-                    tgt_model = f"ERROR: {dev.model}"
+                tgt_w = dev.new_w or "?"
+                tgt_l = dev.new_l or "?"
+                tgt_nf = dev.new_nf or src_nf
             else:
                 tgt_model = "?"
                 tgt_w = "?"
@@ -788,11 +1016,9 @@ class PDKSwitcherPlugin(Plugin):
 
         widgets.append(collapsible_end())
 
-        # Warnings
         for warn in preview.warnings:
             widgets.append(label(f"  [warn] {warn}"))
 
-        # Apply button -- only if no unmapped errors
         if preview.has_errors:
             widgets.append(label("Apply blocked: fix unmapped model errors above."))
         else:
@@ -807,7 +1033,6 @@ class PDKSwitcherPlugin(Plugin):
     # ------------------------------------------------------------------
 
     def on_button_clicked(self, panel_id: str, widget_id: str) -> None:
-        # Source PDK selection: "src_0", "src_1", ...
         if widget_id.startswith("src_"):
             try:
                 src_idx = int(widget_id[4:])
@@ -822,7 +1047,6 @@ class PDKSwitcherPlugin(Plugin):
                 self.request_refresh()
             return
 
-        # Target PDK selection: "tgt_0", "tgt_1", ...
         if widget_id.startswith("tgt_"):
             try:
                 tgt_idx = int(widget_id[4:])
@@ -844,11 +1068,42 @@ class PDKSwitcherPlugin(Plugin):
             return
 
         if widget_id == WID_REFRESH:
-            self._refresh_pdks()
+            self._pdk_root = _find_pdk_root()
+            self._detect_installed_pdks()
+            installed_count = sum(1 for p in BUILTIN_PDKS if p.get("installed"))
+            self._status = f"Refreshed: {installed_count}/{len(BUILTIN_PDKS)} installed"
+            self.set_status(self._status)
             self.request_refresh()
             return
 
-        # PDK install buttons: "install_0", "install_1", ...
+        if widget_id == WID_CONVERT_ALL:
+            self._run_convert_all()
+            return
+
+        if widget_id == WID_INSTALL_CIEL:
+            self._do_install_ciel()
+            return
+
+        if widget_id == WID_SETUP_PDK:
+            pdk_key = self._pipeline.config_pdk
+            if pdk_key:
+                self._pipeline.error = None
+                self._pipeline.log.clear()
+                self._auto_setup(pdk_key)
+            self.request_refresh()
+            return
+
+        if widget_id.startswith("convert_"):
+            try:
+                convert_idx = int(widget_id[8:])
+            except ValueError:
+                return
+            if 0 <= convert_idx < len(BUILTIN_PDKS):
+                pdk_key = BUILTIN_PDKS[convert_idx]["key"]
+                self._run_convert_pdk(pdk_key)
+                self.request_refresh()
+            return
+
         if widget_id.startswith("install_"):
             try:
                 install_idx = int(widget_id[8:])
@@ -856,7 +1111,13 @@ class PDKSwitcherPlugin(Plugin):
                 return
             if 0 <= install_idx < len(BUILTIN_PDKS):
                 pdk_key = BUILTIN_PDKS[install_idx]["key"]
-                self._install_pdk(pdk_key)
+                ok, msg = _install_pdk_subprocess(pdk_key)
+                self._pipeline.log.append(msg)
+                if ok:
+                    self._pdk_root = _find_pdk_root()
+                    self._detect_installed_pdks()
+                self._status = msg
+                self.set_status(msg)
                 self.request_refresh()
             return
 
@@ -869,35 +1130,30 @@ class PDKSwitcherPlugin(Plugin):
             self.request_refresh()
 
     # ------------------------------------------------------------------
-    # PDK management
+    # Actions
     # ------------------------------------------------------------------
 
-    def _refresh_pdks(self) -> None:
-        """Re-probe backends and re-scan installed PDKs."""
-        self._discover_backends()
-        installed_count = sum(1 for p in BUILTIN_PDKS if p.get("installed"))
-        self._status = f"Refreshed: {len(BUILTIN_PDKS)} PDK(s) known, {installed_count} installed"
+    def _do_install_ciel(self) -> None:
+        """Install CIEL and refresh state."""
+        self._status = "Installing CIEL..."
         self.set_status(self._status)
-
-    def _install_pdk(self, pdk_key: str) -> None:
-        """Install a PDK via CIEL."""
-        success, message = _ciel_install_pdk(pdk_key)
-        if success:
-            self._status = message
-            self.log(message)
-            # Re-detect installed PDKs
-            self._detect_installed_pdks()
+        ok, msg = _install_ciel_subprocess()
+        self._pipeline.log.append(msg)
+        if ok:
+            self._pipeline.ciel_installed = True
+            _probe_ciel()
+            self._status = "CIEL installed"
         else:
-            self._status = message
-            self.log(message, level="err")
+            self._status = f"CIEL install failed: {msg}"
         self.set_status(self._status)
+        self.log(self._status)
+        self.request_refresh()
 
     # ------------------------------------------------------------------
     # Remap logic
     # ------------------------------------------------------------------
 
     def _start_remap(self) -> None:
-        """Begin remap: query all instances from the schematic."""
         self._instances.clear()
         self._preview = None
         self._phase = _Phase.QUERYING
@@ -907,13 +1163,12 @@ class PDKSwitcherPlugin(Plugin):
         self.request_refresh()
 
     def _compute_preview(self) -> None:
-        """Compute the full remap preview after all instance data is collected."""
         src_key = BUILTIN_PDKS[self._src_idx]["key"]
         tgt_key = BUILTIN_PDKS[self._tgt_idx]["key"]
 
         preview = RemapPreview()
 
-        # Auto-detect source PDK from model names if instances have models
+        # Auto-detect source PDK from model names
         detected_pdks: dict[str, int] = {}
         for inst in self._instances.values():
             if inst.model and inst.model in _MODEL_TO_PDK:
@@ -930,14 +1185,12 @@ class PDKSwitcherPlugin(Plugin):
                 src_key = BUILTIN_PDKS[self._src_idx]["key"]
                 tgt_key = BUILTIN_PDKS[self._tgt_idx]["key"]
                 preview.warnings.append(
-                    f"Auto-detected source PDK: {src_key} "
-                    f"({detected_pdks[best_pdk]} device(s))"
+                    f"Auto-detected source PDK: {src_key} ({detected_pdks[best_pdk]} device(s))"
                 )
 
-        # Build the model mapping table
         mapped_src_to_tgt = _get_mapped_models(src_key, tgt_key)
 
-        # Build generic-name mapping for display
+        # Build mapping table for display
         src_generics: dict[str, str] = {}
         tgt_generics: dict[str, str] = {}
         for model, (pdk_key, generic) in _MODEL_TO_PDK.items():
@@ -963,7 +1216,6 @@ class PDKSwitcherPlugin(Plugin):
             mapped_model = mapped_src_to_tgt.get(model)
 
             if mapped_model is None:
-                # Model has no mapping to target PDK -- ERROR
                 if model not in seen_unmapped:
                     preview.unmapped_models.append(model)
                     seen_unmapped.add(model)
@@ -975,12 +1227,10 @@ class PDKSwitcherPlugin(Plugin):
                 preview.devices.append(inst)
                 continue
 
-            # Parse numeric values
             w_val = _parse_spice_value(inst.w)
             l_val = _parse_spice_value(inst.l)
             nf_val = int(inst.nf) if inst.nf and inst.nf.isdigit() else 1
 
-            # Linear scaling fallback (always available)
             inst.new_model = mapped_model
             if w_val is not None and l_val is not None:
                 src_info = BUILTIN_PDKS[self._src_idx]
@@ -997,9 +1247,7 @@ class PDKSwitcherPlugin(Plugin):
                 inst.new_w = inst.w
                 inst.new_l = inst.l
                 inst.new_nf = inst.nf or "1"
-                preview.warnings.append(
-                    f"{inst.name}: could not parse W/L, model remapped only"
-                )
+                preview.warnings.append(f"{inst.name}: could not parse W/L, model remapped only")
 
             preview.devices.append(inst)
 
@@ -1009,19 +1257,15 @@ class PDKSwitcherPlugin(Plugin):
         n = len(preview.devices)
         n_err = len(preview.unmapped_models)
         if n_err > 0:
-            self._status = (
-                f"Preview ready: {n} device(s), "
-                f"{n_err} UNMAPPED model(s) -- cannot apply"
-            )
+            self._status = f"Preview: {n} device(s), {n_err} UNMAPPED -- cannot apply"
         else:
-            self._status = f"Preview ready: {n} device(s), {preview.mode} mode"
+            self._status = f"Preview: {n} device(s), {preview.mode} mode"
 
         self.set_status(self._status)
         self.log(self._status)
         self.request_refresh()
 
     def _apply_remap(self) -> None:
-        """Apply the computed remap to the schematic."""
         preview = self._preview
         if preview is None:
             self._status = "No remap preview -- run Remap first"
@@ -1029,12 +1273,8 @@ class PDKSwitcherPlugin(Plugin):
             self.request_refresh()
             return
 
-        # BLOCK if any unmapped models
         if preview.has_errors:
-            self._status = (
-                f"BLOCKED: {len(preview.unmapped_models)} unmapped model(s). "
-                "Cannot apply remap with unmapped devices."
-            )
+            self._status = f"BLOCKED: {len(preview.unmapped_models)} unmapped model(s)"
             self.set_status(self._status)
             self.log(self._status, level="err")
             self.request_refresh()
@@ -1046,9 +1286,7 @@ class PDKSwitcherPlugin(Plugin):
         for dev in preview.devices:
             if not dev.new_model:
                 continue
-
             idx = dev.idx
-
             if dev.new_model != dev.model:
                 self.push_command(f"set_instance_prop {idx} model {dev.new_model}")
             if dev.new_w and dev.new_w != dev.w:
@@ -1057,20 +1295,15 @@ class PDKSwitcherPlugin(Plugin):
                 self.push_command(f"set_instance_prop {idx} L {dev.new_l}")
             if dev.new_nf and dev.new_nf != dev.nf:
                 self.push_command(f"set_instance_prop {idx} nf {dev.new_nf}")
-
             applied += 1
 
         src_key = BUILTIN_PDKS[self._src_idx]["key"]
         tgt_key = BUILTIN_PDKS[self._tgt_idx]["key"]
-        self._status = (
-            f"Applied: {applied} device(s) remapped from {src_key} to {tgt_key}"
-        )
+        self._status = f"Applied: {applied} device(s) remapped {src_key} -> {tgt_key}"
         self.set_status(self._status)
         self.log(self._status)
 
-        # Set the global PDK to the target
-        self.push_command(f"set_state current_pdk {tgt_key}")
-        self.log(f"Global PDK set to: {tgt_key}")
+        self.push_command(f"load_pdk {tgt_key}")
 
         self._preview = None
         self._phase = _Phase.IDLE

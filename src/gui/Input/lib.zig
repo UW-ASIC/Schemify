@@ -14,10 +14,60 @@ const file_explorer = @import("../Panels/file_explorer.zig");
 // ── Public API ───────────────────────────────────────────────────────────────
 
 pub fn handleInput(app: *AppState) void {
+    // Reset per-frame flag; widgets set it to true during draw().
+    const was_focused = app.gui.hot.text_entry_focused;
+    app.gui.hot.text_entry_focused = false;
+
     for (dvui.events()) |*ev| {
         if (ev.handled) continue;
         switch (ev.evt) {
             .key => |k| {
+                // When a dvui text entry has focus (set previous frame),
+                // only handle Ctrl shortcuts and Escape — let the widget
+                // receive normal key presses.
+                if (was_focused) {
+                    if (k.action == .up) continue;
+                    if (k.mod.control()) {
+                        if (keybinds.lookup(k.code, true, k.mod.shift(), k.mod.alt())) |kb| {
+                            switch (kb.action) {
+                                .queue => |q| actions.enqueue(app, q.cmd, q.msg),
+                                .gui => |gg| actions.runGuiCommand(app, gg),
+                            }
+                            ev.handled = true;
+                        }
+                    } else if (k.code == .escape) {
+                        actions.enqueue(app, .{ .immediate = .escape_mode }, "Escape");
+                        ev.handled = true;
+                    }
+                    continue;
+                }
+
+                // In doc view, only handle Ctrl shortcuts and Escape — let text input receive the rest.
+                if (app.gui.hot.view_mode == .doc) {
+                    if (k.action == .up) continue;
+                    if (k.mod.control()) {
+                        if (keybinds.lookup(k.code, true, k.mod.shift(), k.mod.alt())) |kb| {
+                            // Sync doc editor buffer to schematic before save
+                            switch (kb.action) {
+                                .queue => |q| switch (q.cmd) {
+                                    .immediate => |imm| if (imm == .file_save) syncDocBuffer(app),
+                                    else => {},
+                                },
+                                else => {},
+                            }
+                            switch (kb.action) {
+                                .queue => |q| actions.enqueue(app, q.cmd, q.msg),
+                                .gui => |gg| actions.runGuiCommand(app, gg),
+                            }
+                            ev.handled = true;
+                        }
+                    } else if (k.code == .escape) {
+                        actions.enqueue(app, .{ .immediate = .escape_mode }, "Escape");
+                        ev.handled = true;
+                    }
+                    continue;
+                }
+
                 // Space-bar pan mode (cross-cutting)
                 if (k.code == .space and !app.gui.hot.command_mode and !app.open_file_explorer) {
                     const cs = &app.gui.hot.canvas;
@@ -55,12 +105,30 @@ pub fn handleInput(app: *AppState) void {
     }
 }
 
+// ── Doc buffer sync ─────────────────────────────────────────────────────────
+
+fn syncDocBuffer(app: *AppState) void {
+    const doc = app.active() orelse return;
+    const editor = &app.gui.cold.doc_editor;
+    const text = editor.getText();
+    doc.sch.setDocumentation(doc.alloc, text) catch {};
+    doc.dirty = true;
+}
+
 // ── Normal mode ──────────────────────────────────────────────────────────────
 
 fn handleNormal(app: *AppState, code: dvui.enums.Key, ctrl: bool, shift: bool, alt: bool) bool {
     // Text tool input capture — intercept all keys when text_input_active.
     if (app.tool.draw.text_input_active) {
         return handleTextInput(app, code, ctrl, shift);
+    }
+
+    // Placement mode: R rotates, X flips the ghost before placing
+    if (app.tool.placement != null) {
+        const plain = !ctrl and !shift and !alt;
+        if (plain and code == .r) { app.tool.placement.?.rot +%= 1; return true; }
+        if (shift and !ctrl and !alt and code == .r) { app.tool.placement.?.rot -%= 1; return true; }
+        if (plain and code == .x) { app.tool.placement.?.flip = !app.tool.placement.?.flip; return true; }
     }
 
     // Plugin keybinds
@@ -188,7 +256,7 @@ fn dispatchPluginKeybind(app: *AppState, code: dvui.enums.Key, ctrl: bool, shift
     const ch = km.keyToChar(code, false);
     if (ch == 0) return false;
     const mods = km.packMods(ctrl, shift, alt);
-    for (app.gui.cold.plugin_keybinds.items) |kb| {
+    for (app.gui.cold.plugins.keybinds.items) |kb| {
         if (ch == kb.key and mods == kb.mods) {
             const alloc = app.gpa.allocator();
             app.queue.push(alloc, .{ .immediate = .{ .plugin_command = .{ .tag = kb.cmd_tag, .payload = null } } }) catch {};

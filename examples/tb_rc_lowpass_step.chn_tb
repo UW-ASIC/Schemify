@@ -1,0 +1,16 @@
+chn_testbench 1
+
+TESTBENCH TB RC Low-Pass Step
+  instances:
+    Xdut  subckt  x=-130  y=0  sym=rc_lowpass
+    Vin  vsource  x=20  y=0  sym=vsource  value=0 PULSE(0 1 0 0.000000001 0.000000001 0.01 0.02)
+    Rload  resistor  x=130  y=120  sym=res  value=1meg  device=resistor
+    vin  lab_pin  x=-130  y=-30  sym=lab_pin
+    vout  lab_pin  x=-130  y=30  sym=lab_pin
+    gnd0  gnd  x=20  y=40  sym=gnd
+    gnd1  gnd  x=130  y=160  sym=gnd
+
+  wires:
+    -130 -30 20 -30
+    -130 30 -130 90
+    -130 90 130 90

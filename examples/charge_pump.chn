@@ -1,0 +1,53 @@
+chn_testbench 1
+
+TESTBENCH Dickson Charge Pump
+  instances:
+    Vdd  vsource  x=-570  y=0  sym=vsource  value=1.8
+    Vclk1  vsource  x=-460  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.0000000001 0.0000000001 0.000000005 0.00000001)
+    Vclk2  vsource  x=-350  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.0000000001 0.0000000001 0.000000005 0.00000001)
+    D1  diode  x=-240  y=-120  sym=diode  model=diode_1v8
+    Cp1  capacitor  x=-140  y=0  sym=capa  value=10p  device=capacitor
+    D2  diode  x=-40  y=0  sym=diode  model=diode_1v8
+    Cp2  capacitor  x=70  y=0  sym=capa  value=10p  device=capacitor
+    D3  diode  x=170  y=0  sym=diode  model=diode_1v8
+    Cp3  capacitor  x=270  y=0  sym=capa  value=10p  device=capacitor
+    D4  diode  x=370  y=0  sym=diode  model=diode_1v8
+    Cout  capacitor  x=470  y=120  sym=capa  value=50p  device=capacitor
+    Rload  resistor  x=570  y=120  sym=res  value=100k  device=resistor
+    n3  lab_pin  x=170  y=30  sym=lab_pin
+    vout  lab_pin  x=370  y=30  sym=lab_pin
+    n2  lab_pin  x=-40  y=30  sym=lab_pin
+    n1  lab_pin  x=-240  y=-90  sym=lab_pin
+    phi2  lab_pin  x=-350  y=-30  sym=lab_pin
+    phi2  lab_pin  x=40  y=-30  sym=lab_pin
+    phi1  lab_pin  x=-460  y=-30  sym=lab_pin
+    phi1  lab_pin  x=-170  y=0  sym=lab_pin
+    gnd0  gnd  x=-570  y=40  sym=gnd
+    gnd1  gnd  x=-460  y=40  sym=gnd
+    gnd2  gnd  x=-350  y=40  sym=gnd
+    gnd3  gnd  x=470  y=160  sym=gnd
+    gnd4  gnd  x=570  y=160  sym=gnd
+    vdd5  vdd  x=-570  y=-40  sym=vdd
+    vdd6  vdd  x=-240  y=-160  sym=vdd
+
+  wires:
+    170 30 300 30
+    300 30 300 0
+    300 0 300 -30
+    300 -30 370 -30
+    370 30 470 30
+    470 30 470 90
+    470 90 570 90
+    -40 30 100 30
+    100 30 100 0
+    100 0 100 -30
+    100 -30 170 -30
+    -240 -90 -110 -90
+    -110 -90 -110 0
+    -110 0 -110 -30
+    -110 -30 -40 -30
+    -350 -30 40 -30
+    40 -30 40 0
+    -460 -30 -170 -30
+    -170 -30 -170 0
+    -170 0 240 0

@@ -1,0 +1,127 @@
+chn_testbench 1
+
+TESTBENCH Current-Starved VCO
+  instances:
+    Vdd  vsource  x=-460  y=0  sym=vsource  value=1.8
+    Vctrl  vsource  x=-340  y=0  sym=vsource  value=900m
+    Mpb1  pmos  x=150  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp1  pmos  x=-340  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mn1  nmos  x=-460  y=80  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mnb1  nmos  x=-340  y=160  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mpb2  pmos  x=270  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp2  pmos  x=-100  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mn2  nmos  x=-220  y=80  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mnb2  nmos  x=-100  y=160  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mpb3  pmos  x=390  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp3  pmos  x=30  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mn3  nmos  x=30  y=80  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mnb3  nmos  x=150  y=160  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    C1  capacitor  x=260  y=-20  sym=capa  value=10f  device=capacitor
+    C2  capacitor  x=360  y=-20  sym=capa  value=10f  device=capacitor
+    C3  capacitor  x=460  y=-20  sym=capa  value=10f  device=capacitor
+    gnd_s2  lab_pin  x=-200  y=110  sym=lab_pin
+    gnd_s1  lab_pin  x=-440  y=110  sym=lab_pin
+    gnd_s3  lab_pin  x=50  y=110  sym=lab_pin
+    n2  lab_pin  x=10  y=80  sym=lab_pin
+    n2  lab_pin  x=-120  y=-150  sym=lab_pin
+    n1  lab_pin  x=-360  y=-150  sym=lab_pin
+    n1  lab_pin  x=-80  y=-120  sym=lab_pin
+    vctrl  lab_pin  x=130  y=160  sym=lab_pin
+    vctrl  lab_pin  x=-340  y=-30  sym=lab_pin
+    vctrl  lab_pin  x=170  y=-120  sym=lab_pin
+    vctrl  lab_pin  x=-360  y=160  sym=lab_pin
+    vctrl  lab_pin  x=290  y=-120  sym=lab_pin
+    vctrl  lab_pin  x=-120  y=160  sym=lab_pin
+    n3  lab_pin  x=-320  y=-120  sym=lab_pin
+    n3  lab_pin  x=10  y=-150  sym=lab_pin
+    n3  lab_pin  x=460  y=50  sym=lab_pin
+    vdd0  vdd  x=370  y=-160  sym=vdd
+    vdd1  vdd  x=10  y=-100  sym=vdd
+    gnd2  gnd  x=-460  y=40  sym=gnd
+    gnd3  gnd  x=-340  y=40  sym=gnd
+    gnd4  gnd  x=-440  y=90  sym=gnd
+    gnd5  gnd  x=-320  y=200  sym=gnd
+    gnd6  gnd  x=-320  y=170  sym=gnd
+    gnd7  gnd  x=-200  y=90  sym=gnd
+    gnd8  gnd  x=-80  y=200  sym=gnd
+    gnd9  gnd  x=-80  y=170  sym=gnd
+    gnd10  gnd  x=50  y=90  sym=gnd
+    gnd11  gnd  x=170  y=200  sym=gnd
+    gnd12  gnd  x=170  y=170  sym=gnd
+    gnd13  gnd  x=260  y=20  sym=gnd
+    gnd14  gnd  x=360  y=20  sym=gnd
+    gnd15  gnd  x=460  y=20  sym=gnd
+    vdd16  vdd  x=130  y=-160  sym=vdd
+    vdd17  vdd  x=-360  y=-100  sym=vdd
+    vdd18  vdd  x=250  y=-160  sym=vdd
+    vdd19  vdd  x=-120  y=-100  sym=vdd
+    vdd20  vdd  x=-460  y=-40  sym=vdd
+    vdd21  vdd  x=130  y=-100  sym=vdd
+    vdd22  vdd  x=130  y=-130  sym=vdd
+    vdd23  vdd  x=-360  y=-130  sym=vdd
+    vdd24  vdd  x=250  y=-100  sym=vdd
+    vdd25  vdd  x=250  y=-130  sym=vdd
+    vdd26  vdd  x=-120  y=-130  sym=vdd
+    vdd27  vdd  x=370  y=-100  sym=vdd
+    vdd28  vdd  x=370  y=-130  sym=vdd
+    vdd29  vdd  x=10  y=-130  sym=vdd
+
+  wires:
+    -200 110 -80 110
+    -80 110 -80 130
+    -440 110 -320 110
+    -320 110 -320 130
+    50 110 170 110
+    170 110 170 130
+    10 80 -100 80
+    -100 80 -100 50
+    -100 50 -200 50
+    -120 -150 -40 -150
+    -40 -150 -40 -120
+    -40 -120 50 -120
+    50 -120 50 -20
+    50 -20 10 -20
+    10 -20 10 80
+    50 -120 50 -50
+    50 -50 360 -50
+    -360 -150 -440 -150
+    -440 -150 -440 50
+    -360 -150 -220 -150
+    -220 -150 -220 -120
+    -220 -120 -80 -120
+    -440 50 -340 50
+    -340 50 -340 80
+    -340 80 -240 80
+    -80 -120 -80 -50
+    -80 -50 260 -50
+    130 160 130 20
+    130 20 170 20
+    170 20 170 -120
+    -340 -30 -360 -30
+    -360 -30 -360 160
+    170 -120 290 -120
+    -360 160 -120 160
+    290 -120 410 -120
+    -120 160 130 160
+    -320 -120 -480 -120
+    -480 -120 -480 80
+    -320 -120 -160 -120
+    -160 -120 -160 -150
+    -160 -150 10 -150
+    10 -150 10 -50
+    10 -50 50 -50
+    50 -50 50 50
+    50 50 460 50
+    460 50 460 -50

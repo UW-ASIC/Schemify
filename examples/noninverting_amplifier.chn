@@ -1,0 +1,34 @@
+chn_testbench 1
+
+TESTBENCH Non-Inverting Amplifier
+  instances:
+    Vcc  vsource  x=-320  y=0  sym=vsource  value=15
+    Vee  vsource  x=-210  y=0  sym=vsource  value=-15
+    Vin  vsource  x=-100  y=0  sym=vsource  value=100m
+    Rin  resistor  x=20  y=0  sym=res  value=100  device=resistor
+    Rg  resistor  x=110  y=120  sym=res  value=1k  device=resistor
+    Rf  resistor  x=210  y=0  sym=res  value=10k  device=resistor
+    Eamp  vcvs  x=320  y=120  sym=vcvs  value=1000000
+    vin  lab_pin  x=-100  y=-30  sym=lab_pin
+    vout  lab_pin  x=180  y=0  sym=lab_pin
+    vminus  lab_pin  x=110  y=90  sym=lab_pin
+    vplus  lab_pin  x=-10  y=0  sym=lab_pin
+    vplus  lab_pin  x=290  y=50  sym=lab_pin
+    gnd0  gnd  x=-320  y=40  sym=gnd
+    gnd1  gnd  x=-210  y=40  sym=gnd
+    gnd2  gnd  x=-100  y=40  sym=gnd
+    gnd3  gnd  x=110  y=160  sym=gnd
+    gnd4  gnd  x=320  y=160  sym=gnd
+
+  wires:
+    -100 -30 50 -30
+    50 -30 50 0
+    180 0 320 0
+    320 0 320 90
+    110 90 240 90
+    240 90 240 0
+    240 0 240 150
+    240 150 290 150
+    -10 0 -10 50
+    -10 50 290 50
+    290 50 290 90

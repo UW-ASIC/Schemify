@@ -205,6 +205,38 @@ pub const LineBatch = struct {
         self.bounds.h = @max(self.bounds.h, p.y);
     }
 
+    pub fn addHollowCircle(self: *LineBatch, center: Vec2, radius: f32, thickness: f32, col: Color) void {
+        const segs = 8;
+        var prev: Vec2 = .{ center[0] + radius, center[1] };
+        for (1..segs + 1) |si| {
+            const angle: f32 = @as(f32, @floatFromInt(si)) * (2.0 * std.math.pi / @as(f32, segs));
+            const cur: Vec2 = .{ center[0] + radius * @cos(angle), center[1] - radius * @sin(angle) };
+            self.addLine(prev[0], prev[1], cur[0], cur[1], thickness, col);
+            prev = cur;
+        }
+    }
+
+    pub fn addFilledSquare(self: *LineBatch, center: Vec2, half_side: f32, col: Color) void {
+        self.vertexes.ensureUnusedCapacity(self.alloc, 4) catch return;
+        self.indices.ensureUnusedCapacity(self.alloc, 6) catch return;
+        const pma: dvui.Color.PMA = .fromColor(col);
+        const base: Vertex.Index = @intCast(self.vertexes.items.len);
+        const pts = [4]dvui.Point.Physical{
+            .{ .x = center[0] - half_side, .y = center[1] - half_side },
+            .{ .x = center[0] + half_side, .y = center[1] - half_side },
+            .{ .x = center[0] + half_side, .y = center[1] + half_side },
+            .{ .x = center[0] - half_side, .y = center[1] + half_side },
+        };
+        for (pts) |p| {
+            self.vertexes.appendAssumeCapacity(.{ .pos = p, .col = pma });
+            self.bounds.x = @min(self.bounds.x, p.x);
+            self.bounds.y = @min(self.bounds.y, p.y);
+            self.bounds.w = @max(self.bounds.w, p.x);
+            self.bounds.h = @max(self.bounds.h, p.y);
+        }
+        self.indices.appendSliceAssumeCapacity(&.{ base, base + 1, base + 2, base, base + 2, base + 3 });
+    }
+
     pub fn addRectOutline(self: *LineBatch, tl: Vec2, br: Vec2, thickness: f32, col: Color) void {
         self.addLine(tl[0], tl[1], br[0], tl[1], thickness, col);
         self.addLine(br[0], tl[1], br[0], br[1], thickness, col);
@@ -297,7 +329,6 @@ const origin_arm_max_scale: f32 = 12.0;
 
 pub fn drawGrid(ctx: *const types.RenderContext, snap_size: f32) void {
     const vp = ctx.vp;
-    const pal = ctx.pal;
     const step = snap_size * vp.scale;
     if (step < types.grid_min_step_px) return;
 
@@ -314,7 +345,7 @@ pub fn drawGrid(ctx: *const types.RenderContext, snap_size: f32) void {
         const t = std.math.clamp((step - 10.0) / 20.0, 0.0, 1.0);
         break :blk grid_dot_small + (grid_dot_large - grid_dot_small) * t;
     };
-    const dot_r: f32 = dot_r_base * theme.getGridDotSize();
+    const dot_r: f32 = dot_r_base * ctx.canvas_styles.grid.dot_size;
 
     const x_start = vp.bounds.x + ox;
     const y_start = vp.bounds.y + oy;
@@ -331,7 +362,7 @@ pub fn drawGrid(ctx: *const types.RenderContext, snap_size: f32) void {
     const cw = dvui.currentWindow();
     const alloc = cw.lifo();
     var tb = dvui.Triangles.Builder.init(alloc, n_dots * 4, n_dots * 6) catch return;
-    const grid_col: dvui.Color.PMA = .fromColor(pal.grid_dot);
+    const grid_col: dvui.Color.PMA = .fromColor(ctx.canvas_styles.grid.color);
 
     var row: usize = 0;
     while (row < n_rows) : (row += 1) {

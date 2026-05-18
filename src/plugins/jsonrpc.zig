@@ -1,5 +1,4 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub const PROTOCOL_VERSION: u32 = 1;
 
@@ -114,76 +113,54 @@ fn writeObj(writer: anytype, header: anytype, params_json: ?[]const u8, result_j
 
 // -- Parsing ------------------------------------------------------------------
 
-pub fn parseLine(alloc: Allocator, line: []const u8) !ParsedMessage {
+pub fn parseLine(line: []const u8) ParsedMessage {
     const trimmed = std.mem.trimRight(u8, line, "\r\n");
     if (trimmed.len == 0) return .parse_error;
-
-    const parsed = std.json.parseFromSlice(std.json.Value, alloc, trimmed, .{}) catch
-        return .parse_error;
-    // Caller owns parsed; string slices point into the source `line` buffer
-    // via the parsed tree.
-    const root = parsed.value;
-
-    if (root != .object) return .parse_error;
-    const obj = root.object;
+    if (trimmed[0] != '{') return .parse_error;
 
     // Check jsonrpc version field.
-    const version = obj.get("jsonrpc") orelse return .parse_error;
-    if (version != .string) return .parse_error;
-    if (!std.mem.eql(u8, version.string, "2.0")) return .parse_error;
+    const version_raw = extractRawJson(trimmed, "jsonrpc") orelse return .parse_error;
+    if (!std.mem.eql(u8, version_raw, "\"2.0\"")) return .parse_error;
 
     // Extract method (optional — responses don't have it).
-    const method_val = obj.get("method");
-    const id_val = obj.get("id");
+    const method: ?[]const u8 = blk: {
+        const raw = extractRawJson(trimmed, "method") orelse break :blk null;
+        if (raw.len < 2 or raw[0] != '"' or raw[raw.len - 1] != '"') return .parse_error;
+        break :blk raw[1 .. raw.len - 1];
+    };
 
-    if (method_val) |mv| {
-        if (mv != .string) return .parse_error;
-        const method = mv.string;
+    // Extract id (optional — notifications don't have it).
+    const id: ?u32 = blk: {
+        const raw = extractRawJson(trimmed, "id") orelse break :blk null;
+        break :blk std.fmt.parseInt(u32, raw, 10) catch return .parse_error;
+    };
 
-        const params = extractRawJson(trimmed, "params");
+    const params = extractRawJson(trimmed, "params");
 
-        if (id_val) |iv| {
-            const id = jsonToU32(iv) orelse return .parse_error;
-            return .{ .request = .{ .id = id, .method = method, .params = params } };
+    if (method) |m| {
+        if (id) |i| {
+            return .{ .request = .{ .id = i, .method = m, .params = params } };
         }
-        return .{ .notification = .{ .method = method, .params = params } };
+        return .{ .notification = .{ .method = m, .params = params } };
     }
 
     // No method — must be a response.
-    if (id_val) |iv| {
-        const id = jsonToU32(iv) orelse return .parse_error;
+    if (id) |i| {
         const result = extractRawJson(trimmed, "result");
-        const err_obj = obj.get("error");
         var err_info: ?ErrorInfo = null;
-        if (err_obj) |eo| {
-            if (eo == .object) {
-                const code_val = eo.object.get("code") orelse return .parse_error;
-                const code = jsonToI32(code_val) orelse return .parse_error;
-                const msg_val = eo.object.get("message") orelse return .parse_error;
-                if (msg_val != .string) return .parse_error;
-                err_info = .{ .code = code, .message = msg_val.string };
+        if (extractRawJson(trimmed, "error")) |err_raw| {
+            if (err_raw.len > 0 and err_raw[0] == '{') {
+                const code_raw = extractRawJson(err_raw, "code") orelse return .parse_error;
+                const code = std.fmt.parseInt(i32, code_raw, 10) catch return .parse_error;
+                const msg_raw = extractRawJson(err_raw, "message") orelse return .parse_error;
+                if (msg_raw.len < 2 or msg_raw[0] != '"' or msg_raw[msg_raw.len - 1] != '"') return .parse_error;
+                err_info = .{ .code = code, .message = msg_raw[1 .. msg_raw.len - 1] };
             }
         }
-        return .{ .response = .{ .id = id, .result = result, .err = err_info } };
+        return .{ .response = .{ .id = i, .result = result, .err = err_info } };
     }
 
     return .parse_error;
-}
-
-fn jsonToU32(val: std.json.Value) ?u32 {
-    return switch (val) {
-        .integer => |i| if (i >= 0 and i <= std.math.maxInt(u32)) @intCast(i) else null,
-        .float => |f| if (f >= 0 and f <= @as(f64, @floatFromInt(std.math.maxInt(u32))) and f == @trunc(f)) @intFromFloat(f) else null,
-        else => null,
-    };
-}
-
-fn jsonToI32(val: std.json.Value) ?i32 {
-    return switch (val) {
-        .integer => |i| if (i >= std.math.minInt(i32) and i <= std.math.maxInt(i32)) @intCast(i) else null,
-        .float => |f| if (f >= @as(f64, @floatFromInt(std.math.minInt(i32))) and f <= @as(f64, @floatFromInt(std.math.maxInt(i32))) and f == @trunc(f)) @intFromFloat(f) else null,
-        else => null,
-    };
 }
 
 /// Extracts raw JSON text for a top-level key by scanning for `"key":` and
@@ -275,7 +252,7 @@ test "round-trip notification" {
     sendNotification(writer, "test/ping", "{\"a\":1}");
     const line = fbs.getWritten();
 
-    const msg = try parseLine(std.testing.allocator, line);
+    const msg = parseLine(line);
     switch (msg) {
         .notification => |n| {
             try std.testing.expectEqualStrings("test/ping", n.method);
@@ -294,7 +271,7 @@ test "round-trip request" {
     sendRequest(writer, 42, "tool/run", "{\"name\":\"x\"}");
     const line = fbs.getWritten();
 
-    const msg = try parseLine(std.testing.allocator, line);
+    const msg = parseLine(line);
     switch (msg) {
         .request => |r| {
             try std.testing.expectEqual(@as(u32, 42), r.id);
@@ -313,7 +290,7 @@ test "round-trip response" {
     sendResponse(writer, 7, "\"ok\"");
     const line = fbs.getWritten();
 
-    const msg = try parseLine(std.testing.allocator, line);
+    const msg = parseLine(line);
     switch (msg) {
         .response => |r| {
             try std.testing.expectEqual(@as(u32, 7), r.id);
@@ -333,7 +310,7 @@ test "round-trip error response" {
     sendError(writer, 3, METHOD_NOT_FOUND, "no such method");
     const line = fbs.getWritten();
 
-    const msg = try parseLine(std.testing.allocator, line);
+    const msg = parseLine(line);
     switch (msg) {
         .response => |r| {
             try std.testing.expectEqual(@as(u32, 3), r.id);
@@ -353,7 +330,7 @@ test "notification without params" {
     sendNotification(writer, "ping", null);
     const line = fbs.getWritten();
 
-    const msg = try parseLine(std.testing.allocator, line);
+    const msg = parseLine(line);
     switch (msg) {
         .notification => |n| {
             try std.testing.expectEqualStrings("ping", n.method);
@@ -364,11 +341,11 @@ test "notification without params" {
 }
 
 test "invalid JSON returns parse_error" {
-    const msg = try parseLine(std.testing.allocator, "not json at all");
+    const msg = parseLine("not json at all");
     try std.testing.expect(msg == .parse_error);
 }
 
 test "empty line returns parse_error" {
-    const msg = try parseLine(std.testing.allocator, "");
+    const msg = parseLine("");
     try std.testing.expect(msg == .parse_error);
 }

@@ -6,6 +6,7 @@ const dvui = @import("dvui");
 const st = @import("state");
 const core = @import("schematic");
 const theme = @import("theme_config");
+const utility = @import("utility");
 const helpers = @import("../helpers.zig");
 const AppState = st.AppState;
 
@@ -45,6 +46,7 @@ var files: std.ArrayListUnmanaged(FileEntry) = .{};
 var filtered: std.ArrayListUnmanaged(u32) = .{};
 var prev_query_len: usize = 0;
 var prev_section: i32 = -2;
+var prev_sort: st.FileSortOrder = .name_asc;
 var preview_arena_state: ?std.heap.ArenaAllocator = null;
 
 // ── Text input API (called from Input/lib.zig) ───────────────────────────────
@@ -89,10 +91,11 @@ pub fn draw(app: *AppState) void {
 
     if (!fe.scanned) { scanSections(app); fe.scanned = true; }
 
-    if (fe.query_len != prev_query_len or fe.selected_section != prev_section) {
+    if (fe.query_len != prev_query_len or fe.selected_section != prev_section or fe.sort_order != prev_sort) {
         refreshFilter(app.allocator(), fe);
         prev_query_len = fe.query_len;
         prev_section = fe.selected_section;
+        prev_sort = fe.sort_order;
     }
 
     // Center and size modal to 80% of window
@@ -115,11 +118,13 @@ pub fn draw(app: *AppState) void {
         _ = dvui.windowHeader("File Explorer", "", &app.open_file_explorer);
 
         drawSearchBar(fe);
-        var body = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
-        defer body.deinit();
-        drawSections(app);
-        _ = dvui.separator(@src(), .{ .id_extra = 100 });
-        drawFileList(app);
+        {
+            var body = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
+            defer body.deinit();
+            drawSections(app);
+            _ = dvui.separator(@src(), .{ .id_extra = 100 });
+            drawFileList(app);
+        }
     }
 
     // Outside-click dismissal
@@ -212,66 +217,281 @@ fn drawFileList(app: *AppState) void {
     const ak: ?SectionKind = if (fe.selected_section >= 0 and @as(usize, @intCast(fe.selected_section)) < sections.items.len)
         sections.items[@intCast(fe.selected_section)].kind else null;
     {
+        var hdr = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = 300 });
+        defer hdr.deinit();
+
         const label: []const u8 = if (fe.selected_section >= 0 and @as(usize, @intCast(fe.selected_section)) < sections.items.len)
             sections.items[@intCast(fe.selected_section)].label else "Select a section";
-        dvui.labelNoFmt(@src(), label, .{}, .{ .id_extra = 301, .style = .control, .color_text = muted() });
+        dvui.labelNoFmt(@src(), label, .{}, .{ .id_extra = 301, .style = .control, .color_text = muted(), .expand = .horizontal });
+
+        // Sort toggle button
+        const sort_label: []const u8 = switch (fe.sort_order) {
+            .name_asc => "A-Z",
+            .name_desc => "Z-A",
+            .ext_asc => "EXT",
+            .dirs_first => "DIR",
+        };
+        var sort_btn = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .id_extra = 305, .background = true, .padding = .{ .x = 6, .y = 2, .w = 6, .h = 2 },
+            .color_fill = section_bg(), .color_fill_hover = hover_bg(),
+        });
+        defer sort_btn.deinit();
+        dvui.labelNoFmt(@src(), sort_label, .{}, .{ .id_extra = 306, .gravity_y = 0.5, .color_text = muted() });
+        if (dvui.clicked(&sort_btn.wd, .{})) {
+            fe.sort_order = switch (fe.sort_order) {
+                .name_asc => .name_desc,
+                .name_desc => .ext_asc,
+                .ext_asc => .dirs_first,
+                .dirs_first => .name_asc,
+            };
+        }
     }
     _ = dvui.spacer(@src(), .{ .id_extra = 302, .min_size_content = .{ .h = 2 } });
 
-    if (ak != null and ak.? == .pdk) { drawPdkInfo(app); return; }
+    if (ak != null and ak.? == .pdk) { drawPdkInfo(app); drawPreviewPane(app, fe); return; }
 
     if (filtered.items.len == 0) {
         const msg: []const u8 = if (fe.selected_section < 0) "Select a section to browse files."
             else if (fe.query_len > 0) "No matches for query."
             else "No files found.";
         dvui.labelNoFmt(@src(), msg, .{}, .{ .id_extra = 303, .style = .control });
-        return;
-    }
+    } else {
+        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both, .id_extra = 304 });
+        defer scroll.deinit();
 
-    var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both, .id_extra = 304 });
-    defer scroll.deinit();
+        for (filtered.items) |fi_u32| {
+            const fi: usize = fi_u32;
+            if (fi >= files.items.len) continue;
+            const fe_entry = files.items[fi];
+            const is_sel = fe.selected_file == @as(i32, @intCast(fi));
 
-    for (filtered.items) |fi_u32| {
-        const fi: usize = fi_u32;
-        if (fi >= files.items.len) continue;
-        const fe_entry = files.items[fi];
-        const is_sel = fe.selected_file == @as(i32, @intCast(fi));
+            var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .id_extra = fi * 2, .expand = .horizontal, .background = true,
+                .padding = .{ .x = 6, .y = 3, .w = 6, .h = 3 },
+                .color_fill = if (is_sel) selected_bg() else transparent, .color_fill_hover = file_hover_bg(),
+            });
+            defer card.deinit();
 
-        var card = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .id_extra = fi * 2, .expand = .horizontal, .background = true,
-            .padding = .{ .x = 6, .y = 3, .w = 6, .h = 3 },
-            .color_fill = if (is_sel) selected_bg() else transparent, .color_fill_hover = file_hover_bg(),
-        });
-        defer card.deinit();
+            // Badge
+            const badge: []const u8 = if (fe_entry.is_dir) "DIR" else classifyBadge(fe_entry.name);
+            const bc: dvui.Color = if (fe_entry.is_dir) badge_dir()
+                else if (std.mem.endsWith(u8, fe_entry.name, ".chn")) badge_chn()
+                else badge_other();
+            dvui.labelNoFmt(@src(), badge, .{}, .{ .id_extra = fi * 10 + 1, .gravity_y = 0.5, .color_text = bc, .min_size_content = .{ .w = 30 } });
+            _ = dvui.spacer(@src(), .{ .id_extra = fi * 10 + 2, .min_size_content = .{ .w = 4 } });
+            dvui.labelNoFmt(@src(), fe_entry.name, .{}, .{ .id_extra = fi * 10 + 3, .expand = .horizontal, .gravity_y = 0.5 });
 
-        // Badge
-        const badge: []const u8 = if (fe_entry.is_dir) "DIR" else classifyBadge(fe_entry.name);
-        const bc: dvui.Color = if (fe_entry.is_dir) badge_dir()
-            else if (std.mem.endsWith(u8, fe_entry.name, ".chn")) badge_chn()
-            else badge_other();
-        dvui.labelNoFmt(@src(), badge, .{}, .{ .id_extra = fi * 10 + 1, .gravity_y = 0.5, .color_text = bc, .min_size_content = .{ .w = 30 } });
-        _ = dvui.spacer(@src(), .{ .id_extra = fi * 10 + 2, .min_size_content = .{ .w = 4 } });
-        dvui.labelNoFmt(@src(), fe_entry.name, .{}, .{ .id_extra = fi * 10 + 3, .expand = .horizontal, .gravity_y = 0.5 });
-
-        if (dvui.clicked(&card.wd, .{})) {
-            if (is_sel) {
-                if (fe_entry.embedded_data) |data| {
-                    app.openEmbedded(fe_entry.name, data) catch { app.status_msg = "Failed to open example"; return; };
+            if (dvui.clicked(&card.wd, .{})) {
+                if (is_sel) {
+                    if (fe_entry.embedded_data) |_| {
+                        if (fe_entry.kind == .examples) {
+                            app.loadProjectFromDir("examples");
+                            var pb2: [512]u8 = undefined;
+                            const ep = std.fmt.bufPrint(&pb2, "examples/{s}", .{fe_entry.name}) catch fe_entry.name;
+                            app.openPath(ep) catch { app.status_msg = "Failed to open example"; return; };
+                        } else {
+                            app.openEmbedded(fe_entry.name, fe_entry.embedded_data.?) catch { app.status_msg = "Failed to open file"; return; };
+                        }
+                    } else {
+                        var pb: [512]u8 = undefined;
+                        const fp = if (std.fs.path.isAbsolute(fe_entry.path)) fe_entry.path
+                            else std.fmt.bufPrint(&pb, "{s}/{s}", .{ app.project_dir, fe_entry.path }) catch fe_entry.path;
+                        app.openPath(fp) catch { app.status_msg = "Failed to open file"; return; };
+                    }
+                    app.open_file_explorer = false;
                 } else {
-                    var pb: [512]u8 = undefined;
-                    const fp = if (std.fs.path.isAbsolute(fe_entry.path)) fe_entry.path
-                        else std.fmt.bufPrint(&pb, "{s}/{s}", .{ app.project_dir, fe_entry.path }) catch fe_entry.path;
-                    app.openPath(fp) catch { app.status_msg = "Failed to open file"; return; };
+                    fe.selected_file = @intCast(fi);
+                    fe.preview_name = fe_entry.name;
+                    clearPreviewCache(fe);
+                    loadPreview(app, fe, fe_entry);
                 }
-                app.open_file_explorer = false;
-            } else {
-                fe.selected_file = @intCast(fi);
-                fe.preview_name = fe_entry.name;
-                clearPreviewCache(fe);
             }
         }
     }
+
+    drawPreviewPane(app, fe);
 }
+
+// ── Preview loading & rendering ──────────────────────────────────────────────
+
+fn loadPreview(app: *AppState, fe: *st.FileExplorerState, entry: FileEntry) void {
+    clearPreviewCache(fe);
+
+    const name = entry.name;
+    const is_chn = std.mem.endsWith(u8, name, ".chn") or
+        std.mem.endsWith(u8, name, ".chn_prim") or
+        std.mem.endsWith(u8, name, ".chn_tb");
+    if (!is_chn and entry.embedded_data == null) return;
+
+    var arena = std.heap.ArenaAllocator.init(app.allocator());
+    const alloc = arena.allocator();
+
+    const data: []const u8 = if (entry.embedded_data) |d| d else blk: {
+        var pb: [512]u8 = undefined;
+        const path = if (std.fs.path.isAbsolute(entry.path)) entry.path
+            else std.fmt.bufPrint(&pb, "{s}/{s}", .{ app.project_dir, entry.path }) catch {
+                arena.deinit();
+                return;
+            };
+        break :blk utility.platform.fs.cwd().readFileAlloc(alloc, path, 1024 * 1024) catch {
+            arena.deinit();
+            return;
+        };
+    };
+    if (data.len == 0) { arena.deinit(); return; }
+
+    const sch_ptr = alloc.create(core.Schemify) catch { arena.deinit(); return; };
+    sch_ptr.* = core.fileio.Reader.readCHN(data, alloc);
+    preview_arena_state = arena;
+    fe.preview_sch = @ptrCast(sch_ptr);
+}
+
+fn drawPreviewPane(app: *AppState, fe: *st.FileExplorerState) void {
+    _ = app;
+
+    _ = dvui.separator(@src(), .{ .id_extra = 400 });
+
+    var pane = dvui.box(@src(), .{}, .{
+        .id_extra = 401, .expand = .horizontal,
+        .min_size_content = .{ .h = 160 },
+        .background = true, .color_fill = preview_bg(),
+        .padding = .all(4),
+    });
+    defer pane.deinit();
+
+    const sch_opaque = fe.preview_sch orelse {
+        dvui.labelNoFmt(@src(), if (fe.preview_name.len > 0) fe.preview_name else "Click a file to preview", .{}, .{
+            .id_extra = 402, .gravity_x = 0.5, .gravity_y = 0.5, .color_text = muted(),
+        });
+        return;
+    };
+    const sch: *const core.Schemify = @ptrCast(@alignCast(sch_opaque));
+
+    // Get pixel rect of the preview pane.
+    const rs = pane.data().contentRectScale();
+    const rect = rs.r;
+    if (rect.w < 10 or rect.h < 10) return;
+
+    const prev_clip = dvui.clip(rect);
+    defer dvui.clipSet(prev_clip);
+
+    // Compute schematic bounds and zoom-to-fit viewport.
+    const b = sch.bounds(30.0);
+    if (!b.has_data) return;
+
+    const content_w = b.max_x - b.min_x;
+    const content_h = b.max_y - b.min_y;
+    const margin: f32 = 10.0;
+    const avail_w = rect.w - margin * 2;
+    const avail_h = rect.h - margin * 2;
+    const scale = if (content_w > 0 and content_h > 0)
+        @min(avail_w / content_w, avail_h / content_h)
+    else 1.0;
+
+    const center_x = (b.min_x + b.max_x) / 2.0;
+    const center_y = (b.min_y + b.max_y) / 2.0;
+    const cx = rect.x + rect.w / 2.0;
+    const cy = rect.y + rect.h / 2.0;
+
+    // Determine if this is a prim-only file (symbol view) or full schematic.
+    const is_prim = std.mem.endsWith(u8, fe.preview_name, ".chn_prim");
+    const pal = theme.Palette.dark();
+    const line_col = toDvui(pal.symbol_line);
+    const wire_col = toDvui(pal.wire);
+    const pin_col = toDvui(pal.inst_pin);
+
+    // Render wires.
+    if (!is_prim and sch.wires.len > 0) {
+        const wx0 = sch.wires.items(.x0);
+        const wy0 = sch.wires.items(.y0);
+        const wx1 = sch.wires.items(.x1);
+        const wy1 = sch.wires.items(.y1);
+        for (0..sch.wires.len) |i| {
+            const p0 = previewW2P(wx0[i], wy0[i], center_x, center_y, scale, cx, cy);
+            const p1 = previewW2P(wx1[i], wy1[i], center_x, center_y, scale, cx, cy);
+            dvui.Path.stroke(.{
+                .points = &.{ .{ .x = p0[0], .y = p0[1] }, .{ .x = p1[0], .y = p1[1] } },
+            }, .{ .thickness = @max(0.8, scale * 0.8), .color = wire_col });
+        }
+    }
+
+    // Render geometry lines.
+    if (sch.lines.len > 0) {
+        const lx0 = sch.lines.items(.x0);
+        const ly0 = sch.lines.items(.y0);
+        const lx1 = sch.lines.items(.x1);
+        const ly1 = sch.lines.items(.y1);
+        for (0..sch.lines.len) |i| {
+            const p0 = previewW2P(lx0[i], ly0[i], center_x, center_y, scale, cx, cy);
+            const p1 = previewW2P(lx1[i], ly1[i], center_x, center_y, scale, cx, cy);
+            dvui.Path.stroke(.{
+                .points = &.{ .{ .x = p0[0], .y = p0[1] }, .{ .x = p1[0], .y = p1[1] } },
+            }, .{ .thickness = @max(0.8, scale * 0.8), .color = line_col });
+        }
+    }
+
+    // Render rects.
+    if (sch.rects.len > 0) {
+        const rx0 = sch.rects.items(.x0);
+        const ry0 = sch.rects.items(.y0);
+        const rx1 = sch.rects.items(.x1);
+        const ry1 = sch.rects.items(.y1);
+        for (0..sch.rects.len) |i| {
+            const tl = previewW2P(rx0[i], ry0[i], center_x, center_y, scale, cx, cy);
+            const br = previewW2P(rx1[i], ry1[i], center_x, center_y, scale, cx, cy);
+            dvui.Path.stroke(.{
+                .points = &.{
+                    .{ .x = tl[0], .y = tl[1] }, .{ .x = br[0], .y = tl[1] },
+                    .{ .x = br[0], .y = br[1] }, .{ .x = tl[0], .y = br[1] },
+                    .{ .x = tl[0], .y = tl[1] },
+                },
+            }, .{ .thickness = @max(0.8, scale * 0.8), .color = line_col });
+        }
+    }
+
+    // Render pins (small crosses).
+    if (sch.pins.len > 0) {
+        const px = sch.pins.items(.x);
+        const py = sch.pins.items(.y);
+        const arm: f32 = 3.0;
+        for (0..sch.pins.len) |i| {
+            const p = previewW2P(px[i], py[i], center_x, center_y, scale, cx, cy);
+            dvui.Path.stroke(.{
+                .points = &.{ .{ .x = p[0] - arm, .y = p[1] }, .{ .x = p[0] + arm, .y = p[1] } },
+            }, .{ .thickness = 1.0, .color = pin_col });
+            dvui.Path.stroke(.{
+                .points = &.{ .{ .x = p[0], .y = p[1] - arm }, .{ .x = p[0], .y = p[1] + arm } },
+            }, .{ .thickness = 1.0, .color = pin_col });
+        }
+    }
+
+    // Render instance positions as small dots (for schematic view).
+    if (!is_prim and sch.instances.len > 0) {
+        const ix = sch.instances.items(.x);
+        const iy = sch.instances.items(.y);
+        const dot_r: f32 = @max(2.0, scale * 2.0);
+        for (0..sch.instances.len) |i| {
+            const p = previewW2P(ix[i], iy[i], center_x, center_y, scale, cx, cy);
+            dvui.Path.stroke(.{
+                .points = &.{ .{ .x = p[0] - dot_r, .y = p[1] }, .{ .x = p[0] + dot_r, .y = p[1] } },
+            }, .{ .thickness = dot_r * 2.0, .color = line_col });
+        }
+    }
+}
+
+inline fn previewW2P(wx: i32, wy: i32, center_x: f32, center_y: f32, scale: f32, cx: f32, cy: f32) [2]f32 {
+    return .{
+        cx + (@as(f32, @floatFromInt(wx)) - center_x) * scale,
+        cy + (@as(f32, @floatFromInt(wy)) - center_y) * scale,
+    };
+}
+
+fn preview_bg() dvui.Color {
+    const pal = theme.Palette.dark();
+    return toDvui(pal.canvas_bg);
+}
+
+// ── Badge classification ─────────────────────────────────────────────────────
 
 fn classifyBadge(name: []const u8) []const u8 {
     if (std.mem.endsWith(u8, name, ".chn_tb")) return "TB";
@@ -410,6 +630,56 @@ fn refreshFilter(alloc: std.mem.Allocator, fe: *const st.FileExplorerState) void
         }
         filtered.append(alloc, @intCast(i)) catch return;
     }
+
+    sortFiltered(fe.sort_order);
+}
+
+fn sortFiltered(order: st.FileSortOrder) void {
+    const Context = struct {
+        order: st.FileSortOrder,
+
+        pub fn lessThan(ctx: @This(), a_idx: u32, b_idx: u32) bool {
+            const a = files.items[a_idx];
+            const b = files.items[b_idx];
+            return switch (ctx.order) {
+                .name_asc => strLessThan(a.name, b.name),
+                .name_desc => strLessThan(b.name, a.name),
+                .ext_asc => extThenName(a, b),
+                .dirs_first => dirsThenName(a, b),
+            };
+        }
+    };
+    std.mem.sortUnstable(u32, filtered.items, Context{ .order = order }, Context.lessThan);
+}
+
+fn strLessThan(a: []const u8, b: []const u8) bool {
+    const len = @min(a.len, b.len);
+    for (0..len) |i| {
+        const ac = toLower(a[i]);
+        const bc = toLower(b[i]);
+        if (ac != bc) return ac < bc;
+    }
+    return a.len < b.len;
+}
+
+fn getExt(name: []const u8) []const u8 {
+    var i: usize = name.len;
+    while (i > 0) : (i -= 1) {
+        if (name[i - 1] == '.') return name[i - 1 ..];
+    }
+    return "";
+}
+
+fn extThenName(a: FileEntry, b: FileEntry) bool {
+    const ea = getExt(a.name);
+    const eb = getExt(b.name);
+    if (!std.mem.eql(u8, ea, eb)) return strLessThan(ea, eb);
+    return strLessThan(a.name, b.name);
+}
+
+fn dirsThenName(a: FileEntry, b: FileEntry) bool {
+    if (a.is_dir != b.is_dir) return a.is_dir;
+    return strLessThan(a.name, b.name);
 }
 
 fn substringMatch(name: []const u8, query: []const u8) bool {
@@ -445,12 +715,15 @@ fn scanSections(app: *AppState) void {
     const pdk = &app.pdk;
     const pdk_cell_count = pdk.prims.len + pdk.comps.len + pdk.tbs.len;
 
-    // TODO: examples module not yet implemented — section will show count 0.
-    appendSection(alloc, "Examples", .examples, 0);
+    const ex = @import("examples");
+    appendSection(alloc, "Examples", .examples, ex.list.len);
     appendSection(alloc, "Components", .components, app.config.paths.chn.len);
     appendSection(alloc, "Testbenches", .testbenches, app.config.paths.chn_tb.len);
     appendSection(alloc, "Primitives", .primitives, app.config.paths.chn_prim.len);
     appendSection(alloc, "PDK", .pdk, pdk_cell_count);
+    for (ex.list) |example| {
+        files.append(alloc, .{ .name = example.name, .path = example.name, .kind = .examples, .is_dir = false, .embedded_data = example.data }) catch {};
+    }
     appendPaths(alloc, app.config.paths.chn, .components);
     appendPaths(alloc, app.config.paths.chn_tb, .testbenches);
     appendPaths(alloc, app.config.paths.chn_prim, .primitives);

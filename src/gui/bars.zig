@@ -29,6 +29,41 @@ fn accent_col() dvui.Color {
 const hint_color = dvui.Color{ .r = 88, .g = 94, .b = 112, .a = 255 };
 const err_color = dvui.Color{ .r = 232, .g = 120, .b = 136, .a = 255 };
 
+// ── Cascade + fallback merging ───────────────────────────────────────────────
+// Build dvui.Options from old helper colors, then overlay the cascade result
+// on top. Cascade wins where populated; old helpers fill the gaps until
+// presets fully populate the widget-type configs.
+
+fn toolbarOpts(overrides: dvui.Options) dvui.Options {
+    const fallback: dvui.Options = .{
+        .background = true,
+        .color_fill = bar_bg(),
+    };
+    const cascade = tc.active_config.widgetOptions(.toolbar, .default);
+    return fallback.override(cascade).override(overrides);
+}
+
+fn statusbarOpts(overrides: dvui.Options) dvui.Options {
+    const fallback: dvui.Options = .{
+        .background = true,
+        .color_fill = bar_bg(),
+    };
+    const cascade = tc.active_config.widgetOptions(.statusbar, .default);
+    return fallback.override(cascade).override(overrides);
+}
+
+fn tabOpts(variant: tc.Variant, overrides: dvui.Options) dvui.Options {
+    const is_active = variant == .active;
+    const fallback: dvui.Options = .{
+        .background = true,
+        .color_fill = if (is_active) tab_active() else tabbar_bg(),
+        .color_text = if (is_active) tab_text_active_col() else tab_text_col(),
+        .corner_radius = tab_cr,
+    };
+    const cascade = tc.active_config.widgetOptions(.tab, variant);
+    return fallback.override(cascade).override(overrides);
+}
+
 const menu_item_opts: dvui.Options = .{ .expand = .horizontal };
 
 // ── Menu item with shortcut hint ─────────────────────────────────────────────
@@ -84,13 +119,11 @@ fn menuItemToggle(src: std.builtin.SourceLocation, label: []const u8, shortcut: 
 // ══════════════════════════════════════════════════════════════════════════════
 
 pub fn drawToolbar(app: *AppState) void {
-    var bar = dvui.box(@src(), .{ .dir = .horizontal }, .{
+    var bar = dvui.box(@src(), .{ .dir = .horizontal }, toolbarOpts(.{
         .expand = .horizontal,
         .min_size_content = .{ .h = 28 },
         .padding = .{ .x = 4, .y = 0, .w = 4, .h = 0 },
-        .background = true,
-        .color_fill = bar_bg(),
-    });
+    }));
     defer bar.deinit();
 
     {
@@ -108,15 +141,6 @@ pub fn drawToolbar(app: *AppState) void {
     }
 
     _ = dvui.spacer(@src(), .{ .expand = .horizontal, .id_extra = 1100 });
-    if (dvui.button(@src(), "Chat", .{}, .{
-        .id_extra = 1101,
-        .gravity_y = 0.5,
-        .padding = .{ .x = 8, .y = 3, .w = 8, .h = 3 },
-        .corner_radius = dvui.Rect.all(3),
-        .style = if (app.gui.cold.chat_panel.visible) .highlight else .control,
-    })) {
-        app.gui.cold.chat_panel.visible = !app.gui.cold.chat_panel.visible;
-    }
 }
 
 // ── File ──────────────────────────────────────────────────────────────────
@@ -338,6 +362,13 @@ fn drawPlaceMenu(app: *AppState) void {
             fw.close();
             actions.enqueue(app, .{ .immediate = .start_wire }, "Wire mode");
         }
+        {
+            const bus_label = if (app.tool.bus_mode) "* Bus Mode (ON)" else "  Bus Mode (OFF)";
+            if (menuItemSC(@src(), bus_label, "B")) {
+                fw.close();
+                actions.enqueue(app, .{ .immediate = .toggle_bus_mode }, "Toggle bus mode");
+            }
+        }
         _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 400 });
         if (menuItemSC(@src(), "Line", "")) {
             fw.close();
@@ -474,6 +505,10 @@ fn drawSimulateMenu(app: *AppState) void {
             fw.close();
             actions.enqueue(app, .{ .immediate = .netlist_top_only }, "Netlist (top only)");
         }
+        if (menuItemSC(@src(), "Edit PySpice Code", "")) {
+            fw.close();
+            actions.enqueue(app, .{ .immediate = .view_pyspice_netlist }, "Edit PySpice code");
+        }
         _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 601 });
         if (menuItemSC(@src(), "Edit Spice Code...", "")) {
             fw.close();
@@ -511,8 +546,8 @@ fn drawPluginsMenu(app: *AppState) void {
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
 
-        const metas = app.gui.cold.plugin_panels_meta.items;
-        const states = app.gui.cold.plugin_panels_state.items;
+        const metas = app.gui.cold.plugins.panels_meta.items;
+        const states = app.gui.cold.plugins.panels_state.items;
         if (metas.len == 0) {
             dvui.labelNoFmt(@src(), "(no plugins loaded)", .{}, .{ .id_extra = 8000, .color_text = text_muted(), .padding = .{ .x = 8, .y = 4, .w = 8, .h = 4 } });
         } else {
@@ -523,14 +558,14 @@ fn drawPluginsMenu(app: *AppState) void {
                 const label = std.fmt.bufPrint(&buf, "{s}{s}", .{ if (vis) "* " else "  ", title }) catch title;
                 if (dvui.menuItemLabel(@src(), label, .{}, menu_item_opts.override(.{ .id_extra = 8100 + i })) != null) {
                     if (i < states.len) {
-                        app.gui.cold.plugin_panels_state.items[i].visible = !vis;
+                        app.gui.cold.plugins.panels_state.items[i].visible = !vis;
                     }
                 }
             }
         }
 
         // Plugin commands (non-panel)
-        const cmds = app.gui.cold.plugin_commands.items;
+        const cmds = app.gui.cold.plugins.commands.items;
         if (cmds.len > 0) {
             _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 8200 });
             for (cmds, 0..) |cmd, ci| {
@@ -604,13 +639,11 @@ const tab_close_hover = dvui.Color{ .r = 200, .g = 80, .b = 90, .a = 255 };
 const tab_cr = dvui.Rect{ .x = 4, .y = 4, .w = 0, .h = 0 };
 
 pub fn drawTabBar(app: *AppState) void {
-    var bar = dvui.box(@src(), .{ .dir = .horizontal }, .{
+    var bar = dvui.box(@src(), .{ .dir = .horizontal }, toolbarOpts(.{
         .expand = .horizontal,
         .min_size_content = .{ .h = 32 },
         .padding = .{ .x = 4, .y = 4, .w = 4, .h = 0 },
-        .background = true,
-        .color_fill = bar_bg(),
-    });
+    }));
     defer bar.deinit();
 
     // Tabs area — expands to fill, compresses tabs when many are open
@@ -629,18 +662,16 @@ pub fn drawTabBar(app: *AppState) void {
         for (app.documents.items, 0..) |*doc, idx| {
             const active = idx == @as(usize, app.active_idx);
 
-            var tab = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            const tab_variant: tc.Variant = if (active) .active else .default;
+            var tab = dvui.box(@src(), .{ .dir = .horizontal }, tabOpts(tab_variant, .{
                 .id_extra = 9300 + idx,
                 .gravity_y = 0.5,
                 .max_size_content = dvui.Options.MaxSize.width(max_tab_w),
                 .padding = .{ .x = 10, .y = 0, .w = if (tab_count > 1) @as(f32, 4) else @as(f32, 10), .h = 0 },
                 .margin = .{ .x = 0, .y = 0, .w = 2, .h = 0 },
-                .corner_radius = tab_cr,
-                .background = true,
-                .color_fill = if (active) tab_active() else tabbar_bg(),
                 .border = if (active) .{ .x = 0, .y = 0, .w = 0, .h = 2 } else .{ .x = 0, .y = 0, .w = 0, .h = 0 },
                 .color_border = tab_dirty_col(),
-            });
+            }));
             defer tab.deinit();
 
             // Dirty prefix — show basename with extension, not full path
@@ -651,16 +682,14 @@ pub fn drawTabBar(app: *AppState) void {
             else
                 display_name;
 
-            if (dvui.button(@src(), label, .{}, .{
+            if (dvui.button(@src(), label, .{}, tabOpts(tab_variant, .{
                 .id_extra = 9200 + idx,
                 .gravity_y = 0.5,
                 .padding = .{ .x = 0, .y = 5, .w = 0, .h = 5 },
                 .margin = .{ .x = 0, .y = 0, .w = 0, .h = 0 },
-                .corner_radius = tab_cr,
                 .color_fill = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
                 .color_fill_hover = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
-                .color_text = if (active) tab_text_active_col() else tab_text_col(),
-            })) {
+            }))) {
                 if (!active) {
                     app.active_idx = @intCast(idx);
                     app.status_msg = "Switched tab";
@@ -739,13 +768,11 @@ fn isErrorStatus(msg: []const u8) bool {
 }
 
 pub fn drawCommandBar(app: *AppState) void {
-    var bar = dvui.box(@src(), .{ .dir = .horizontal }, .{
+    var bar = dvui.box(@src(), .{ .dir = .horizontal }, statusbarOpts(.{
         .expand = .horizontal,
         .min_size_content = .{ .h = 22 },
         .padding = .{ .x = 10, .y = 2, .w = 10, .h = 2 },
-        .background = true,
-        .color_fill = bar_bg(),
-    });
+    }));
     defer bar.deinit();
 
     if (app.gui.hot.command_mode) {

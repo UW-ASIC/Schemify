@@ -1,0 +1,18 @@
+chn_testbench 1
+
+TESTBENCH TB VCO Kvco
+  instances:
+    Xdut  subckt  x=-180  y=-120  sym=vco
+    Vdd  vsource  x=-40  y=0  sym=vsource  value=1.8
+    Vctrl  vsource  x=70  y=0  sym=vsource  value=900m
+    Cprobe  capacitor  x=180  y=120  sym=capa  value=1f  device=capacitor
+    n1  lab_pin  x=-180  y=-150  sym=lab_pin
+    n1  lab_pin  x=180  y=-150  sym=lab_pin
+    gnd0  gnd  x=-40  y=40  sym=gnd
+    gnd1  gnd  x=70  y=40  sym=gnd
+    gnd2  gnd  x=180  y=160  sym=gnd
+    vdd3  vdd  x=-40  y=-40  sym=vdd
+
+  wires:
+    -180 -150 180 -150
+    180 -150 180 90

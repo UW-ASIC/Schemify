@@ -3,112 +3,213 @@ const dvui = @import("dvui");
 const st = @import("state");
 const AppState = st.AppState;
 const tc = @import("theme_config");
+const actions = @import("actions.zig");
+const command = @import("commands");
+const md_render = @import("md_render.zig");
+const settings = @import("settings.zig");
+const platform = @import("utility").platform;
 
 pub fn draw(app: *AppState) void {
-    const doc = app.active() orelse return;
+    const is_theme_mode = app.gui.cold.dialogs.settings.editing_theme_json;
     var editor = &app.gui.cold.doc_editor;
 
-    // Load documentation from schematic on first view
-    if (!editor.loaded) {
-        {
-            const text = doc.sch.str(doc.sch.documentation);
-            if (text.len > 0) editor.setText(text);
+    if (!is_theme_mode) {
+        // Normal documentation mode: load from schematic on first view
+        const doc = app.active() orelse return;
+        if (!editor.loaded) {
+            {
+                const text = doc.sch.str(doc.sch.documentation);
+                if (text.len > 0) editor.setText(text);
+            }
+            editor.loaded = true;
         }
-        editor.loaded = true;
     }
 
-    var outer = dvui.box(@src(), .{ .dir = .horizontal }, .{
+    var outer = dvui.box(@src(), .{ .dir = .vertical }, .{
         .id_extra = 6000,
         .expand = .both,
         .padding = .{ .x = 8, .y = 8, .w = 8, .h = 8 },
     });
     defer outer.deinit();
 
-    switch (editor.layout_mode) {
-        .editor_only, .side_by_side => {
-            // Editor pane
-            var edit_pane = dvui.box(@src(), .{ .dir = .vertical }, .{
-                .id_extra = 6010,
-                .expand = .both,
-                .background = true,
-                .padding = .{ .x = 8, .y = 8, .w = 8, .h = 8 },
+    // ── Theme JSON banner ────────────────────────────────────────────────────
+    if (is_theme_mode) {
+        {
+            var banner = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .id_extra = 5990,
+                .expand = .horizontal,
+                .padding = .{ .x = 10, .y = 6, .w = 10, .h = 6 },
             });
-            defer edit_pane.deinit();
+            defer banner.deinit();
 
-            // Header
-            {
-                var hdr = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                    .id_extra = 6011,
-                    .expand = .horizontal,
-                });
-                defer hdr.deinit();
+            dvui.labelNoFmt(@src(), "Editing: theme.json", .{}, .{
+                .id_extra = 5991,
+                .color_text = tc.chromeAccent(),
+            });
 
-                dvui.labelNoFmt(@src(), "Documentation Editor", .{}, .{ .id_extra = 6012, .gravity_y = 0.5 });
-                _ = dvui.spacer(@src(), .{ .expand = .horizontal, .id_extra = 6013 });
+            _ = dvui.spacer(@src(), .{ .expand = .horizontal, .id_extra = 5992 });
 
-                // Layout toggle
-                const mode_label: []const u8 = switch (editor.layout_mode) {
-                    .editor_only => "Editor",
-                    .side_by_side => "Split",
-                    .preview_only => "Preview",
-                };
-                if (dvui.button(@src(), mode_label, .{}, .{
-                    .id_extra = 6014,
-                    .gravity_y = 0.5,
-                    .padding = .{ .x = 6, .y = 2, .w = 6, .h = 2 },
-                    .corner_radius = dvui.Rect.all(3),
-                })) {
-                    editor.layout_mode = @enumFromInt((@intFromEnum(editor.layout_mode) + 1) % 3);
-                }
+            if (dvui.button(@src(), "Done", .{}, .{
+                .id_extra = 5993,
+                .padding = .{ .x = 10, .y = 3, .w = 10, .h = 3 },
+                .corner_radius = dvui.Rect.all(4),
+            })) {
+                exitThemeJsonMode(app);
             }
-
-            _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 6015 });
-
-            // Editor content
-            {
-                var te = dvui.textEntry(@src(), .{
-                    .text = .{ .buffer = &editor.edit_buf },
-                    .placeholder = "(empty -- start typing documentation)",
-                }, .{ .id_extra = 6020, .expand = .both });
-                te.deinit();
-            }
-        },
-        .preview_only => {},
+        }
+        _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 5994 });
     }
 
-    // Preview pane (for side_by_side and preview_only)
-    if (editor.layout_mode == .side_by_side or editor.layout_mode == .preview_only) {
-        var preview_pane = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .id_extra = 6030,
-            .expand = .both,
-            .background = true,
-            .padding = .{ .x = 8, .y = 8, .w = 8, .h = 8 },
-            .margin = .{ .x = 4, .y = 0, .w = 0, .h = 0 },
+    // ── Toolbar ──────────────────────────────────────────────────────────────
+    {
+        var toolbar = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .id_extra = 6001,
+            .expand = .horizontal,
+            .padding = .{ .x = 4, .y = 4, .w = 4, .h = 4 },
         });
-        defer preview_pane.deinit();
+        defer toolbar.deinit();
 
-        dvui.labelNoFmt(@src(), "Preview", .{}, .{ .id_extra = 6031 });
-        _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 6032 });
+        // Edit button
+        if (dvui.button(@src(), "Edit", .{}, .{
+            .id_extra = 6002,
+            .style = if (editor.mode == .edit) .highlight else .control,
+            .padding = .{ .x = 10, .y = 4, .w = 10, .h = 4 },
+            .corner_radius = dvui.Rect.all(4),
+        })) {
+            editor.mode = .edit;
+        }
 
-        {
-            var scroll = dvui.scrollArea(@src(), .{}, .{
-                .id_extra = 6040,
-                .expand = .both,
+        // Preview button (hidden in theme mode -- JSON preview not useful)
+        if (!is_theme_mode) {
+            if (dvui.button(@src(), "Preview", .{}, .{
+                .id_extra = 6003,
+                .style = if (editor.mode == .preview) .highlight else .control,
+                .padding = .{ .x = 10, .y = 4, .w = 10, .h = 4 },
+                .corner_radius = dvui.Rect.all(4),
+            })) {
+                if (editor.mode == .edit) {
+                    const doc = app.active() orelse return;
+                    syncBuffer(app, editor, doc);
+                }
+                editor.mode = .preview;
+            }
+        }
+
+        _ = dvui.spacer(@src(), .{ .expand = .horizontal, .id_extra = 6004 });
+
+        // Word count (only for documentation mode)
+        if (!is_theme_mode) {
+            var buf: [32]u8 = undefined;
+            const wc = editor.wordCount();
+            const wc_text = std.fmt.bufPrint(&buf, "words: {d}", .{wc}) catch "words: ?";
+            dvui.labelNoFmt(@src(), wc_text, .{}, .{
+                .id_extra = 6005,
+                .gravity_y = 0.5,
+                .color_text = tc.chromeTextSecondary(),
             });
-            defer scroll.deinit();
 
-            const text = std.mem.sliceTo(&editor.edit_buf, 0);
-            if (text.len > 0) {
-                dvui.labelNoFmt(@src(), text, .{}, .{
-                    .id_extra = 6041,
-                    .expand = .horizontal,
-                });
+            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 12 }, .id_extra = 6006 });
+        }
+
+        // Save button
+        if (dvui.button(@src(), "Save", .{}, .{
+            .id_extra = 6007,
+            .padding = .{ .x = 10, .y = 4, .w = 10, .h = 4 },
+            .corner_radius = dvui.Rect.all(4),
+        })) {
+            if (is_theme_mode) {
+                saveThemeJson(app, editor);
             } else {
-                dvui.labelNoFmt(@src(), "(no documentation)", .{}, .{
-                    .id_extra = 6042,
-                    .color_text = tc.chromeTextSecondary(),
-                });
+                const doc = app.active() orelse return;
+                syncBuffer(app, editor, doc);
+                actions.enqueue(app, .{ .immediate = .file_save }, "Saving...");
             }
         }
     }
+
+    _ = dvui.separator(@src(), .{ .expand = .horizontal, .id_extra = 6010 });
+
+    // ── Content area ─────────────────────────────────────────────────────────
+    switch (editor.mode) {
+        .edit => {
+            var te = dvui.textEntry(@src(), .{
+                .text = .{ .buffer = &editor.edit_buf },
+                .placeholder = if (is_theme_mode) "{ }" else "(empty -- start typing documentation)",
+                .multiline = true,
+            }, .{ .id_extra = 6020, .expand = .both });
+            te.deinit();
+        },
+        .preview => {
+            var scroll = dvui.scrollArea(@src(), .{}, .{
+                .id_extra = 6030,
+                .expand = .both,
+                .padding = .{ .x = 12, .y = 8, .w = 12, .h = 8 },
+            });
+            defer scroll.deinit();
+
+            const text = editor.getText();
+            if (text.len > 0) {
+                md_render.render(text);
+            } else {
+                dvui.labelNoFmt(@src(), "(no documentation)", .{}, .{
+                    .id_extra = 6031,
+                    .color_text = tc.chromeTextSecondary(),
+                });
+            }
+        },
+    }
+}
+
+fn saveThemeJson(app: *AppState, editor: *st.DocEditorState) void {
+    const a = app.allocator();
+    const dir = settings.configDir();
+    if (dir.len == 0) {
+        app.setStatusBuf("Config directory not initialized");
+        return;
+    }
+
+    const json_text = editor.getText();
+
+    // Write JSON to theme.json
+    var path_buf: [520]u8 = undefined;
+    const path = std.fmt.bufPrint(&path_buf, "{s}/theme.json", .{dir}) catch {
+        app.setStatusBuf("Path too long");
+        return;
+    };
+    const file = platform.fs.cwd().createFile(path, .{}) catch {
+        app.setStatusBuf("Failed to write theme.json");
+        return;
+    };
+    defer file.close();
+    file.writeAll(json_text) catch {
+        app.setStatusBuf("Failed to write theme.json");
+        return;
+    };
+
+    // Reload theme from disk and apply
+    settings.reload(a);
+    const theme_json = settings.getActiveThemeJson(a) orelse {
+        app.setStatusBuf("Theme saved (reload failed)");
+        return;
+    };
+    defer a.free(theme_json);
+    tc.applyJson(a, theme_json);
+
+    // Update dark_mode flag from the applied theme
+    app.cmd_flags.dark_mode = tc.active_config.dark;
+
+    app.setStatusBuf("theme.json saved and applied");
+}
+
+fn exitThemeJsonMode(app: *AppState) void {
+    app.gui.cold.dialogs.settings.editing_theme_json = false;
+    app.gui.cold.doc_editor.loaded = false;
+    app.gui.hot.view_mode = .schematic;
+}
+
+fn syncBuffer(app: *AppState, editor: *st.DocEditorState, doc: *st.Document) void {
+    const text = editor.getText();
+    doc.sch.setDocumentation(doc.alloc, text) catch {};
+    doc.dirty = true;
+    _ = app;
 }

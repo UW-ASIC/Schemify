@@ -1,0 +1,47 @@
+{
+  "name": "Everforest Dark",
+  "dark": true,
+  "roles": {
+    "control": { "fill": "#3d484d", "corner_radius": [4, 4, 4, 4] },
+    "window": { "fill": "#2d353b" },
+    "accent": { "fill": "#a7c080" }
+  },
+  "widgets": {
+    "button": {
+      "fill": "#3d484d",
+      "fill_hover": "#4f585e",
+      "text": "#d3c6aa",
+      "variants": {
+        "primary": { "fill": "#a7c080" },
+        "danger": { "fill": "#e67e80" }
+      }
+    },
+    "tab": {
+      "variants": { "active": { "fill": "#3d484d" } }
+    }
+  },
+  "canvas": {
+    "wire": { "color": "#7fbbb3", "color_selected": "#dbbc7f", "stroke_width": 1.8, "style": "ortho" },
+    "pin": { "color": "#dbbc7f", "radius": 2.5, "shape": "circle" },
+    "instance_body": { "fill": "#3d484d", "stroke_color": "#a7c080" },
+    "grid": { "color": "#4f585e", "style": "dots", "dot_size": 1.0 },
+    "selection_rect": { "color": "#7fbbb3", "fill_color": "#7fbbb322" }
+  },
+  "toolbar_bg": [45, 53, 59],
+  "tabbar_bg": [38, 46, 51],
+  "tab_active_bg": [61, 72, 77],
+  "statusbar_bg": [45, 53, 59],
+  "sidebar_bg": [38, 46, 51],
+  "text_primary": [211, 198, 170],
+  "text_secondary": [157, 169, 160],
+  "accent": [167, 192, 128],
+  "separator": [79, 88, 94],
+  "hover_bg": [79, 88, 94],
+  "canvas_bg": [38, 46, 51],
+  "wire": [127, 187, 179],
+  "wire_selected": [219, 188, 127],
+  "instance_body": [61, 72, 77],
+  "instance_pin": [219, 188, 127],
+  "symbol_line": [167, 192, 128],
+  "grid_dot": [79, 88, 94, 80]
+}

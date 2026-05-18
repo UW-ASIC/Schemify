@@ -34,19 +34,20 @@ pub const Error = error{
 /// in the first 50 lines), runs each through `python3`, captures the SPICE
 /// netlist from stdout, and converts via the spice pipeline.
 /// The original Python source is stored in `schemify.pyspice_source`.
-pub fn importPySpiceProject(alloc: Allocator, project_dir: []const u8) !ConvertResultList {
+/// When `recursive` is true, scans subdirectories as well.
+pub fn importPySpiceProject(alloc: Allocator, project_dir: []const u8, recursive: bool) !ConvertResultList {
     var list_arena = std.heap.ArenaAllocator.init(alloc);
     errdefer list_arena.deinit();
     const la = list_arena.allocator();
 
-    const py_files = try findPySpiceFiles(la, project_dir);
+    const py_files = try findPySpiceFiles(la, project_dir, recursive);
     if (py_files.len == 0) return Error.NoPySpiceFiles;
 
     var results: List(ConvertResult) = .{};
 
     for (py_files) |rel_path| {
         const full_path = try std.fs.path.join(la, &.{ project_dir, rel_path });
-        const py_source = platform.fs.cwd().readFileAlloc(la, full_path, 1 << 24) catch continue;
+        _ = platform.fs.cwd().readFileAlloc(la, full_path, 1 << 24) catch continue;
 
         const spice_output = runPythonWithRoot(la, full_path, project_dir) catch continue;
         if (spice_output.len == 0) continue;
@@ -55,9 +56,7 @@ pub fn importPySpiceProject(alloc: Allocator, project_dir: []const u8) !ConvertR
         const converted = spice.convertNetlist(la, netlist, rel_path) catch continue;
 
         for (converted) |result| {
-            var r = result;
-            try r.schemify.setPySpiceSource(la, py_source);
-            try results.append(la, r);
+            try results.append(la, result);
         }
     }
 
@@ -78,9 +77,9 @@ pub fn importPySpiceFile(alloc: Allocator, file_path: []const u8) !ConvertResult
     errdefer list_arena.deinit();
     const la = list_arena.allocator();
 
-    const py_source = platform.fs.cwd().readFileAlloc(la, file_path, 1 << 24) catch
+    const file_content = platform.fs.cwd().readFileAlloc(la, file_path, 1 << 24) catch
         return Error.PythonExecFailed;
-    if (!isPySpiceFile(py_source)) return Error.PythonExecFailed;
+    if (!isPySpiceFile(file_content)) return Error.PythonExecFailed;
 
     const python_root = findPythonRoot(file_path);
     const spice_output = try runPythonWithRoot(la, file_path, python_root);
@@ -92,9 +91,7 @@ pub fn importPySpiceFile(alloc: Allocator, file_path: []const u8) !ConvertResult
 
     var results: List(ConvertResult) = .{};
     for (converted) |result| {
-        var r = result;
-        try r.schemify.setPySpiceSource(la, py_source);
-        try results.append(la, r);
+        try results.append(la, result);
     }
 
     return .{
@@ -123,9 +120,7 @@ pub fn importPySpiceText(alloc: Allocator, source: []const u8, name: []const u8)
 
     var results: List(ConvertResult) = .{};
     for (converted) |result| {
-        var r = result;
-        try r.schemify.setPySpiceSource(la, source);
-        try results.append(la, r);
+        try results.append(la, result);
     }
 
     return .{
@@ -199,6 +194,12 @@ fn runPythonWithRoot(alloc: Allocator, file_path: []const u8, python_root: ?[]co
     _ = stderr;
 
     const term = try child.wait();
+
+    // Testbenches print the netlist then may crash running simulation.
+    // Accept stdout if it contains valid SPICE even on non-zero exit.
+    if (stdout.len > 0 and std.mem.indexOf(u8, stdout, ".end") != null)
+        return stdout;
+
     if (term.Exited != 0) return Error.PythonExecFailed;
 
     return stdout;
@@ -225,21 +226,39 @@ pub fn findPythonRoot(file_path: []const u8) ?[]const u8 {
 
 // ── File discovery ──────────────────────────────────────────────────────────
 
-fn findPySpiceFiles(arena: Allocator, dir: []const u8) ![]const []const u8 {
+fn findPySpiceFiles(arena: Allocator, dir: []const u8, recursive: bool) ![]const []const u8 {
     var files: List([]const u8) = .{};
 
-    var d = platform.fs.cwd().openDir(dir, .{ .iterate = true }) catch return &.{};
-    defer d.close();
-    var it = d.iterate();
-    while (try it.next()) |entry| {
-        if (entry.kind != .file) continue;
-        if (!std.mem.endsWith(u8, entry.name, ".py")) continue;
+    if (recursive) {
+        var d = platform.fs.cwd().openDir(dir, .{ .iterate = true }) catch return &.{};
+        defer d.close();
+        var walker = d.walk(arena) catch return &.{};
+        defer walker.deinit();
+        while (walker.next() catch null) |entry| {
+            if (entry.kind != .file) continue;
+            if (!std.mem.endsWith(u8, entry.basename, ".py")) continue;
 
-        const full_path = try std.fs.path.join(arena, &.{ dir, entry.name });
-        const content = platform.fs.cwd().readFileAlloc(arena, full_path, 1 << 16) catch continue;
+            const rel_path = try std.fs.path.join(arena, &.{ dir, entry.path });
+            const content = platform.fs.cwd().readFileAlloc(arena, rel_path, 1 << 16) catch continue;
 
-        if (isPySpiceFile(content)) {
-            try files.append(arena, try arena.dupe(u8, entry.name));
+            if (isPySpiceFile(content)) {
+                try files.append(arena, try arena.dupe(u8, entry.path));
+            }
+        }
+    } else {
+        var d = platform.fs.cwd().openDir(dir, .{ .iterate = true }) catch return &.{};
+        defer d.close();
+        var it = d.iterate();
+        while (try it.next()) |entry| {
+            if (entry.kind != .file) continue;
+            if (!std.mem.endsWith(u8, entry.name, ".py")) continue;
+
+            const full_path = try std.fs.path.join(arena, &.{ dir, entry.name });
+            const content = platform.fs.cwd().readFileAlloc(arena, full_path, 1 << 16) catch continue;
+
+            if (isPySpiceFile(content)) {
+                try files.append(arena, try arena.dupe(u8, entry.name));
+            }
         }
     }
 

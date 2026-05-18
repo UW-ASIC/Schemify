@@ -1,0 +1,47 @@
+{
+  "name": "Catppuccin Mocha",
+  "dark": true,
+  "roles": {
+    "control": { "fill": "#313244", "corner_radius": [4, 4, 4, 4] },
+    "window": { "fill": "#1e1e2e" },
+    "accent": { "fill": "#89b4fa" }
+  },
+  "widgets": {
+    "button": {
+      "fill": "#45475a",
+      "fill_hover": "#585b70",
+      "text": "#cdd6f4",
+      "variants": {
+        "primary": { "fill": "#89b4fa" },
+        "danger": { "fill": "#f38ba8" }
+      }
+    },
+    "tab": {
+      "variants": { "active": { "fill": "#313244" } }
+    }
+  },
+  "canvas": {
+    "wire": { "color": "#89b4fa", "color_selected": "#fab387", "stroke_width": 1.8, "style": "ortho" },
+    "pin": { "color": "#f9e2af", "radius": 2.5, "shape": "circle" },
+    "instance_body": { "fill": "#313244", "stroke_color": "#b4befe" },
+    "grid": { "color": "#45475a", "style": "dots", "dot_size": 1.0 },
+    "selection_rect": { "color": "#89b4fa", "fill_color": "#89b4fa22" }
+  },
+  "toolbar_bg": [30, 30, 46],
+  "tabbar_bg": [24, 24, 37],
+  "tab_active_bg": [49, 50, 68],
+  "statusbar_bg": [30, 30, 46],
+  "sidebar_bg": [24, 24, 37],
+  "text_primary": [205, 214, 244],
+  "text_secondary": [166, 173, 200],
+  "accent": [137, 180, 250],
+  "separator": [69, 71, 90],
+  "hover_bg": [69, 71, 90],
+  "canvas_bg": [24, 24, 37],
+  "wire": [137, 180, 250],
+  "wire_selected": [250, 179, 135],
+  "instance_body": [49, 50, 68],
+  "instance_pin": [249, 226, 175],
+  "symbol_line": [180, 190, 254],
+  "grid_dot": [69, 71, 90, 80]
+}

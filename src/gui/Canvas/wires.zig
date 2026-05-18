@@ -1,5 +1,6 @@
 //! Wire segment, endpoint, junction, and net-label rendering.
 
+const std = @import("std");
 const dvui = @import("dvui");
 const theme = @import("theme_config");
 const st = @import("state");
@@ -19,8 +20,8 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, sel: *const st.Sele
     const prev_clip = dvui.clip(.{ .x = vp.bounds.x, .y = vp.bounds.y, .w = vp.bounds.w, .h = vp.bounds.h });
     defer dvui.clipSet(prev_clip);
 
-    const wire_w: f32 = @max(0.8, 1.8 * vp.scale) * theme.getWireWidth();
-    const wire_w_sel: f32 = @max(1.2, 2.8 * vp.scale) * theme.getWireWidth();
+    const wire_w: f32 = @max(0.8, 1.8 * vp.scale) * ctx.canvas_styles.wire.stroke_width;
+    const wire_w_sel: f32 = @max(1.2, 2.8 * vp.scale) * ctx.canvas_styles.wire.stroke_width;
 
     const cw = dvui.currentWindow();
     var batch = h.LineBatch.init(cw.lifo());
@@ -31,14 +32,64 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, sel: *const st.Sele
     if (sch.wires.len > 0) {
         const wx0 = sch.wires.items(.x0); const wy0 = sch.wires.items(.y0);
         const wx1 = sch.wires.items(.x1); const wy1 = sch.wires.items(.y1);
+        const wbus = sch.wires.items(.bus);
+        const wcol = sch.wires.items(.color);
+        const wthk = sch.wires.items(.thickness);
+
+        const bus_w: f32 = wire_w * 2.5;
+        const bus_w_sel: f32 = wire_w_sel * 2.5;
+
+        // Build point occurrence counts for junction detection.
+        const PointCount = std.AutoHashMap(u64, u8);
+        var point_counts = PointCount.init(cw.lifo());
+        defer point_counts.deinit();
+        point_counts.ensureTotalCapacity(@intCast(@min(sch.wires.len * 2, 4096))) catch {};
+        for (0..sch.wires.len) |i| {
+            const k0 = (@as(u64, @bitCast(@as(i64, wx0[i]))) << 32) | (@as(u64, @as(u32, @bitCast(wy0[i]))));
+            const k1 = (@as(u64, @bitCast(@as(i64, wx1[i]))) << 32) | (@as(u64, @as(u32, @bitCast(wy1[i]))));
+            const e0 = point_counts.getOrPutAssumeCapacity(k0);
+            if (!e0.found_existing) e0.value_ptr.* = 0;
+            e0.value_ptr.* +|= 1;
+            const e1 = point_counts.getOrPutAssumeCapacity(k1);
+            if (!e1.found_existing) e1.value_ptr.* = 0;
+            e1.value_ptr.* +|= 1;
+        }
+
         for (0..sch.wires.len) |i| {
             const selected = i < sel.wires.bit_length and sel.wires.isSet(i);
+            const is_bus = wbus[i];
             const a = h.w2p(.{ wx0[i], wy0[i] }, vp);
             const b = h.w2p(.{ wx1[i], wy1[i] }, vp);
-            const col = if (selected) pal.wire_sel else pal.wire;
-            batch.addLine(a[0], a[1], b[0], b[1], if (selected) wire_w_sel else wire_w, col);
-            batch.addDot(a, types.wire_endpoint_radius, pal.wire_endpoint);
-            batch.addDot(b, types.wire_endpoint_radius, pal.wire_endpoint);
+            const col = if (selected) ctx.canvas_styles.wire.color_selected else if (wcol[i] != 0) Color{
+                .r = @truncate(wcol[i] >> 24),
+                .g = @truncate(wcol[i] >> 16),
+                .b = @truncate(wcol[i] >> 8),
+                .a = 255,
+            } else if (is_bus) pal.bus else ctx.canvas_styles.wire.color;
+            const base_w = if (is_bus) (if (selected) bus_w_sel else bus_w) else (if (selected) wire_w_sel else wire_w);
+            const w = if (wthk[i] != 0) base_w * (@as(f32, @floatFromInt(wthk[i])) / 10.0) else base_w;
+            batch.addLine(a[0], a[1], b[0], b[1], w, col);
+
+            // Bus slash indicator at midpoint.
+            if (is_bus) {
+                const mx = (a[0] + b[0]) * 0.5;
+                const my = (a[1] + b[1]) * 0.5;
+                const slash_len: f32 = @max(4.0, 6.0 * @min(vp.scale, 2.0));
+                batch.addLine(mx - slash_len * 0.5, my + slash_len * 0.5, mx + slash_len * 0.5, my - slash_len * 0.5, wire_w, col);
+            }
+        }
+
+        // Draw junction markers (filled square) where 3+ wire endpoints meet.
+        const junction_sz: f32 = @max(2.0, 2.5 * @min(vp.scale, 2.0));
+        var pit = point_counts.iterator();
+        while (pit.next()) |entry| {
+            if (entry.value_ptr.* >= 3) {
+                const key = entry.key_ptr.*;
+                const wx: i32 = @bitCast(@as(u32, @intCast(key >> 32)));
+                const wy: i32 = @bitCast(@as(u32, @truncate(key)));
+                const p = h.w2p(.{ wx, wy }, vp);
+                batch.addFilledSquare(p, junction_sz, pal.symbol_line);
+            }
         }
     }
 

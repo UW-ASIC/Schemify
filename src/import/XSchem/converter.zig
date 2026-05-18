@@ -182,7 +182,10 @@ fn mapTexts(sfy: *Schemify, a: Allocator, src: *const XSchemFiles) Allocator.Err
             .x = f2i(sl.items(.x)[i]),
             .y = f2i(sl.items(.y)[i]),
             .layer = layerU8(sl.items(.layer)[i]),
-            .size = @intFromFloat(@round(sl.items(.size)[i] * 25.0)),
+            .size = blk: {
+                const raw = sl.items(.size)[i] * 25.0;
+                break :blk if (raw > 0 and raw < 255) @as(u8, @intFromFloat(@round(raw))) else 5;
+            },
             .rotation = @intCast(@mod(sl.items(.rotation)[i], 4)),
         });
     }

@@ -280,6 +280,60 @@ fn parseWithArgs(name: []const u8, rest: []const u8) Result {
     if (eql(name, "plugin-mutation") or eql(name, "plugin_mutation"))
         return parsePluginMutation(rest);
 
+    // add-line <x0> <y0> <x1> <y1> [layer]
+    if (eql(name, "add-line") or eql(name, "add_line"))
+        return parseAddLine(rest);
+
+    // add-rect <x0> <y0> <x1> <y1> [layer]
+    if (eql(name, "add-rect") or eql(name, "add_rect"))
+        return parseAddRect(rest);
+
+    // add-circle <cx> <cy> <radius> [layer]
+    if (eql(name, "add-circle") or eql(name, "add_circle"))
+        return parseAddCircle(rest);
+
+    // add-arc <cx> <cy> <radius> <start_angle> <sweep_angle> [layer]
+    if (eql(name, "add-arc") or eql(name, "add_arc"))
+        return parseAddArc(rest);
+
+    // add-text <x> <y> <content>
+    if (eql(name, "add-text") or eql(name, "add_text"))
+        return parseAddText(rest);
+
+    // set-documentation <content>
+    if (eql(name, "set-documentation") or eql(name, "set_documentation") or eql(name, "doc"))
+        return if (rest.len > 0) .{ .command = .{ .undoable = .{ .set_documentation = .{ .content = rest } } } }
+    else
+        .{ .err = "set-documentation requires <content>" };
+
+    // characterize-pdk <name>
+    if (eql(name, "characterize-pdk") or eql(name, "characterize_pdk"))
+        return if (rest.len > 0) .{ .command = .{ .immediate = .{ .characterize_pdk = .{ .pdk_name = rest } } } }
+    else
+        .{ .err = "characterize-pdk requires <name>" };
+
+    // load-pdk <name>
+    if (eql(name, "load-pdk") or eql(name, "load_pdk"))
+        return if (rest.len > 0) .{ .command = .{ .immediate = .{ .load_pdk = .{ .pdk_name = rest } } } }
+    else
+        .{ .err = "load-pdk requires <name>" };
+
+    // canvas_click <x> <y>
+    if (eql(name, "canvas_click") or eql(name, "canvas-click"))
+        return parseCanvasClick(rest);
+
+    // canvas_double_click <x> <y>
+    if (eql(name, "canvas_double_click") or eql(name, "canvas-double-click"))
+        return parseCanvasDoubleClick(rest);
+
+    // canvas_right_click <x> <y>
+    if (eql(name, "canvas_right_click") or eql(name, "canvas-right-click"))
+        return parseCanvasRightClick(rest);
+
+    // select_rect <x0> <y0> <x1> <y1>
+    if (eql(name, "select_rect") or eql(name, "select-rect"))
+        return parseSelectRect(rest);
+
     // import [<path>] — with path: run_import; without path: open_import_project dialog
     if (eql(name, "import") or eql(name, "run-import") or eql(name, "run_import")) {
         if (rest.len == 0) return .{ .command = .{ .immediate = .open_import_project } };
@@ -339,8 +393,16 @@ fn parseAddWire(rest: []const u8) Result {
     const y0 = std.fmt.parseInt(i32, y0s, 10) catch return errMsg("add-wire: invalid coordinate");
     const x1 = std.fmt.parseInt(i32, x1s, 10) catch return errMsg("add-wire: invalid coordinate");
     const y1 = std.fmt.parseInt(i32, y1s, 10) catch return errMsg("add-wire: invalid coordinate");
-    const net = it.next();
-    return .{ .command = .{ .undoable = .{ .add_wire = .{ .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1, .net_name = net } } } };
+    var net: ?[]const u8 = null;
+    var is_bus = false;
+    while (it.next()) |token| {
+        if (std.mem.eql(u8, token, "bus=1") or std.mem.eql(u8, token, "--bus")) {
+            is_bus = true;
+        } else if (net == null) {
+            net = token;
+        }
+    }
+    return .{ .command = .{ .undoable = .{ .add_wire = .{ .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1, .net_name = net, .bus = is_bus } } } };
 }
 
 fn parseDeleteInstance(rest: []const u8) Result {
@@ -436,6 +498,117 @@ fn parsePluginMutation(rest: []const u8) Result {
     } } } };
 }
 
+// ── Geometry parsers ─────────────────────────────────────────────────────
+
+fn parseAddLine(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const x0s = it.next() orelse return errMsg("add-line requires: <x0> <y0> <x1> <y1> [layer]");
+    const y0s = it.next() orelse return errMsg("add-line requires: <x0> <y0> <x1> <y1> [layer]");
+    const x1s = it.next() orelse return errMsg("add-line requires: <x0> <y0> <x1> <y1> [layer]");
+    const y1s = it.next() orelse return errMsg("add-line requires: <x0> <y0> <x1> <y1> [layer]");
+    const x0 = std.fmt.parseInt(i32, x0s, 10) catch return errMsg("add-line: invalid coordinate");
+    const y0 = std.fmt.parseInt(i32, y0s, 10) catch return errMsg("add-line: invalid coordinate");
+    const x1 = std.fmt.parseInt(i32, x1s, 10) catch return errMsg("add-line: invalid coordinate");
+    const y1 = std.fmt.parseInt(i32, y1s, 10) catch return errMsg("add-line: invalid coordinate");
+    const layer = if (it.next()) |ls| std.fmt.parseInt(u8, ls, 10) catch return errMsg("add-line: invalid layer") else 4;
+    return .{ .command = .{ .undoable = .{ .add_line = .{ .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1, .layer = layer } } } };
+}
+
+fn parseAddRect(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const x0s = it.next() orelse return errMsg("add-rect requires: <x0> <y0> <x1> <y1> [layer]");
+    const y0s = it.next() orelse return errMsg("add-rect requires: <x0> <y0> <x1> <y1> [layer]");
+    const x1s = it.next() orelse return errMsg("add-rect requires: <x0> <y0> <x1> <y1> [layer]");
+    const y1s = it.next() orelse return errMsg("add-rect requires: <x0> <y0> <x1> <y1> [layer]");
+    const x0 = std.fmt.parseInt(i32, x0s, 10) catch return errMsg("add-rect: invalid coordinate");
+    const y0 = std.fmt.parseInt(i32, y0s, 10) catch return errMsg("add-rect: invalid coordinate");
+    const x1 = std.fmt.parseInt(i32, x1s, 10) catch return errMsg("add-rect: invalid coordinate");
+    const y1 = std.fmt.parseInt(i32, y1s, 10) catch return errMsg("add-rect: invalid coordinate");
+    const layer = if (it.next()) |ls| std.fmt.parseInt(u8, ls, 10) catch return errMsg("add-rect: invalid layer") else 4;
+    return .{ .command = .{ .undoable = .{ .add_rect = .{ .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1, .layer = layer } } } };
+}
+
+fn parseAddCircle(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const cxs = it.next() orelse return errMsg("add-circle requires: <cx> <cy> <radius> [layer]");
+    const cys = it.next() orelse return errMsg("add-circle requires: <cx> <cy> <radius> [layer]");
+    const rs = it.next() orelse return errMsg("add-circle requires: <cx> <cy> <radius> [layer]");
+    const cx = std.fmt.parseInt(i32, cxs, 10) catch return errMsg("add-circle: invalid coordinate");
+    const cy = std.fmt.parseInt(i32, cys, 10) catch return errMsg("add-circle: invalid coordinate");
+    const radius = std.fmt.parseInt(i32, rs, 10) catch return errMsg("add-circle: invalid radius");
+    const layer = if (it.next()) |ls| std.fmt.parseInt(u8, ls, 10) catch return errMsg("add-circle: invalid layer") else 4;
+    return .{ .command = .{ .undoable = .{ .add_circle = .{ .cx = cx, .cy = cy, .radius = radius, .layer = layer } } } };
+}
+
+fn parseAddArc(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const cxs = it.next() orelse return errMsg("add-arc requires: <cx> <cy> <radius> <start> <sweep> [layer]");
+    const cys = it.next() orelse return errMsg("add-arc requires: <cx> <cy> <radius> <start> <sweep> [layer]");
+    const rs = it.next() orelse return errMsg("add-arc requires: <cx> <cy> <radius> <start> <sweep> [layer]");
+    const ss = it.next() orelse return errMsg("add-arc requires: <cx> <cy> <radius> <start> <sweep> [layer]");
+    const ws = it.next() orelse return errMsg("add-arc requires: <cx> <cy> <radius> <start> <sweep> [layer]");
+    const cx = std.fmt.parseInt(i32, cxs, 10) catch return errMsg("add-arc: invalid coordinate");
+    const cy = std.fmt.parseInt(i32, cys, 10) catch return errMsg("add-arc: invalid coordinate");
+    const radius = std.fmt.parseInt(i32, rs, 10) catch return errMsg("add-arc: invalid radius");
+    const start = std.fmt.parseInt(i16, ss, 10) catch return errMsg("add-arc: invalid start_angle");
+    const sweep = std.fmt.parseInt(i16, ws, 10) catch return errMsg("add-arc: invalid sweep_angle");
+    const layer = if (it.next()) |ls| std.fmt.parseInt(u8, ls, 10) catch return errMsg("add-arc: invalid layer") else 4;
+    return .{ .command = .{ .undoable = .{ .add_arc = .{ .cx = cx, .cy = cy, .radius = radius, .start_angle = start, .sweep_angle = sweep, .layer = layer } } } };
+}
+
+fn parseAddText(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const xs = it.next() orelse return errMsg("add-text requires: <x> <y> <content>");
+    const ys = it.next() orelse return errMsg("add-text requires: <x> <y> <content>");
+    const content = std.mem.trim(u8, it.rest(), " \t");
+    if (content.len == 0) return errMsg("add-text requires: <x> <y> <content>");
+    const x = std.fmt.parseInt(i32, xs, 10) catch return errMsg("add-text: invalid coordinate");
+    const y = std.fmt.parseInt(i32, ys, 10) catch return errMsg("add-text: invalid coordinate");
+    return .{ .command = .{ .undoable = .{ .add_text = .{ .content = content, .x = x, .y = y } } } };
+}
+
+// ── Canvas interaction parsers ────────────────────────────────────────────
+
+fn parseCanvasClick(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const xs = it.next() orelse return errMsg("canvas_click requires: <x> <y>");
+    const ys = it.next() orelse return errMsg("canvas_click requires: <x> <y>");
+    const x = std.fmt.parseInt(i32, xs, 10) catch return errMsg("canvas_click: invalid coordinate");
+    const y = std.fmt.parseInt(i32, ys, 10) catch return errMsg("canvas_click: invalid coordinate");
+    return .{ .command = .{ .immediate = .{ .canvas_click = .{ .x = x, .y = y } } } };
+}
+
+fn parseCanvasDoubleClick(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const xs = it.next() orelse return errMsg("canvas_double_click requires: <x> <y>");
+    const ys = it.next() orelse return errMsg("canvas_double_click requires: <x> <y>");
+    const x = std.fmt.parseInt(i32, xs, 10) catch return errMsg("canvas_double_click: invalid coordinate");
+    const y = std.fmt.parseInt(i32, ys, 10) catch return errMsg("canvas_double_click: invalid coordinate");
+    return .{ .command = .{ .immediate = .{ .canvas_double_click = .{ .x = x, .y = y } } } };
+}
+
+fn parseCanvasRightClick(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const xs = it.next() orelse return errMsg("canvas_right_click requires: <x> <y>");
+    const ys = it.next() orelse return errMsg("canvas_right_click requires: <x> <y>");
+    const x = std.fmt.parseInt(i32, xs, 10) catch return errMsg("canvas_right_click: invalid coordinate");
+    const y = std.fmt.parseInt(i32, ys, 10) catch return errMsg("canvas_right_click: invalid coordinate");
+    return .{ .command = .{ .immediate = .{ .canvas_right_click = .{ .x = x, .y = y } } } };
+}
+
+fn parseSelectRect(rest: []const u8) Result {
+    var it = std.mem.splitScalar(u8, rest, ' ');
+    const x0s = it.next() orelse return errMsg("select_rect requires: <x0> <y0> <x1> <y1>");
+    const y0s = it.next() orelse return errMsg("select_rect requires: <x0> <y0> <x1> <y1>");
+    const x1s = it.next() orelse return errMsg("select_rect requires: <x0> <y0> <x1> <y1>");
+    const y1s = it.next() orelse return errMsg("select_rect requires: <x0> <y0> <x1> <y1>");
+    const x0 = std.fmt.parseInt(i32, x0s, 10) catch return errMsg("select_rect: invalid coordinate");
+    const y0 = std.fmt.parseInt(i32, y0s, 10) catch return errMsg("select_rect: invalid coordinate");
+    const x1 = std.fmt.parseInt(i32, x1s, 10) catch return errMsg("select_rect: invalid coordinate");
+    const y1 = std.fmt.parseInt(i32, y1s, 10) catch return errMsg("select_rect: invalid coordinate");
+    return .{ .command = .{ .immediate = .{ .select_rect = .{ .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1 } } } };
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 fn eql(a: []const u8, b: []const u8) bool {
@@ -486,6 +659,11 @@ pub fn printCommandList(file: anytype) void {
         \\Commands with arguments:
         \\  place <symbol> <name> <x> <y>        Place a device instance
         \\  add-wire <x0> <y0> <x1> <y1> [net]   Add a wire segment
+        \\  add-line <x0> <y0> <x1> <y1> [layer] Add a line
+        \\  add-rect <x0> <y0> <x1> <y1> [layer] Add a rectangle
+        \\  add-circle <cx> <cy> <r> [layer]      Add a circle
+        \\  add-arc <cx> <cy> <r> <start> <sweep> [layer]  Add an arc
+        \\  add-text <x> <y> <content>            Add text annotation
         \\  delete-instance <idx>                 Delete instance by index
         \\  delete-wire <idx>                     Delete wire by index
         \\  move-instance <idx> <dx> <dy>         Move instance by delta
@@ -494,9 +672,15 @@ pub fn printCommandList(file: anytype) void {
         \\  rename <idx> <new_name>               Rename an instance
         \\  rename-net <wire_idx> <new_name>      Rename a net
         \\  set-spice-code <code>                 Set SPICE code
+        \\  set-documentation <content>           Set documentation
         \\  sim [ngspice|xyce|vacask]             Run simulation
         \\  insert <primitive_kind>               Insert a primitive
+        \\  characterize-pdk <name>               Characterize a PDK
         \\  plugin <tag> [payload]                Plugin command
+        \\  canvas_click <x> <y>                  Click at world coordinate
+        \\  canvas_double_click <x> <y>           Double-click at world coordinate
+        \\  canvas_right_click <x> <y>            Right-click at world coordinate
+        \\  select_rect <x0> <y0> <x1> <y1>      Rubber-band select region
         \\
         \\Query (print to stdout, no save):
         \\  list-instances (li)   list-wires (lw)   info   print-netlist (nl)
@@ -624,6 +808,170 @@ test "parse comment and blank" {
     try std.testing.expectEqualStrings("", parse("# comment").err);
     try std.testing.expectEqualStrings("", parse("").err);
     try std.testing.expectEqualStrings("", parse("   ").err);
+}
+
+test "parse add-line" {
+    const r = parse("add-line 10 20 30 40 2");
+    switch (r) {
+        .command => |c| switch (c) {
+            .undoable => |u| switch (u) {
+                .add_line => |l| {
+                    try std.testing.expectEqual(@as(i32, 10), l.x0);
+                    try std.testing.expectEqual(@as(i32, 40), l.y1);
+                    try std.testing.expectEqual(@as(u8, 2), l.layer);
+                },
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse add-line default layer" {
+    const r = parse("add_line 0 0 100 100");
+    switch (r) {
+        .command => |c| switch (c) {
+            .undoable => |u| switch (u) {
+                .add_line => |l| try std.testing.expectEqual(@as(u8, 4), l.layer),
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse add-rect" {
+    const r = parse("add-rect 0 0 50 50");
+    switch (r) {
+        .command => |c| switch (c) {
+            .undoable => |u| switch (u) {
+                .add_rect => |rect| {
+                    try std.testing.expectEqual(@as(i32, 50), rect.x1);
+                    try std.testing.expectEqual(@as(u8, 4), rect.layer);
+                },
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse add-circle" {
+    const r = parse("add-circle 100 200 50");
+    switch (r) {
+        .command => |c| switch (c) {
+            .undoable => |u| switch (u) {
+                .add_circle => |ci| {
+                    try std.testing.expectEqual(@as(i32, 100), ci.cx);
+                    try std.testing.expectEqual(@as(i32, 50), ci.radius);
+                },
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse add-arc" {
+    const r = parse("add-arc 0 0 100 45 90");
+    switch (r) {
+        .command => |c| switch (c) {
+            .undoable => |u| switch (u) {
+                .add_arc => |a| {
+                    try std.testing.expectEqual(@as(i16, 45), a.start_angle);
+                    try std.testing.expectEqual(@as(i16, 90), a.sweep_angle);
+                },
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse add-text" {
+    const r = parse("add-text 50 100 Hello World");
+    switch (r) {
+        .command => |c| switch (c) {
+            .undoable => |u| switch (u) {
+                .add_text => |t| {
+                    try std.testing.expectEqual(@as(i32, 50), t.x);
+                    try std.testing.expectEqualStrings("Hello World", t.content);
+                },
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse set-documentation" {
+    const r = parse("doc # My Circuit");
+    switch (r) {
+        .command => |c| switch (c) {
+            .undoable => |u| switch (u) {
+                .set_documentation => |d| try std.testing.expectEqualStrings("# My Circuit", d.content),
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse characterize-pdk" {
+    const r = parse("characterize-pdk sky130");
+    switch (r) {
+        .command => |c| switch (c) {
+            .immediate => |i| switch (i) {
+                .characterize_pdk => |p| try std.testing.expectEqualStrings("sky130", p.pdk_name),
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse canvas_click" {
+    const r = parse("canvas_click 50 75");
+    switch (r) {
+        .command => |c| switch (c) {
+            .immediate => |i| switch (i) {
+                .canvas_click => |p| {
+                    try std.testing.expectEqual(@as(i32, 50), p.x);
+                    try std.testing.expectEqual(@as(i32, 75), p.y);
+                },
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
+}
+
+test "parse select_rect" {
+    const r = parse("select-rect 0 0 100 200");
+    switch (r) {
+        .command => |c| switch (c) {
+            .immediate => |i| switch (i) {
+                .select_rect => |rb| {
+                    try std.testing.expectEqual(@as(i32, 0), rb.x0);
+                    try std.testing.expectEqual(@as(i32, 0), rb.y0);
+                    try std.testing.expectEqual(@as(i32, 100), rb.x1);
+                    try std.testing.expectEqual(@as(i32, 200), rb.y1);
+                },
+                else => return error.TestUnexpectedResult,
+            },
+            else => return error.TestUnexpectedResult,
+        },
+        else => return error.TestUnexpectedResult,
+    }
 }
 
 test "parse unknown" {

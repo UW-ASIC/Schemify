@@ -1,0 +1,47 @@
+{
+  "name": "Solarized Dark",
+  "dark": true,
+  "roles": {
+    "control": { "fill": "#073642", "corner_radius": [4, 4, 4, 4] },
+    "window": { "fill": "#002b36" },
+    "accent": { "fill": "#268bd2" }
+  },
+  "widgets": {
+    "button": {
+      "fill": "#073642",
+      "fill_hover": "#586e75",
+      "text": "#839496",
+      "variants": {
+        "primary": { "fill": "#268bd2" },
+        "danger": { "fill": "#dc322f" }
+      }
+    },
+    "tab": {
+      "variants": { "active": { "fill": "#073642" } }
+    }
+  },
+  "canvas": {
+    "wire": { "color": "#268bd2", "color_selected": "#cb4b16", "stroke_width": 1.8, "style": "ortho" },
+    "pin": { "color": "#b58900", "radius": 2.5, "shape": "circle" },
+    "instance_body": { "fill": "#073642", "stroke_color": "#2aa198" },
+    "grid": { "color": "#586e75", "style": "dots", "dot_size": 1.0 },
+    "selection_rect": { "color": "#268bd2", "fill_color": "#268bd222" }
+  },
+  "toolbar_bg": [0, 43, 54],
+  "tabbar_bg": [7, 54, 66],
+  "tab_active_bg": [7, 54, 66],
+  "statusbar_bg": [0, 43, 54],
+  "sidebar_bg": [7, 54, 66],
+  "text_primary": [131, 148, 150],
+  "text_secondary": [88, 110, 117],
+  "accent": [38, 139, 210],
+  "separator": [88, 110, 117],
+  "hover_bg": [88, 110, 117],
+  "canvas_bg": [0, 43, 54],
+  "wire": [38, 139, 210],
+  "wire_selected": [203, 75, 22],
+  "instance_body": [7, 54, 66],
+  "instance_pin": [181, 137, 0],
+  "symbol_line": [42, 161, 152],
+  "grid_dot": [88, 110, 117, 60]
+}

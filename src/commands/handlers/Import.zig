@@ -20,7 +20,7 @@ pub fn handleRunImport(p: types.RunImport, state: anytype) void {
         return;
     };
 
-    const imp = &state.gui.cold.import_project;
+    const imp = &state.gui.cold.dialogs.import_project;
 
     // Detect format from extension / filename and store import request
     if (std.mem.endsWith(u8, path, ".sch") or std.mem.endsWith(u8, path, ".sym")) {

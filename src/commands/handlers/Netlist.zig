@@ -1,6 +1,7 @@
 const std = @import("std");
 const types = @import("../types.zig");
 const Immediate = types.Immediate;
+const simulation = @import("simulation");
 
 pub const Error = error{
     OutOfMemory,
@@ -13,20 +14,17 @@ pub const Error = error{
 pub fn handleNetlist(imm: Immediate, state: anytype) Error!void {
     switch (imm) {
         .netlist_hierarchical => {
-            state.setStatus("Generating hierarchical netlist...");
-            generateNetlist(state, "Netlist written") catch {
+            generateNetlist(state, .hierarchical, "Hierarchical netlist generated") catch {
                 state.setStatus("Netlist generation failed");
             };
         },
         .netlist_top_only => {
-            state.setStatus("Generating top-level netlist...");
-            generateNetlist(state, "Top-level netlist written") catch {
+            generateNetlist(state, .top_only, "Top-level netlist generated") catch {
                 state.setStatus("Netlist generation failed");
             };
         },
         .netlist_flat => {
-            state.setStatus("Generating flat netlist...");
-            generateNetlist(state, "Flat netlist written") catch {
+            generateNetlist(state, .flat, "Flat netlist generated") catch {
                 state.setStatus("Netlist generation failed");
             };
         },
@@ -34,11 +32,11 @@ pub fn handleNetlist(imm: Immediate, state: anytype) Error!void {
     }
 }
 
-fn generateNetlist(state: anytype, ok_msg: []const u8) !void {
+fn generateNetlist(state: anytype, mode: simulation.Netlist.Mode, ok_msg: []const u8) !void {
     const fio = state.active() orelse return;
     const alloc = state.allocator();
 
-    const spice = try fio.createNetlist();
+    const spice = try simulation.Netlist.emitPySpiceMode(&fio.sch, alloc, null, state.sim_backend, mode);
     defer alloc.free(spice);
 
     if (spice.len > state.last_netlist.len) {

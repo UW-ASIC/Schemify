@@ -11,6 +11,15 @@ const Allocator = std.mem.Allocator;
 
 // -- HostCallbacks (DEPRECATED: kept for compilation compat, will be removed) --
 
+pub const RequestResult = struct {
+    buf: [1024]u8 = undefined,
+    len: u16 = 0,
+
+    pub fn slice(self: *const RequestResult) []const u8 {
+        return self.buf[0..self.len];
+    }
+};
+
 pub const HostCallbacks = struct {
     ctx: *anyopaque,
     register_panel: *const fn (*anyopaque, []const u8, []const u8, []const u8, u8, u8, u16) u16,
@@ -19,6 +28,7 @@ pub const HostCallbacks = struct {
     log_msg: *const fn (*anyopaque, u8, []const u8, []const u8) void,
     push_command: *const fn (*anyopaque, []const u8) bool,
     request_refresh: *const fn (*anyopaque) void,
+    handle_request: ?*const fn (*anyopaque, []const u8, ?[]const u8, *RequestResult) bool = null,
 };
 
 // -- PanelState ---------------------------------------------------------------
@@ -31,8 +41,8 @@ const PanelState = struct {
         return .{ .arena = std.heap.ArenaAllocator.init(backing) };
     }
 
-    fn deinit(self: *PanelState, backing: Allocator) void {
-        self.widgets.deinit(backing);
+    fn deinit(self: *PanelState, _: Allocator) void {
+        // widgets are owned by the arena — just deinit the arena
         self.arena.deinit();
     }
 
@@ -294,6 +304,18 @@ pub const Runtime = struct {
         return self.keyEvent(key, mods, action);
     }
 
+    pub fn notifyThemeChanged(self: *Runtime) void {
+        for (self.plugins.items) |*p| {
+            if (p.state != .running) continue;
+            if (p.transport) |*t| {
+                var buf: [256]u8 = undefined;
+                var fbs = std.io.fixedBufferStream(&buf);
+                JsonRpc.sendNotification(fbs.writer(), "theme.changed", null);
+                t.writeAll(fbs.getWritten()) catch {};
+            }
+        }
+    }
+
     // -- Internal -------------------------------------------------------------
 
     fn sendUiEvent(self: *Runtime, method: []const u8, panel_id: u16, widget_id: u32, val_f32: ?f32, val_bool: ?bool) void {
@@ -325,17 +347,17 @@ pub const Runtime = struct {
                 const line = t.readLine(&p.read_buf) catch break;
                 if (line == null) break;
                 const owned = alloc.dupe(u8, line.?) catch break;
-                self.handleIncomingLine(alloc, owned);
+                self.handleIncomingLine(alloc, owned, p);
                 alloc.free(owned);
             }
         }
     }
 
-    fn handleIncomingLine(self: *Runtime, alloc: Allocator, line: []const u8) void {
-        const msg = JsonRpc.parseLine(alloc, line) catch return;
+    fn handleIncomingLine(self: *Runtime, alloc: Allocator, line: []const u8, plugin: *PluginSlot) void {
+        const msg = JsonRpc.parseLine(line);
         switch (msg) {
             .notification => |n| self.handleNotification(alloc, n),
-            .request => |r| self.handleRequest(alloc, r),
+            .request => |r| self.handleRequest(alloc, r, plugin),
             .response => {},
             .parse_error => {},
         }
@@ -386,11 +408,31 @@ pub const Runtime = struct {
         }
     }
 
-    fn handleRequest(self: *Runtime, alloc: Allocator, req: JsonRpc.Request) void {
-        _ = self;
+    fn handleRequest(self: *Runtime, alloc: Allocator, req: JsonRpc.Request, plugin: *PluginSlot) void {
         _ = alloc;
-        _ = req;
-        // Future: handle requests from plugins that need responses.
+        if (self.callbacks) |cb| {
+            if (cb.handle_request) |handler| {
+                var result = RequestResult{};
+                if (handler(cb.ctx, req.method, req.params, &result)) {
+                    sendToPlugin(plugin, req.id, result.slice(), null);
+                    return;
+                }
+            }
+        }
+        sendToPlugin(plugin, req.id, null, .{ -32601, "Method not found" });
+    }
+
+    fn sendToPlugin(plugin: *PluginSlot, id: u32, result_json: ?[]const u8, err_info: ?struct { i32, []const u8 }) void {
+        if (plugin.transport) |*t| {
+            var buf: [2048]u8 = undefined;
+            var fbs = std.io.fixedBufferStream(&buf);
+            if (result_json) |rj| {
+                JsonRpc.sendResponse(fbs.writer(), id, rj);
+            } else if (err_info) |ei| {
+                JsonRpc.sendError(fbs.writer(), id, ei[0], ei[1]);
+            }
+            t.writeAll(fbs.getWritten()) catch {};
+        }
     }
 
     fn handleWidgetEmit(self: *Runtime, alloc: Allocator, params: []const u8) void {

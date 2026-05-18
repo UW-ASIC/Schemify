@@ -1,0 +1,47 @@
+{
+  "name": "Catppuccin Latte",
+  "dark": false,
+  "roles": {
+    "control": { "fill": "#ccd0da", "corner_radius": [4, 4, 4, 4] },
+    "window": { "fill": "#eff1f5" },
+    "accent": { "fill": "#1e66f5" }
+  },
+  "widgets": {
+    "button": {
+      "fill": "#bcc0cc",
+      "fill_hover": "#acb0be",
+      "text": "#4c4f69",
+      "variants": {
+        "primary": { "fill": "#1e66f5" },
+        "danger": { "fill": "#d20f39" }
+      }
+    },
+    "tab": {
+      "variants": { "active": { "fill": "#e6e9ef" } }
+    }
+  },
+  "canvas": {
+    "wire": { "color": "#1e66f5", "color_selected": "#fe640b", "stroke_width": 1.8, "style": "ortho" },
+    "pin": { "color": "#df8e1d", "radius": 2.5, "shape": "circle" },
+    "instance_body": { "fill": "#e6e9ef", "stroke_color": "#7287fd" },
+    "grid": { "color": "#ccd0da", "style": "dots", "dot_size": 1.0 },
+    "selection_rect": { "color": "#1e66f5", "fill_color": "#1e66f522" }
+  },
+  "toolbar_bg": [239, 241, 245],
+  "tabbar_bg": [230, 233, 239],
+  "tab_active_bg": [239, 241, 245],
+  "statusbar_bg": [239, 241, 245],
+  "sidebar_bg": [230, 233, 239],
+  "text_primary": [76, 79, 105],
+  "text_secondary": [108, 111, 133],
+  "accent": [30, 102, 245],
+  "separator": [188, 192, 204],
+  "hover_bg": [204, 208, 218],
+  "canvas_bg": [239, 241, 245],
+  "wire": [30, 102, 245],
+  "wire_selected": [254, 100, 11],
+  "instance_body": [230, 233, 239],
+  "instance_pin": [223, 142, 29],
+  "symbol_line": [114, 135, 253],
+  "grid_dot": [188, 192, 204, 80]
+}

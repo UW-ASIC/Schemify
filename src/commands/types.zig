@@ -56,12 +56,15 @@ pub const PlaceDevice = struct {
     name: []const u8,
     x: i32,
     y: i32,
+    rot: u2 = 0,
+    flip: bool = false,
 };
 
 pub const AddWire = struct {
     x0: i32, y0: i32,
     x1: i32, y1: i32,
     net_name: ?[]const u8 = null,
+    bus: bool = false,
 };
 
 pub const DeleteWire = struct { idx: u32 };
@@ -93,6 +96,12 @@ pub const RenameInstance = struct {
 pub const RenameNet = struct {
     wire_idx: u32,
     new_name: []const u8,
+};
+
+pub const SetWireColor = struct {
+    wire_idx: u32,
+    /// Packed RGBA (0 = clear override, use theme default).
+    color: u32,
 };
 
 pub const RunSim = struct {};
@@ -257,6 +266,9 @@ pub const Immediate = union(enum) {
     save_settings,
     clear_sim_cache,
 
+    // Bus
+    toggle_bus_mode,
+
     // Stubs (not yet implemented — used by plugins via push_command)
     select_attached_nets,
     toggle_orthogonal_routing,
@@ -270,11 +282,20 @@ pub const Immediate = union(enum) {
     // Optimizer
     run_optimize,
     characterize_pdk: struct { pdk_name: []const u8 },
+    load_pdk: struct { pdk_name: []const u8 },
+
+    // Simulation
+    view_pyspice_netlist,
 
     // Chat / Documentation
-    toggle_chat_panel,
     generate_schematic_from_pyspice,
     view_doc,
+
+    // Canvas interaction (interactive tool dispatch from GUI or CLI)
+    canvas_click: struct { x: i32, y: i32 },
+    canvas_double_click: struct { x: i32, y: i32 },
+    canvas_right_click: struct { x: i32, y: i32 },
+    select_rect: struct { x0: i32, y0: i32, x1: i32, y1: i32 },
 };
 
 // ── Undoable: schematic mutations that enter the history ring ─────────────────
@@ -319,6 +340,9 @@ pub const Undoable = union(enum) {
     rename_instance: RenameInstance,
     rename_net: RenameNet,
     set_spice_code: SetSpiceCode,
+
+    // Wire color
+    set_wire_color: SetWireColor,
 
     // Documentation
     set_documentation: SetDocumentation,

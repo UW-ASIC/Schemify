@@ -5,7 +5,7 @@ const Immediate = types.Immediate;
 pub fn handleConfig(imm: Immediate, state: anytype) void {
     switch (imm) {
         .open_preferences => {
-            state.gui.cold.settings_dialog.is_open = true;
+            state.gui.cold.dialogs.settings.is_open = true;
             state.setStatus("Settings");
         },
         .reload_config => {

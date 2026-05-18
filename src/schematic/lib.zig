@@ -3,10 +3,12 @@ pub const helpers = @import("helpers.zig");
 pub const string_pool = @import("string_pool.zig");
 pub const Schemify = @import("Schemify.zig").Schemify;
 pub const connectivity = @import("connectivity.zig");
+pub const pyspice = @import("pyspice.zig");
 pub const fileio = @import("fileio/lib.zig");
 pub const devices = @import("devices/lib.zig");
 pub const markdown = @import("markdown.zig");
 pub const layout = @import("layout.zig");
+pub const bus = @import("bus.zig");
 
 comptime {
     _ = types;
@@ -14,8 +16,10 @@ comptime {
     _ = string_pool;
     _ = @import("Schemify.zig");
     _ = connectivity;
+    _ = pyspice;
     _ = fileio;
     _ = devices;
     _ = markdown;
     _ = layout;
+    _ = bus;
 }

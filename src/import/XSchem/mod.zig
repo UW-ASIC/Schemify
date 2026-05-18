@@ -8,13 +8,13 @@ const core = @import("schematic");
 const simulation = @import("simulation");
 const platform = @import("utility").platform;
 const ct = @import("../types.zig");
-const converter = @import("converter.zig");
+pub const converter = @import("converter.zig");
 const tcl = @import("TCL/mod.zig");
 
 const Property = core.types.Property;
 
-const types = @import("types.zig");
-const reader = @import("reader.zig");
+pub const types = @import("types.zig");
+pub const reader = @import("reader.zig");
 const xschemrc = @import("xschemrc.zig");
 
 pub const mapSchemifyToXSchem = @import("exporter.zig").mapSchemifyToXSchem;
@@ -291,26 +291,44 @@ pub const Backend = struct {
             const sch_rel = maps.sch_map.get(stem);
             const sym_rel = maps.sym_map.get(stem);
 
-            const sch_path = sch_rel orelse continue;
-            var schematic = (try self.tryParseProjectFile(project_dir, sch_path, stem)) orelse continue;
-            var symbol = if (sym_rel) |rel| try self.tryParseProjectFile(project_dir, rel, null) else null;
+            if (sch_rel) |sch_path| {
+                // Has schematic: convert with optional symbol overlay
+                var schematic = (try self.tryParseProjectFile(project_dir, sch_path, stem)) orelse continue;
+                var symbol = if (sym_rel) |rel| try self.tryParseProjectFile(project_dir, rel, null) else null;
 
-            // Convert to Schemify, then discard XSchem intermediates
-            const schemify = converter.convert(
-                self.alloc,
-                &schematic,
-                if (symbol) |*s| s else null,
-                stem,
-                sym_resolver,
-            ) catch {
+                const schemify = converter.convert(
+                    self.alloc,
+                    &schematic,
+                    if (symbol) |*s| s else null,
+                    stem,
+                    sym_resolver,
+                ) catch {
+                    schematic.deinit();
+                    if (symbol) |*s| s.deinit();
+                    continue;
+                };
                 schematic.deinit();
                 if (symbol) |*s| s.deinit();
-                continue;
-            };
-            schematic.deinit();
-            if (symbol) |*s| s.deinit();
 
-            try appendResult(&results, la, stem, sch_rel, sym_rel, schemify);
+                try appendResult(&results, la, stem, sch_rel, sym_rel, schemify);
+            } else if (sym_rel) |rel| {
+                // Symbol-only (PDK primitive): convert .sym as the schematic
+                var sym_data = (try self.tryParseProjectFile(project_dir, rel, stem)) orelse continue;
+
+                const schemify = converter.convert(
+                    self.alloc,
+                    &sym_data,
+                    null,
+                    stem,
+                    null,
+                ) catch {
+                    sym_data.deinit();
+                    continue;
+                };
+                sym_data.deinit();
+
+                try appendResult(&results, la, stem, null, sym_rel, schemify);
+            }
         }
 
         // Step 5: hierarchical subcircuit resolution — for each schematic,
@@ -343,7 +361,7 @@ pub const Backend = struct {
         return parsed;
     }
 
-    /// Enumerate all .sch and .sym files under the project directory.
+    /// Enumerate all .sch and .sym files under the project directory (recursive).
     pub fn getFiles(
         self: *const Backend,
         project_dir: []const u8,
@@ -365,14 +383,18 @@ pub const Backend = struct {
         };
         defer dir.close();
 
-        var it = dir.iterate();
-        while (try it.next()) |entry| {
+        var walker = try dir.walk(self.alloc);
+        defer walker.deinit();
+
+        while (walker.next() catch null) |entry| {
             if (entry.kind != .file) continue;
-            const name = entry.name;
-            if (std.mem.endsWith(u8, name, ".sch")) {
-                try sch_files.append(self.alloc, try self.alloc.dupe(u8, name));
-            } else if (std.mem.endsWith(u8, name, ".sym")) {
-                try sym_files.append(self.alloc, try self.alloc.dupe(u8, name));
+            const path = try self.alloc.dupe(u8, entry.path);
+            if (std.mem.endsWith(u8, path, ".sch")) {
+                try sch_files.append(self.alloc, path);
+            } else if (std.mem.endsWith(u8, path, ".sym")) {
+                try sym_files.append(self.alloc, path);
+            } else {
+                self.alloc.free(path);
             }
         }
 

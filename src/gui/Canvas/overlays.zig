@@ -55,6 +55,10 @@ pub fn drawPlacementGhost(ctx: *const RenderContext, app: *st.AppState) void {
     const ghost_col = Color{ .r = ctx.pal.symbol_line.r, .g = ctx.pal.symbol_line.g, .b = ctx.pal.symbol_line.b, .a = 120 };
     const cw = dvui.currentWindow();
     const ww: f32 = @max(1.0, 1.5 * vp.scale);
+    const rot = pl.rot;
+    const flip = pl.flip;
+    const origin = h.w2p(cursor, vp);
+    const s: @import("types.zig").Vec2 = @splat(vp.scale);
 
     if (entry.hasDrawing()) {
         const segs = entry.segs();
@@ -62,22 +66,24 @@ pub fn drawPlacementGhost(ctx: *const RenderContext, app: *st.AppState) void {
         var batch = h.LineBatch.init(cw.lifo());
         defer batch.deinit();
         batch.ensureLineCapacity(segs.len + circles.len * 16) catch {};
-        for (segs) |s| {
-            const a = h.w2p(.{ cursor[0] + @as(i32, s.x0), cursor[1] + @as(i32, s.y0) }, vp);
-            const b = h.w2p(.{ cursor[0] + @as(i32, s.x1), cursor[1] + @as(i32, s.y1) }, vp);
+        for (segs) |seg| {
+            const a_rf = h.applyRotFlip(@floatFromInt(seg.x0), @floatFromInt(seg.y0), rot, flip);
+            const b_rf = h.applyRotFlip(@floatFromInt(seg.x1), @floatFromInt(seg.y1), rot, flip);
+            const a = origin + @import("types.zig").Vec2{ a_rf[0], a_rf[1] } * s;
+            const b = origin + @import("types.zig").Vec2{ b_rf[0], b_rf[1] } * s;
             batch.addLine(a[0], a[1], b[0], b[1], ww, ghost_col);
         }
         for (circles) |c| {
             const r: f32 = @floatFromInt(c.r);
-            const cx_w: i32 = cursor[0] + @as(i32, c.cx);
-            const cy_w: i32 = cursor[1] + @as(i32, c.cy);
+            const c_rf = h.applyRotFlip(@floatFromInt(c.cx), @floatFromInt(c.cy), rot, flip);
+            const center = origin + @import("types.zig").Vec2{ c_rf[0], c_rf[1] } * s;
             const n_seg: usize = 16;
-            var prev = h.w2p(.{ cx_w + @as(i32, @intFromFloat(r)), cy_w }, vp);
+            var prev = center + @import("types.zig").Vec2{ r * vp.scale, 0 };
             for (1..n_seg + 1) |si| {
                 const angle = @as(f32, @floatFromInt(si)) * (2.0 * std.math.pi / @as(f32, n_seg));
-                const nx = cx_w + @as(i32, @intFromFloat(r * @cos(angle)));
-                const ny = cy_w + @as(i32, @intFromFloat(r * @sin(angle)));
-                const cur_pt = h.w2p(.{ nx, ny }, vp);
+                const nx = center[0] + r * vp.scale * @cos(angle);
+                const ny = center[1] + r * vp.scale * @sin(angle);
+                const cur_pt = @import("types.zig").Vec2{ nx, ny };
                 batch.addLine(prev[0], prev[1], cur_pt[0], cur_pt[1], ww, ghost_col);
                 prev = cur_pt;
             }
@@ -85,19 +91,23 @@ pub fn drawPlacementGhost(ctx: *const RenderContext, app: *st.AppState) void {
         batch.flush();
     } else {
         // Fallback: draw a simple box for primitives without drawing data
-        const sz: i32 = 20;
+        const sz: f32 = 20;
         var batch = h.LineBatch.init(cw.lifo());
         defer batch.deinit();
         batch.ensureLineCapacity(4) catch {};
-        const tl = h.w2p(.{ cursor[0] - sz, cursor[1] - sz }, vp);
-        const br = h.w2p(.{ cursor[0] + sz, cursor[1] + sz }, vp);
-        batch.addRectOutline(tl, br, ww, ghost_col);
+        const corners = [4][2]f32{ .{ -sz, -sz }, .{ sz, -sz }, .{ sz, sz }, .{ -sz, sz } };
+        inline for (0..4) |ci| {
+            const a_rf = h.applyRotFlip(corners[ci][0], corners[ci][1], rot, flip);
+            const b_rf = h.applyRotFlip(corners[(ci + 1) % 4][0], corners[(ci + 1) % 4][1], rot, flip);
+            const pa = origin + @import("types.zig").Vec2{ a_rf[0], a_rf[1] } * s;
+            const pb = origin + @import("types.zig").Vec2{ b_rf[0], b_rf[1] } * s;
+            batch.addLine(pa[0], pa[1], pb[0], pb[1], ww, ghost_col);
+        }
         batch.flush();
     }
 
     // Label at cursor
-    const cp = h.w2p(cursor, vp);
-    h.drawLabel(kind_name, cp[0] + 10, cp[1] - 12, ghost_col, vp, 95_000);
+    h.drawLabel(kind_name, origin[0] + 10, origin[1] - 12, ghost_col, vp, 95_000);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -232,9 +242,10 @@ pub fn drawRubberBand(ctx: *const RenderContext, app: *st.AppState) void {
     const tl = h.w2p(tl_world, vp);
     const br = h.w2p(br_world, vp);
 
-    // Rubber band colors derived from palette wire color
-    const pal = ctx.pal;
-    const fill_col = Color{ .r = pal.wire.r, .g = pal.wire.g, .b = pal.wire.b, .a = 30 };
+    const sel_style = ctx.canvas_styles.selection;
+    const alpha_mod = ctx.animation.selectionAlpha();
+    const fill_a: u8 = @intFromFloat(@as(f32, @floatFromInt(sel_style.fill_color.a)) * alpha_mod);
+    const fill_col = Color{ .r = sel_style.fill_color.r, .g = sel_style.fill_color.g, .b = sel_style.fill_color.b, .a = fill_a };
     dvui.Path.stroke(.{
         .points = &.{
             .{ .x = tl[0], .y = tl[1] }, .{ .x = br[0], .y = tl[1] },
@@ -242,7 +253,7 @@ pub fn drawRubberBand(ctx: *const RenderContext, app: *st.AppState) void {
             .{ .x = tl[0], .y = tl[1] },
         },
     }, .{ .thickness = 1, .color = fill_col });
-    h.strokeRectOutline(tl, br, 1.0, Color{ .r = pal.wire.r, .g = pal.wire.g, .b = pal.wire.b, .a = 160 });
+    h.strokeRectOutline(tl, br, 1.0, sel_style.color);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -264,7 +275,7 @@ const BTN_MARGIN_TOP: f32 = 10.0;
 const BtnPos = struct { x: f32, y: f32 };
 
 fn btnPos(bounds: dvui.Rect.Physical, idx: usize) BtnPos {
-    // Offset below the Auto-Generate button (AGEN_H + AGEN_MARGIN + gap)
+    // Offset below the Generate Symbol button (AGEN_H + AGEN_MARGIN + gap)
     const tb_top = AGEN_MARGIN + AGEN_H + 8.0;
     return .{
         .x = bounds.x + bounds.w - BTN_W - BTN_MARGIN_RIGHT,
@@ -319,7 +330,7 @@ pub fn tbPreInput(app: *st.AppState, wd: *dvui.WidgetData, bounds: dvui.Rect.Phy
 
     if (tb_ov.hovered_idx != tb_ov.cached_for_idx) {
         tb_ov.cached_for_idx = tb_ov.hovered_idx;
-        tb_ov.cached_wire_count = 0;
+        tb_ov.cached_wires = null;
         if (tb_ov.hovered_idx >= 0) loadWireCache(tb_ov, tbs[@intCast(tb_ov.hovered_idx)]);
     }
 }
@@ -354,18 +365,22 @@ pub fn tbDraw(ctx: *const RenderContext, app: *st.AppState) void {
     const cols = tbColors(pal);
 
     // Ghost wire overlay
-    if (tb_ov.hovered_idx >= 0 and tb_ov.cached_wire_count > 0) {
-        const ghost = Color{ .r = pal.wire.r, .g = pal.wire.g, .b = pal.wire.b, .a = 90 };
-        const ww: f32 = @max(0.8, 1.8 * vp.scale);
-        var batch = h.LineBatch.init(cw.lifo());
-        defer batch.deinit();
-        batch.ensureLineCapacity(tb_ov.cached_wire_count) catch {};
-        for (0..tb_ov.cached_wire_count) |i| {
-            const a = h.w2p(.{ tb_ov.cached_x0[i], tb_ov.cached_y0[i] }, vp);
-            const b = h.w2p(.{ tb_ov.cached_x1[i], tb_ov.cached_y1[i] }, vp);
-            batch.addLine(a[0], a[1], b[0], b[1], ww, ghost);
+    if (tb_ov.hovered_idx >= 0) {
+        if (tb_ov.cached_wires) |cw_data| {
+            if (cw_data.count > 0) {
+                const ghost = Color{ .r = pal.wire.r, .g = pal.wire.g, .b = pal.wire.b, .a = 90 };
+                const ww: f32 = @max(0.8, 1.8 * vp.scale);
+                var batch = h.LineBatch.init(cw.lifo());
+                defer batch.deinit();
+                batch.ensureLineCapacity(cw_data.count) catch {};
+                for (0..cw_data.count) |i| {
+                    const a = h.w2p(.{ cw_data.x0[i], cw_data.y0[i] }, vp);
+                    const b = h.w2p(.{ cw_data.x1[i], cw_data.y1[i] }, vp);
+                    batch.addLine(a[0], a[1], b[0], b[1], ww, ghost);
+                }
+                batch.flush();
+            }
         }
-        batch.flush();
     }
 
     // Button backgrounds + borders
@@ -411,24 +426,23 @@ fn tbHandleClick(app: *st.AppState, tb_path: []const u8, shift: bool) void {
 }
 
 fn loadWireCache(tb_ov: *TbOverlayCache, tb_path: []const u8) void {
-    tb_ov.cached_wire_count = 0;
+    tb_ov.cached_wires = null;
     if (tb_ov.cache_arena) |*a| _ = a.reset(.retain_capacity);
     if (tb_ov.cache_arena == null) tb_ov.cache_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const arena = tb_ov.cache_arena.?.allocator();
     const data = utility.platform.fs.cwd().readFileAlloc(arena, tb_path, std.math.maxInt(usize)) catch return;
     const sch = core.fileio.Reader.readCHN(data, arena);
-    const wx0 = sch.wires.items(.x0);
-    const wy0 = sch.wires.items(.y0);
-    const wx1 = sch.wires.items(.x1);
-    const wy1 = sch.wires.items(.y1);
-    const n = @min(sch.wires.len, TbOverlayCache.MAX_CACHED_WIRES);
-    for (0..n) |i| {
-        tb_ov.cached_x0[i] = wx0[i];
-        tb_ov.cached_y0[i] = wy0[i];
-        tb_ov.cached_x1[i] = wx1[i];
-        tb_ov.cached_y1[i] = wy1[i];
-    }
-    tb_ov.cached_wire_count = n;
+    const n = sch.wires.len;
+    if (n == 0) return;
+    const x0 = arena.alloc(i32, n) catch return;
+    const y0 = arena.alloc(i32, n) catch return;
+    const x1 = arena.alloc(i32, n) catch return;
+    const y1 = arena.alloc(i32, n) catch return;
+    @memcpy(x0, sch.wires.items(.x0)[0..n]);
+    @memcpy(y0, sch.wires.items(.y0)[0..n]);
+    @memcpy(x1, sch.wires.items(.x1)[0..n]);
+    @memcpy(y1, sch.wires.items(.y1)[0..n]);
+    tb_ov.cached_wires = .{ .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1, .count = n };
 }
 
 fn tbBaseName(path: []const u8) []const u8 {
@@ -456,58 +470,72 @@ fn updateGhostFromRawSpice(tb_ov: *TbOverlayCache, raw_spice: []const u8, dut_na
 
     // Parse the SPICE text into a structured netlist.
     const netlist = spice2sch.parseNetlist(arena, raw_spice) catch {
-        tb_ov.ghost_wire_count = 0;
-        tb_ov.ghost_inst_count = 0;
+        tb_ov.ghost = null;
         return;
     };
 
     // Convert top-level elements (testbench stimulus, not subcircuit internals).
     const results = spice2sch.convertNetlist(arena, netlist, "ghost") catch {
-        tb_ov.ghost_wire_count = 0;
-        tb_ov.ghost_inst_count = 0;
+        tb_ov.ghost = null;
         return;
     };
 
-    // Merge geometry from all results, filtering out DUT subcircuit instances.
+    // Count total wires and instances to allocate exact-size slices.
+    var total_wires: usize = 0;
+    var total_insts: usize = 0;
+    for (results) |result| {
+        total_wires += result.schemify.wires.len;
+        total_insts += result.schemify.instances.len;
+    }
+
+    const wire_x0 = arena.alloc(i32, total_wires) catch { tb_ov.ghost = null; return; };
+    const wire_y0 = arena.alloc(i32, total_wires) catch { tb_ov.ghost = null; return; };
+    const wire_x1 = arena.alloc(i32, total_wires) catch { tb_ov.ghost = null; return; };
+    const wire_y1 = arena.alloc(i32, total_wires) catch { tb_ov.ghost = null; return; };
+    const inst_x = arena.alloc(i32, total_insts) catch { tb_ov.ghost = null; return; };
+    const inst_y = arena.alloc(i32, total_insts) catch { tb_ov.ghost = null; return; };
+    const inst_kind = arena.alloc(u8, total_insts) catch { tb_ov.ghost = null; return; };
+
     var wire_count: usize = 0;
     var inst_count: usize = 0;
 
     for (results) |result| {
         const sch = result.schemify;
 
-        // Copy wires (ghost lines).
         const wx0 = sch.wires.items(.x0);
         const wy0 = sch.wires.items(.y0);
         const wx1 = sch.wires.items(.x1);
         const wy1 = sch.wires.items(.y1);
         for (0..sch.wires.len) |i| {
-            if (wire_count >= TbOverlayCache.MAX_CACHED_WIRES) break;
-            tb_ov.ghost_x0[wire_count] = wx0[i];
-            tb_ov.ghost_y0[wire_count] = wy0[i];
-            tb_ov.ghost_x1[wire_count] = wx1[i];
-            tb_ov.ghost_y1[wire_count] = wy1[i];
+            wire_x0[wire_count] = wx0[i];
+            wire_y0[wire_count] = wy0[i];
+            wire_x1[wire_count] = wx1[i];
+            wire_y1[wire_count] = wy1[i];
             wire_count += 1;
         }
 
-        // Copy instance positions, filtering out the DUT itself.
         const inst_syms = sch.instances.items(.symbol);
-        const inst_x = sch.instances.items(.x);
-        const inst_y = sch.instances.items(.y);
+        const ix = sch.instances.items(.x);
+        const iy = sch.instances.items(.y);
         const inst_kinds = sch.instances.items(.kind);
         for (0..sch.instances.len) |i| {
-            if (inst_count >= TbOverlayCache.MAX_CACHED_INSTANCES) break;
-            // Filter out DUT subcircuit instances by matching symbol name.
             if (dut_name.len > 0 and std.mem.eql(u8, sch.str(inst_syms[i]), dut_name)) continue;
-            tb_ov.ghost_inst_x[inst_count] = inst_x[i];
-            tb_ov.ghost_inst_y[inst_count] = inst_y[i];
-            tb_ov.ghost_inst_kind[inst_count] = @intFromEnum(inst_kinds[i]);
+            inst_x[inst_count] = ix[i];
+            inst_y[inst_count] = iy[i];
+            inst_kind[inst_count] = @intFromEnum(inst_kinds[i]);
             inst_count += 1;
         }
     }
 
-    tb_ov.ghost_wire_count = wire_count;
-    tb_ov.ghost_inst_count = inst_count;
-    tb_ov.ghost_generation +%= 1;
+    const prev_gen = if (tb_ov.ghost) |g| g.generation else @as(u32, 0);
+    tb_ov.ghost = .{
+        .generation = prev_gen +% 1,
+        .sim_generation = 0,
+        .wire_x0 = wire_x0, .wire_y0 = wire_y0, .wire_x1 = wire_x1, .wire_y1 = wire_y1,
+        .wire_count = wire_count,
+        .inst_x = inst_x, .inst_y = inst_y, .inst_kind = inst_kind,
+        .inst_count = inst_count,
+    };
 }
 
 /// Draw ghost geometry from spice2schematic conversion.
@@ -519,55 +547,47 @@ pub fn drawGhostOverlay(ctx: *const RenderContext, app: *st.AppState) void {
 
     // Check if we need to regenerate ghost geometry.
     if (doc.sim_results) |sim| {
-        if (doc.sim_generation != tb_ov.ghost_sim_generation) {
-            // Sim results changed — regenerate ghost geometry.
+        const ghost_sim_gen = if (tb_ov.ghost) |g| g.sim_generation else @as(u32, 0);
+        if (doc.sim_generation != ghost_sim_gen) {
             const dut_name = doc.sch.str(doc.sch.name);
             updateGhostFromRawSpice(tb_ov, sim.raw_output, dut_name);
-            tb_ov.ghost_sim_generation = doc.sim_generation;
+            if (tb_ov.ghost) |*g| g.sim_generation = doc.sim_generation;
         }
     } else {
-        // No sim results — clear ghost.
-        if (tb_ov.ghost_wire_count > 0 or tb_ov.ghost_inst_count > 0) {
-            tb_ov.ghost_wire_count = 0;
-            tb_ov.ghost_inst_count = 0;
-            tb_ov.ghost_generation +%= 1;
-        }
+        if (tb_ov.ghost != null) tb_ov.ghost = null;
         return;
     }
 
-    if (tb_ov.ghost_wire_count == 0 and tb_ov.ghost_inst_count == 0) return;
+    const g = tb_ov.ghost orelse return;
+    if (g.wire_count == 0 and g.inst_count == 0) return;
 
     const vp = ctx.vp;
     const pal = ctx.pal;
     const cw = dvui.currentWindow();
 
-    // Ghost wire color: semi-transparent, distinct from regular wires.
     const ghost_wire = Color{ .r = pal.wire.r / 2 +| 80, .g = pal.wire.g / 2 +| 40, .b = pal.wire.b, .a = 70 };
     const ghost_inst = Color{ .r = pal.symbol_line.r, .g = pal.symbol_line.g, .b = pal.symbol_line.b, .a = 55 };
     const ww: f32 = @max(0.6, 1.2 * vp.scale);
 
-    // Draw ghost wires (dashed appearance via thinner lines with lower alpha).
-    {
+    if (g.wire_count > 0) {
         var batch = h.LineBatch.init(cw.lifo());
         defer batch.deinit();
-        batch.ensureLineCapacity(tb_ov.ghost_wire_count) catch {};
-        for (0..tb_ov.ghost_wire_count) |i| {
-            const a = h.w2p(.{ tb_ov.ghost_x0[i], tb_ov.ghost_y0[i] }, vp);
-            const b = h.w2p(.{ tb_ov.ghost_x1[i], tb_ov.ghost_y1[i] }, vp);
+        batch.ensureLineCapacity(g.wire_count) catch {};
+        for (0..g.wire_count) |i| {
+            const a = h.w2p(.{ g.wire_x0[i], g.wire_y0[i] }, vp);
+            const b = h.w2p(.{ g.wire_x1[i], g.wire_y1[i] }, vp);
             batch.addLine(a[0], a[1], b[0], b[1], ww, ghost_wire);
         }
         batch.flush();
     }
 
-    // Draw ghost instance markers (small X marks at instance positions).
-    if (tb_ov.ghost_inst_count > 0) {
+    if (g.inst_count > 0) {
         var batch = h.LineBatch.init(cw.lifo());
         defer batch.deinit();
-        batch.ensureLineCapacity(tb_ov.ghost_inst_count * 2) catch {};
+        batch.ensureLineCapacity(g.inst_count * 2) catch {};
         const arm: f32 = @max(3.0, 5.0 * vp.scale);
-        for (0..tb_ov.ghost_inst_count) |i| {
-            const c = h.w2p(.{ tb_ov.ghost_inst_x[i], tb_ov.ghost_inst_y[i] }, vp);
-            // Draw X marker.
+        for (0..g.inst_count) |i| {
+            const c = h.w2p(.{ g.inst_x[i], g.inst_y[i] }, vp);
             batch.addLine(c[0] - arm, c[1] - arm, c[0] + arm, c[1] + arm, 1.0, ghost_inst);
             batch.addLine(c[0] - arm, c[1] + arm, c[0] + arm, c[1] - arm, 1.0, ghost_inst);
         }
@@ -576,11 +596,11 @@ pub fn drawGhostOverlay(ctx: *const RenderContext, app: *st.AppState) void {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Auto-Generate button (top-right of schematic canvas)
+// Generate Symbol button (top-right of schematic canvas)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const AGEN_W: f32 = 110.0;
-const AGEN_H: f32 = 24.0;
+const AGEN_W: f32 = 140.0;
+const AGEN_H: f32 = 28.0;
 const AGEN_MARGIN: f32 = 10.0;
 
 fn agenPos(bounds: dvui.Rect.Physical) BtnPos {
@@ -595,17 +615,23 @@ fn hitAgen(px: f32, py: f32, bounds: dvui.Rect.Physical) bool {
     return px >= p.x and px <= p.x + AGEN_W and py >= p.y and py <= p.y + AGEN_H;
 }
 
-/// Process Auto-Generate button input before canvas interaction.
-pub fn autoGenPreInput(app: *st.AppState, wd: *dvui.WidgetData, bounds: dvui.Rect.Physical) void {
+/// Process Generate Symbol button input before canvas interaction.
+pub fn autoGenPreInput(app: *st.AppState, _: *dvui.WidgetData, bounds: dvui.Rect.Physical) void {
     if (app.gui.hot.view_mode != .schematic) return;
+    // Must match autoGenDraw visibility: only shown for saved .chn files.
+    const doc = app.active() orelse return;
+    switch (doc.origin) {
+        .chn_file => {},
+        else => return,
+    }
 
     for (dvui.events()) |*ev| {
         switch (ev.evt) {
             .mouse => |me| {
-                if (me.action == .press and me.button == .left and !ev.handled and dvui.eventMatchSimple(ev, wd)) {
+                if (me.action == .press and me.button == .left and !ev.handled) {
                     if (hitAgen(me.p.x, me.p.y, bounds)) {
                         ev.handled = true;
-                        actions.enqueue(app, .{ .immediate = .make_symbol_from_schematic }, "Auto-generate symbol");
+                        actions.enqueue(app, .{ .immediate = .make_symbol_from_schematic }, "Generate symbol");
                     }
                 }
             },
@@ -614,7 +640,7 @@ pub fn autoGenPreInput(app: *st.AppState, wd: *dvui.WidgetData, bounds: dvui.Rec
     }
 }
 
-/// Draw the Auto-Generate button overlay.
+/// Draw the Generate Symbol button overlay.
 pub fn autoGenDraw(ctx: *const RenderContext, app: *st.AppState) void {
     if (app.gui.hot.view_mode != .schematic) return;
     // Only show when a saved schematic is open
@@ -634,18 +660,30 @@ pub fn autoGenDraw(ctx: *const RenderContext, app: *st.AppState) void {
     const mouse_y = app.gui.hot.canvas.tb_overlay.last_mouse_y;
     const hov = hitAgen(mouse_x, mouse_y, bounds);
 
-    const cols = tbColors(pal);
+    // Hover/active colors with strong contrast
+    const bg = if (hov)
+        Color{ .r = pal.wire.r / 3 +| 40, .g = pal.wire.g / 3 +| 40, .b = pal.wire.b / 3 +| 60, .a = 240 }
+    else
+        Color{ .r = pal.canvas_bg.r +| 25, .g = pal.canvas_bg.g +| 25, .b = pal.canvas_bg.b +| 30, .a = 210 };
+    const border = if (hov)
+        Color{ .r = pal.wire.r, .g = pal.wire.g, .b = pal.wire.b, .a = 255 }
+    else
+        Color{ .r = pal.grid_dot.r, .g = pal.grid_dot.g, .b = pal.grid_dot.b, .a = 150 };
+    const text_col = if (hov)
+        Color{ .r = 255, .g = 255, .b = 255, .a = 255 }
+    else
+        Color{ .r = pal.symbol_line.r, .g = pal.symbol_line.g, .b = pal.symbol_line.b, .a = 200 };
 
     // Background + border
     {
         var batch = h.LineBatch.init(cw.lifo());
         defer batch.deinit();
         batch.ensureLineCapacity(8) catch {};
-        batch.addLine(p.x, p.y + AGEN_H * 0.5, p.x + AGEN_W, p.y + AGEN_H * 0.5, AGEN_H, if (hov) cols.bg_hover else cols.bg_normal);
-        batch.addRectOutline(.{ p.x, p.y }, .{ p.x + AGEN_W, p.y + AGEN_H }, 1.0, if (hov) cols.border_hover else cols.border_normal);
+        batch.addLine(p.x, p.y + AGEN_H * 0.5, p.x + AGEN_W, p.y + AGEN_H * 0.5, AGEN_H, bg);
+        batch.addRectOutline(.{ p.x, p.y }, .{ p.x + AGEN_W, p.y + AGEN_H }, if (hov) @as(f32, 2.0) else 1.0, border);
         batch.flush();
     }
 
-    // Label
-    h.drawLabel("Auto-Generate", p.x + 10.0, p.y + 4.0, if (hov) cols.text_hover else cols.text_normal, ctx.vp, 90_000);
+    // Label (centered vertically)
+    h.drawLabel("Generate Symbol", p.x + 12.0, p.y + 6.0, text_col, ctx.vp, 90_000);
 }

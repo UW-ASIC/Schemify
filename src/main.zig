@@ -17,7 +17,6 @@ const theme_config = @import("theme_config");
 
 const is_wasm = builtin.cpu.arch.isWasm();
 const cli = if (is_wasm) struct {} else @import("cli");
-const agent = if (is_wasm) struct { pub const McpServer = void; } else @import("agent");
 
 // ── Process-lifetime state ────────────────────────────────────────────────────
 
@@ -25,68 +24,39 @@ var app: AppState = undefined;
 var runtime: Runtime = undefined;
 var plugin_mgr: PluginManager = .{};
 var project_dir: []const u8 = ".";
-var mcp_server: if (is_wasm) void else ?agent.McpServer = if (is_wasm) {} else null;
-
 // Edge-detect state for view toggle flags that need backend calls.
 var prev_fullscreen: bool = false;
 var prev_dark_mode: bool = true;
-var agent_ctx: if (is_wasm) void else agent.types.AgentContext = if (is_wasm) {} else .{
-    .getSchematic = &agentGetSchematic,
-    .getProjectDir = &agentGetProjectDir,
-    .setPySpiceSource = &agentSetPySpiceSource,
-    .getPySpiceSource = &agentGetPySpiceSource,
-    .setDocumentation = &agentSetDocumentation,
-    .getDocumentation = &agentGetDocumentation,
-    .app = undefined, // set in appInit
-};
-
-fn agentGetSchematic(self: *agent.types.AgentContext) ?*const @import("schematic").Schemify {
-    const app_ptr: *AppState = @ptrCast(@alignCast(self.app));
-    const doc = app_ptr.active() orelse return null;
-    return &doc.sch;
-}
-
-fn agentGetProjectDir(self: *agent.types.AgentContext) []const u8 {
-    const app_ptr: *AppState = @ptrCast(@alignCast(self.app));
-    return app_ptr.project_dir;
-}
-
-fn agentSetPySpiceSource(self: *agent.types.AgentContext, source: []const u8) bool {
-    const app_ptr: *AppState = @ptrCast(@alignCast(self.app));
-    const doc = app_ptr.active() orelse return false;
-    doc.sch.setPySpiceSource(doc.alloc, source) catch return false;
-    doc.dirty = true;
-    return true;
-}
-
-fn agentGetPySpiceSource(self: *agent.types.AgentContext) ?[]const u8 {
-    const app_ptr: *AppState = @ptrCast(@alignCast(self.app));
-    const doc = app_ptr.active() orelse return null;
-    const src = doc.sch.str(doc.sch.pyspice_source);
-    return if (src.len > 0) src else null;
-}
-
-fn agentSetDocumentation(self: *agent.types.AgentContext, content: []const u8) bool {
-    const app_ptr: *AppState = @ptrCast(@alignCast(self.app));
-    const doc = app_ptr.active() orelse return false;
-    doc.sch.setDocumentation(doc.alloc, content) catch return false;
-    doc.dirty = true;
-    return true;
-}
-
-fn agentGetDocumentation(self: *agent.types.AgentContext) ?[]const u8 {
-    const app_ptr: *AppState = @ptrCast(@alignCast(self.app));
-    const doc = app_ptr.active() orelse return null;
-    const content = doc.sch.str(doc.sch.documentation);
-    return if (content.len > 0) content else null;
-}
 
 // ── dvui callbacks ───────────────���───────────────────────���────────────────────
 
 fn configureProjectDirAndCli() void {
-    project_dir = if (std.os.argv.len > 1) std.mem.span(std.os.argv[1]) else ".";
     if (comptime !is_wasm) {
         if (cli.dispatch()) std.process.exit(0);
+        // CLI returned false — GUI should start.
+        switch (cli.startup) {
+            .run => |r| {
+                project_dir = std.fs.path.dirname(r.file) orelse ".";
+            },
+            .none => {
+                // If argv[1] is a .chn file, set up headed open (no commands).
+                if (std.os.argv.len > 1) {
+                    const arg1 = std.mem.span(std.os.argv[1]);
+                    if (cli.isChnPath(arg1)) {
+                        const pa = std.heap.page_allocator;
+                        const file_dupe = pa.dupe(u8, arg1) catch arg1;
+                        cli.startup = .{ .run = .{ .file = file_dupe, .lines = "" } };
+                        project_dir = std.fs.path.dirname(arg1) orelse ".";
+                    } else {
+                        project_dir = arg1;
+                    }
+                } else {
+                    project_dir = ".";
+                }
+            },
+        }
+    } else {
+        project_dir = ".";
     }
 }
 
@@ -101,8 +71,6 @@ fn getConfig() dvui.App.StartOptions {
 }
 
 fn appInit(win: *dvui.Window) !void {
-    _ = win;
-
     app.init(project_dir);
     try app.loadConfig();
     app.initLogger();
@@ -113,6 +81,8 @@ fn appInit(win: *dvui.Window) !void {
         gui_settings.load(a);
         gui_settings.ensureDefaults(a);
         applySettingsTheme(a);
+        gui_settings.initBaseScale(win.content_scale);
+        gui_settings.applyUiScale();
     }
 
     runtime = Runtime.init(a);
@@ -128,9 +98,16 @@ fn appInit(win: *dvui.Window) !void {
             for (po.enabled) |name| {
                 specs.append(a, .{ .name = name }) catch continue;
             }
-            const fail_count = plugin_mgr.resolve(a, specs.items, config_dir);
+            _ = plugin_mgr.resolve(a, specs.items, config_dir);
 
-            // If some plugins are missing, activate the startup download overlay.
+            // Also try project-local plugins/ directory for any still missing.
+            resolveLocalPlugins(a);
+
+            // If some plugins are still missing, activate the startup download overlay.
+            var fail_count: u32 = 0;
+            for (plugin_mgr.paths.items) |path| {
+                if (path == null) fail_count += 1;
+            }
             if (fail_count > 0) {
                 app.startup_dl.active = true;
                 app.startup_dl.total = fail_count;
@@ -147,15 +124,41 @@ fn appInit(win: *dvui.Window) !void {
 
         // Wire host callbacks so plugins can call back into the app.
         runtime.setCallbacks(makeHostCallbacks());
+
+        // Spawn all resolved plugins that have a valid command.
+        for (plugin_mgr.names.items, plugin_mgr.commands.items, plugin_mgr.dirs.items) |name, cmd_str, dir| {
+            if (cmd_str.len == 0) continue;
+            const resolved_cmd = resolvePluginCommand(a, cmd_str, dir) catch cmd_str;
+            defer if (resolved_cmd.ptr != cmd_str.ptr) a.free(resolved_cmd);
+            runtime.spawnPlugin(a, name, resolved_cmd, project_dir);
+        }
     }
 
-    // Start MCP agent server (background thread, Unix socket).
+    // Execute startup commands (headed mode: open file + run commands visually).
     if (comptime !is_wasm) {
-        agent_ctx.app = @ptrCast(&app);
-        mcp_server = agent.init(a, @ptrCast(&agent_ctx));
-        if (mcp_server) |*s| s.start() catch {
-            mcp_server = null;
-        };
+        switch (cli.startup) {
+            .run => |r| {
+                app.openPath(r.file) catch {};
+                var lines_it = std.mem.splitScalar(u8, r.lines, '\n');
+                while (lines_it.next()) |line| {
+                    const trimmed = std.mem.trim(u8, line, " \t\r");
+                    if (trimmed.len == 0) continue;
+                    if (trimmed[0] == '#') continue;
+                    const result = command.parser.parse(trimmed);
+                    switch (result) {
+                        .command => |c| {
+                            command.dispatch(c, &app) catch {};
+                        },
+                        .meta => |m| {
+                            _ = cli.handleMeta(m, &app);
+                        },
+                        .meta_arg => |ma| cli.handleMetaArg(ma, &app),
+                        .err => {},
+                    }
+                }
+            },
+            .none => {},
+        }
     }
 
     // Wire Runtime pointer into AppState so GUI can dispatch to plugins.
@@ -164,11 +167,6 @@ fn appInit(win: *dvui.Window) !void {
 
 fn appDeinit() void {
     const a = app.allocator();
-    // Stop MCP server before tearing down app state.
-    if (comptime !is_wasm) {
-        if (mcp_server) |*s| agent.deinit(s);
-        mcp_server = null;
-    }
     if (comptime !is_wasm) gui_settings.deinit(a);
     runtime.deinit(a);
     if (comptime !is_wasm) plugin_mgr.deinit(a);
@@ -187,6 +185,16 @@ fn appFrame() !dvui.App.Result {
     processQueuedCommands();
     processSettingsRequests();
     tickPlugins();
+
+    // Resolve theme cascade if config changed; tick animations every frame.
+    if (theme_config.active_config.dirty) {
+        theme_config.active_config.resolve();
+        runtime.notifyThemeChanged();
+    }
+    theme_config.active_config.animation.tick(
+        dvui.secondsSinceLastFrame(),
+        &theme_config.active_config.resolved.canvas,
+    );
 
     // Handle startup download retry requests.
     if (comptime !is_wasm) {
@@ -228,6 +236,7 @@ fn processSettingsRequests() void {
         app.settings_reload_requested = false;
         gui_settings.reload(app.allocator());
         applySettingsTheme(app.allocator());
+        gui_settings.applyUiScale();
     }
     if (app.settings_save_requested) {
         app.settings_save_requested = false;
@@ -245,18 +254,128 @@ fn tickPlugins() void {
         app.plugin_refresh_requested = false;
         const a = app.allocator();
 
-        // Re-discover plugins that may have been installed since startup.
         if (comptime !is_wasm) {
             const config_dir = utility.platform.pluginConfigDir(a) catch "";
             defer if (config_dir.len > 0) a.free(config_dir);
+
+            // Resolve plugins listed in the project Config.toml.
+            if (app.config.plugins) |po| {
+                var specs = std.ArrayListUnmanaged(plugins.PluginSpec){};
+                defer specs.deinit(a);
+                for (po.enabled) |name| {
+                    if (!plugin_mgr.hasSpec(name)) {
+                        specs.append(a, .{ .name = name }) catch continue;
+                    }
+                }
+                if (specs.items.len > 0) {
+                    // Try global config dir first.
+                    _ = plugin_mgr.resolve(a, specs.items, config_dir);
+                    // For any still missing, try project-local plugins/ directory.
+                    resolveLocalPlugins(a);
+                }
+            }
+
+            // Auto-discover plugins that may have been installed since startup.
             if (config_dir.len > 0) {
                 _ = plugin_mgr.autoDiscover(a, config_dir);
             }
-        }
 
-        // TODO: spawn discovered plugins via runtime.spawnPlugin()
+            // Spawn all resolved plugins that have a command and aren't running.
+            // Use project dir as cwd so plugins can find Config.toml;
+            // resolve relative commands against the plugin dir.
+            for (plugin_mgr.names.items, plugin_mgr.commands.items, plugin_mgr.dirs.items) |name, cmd, dir| {
+                if (cmd.len == 0) continue;
+                if (isPluginRunning(name)) continue;
+                const resolved_cmd = resolvePluginCommand(a, cmd, dir) catch cmd;
+                defer if (resolved_cmd.ptr != cmd.ptr) a.free(resolved_cmd);
+                runtime.spawnPlugin(a, name, resolved_cmd, app.project_dir);
+            }
+        }
     }
     runtime.tick(app.allocator(), dvui.secondsSinceLastFrame());
+}
+
+fn isPluginRunning(name: []const u8) bool {
+    for (runtime.plugins.items) |*p| {
+        if (std.mem.eql(u8, p.name, name) and (p.state == .running or p.state == .starting)) return true;
+    }
+    return false;
+}
+
+/// For plugins with null paths (not found in config_dir), check local
+/// plugins/ directories and fill in their command + dir if found.
+/// Search order: {project_dir}/plugins/, then ./plugins/ (repo root).
+/// Stores absolute paths so subprocess cwd doesn't affect resolution.
+fn resolveLocalPlugins(a: std.mem.Allocator) void {
+    const search_dirs: [2][]const u8 = .{
+        std.fmt.allocPrint(a, "{s}/plugins", .{app.project_dir}) catch "",
+        "plugins",
+    };
+    defer if (search_dirs[0].len > 0) a.free(@constCast(search_dirs[0]));
+
+    for (plugin_mgr.names.items, plugin_mgr.paths.items, plugin_mgr.commands.items, plugin_mgr.dirs.items) |name, *path, *cmd, *dir| {
+        if (path.* != null) continue; // already resolved
+        for (&search_dirs) |search_dir| {
+            if (search_dir.len == 0) continue;
+            const toml_path = std.fmt.allocPrint(a, "{s}/{s}/plugin.toml", .{ search_dir, name }) catch continue;
+            utility.platform.fs.cwd().access(toml_path, .{}) catch {
+                a.free(toml_path);
+                continue;
+            };
+            // Found locally — read command and set dir.
+            path.* = toml_path;
+            const new_cmd = readLocalPluginCommand(a, toml_path);
+            if (new_cmd.len > 0) {
+                if (cmd.len > 0) a.free(cmd.*);
+                cmd.* = new_cmd;
+            }
+            // Store absolute plugin dir so command resolution is cwd-independent.
+            const rel_dir = std.fmt.allocPrint(a, "{s}/{s}", .{ search_dir, name }) catch "";
+            const abs_dir = if (rel_dir.len > 0)
+                (std.fs.cwd().realpathAlloc(a, rel_dir) catch a.dupe(u8, rel_dir) catch "")
+            else
+                "";
+            if (rel_dir.len > 0) a.free(rel_dir);
+            if (abs_dir.len > 0) {
+                if (dir.len > 0) a.free(dir.*);
+                dir.* = abs_dir;
+            }
+            break;
+        }
+    }
+}
+
+/// Given a command like "python3 src/plugin.py" and a plugin dir, produce a
+/// command with the script path as an absolute path.
+/// E.g. plugin_dir="/abs/plugins/PDKSwitcher" → "python3 /abs/plugins/PDKSwitcher/src/plugin.py".
+fn resolvePluginCommand(a: std.mem.Allocator, cmd: []const u8, plugin_dir: []const u8) ![]const u8 {
+    if (plugin_dir.len == 0) return cmd;
+    // Split on first space: binary + script path
+    const space_idx = std.mem.indexOfScalar(u8, cmd, ' ') orelse return cmd;
+    const binary = cmd[0..space_idx];
+    const rest = std.mem.trimLeft(u8, cmd[space_idx + 1 ..], &[_]u8{' '});
+    if (rest.len == 0) return cmd;
+    // If the script path is already absolute, no change needed.
+    if (std.fs.path.isAbsolute(rest)) return cmd;
+    return std.fmt.allocPrint(a, "{s} {s}/{s}", .{ binary, plugin_dir, rest });
+}
+
+fn readLocalPluginCommand(a: std.mem.Allocator, toml_path: []const u8) []const u8 {
+    const data = utility.platform.fs.cwd().readFileAlloc(a, toml_path, 64 * 1024) catch return "";
+    defer a.free(data);
+    var line_iter = std.mem.splitScalar(u8, data, '\n');
+    while (line_iter.next()) |raw_line| {
+        const line = std.mem.trimRight(u8, raw_line, &[_]u8{ '\r', ' ', '\t' });
+        const trimmed = std.mem.trimLeft(u8, line, &[_]u8{ ' ', '\t' });
+        if (!std.mem.startsWith(u8, trimmed, "command")) continue;
+        const rest = std.mem.trimLeft(u8, trimmed["command".len..], &[_]u8{ ' ', '\t' });
+        if (rest.len == 0 or rest[0] != '=') continue;
+        const val = std.mem.trimLeft(u8, rest[1..], &[_]u8{ ' ', '\t' });
+        const unquoted = if (val.len >= 2 and val[0] == '"' and val[val.len - 1] == '"') val[1 .. val.len - 1] else val;
+        if (unquoted.len == 0) continue;
+        return a.dupe(u8, unquoted) catch "";
+    }
+    return "";
 }
 
 // ── Startup plugin download ──────────────────────────────────────────────────
@@ -504,6 +623,7 @@ fn makeHostCallbacks() plugins.HostCallbacks {
         .log_msg = &hcLogMsg,
         .push_command = &hcPushCommand,
         .request_refresh = &hcRequestRefresh,
+        .handle_request = &hcHandleRequest,
     };
 }
 
@@ -538,15 +658,79 @@ fn hcLogMsg(_: *anyopaque, level: u8, tag: []const u8, msg: []const u8) void {
 
 fn hcPushCommand(ctx: *anyopaque, cmd_tag: []const u8) bool {
     const a = asApp(ctx);
-    const parsed = command.parser.tryTagLookup(cmd_tag) orelse return false;
-    a.queue.push(a.gpa.allocator(), parsed) catch return false;
-    return true;
+    const alloc = a.gpa.allocator();
+    // Dupe the input so parsed slices survive through dispatch.
+    const owned = alloc.dupe(u8, cmd_tag) catch return false;
+    defer alloc.free(owned);
+    const result = command.parser.parse(owned);
+    switch (result) {
+        .command => |cmd| {
+            command.dispatch(cmd, a) catch return false;
+            return true;
+        },
+        else => return false,
+    }
 }
 
 fn hcRequestRefresh(ctx: *anyopaque) void {
     asApp(ctx).plugin_refresh_requested = true;
 }
 
+fn hcHandleRequest(ctx: *anyopaque, method: []const u8, _: ?[]const u8, result: *plugins.RequestResult) bool {
+    if (std.mem.eql(u8, method, "host/get_documentation")) {
+        const a = asApp(ctx);
+        const doc = a.active() orelse {
+            writeResult(result, "{\"text\":null}");
+            return true;
+        };
+        const text = doc.sch.str(doc.sch.documentation);
+        var fbs = std.io.fixedBufferStream(&result.buf);
+        const w = fbs.writer();
+        if (text.len == 0) {
+            w.writeAll("{\"text\":null}") catch return false;
+        } else {
+            w.writeAll("{\"text\":\"") catch return false;
+            writeJsonEscaped(w, text) catch return false;
+            w.writeAll("\"}") catch return false;
+        }
+        result.len = @intCast(fbs.getWritten().len);
+        return true;
+    }
+    if (std.mem.eql(u8, method, "theme.get_style")) {
+        const tc = &theme_config.active_config;
+        const cs = &tc.resolved.canvas;
+        const pal = &tc.resolved.palette;
+
+        var fbs = std.io.fixedBufferStream(&result.buf);
+        const w = fbs.writer();
+        w.writeAll("{") catch return false;
+        w.print("\"dark\":{s}", .{if (tc.dark) "true" else "false"}) catch return false;
+        w.print(",\"wire_color\":[{d},{d},{d}]", .{ cs.wire.color.r, cs.wire.color.g, cs.wire.color.b }) catch return false;
+        w.print(",\"pin_color\":[{d},{d},{d}]", .{ cs.pin.color.r, cs.pin.color.g, cs.pin.color.b }) catch return false;
+        w.print(",\"canvas_bg\":[{d},{d},{d}]", .{ pal.canvas_bg.r, pal.canvas_bg.g, pal.canvas_bg.b }) catch return false;
+        w.writeAll("}") catch return false;
+        result.len = @intCast(fbs.getWritten().len);
+        return true;
+    }
+    return false;
+}
+
+
+fn writeResult(result: *plugins.RequestResult, comptime literal: []const u8) void {
+    @memcpy(result.buf[0..literal.len], literal);
+    result.len = literal.len;
+}
+
+fn writeJsonEscaped(w: anytype, s: []const u8) !void {
+    for (s) |c| switch (c) {
+        '"' => try w.writeAll("\\\""),
+        '\\' => try w.writeAll("\\\\"),
+        '\n' => try w.writeAll("\\n"),
+        '\r' => try w.writeAll("\\r"),
+        '\t' => try w.writeAll("\\t"),
+        else => try w.writeByte(c),
+    };
+}
 
 // ── dvui app descriptor ───────────────���─────────────────────��─────────────────
 

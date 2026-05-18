@@ -22,7 +22,7 @@ pub fn isPowerNet(name: []const u8) bool {
         return true;
     if (std.mem.startsWith(u8, lo, "vdd") or
         std.mem.startsWith(u8, lo, "vcc") or
-        std.mem.startsWith(u8, lo, "vref"))
+        std.mem.eql(u8, lo, "vref"))
         return true;
     return false;
 }

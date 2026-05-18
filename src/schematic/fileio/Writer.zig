@@ -59,6 +59,8 @@ fn writeCHNImpl(w: anytype, s: *const Schemify, a: Allocator) !void {
             const name = pool.get(s.name);
             try w.writeAll(if (name.len > 0) name else "untitled");
             try w.writeByte('\n');
+            const meas_decl = pool.get(s.measurements_decl);
+            if (meas_decl.len > 0) try w.print("  measurements: {s}\n", .{meas_decl});
             try writeIncludes(w, s, pool);
         } else {
             try w.writeAll("SCHEMATIC\n");
@@ -205,9 +207,18 @@ fn writeWires(w: anytype, s: *const Schemify, pool: *const StringPool) !void {
     const wx1 = s.wires.items(.x1);
     const wy1 = s.wires.items(.y1);
     const wnn = s.wires.items(.net_name);
+    const wbus = s.wires.items(.bus);
+    const wcol = s.wires.items(.color);
     for (0..s.wires.len) |i| {
         if (wx0[i] == wx1[i] and wy0[i] == wy1[i]) continue;
         try w.print("    {d} {d} {d} {d}", .{ wx0[i], wy0[i], wx1[i], wy1[i] });
+        if (wbus[i]) try w.writeAll(" bus=1");
+        if (wcol[i] != 0) {
+            const r: u8 = @truncate(wcol[i] >> 24);
+            const g: u8 = @truncate(wcol[i] >> 16);
+            const b: u8 = @truncate(wcol[i] >> 8);
+            try w.print(" color=#{X:0>2}{X:0>2}{X:0>2}", .{ r, g, b });
+        }
         const nn = pool.get(wnn[i]);
         if (nn.len > 0) try w.print(" {s}", .{nn});
         try w.writeByte('\n');

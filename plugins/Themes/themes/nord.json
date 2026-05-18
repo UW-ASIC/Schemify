@@ -1,0 +1,47 @@
+{
+  "name": "Nord",
+  "dark": true,
+  "roles": {
+    "control": { "fill": "#3b4252", "corner_radius": [4, 4, 4, 4] },
+    "window": { "fill": "#2e3440" },
+    "accent": { "fill": "#88c0d0" }
+  },
+  "widgets": {
+    "button": {
+      "fill": "#434c5e",
+      "fill_hover": "#4c566a",
+      "text": "#eceff4",
+      "variants": {
+        "primary": { "fill": "#5e81ac" },
+        "danger": { "fill": "#bf616a" }
+      }
+    },
+    "tab": {
+      "variants": { "active": { "fill": "#3b4252" } }
+    }
+  },
+  "canvas": {
+    "wire": { "color": "#88c0d0", "color_selected": "#d08770", "stroke_width": 1.8, "style": "ortho" },
+    "pin": { "color": "#ebcb8b", "radius": 2.5, "shape": "circle" },
+    "instance_body": { "fill": "#3b4252", "stroke_color": "#81a1c1" },
+    "grid": { "color": "#434c5e", "style": "dots", "dot_size": 1.0 },
+    "selection_rect": { "color": "#88c0d0", "fill_color": "#88c0d022" }
+  },
+  "toolbar_bg": [46, 52, 64],
+  "tabbar_bg": [59, 66, 82],
+  "tab_active_bg": [67, 76, 94],
+  "statusbar_bg": [46, 52, 64],
+  "sidebar_bg": [59, 66, 82],
+  "text_primary": [236, 239, 244],
+  "text_secondary": [216, 222, 233],
+  "accent": [136, 192, 208],
+  "separator": [67, 76, 94],
+  "hover_bg": [76, 86, 106],
+  "canvas_bg": [46, 52, 64],
+  "wire": [136, 192, 208],
+  "wire_selected": [208, 135, 112],
+  "instance_body": [59, 66, 82],
+  "instance_pin": [235, 203, 139],
+  "symbol_line": [129, 161, 193],
+  "grid_dot": [67, 76, 94, 80]
+}

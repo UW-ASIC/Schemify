@@ -1,0 +1,31 @@
+chn_testbench 1
+
+TESTBENCH Op-Amp Integrator
+  instances:
+    Vcc  vsource  x=-310  y=0  sym=vsource  value=15
+    Vee  vsource  x=-200  y=0  sym=vsource  value=-15
+    Vin  vsource  x=-90  y=0  sym=vsource  value=0 PULSE(-0.5 0.5 0 0.000001 0.000001 0.0005 0.001)
+    Rin  resistor  x=20  y=0  sym=res  value=10k  device=resistor
+    Cf  capacitor  x=120  y=0  sym=capa  value=10n  device=capacitor
+    Rf  resistor  x=220  y=0  sym=res  value=1meg  device=resistor
+    Eamp  vcvs  x=310  y=120  sym=vcvs  value=1000000
+    vin  lab_pin  x=-90  y=-30  sym=lab_pin
+    vout  lab_pin  x=90  y=0  sym=lab_pin
+    vminus  lab_pin  x=-10  y=0  sym=lab_pin
+    vminus  lab_pin  x=250  y=150  sym=lab_pin
+    gnd0  gnd  x=-310  y=40  sym=gnd
+    gnd1  gnd  x=-200  y=40  sym=gnd
+    gnd2  gnd  x=-90  y=40  sym=gnd
+    gnd3  gnd  x=310  y=160  sym=gnd
+    gnd4  gnd  x=280  y=100  sym=gnd
+
+  wires:
+    -90 -30 50 -30
+    50 -30 50 0
+    90 0 190 0
+    190 0 310 0
+    310 0 310 90
+    -10 0 150 0
+    150 0 250 0
+    250 0 250 150
+    250 150 280 150

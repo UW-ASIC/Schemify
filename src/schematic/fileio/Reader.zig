@@ -272,6 +272,12 @@ fn resolveSubSection(trimmed: []const u8, s: *Schemify, a: Allocator, gs: *GenSt
         return .none;
     }
 
+    if (std.mem.startsWith(u8, trimmed, "measurements:")) {
+        const val = std.mem.trim(u8, trimmed["measurements:".len..], " \t");
+        if (val.len > 0) s.measurements_decl = poolAdd(&s.strings, a, val);
+        return .none;
+    }
+
     const first_word = blk: {
         for (trimmed, 0..) |c, i| {
             if (c == ' ' or c == '[' or c == ':') break :blk trimmed[0..i];
@@ -448,10 +454,23 @@ fn readWire(a: Allocator, s: *Schemify, trimmed: []const u8) void {
     const x1 = std.fmt.parseInt(i32, tok.next() orelse return, 10) catch return;
     const y1 = std.fmt.parseInt(i32, tok.next() orelse return, 10) catch return;
     if (x0 == x1 and y0 == y1) return;
-    const net = tok.next();
+    var is_bus = false;
+    var net_name: ?[]const u8 = null;
+    var wire_color: u32 = 0;
+    while (tok.next()) |token| {
+        if (std.mem.eql(u8, token, "bus=1")) {
+            is_bus = true;
+        } else if (std.mem.startsWith(u8, token, "color=#") and token.len == 13) {
+            wire_color = parseHexRGB(token[7..13]);
+        } else {
+            net_name = token;
+        }
+    }
     s.wires.append(a, .{
         .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1,
-        .net_name = if (net) |n| poolAdd(&s.strings, a, n) else .empty,
+        .bus = is_bus,
+        .color = wire_color,
+        .net_name = if (net_name) |n| poolAdd(&s.strings, a, n) else .empty,
     }) catch {};
 }
 
@@ -951,6 +970,14 @@ fn parseColumnNames(a: Allocator, header_rest: []const u8) ?[]const []const u8 {
 fn accumulateBuf(a: Allocator, buf: *List(u8), content: []const u8) void {
     if (buf.items.len > 0) buf.append(a, '\n') catch {};
     buf.appendSlice(a, content) catch {};
+}
+
+fn parseHexRGB(hex: []const u8) u32 {
+    if (hex.len != 6) return 0;
+    const r = std.fmt.parseInt(u8, hex[0..2], 16) catch return 0;
+    const g = std.fmt.parseInt(u8, hex[2..4], 16) catch return 0;
+    const b = std.fmt.parseInt(u8, hex[4..6], 16) catch return 0;
+    return types.Wire.packColor(r, g, b);
 }
 
 fn appendProp(a: Allocator, s: *Schemify, list: *List(Property), key: []const u8, val: []const u8) void {

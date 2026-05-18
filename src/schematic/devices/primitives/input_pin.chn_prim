@@ -11,15 +11,14 @@ SYMBOL input_pin
 
   drawing:
     lines:
-      # Pin stub from connection point (0,0) going left to body
-      (0,0) (-6,0)
-      # Pentagon arrow pointing LEFT — pin on right (at origin), body extends left
-      # Flat back at x=-6, tip at x=-48, height ±14
-      (-6,-14) (-6,14)
-      (-6,14) (-34,14)
-      (-34,14) (-48,0)
-      (-48,0) (-34,-14)
-      (-34,-14) (-6,-14)
-    text: (-20,0) "@lab"
+      # Short stub from connection point
+      (0,0) (-4,0)
+      # Pentagon arrow pointing RIGHT (tip near pin = "signal enters here")
+      (-4,0) (-10,-6)
+      (-10,-6) (-22,-6)
+      (-22,-6) (-22,6)
+      (-22,6) (-10,6)
+      (-10,6) (-4,0)
+    text: (-13,0) "@lab"
     pin_positions:
       p: (0,0)

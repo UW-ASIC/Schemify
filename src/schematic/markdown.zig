@@ -7,6 +7,7 @@ pub const SpanKind = enum {
     italic,
     code,
     link,
+    math_inline,
 };
 
 pub const Span = struct {
@@ -24,6 +25,7 @@ pub const BlockKind = enum {
     list_item,
     blockquote,
     horizontal_rule,
+    math_display,
 };
 
 pub const Block = struct {
@@ -44,6 +46,8 @@ pub fn parse(arena: Allocator, input: []const u8) []const Block {
     var code_lang: []const u8 = "";
     var para_start: ?usize = null;
     var para_end: usize = 0;
+    var in_math_block = false;
+    var math_start: usize = 0;
 
     while (lines.next()) |line| {
         const trimmed = std.mem.trimRight(u8, line, " \t\r");
@@ -73,6 +77,46 @@ pub fn parse(arena: Allocator, input: []const u8) []const Block {
         }
 
         if (in_code_block) continue;
+
+        // Display math $$...$$
+        if (std.mem.startsWith(u8, trimmed, "$$")) {
+            if (in_math_block) {
+                // Closing $$
+                const fence_offset = @intFromPtr(trimmed.ptr) - @intFromPtr(input.ptr);
+                const math_content = if (math_start < fence_offset)
+                    std.mem.trim(u8, input[math_start..fence_offset], "\n")
+                else
+                    "";
+                blocks.append(arena, .{
+                    .kind = .math_display,
+                    .raw = math_content,
+                }) catch {};
+                in_math_block = false;
+                continue;
+            } else {
+                // Opening $$ — check for single-line $$content$$
+                const after_open = trimmed[2..];
+                if (std.mem.endsWith(u8, after_open, "$$") and after_open.len > 2) {
+                    // Single-line: $$content$$
+                    flushParagraph(&blocks, arena, input, &para_start, para_end);
+                    const content = after_open[0 .. after_open.len - 2];
+                    blocks.append(arena, .{
+                        .kind = .math_display,
+                        .raw = content,
+                    }) catch {};
+                    continue;
+                } else {
+                    // Multi-line opening
+                    flushParagraph(&blocks, arena, input, &para_start, para_end);
+                    in_math_block = true;
+                    const line_end = @intFromPtr(trimmed.ptr) + trimmed.len - @intFromPtr(input.ptr);
+                    math_start = if (line_end < input.len) line_end + 1 else input.len;
+                    continue;
+                }
+            }
+        }
+
+        if (in_math_block) continue;
 
         if (trimmed.len == 0) {
             flushParagraph(&blocks, arena, input, &para_start, para_end);
@@ -221,6 +265,38 @@ fn parseInlineSpans(arena: Allocator, text: []const u8) []const Span {
             continue;
         }
 
+        // Inline math $text$
+        if (text[pos] == '$') {
+            // Skip escaped dollar \$
+            if (pos > 0 and text[pos - 1] == '\\') {
+                pos += 1;
+                continue;
+            }
+            // Find closing $ (not preceded by \)
+            var end_pos: ?usize = null;
+            var search = pos + 1;
+            while (search < text.len) {
+                if (text[search] == '$') {
+                    if (search > 0 and text[search - 1] == '\\') {
+                        search += 1;
+                        continue;
+                    }
+                    end_pos = search;
+                    break;
+                }
+                search += 1;
+            }
+            if (end_pos) |end| {
+                if (pos > text_start) {
+                    spans.append(arena, .{ .kind = .text, .text = text[text_start..pos] }) catch {};
+                }
+                spans.append(arena, .{ .kind = .math_inline, .text = text[pos + 1 .. end] }) catch {};
+                pos = end + 1;
+                text_start = pos;
+                continue;
+            }
+        }
+
         // Inline code `text`
         if (text[pos] == '`') {
             if (pos > text_start) {
@@ -364,4 +440,44 @@ test "empty input" {
     defer arena.deinit();
     const blocks = parse(arena.allocator(), "");
     try std.testing.expectEqual(@as(usize, 0), blocks.len);
+}
+
+test "parse inline math" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const blocks = parse(arena.allocator(), "The equation $E=mc^2$ is famous");
+    try std.testing.expectEqual(@as(usize, 1), blocks.len);
+    const spans = blocks[0].spans;
+    try std.testing.expect(spans.len >= 3);
+    try std.testing.expectEqual(SpanKind.math_inline, spans[1].kind);
+    try std.testing.expectEqualStrings("E=mc^2", spans[1].text);
+}
+
+test "parse display math" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const blocks = parse(arena.allocator(), "$$\n\\frac{1}{2}\n$$");
+    try std.testing.expectEqual(@as(usize, 1), blocks.len);
+    try std.testing.expectEqual(BlockKind.math_display, blocks[0].kind);
+    try std.testing.expectEqualStrings("\\frac{1}{2}", blocks[0].raw);
+}
+
+test "parse escaped dollar" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const blocks = parse(arena.allocator(), "\\$100");
+    try std.testing.expectEqual(@as(usize, 1), blocks.len);
+    const spans = blocks[0].spans;
+    for (spans) |span| {
+        try std.testing.expect(span.kind != .math_inline);
+    }
+}
+
+test "parse single-line display math" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const blocks = parse(arena.allocator(), "$$E=mc^2$$");
+    try std.testing.expectEqual(@as(usize, 1), blocks.len);
+    try std.testing.expectEqual(BlockKind.math_display, blocks[0].kind);
+    try std.testing.expectEqualStrings("E=mc^2", blocks[0].raw);
 }

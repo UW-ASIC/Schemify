@@ -5,6 +5,9 @@ const toml = core.fileio.Toml;
 const cmd = @import("commands");
 const utility = @import("utility");
 
+pub const DiscoveredDevice = simulation.optimizer.DiscoveredDevice;
+pub const DiscoveredMeasurement = simulation.optimizer.DiscoveredMeasurement;
+
 pub const SettingsDialogTab = enum { theme, keybinds };
 
 pub const SettingsDialogState = struct {
@@ -16,6 +19,7 @@ pub const SettingsDialogState = struct {
     status_msg: [128]u8 = [_]u8{0} ** 128,
     status_len: u8 = 0,
     dirty: bool = false,
+    editing_theme_json: bool = false,
 };
 const plugin_mod = @import("plugins");
 
@@ -191,6 +195,8 @@ pub const CommandFlags = packed struct {
 pub const Placement = struct {
     kind_name: [32]u8 = [_]u8{0} ** 32,
     kind_len: u8 = 0,
+    rot: u2 = 0,
+    flip: bool = false,
 
     pub fn fromName(name: []const u8) Placement {
         var p = Placement{};
@@ -245,6 +251,7 @@ pub const ToolState = struct {
     snap_size: f32 = 10.0,
     active: Tool = .select,
     snap_to_grid: bool = true,
+    bus_mode: bool = false,
 
     pub fn resetMode(self: *ToolState) void {
         self.wire_start = null;
@@ -260,31 +267,38 @@ pub const WinRect = struct { x: f32 = 0, y: f32 = 0, w: f32 = 0, h: f32 = 0 };
 pub const PanMode = enum { off, grab };
 
 pub const TbOverlayCache = struct {
-    pub const MAX_CACHED_WIRES = 512;
-    pub const MAX_CACHED_INSTANCES = 128;
     hovered_idx: i32 = -1,
     cached_for_idx: i32 = -1,
-    cached_wire_count: usize = 0,
     last_mouse_x: f32 = 0,
     last_mouse_y: f32 = 0,
-    cached_x0: [MAX_CACHED_WIRES]i32 = [_]i32{0} ** MAX_CACHED_WIRES,
-    cached_y0: [MAX_CACHED_WIRES]i32 = [_]i32{0} ** MAX_CACHED_WIRES,
-    cached_x1: [MAX_CACHED_WIRES]i32 = [_]i32{0} ** MAX_CACHED_WIRES,
-    cached_y1: [MAX_CACHED_WIRES]i32 = [_]i32{0} ** MAX_CACHED_WIRES,
+
+    cached_wires: ?CachedWires = null,
     cache_arena: ?std.heap.ArenaAllocator = null,
-    // Ghost overlay (spice2schematic projection from testbench SPICE)
-    ghost_generation: u32 = 0,
-    ghost_sim_generation: u32 = 0,
-    ghost_wire_count: usize = 0,
-    ghost_inst_count: usize = 0,
-    ghost_x0: [MAX_CACHED_WIRES]i32 = [_]i32{0} ** MAX_CACHED_WIRES,
-    ghost_y0: [MAX_CACHED_WIRES]i32 = [_]i32{0} ** MAX_CACHED_WIRES,
-    ghost_x1: [MAX_CACHED_WIRES]i32 = [_]i32{0} ** MAX_CACHED_WIRES,
-    ghost_y1: [MAX_CACHED_WIRES]i32 = [_]i32{0} ** MAX_CACHED_WIRES,
-    ghost_inst_x: [MAX_CACHED_INSTANCES]i32 = [_]i32{0} ** MAX_CACHED_INSTANCES,
-    ghost_inst_y: [MAX_CACHED_INSTANCES]i32 = [_]i32{0} ** MAX_CACHED_INSTANCES,
-    ghost_inst_kind: [MAX_CACHED_INSTANCES]u8 = [_]u8{0} ** MAX_CACHED_INSTANCES,
+
+    ghost: ?GhostOverlay = null,
     ghost_arena: ?std.heap.ArenaAllocator = null,
+
+    pub const CachedWires = struct {
+        x0: []i32,
+        y0: []i32,
+        x1: []i32,
+        y1: []i32,
+        count: usize,
+    };
+
+    pub const GhostOverlay = struct {
+        generation: u32 = 0,
+        sim_generation: u32 = 0,
+        wire_x0: []i32,
+        wire_y0: []i32,
+        wire_x1: []i32,
+        wire_y1: []i32,
+        wire_count: usize,
+        inst_x: []i32,
+        inst_y: []i32,
+        inst_kind: []u8,
+        inst_count: usize,
+    };
 };
 
 pub const CanvasState = struct {
@@ -313,6 +327,13 @@ pub const CanvasState = struct {
 
 // Consolidated dialog states — combine similar small structs.
 
+pub const FileSortOrder = enum(u8) {
+    name_asc,
+    name_desc,
+    ext_asc,
+    dirs_first,
+};
+
 pub const FileExplorerState = struct {
     preview_sch: ?*anyopaque = null,
     preview_name: []const u8 = "",
@@ -323,6 +344,7 @@ pub const FileExplorerState = struct {
     selected_section: i32 = -1,
     selected_file: i32 = -1,
     scanned: bool = false,
+    sort_order: FileSortOrder = .name_asc,
 };
 
 pub const LibraryBrowserState = struct {
@@ -470,6 +492,13 @@ pub const OptimizerWindowState = struct {
     sweep_data: [256]SweepPoint = [_]SweepPoint{.{}} ** 256,
     n_sweep_points: u16 = 0,
 
+    // Discovery (populated once on window open)
+    discovered_devices: [32]DiscoveredDevice = [_]DiscoveredDevice{.{}} ** 32,
+    n_discovered_devices: u8 = 0,
+    discovered_measurements: [64]DiscoveredMeasurement = [_]DiscoveredMeasurement{.{}} ** 64,
+    n_discovered_measurements: u8 = 0,
+    discovery_done: bool = false,
+
     // Thread
     cancelled: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     thread_handle: ?std.Thread = null,
@@ -563,6 +592,9 @@ pub const GuiStateHot = struct {
     command_len: usize = 0,
     view_mode: GuiViewMode = .schematic,
     command_mode: bool = false,
+    /// Set by any dvui text entry widget that has focus — suppresses single-key
+    /// schematic shortcuts so typed characters reach the widget.
+    text_entry_focused: bool = false,
 };
 
 pub const MultiPropsDialogState = struct {
@@ -672,67 +704,38 @@ pub const MultiPropsDialogState = struct {
     }
 };
 
-pub const ChatRole = enum(u2) { user = 0, assistant = 1, tool = 2, system = 3 };
-
-pub const ChatMessage = struct {
-    role: ChatRole = .user,
-    content_start: u32 = 0,
-    content_len: u16 = 0,
-};
-
-pub const ChatPanelState = struct {
-    visible: bool = false,
-    messages: [512]ChatMessage = [_]ChatMessage{.{}} ** 512,
-    n_messages: u16 = 0,
-    content_pool: [128 * 1024]u8 = [_]u8{0} ** (128 * 1024),
-    content_len: u32 = 0,
-    streaming: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    stream_buf: [4096]u8 = [_]u8{0} ** 4096,
-    stream_len: std.atomic.Value(u32) = std.atomic.Value(u32).init(0),
-    cancel_flag: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pipeline_running: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    input_buf: [4096]u8 = [_]u8{0} ** 4096,
-    input_len: u16 = 0,
-    provider_idx: usize = 0,
-    thread_handle: ?std.Thread = null,
-
-    pub fn addMessage(self: *ChatPanelState, role: ChatRole, content: []const u8) void {
-        if (self.n_messages >= self.messages.len) {
-            for (0..self.messages.len - 1) |i| self.messages[i] = self.messages[i + 1];
-            self.n_messages -= 1;
-        }
-        const start = self.content_len;
-        const copy_len: u16 = @intCast(@min(content.len, self.content_pool.len - start));
-        if (copy_len > 0) @memcpy(self.content_pool[start..][0..copy_len], content[0..copy_len]);
-        self.messages[self.n_messages] = .{
-            .role = role,
-            .content_start = start,
-            .content_len = copy_len,
-        };
-        self.n_messages += 1;
-        self.content_len += copy_len;
-    }
-
-    pub fn getContent(self: *const ChatPanelState, msg: ChatMessage) []const u8 {
-        return self.content_pool[msg.content_start..][0..msg.content_len];
-    }
-
-    pub fn inputSlice(self: *const ChatPanelState) []const u8 {
-        return self.input_buf[0..self.input_len];
-    }
-};
 
 pub const DocEditorState = struct {
     edit_buf: [64 * 1024]u8 = [_]u8{0} ** (64 * 1024),
     edit_len: u32 = 0,
     cursor_pos: u32 = 0,
     scroll_y: f32 = 0,
-    layout_mode: enum(u2) { editor_only = 0, side_by_side = 1, preview_only = 2 } = .side_by_side,
+    mode: enum(u1) { edit = 0, preview = 1 } = .edit,
     pending_sync: bool = false,
     loaded: bool = false,
 
     pub fn editSlice(self: *const DocEditorState) []const u8 {
         return self.edit_buf[0..self.edit_len];
+    }
+
+    pub fn getText(self: *const DocEditorState) []const u8 {
+        return std.mem.sliceTo(&self.edit_buf, 0);
+    }
+
+    pub fn wordCount(self: *const DocEditorState) u32 {
+        const text = self.getText();
+        if (text.len == 0) return 0;
+        var count: u32 = 0;
+        var in_word = false;
+        for (text) |c| {
+            if (c == ' ' or c == '\n' or c == '\t' or c == '\r') {
+                in_word = false;
+            } else {
+                if (!in_word) count += 1;
+                in_word = true;
+            }
+        }
+        return count;
     }
 
     pub fn setText(self: *DocEditorState, text: []const u8) void {
@@ -743,30 +746,44 @@ pub const DocEditorState = struct {
     }
 };
 
+pub const Dialogs = struct {
+    find: FindDialogState = .{},
+    props: PropsDialogState = .{},
+    multi_props: MultiPropsDialogState = .{},
+    keybinds: DialogState = .{ .win_rect = .{ .x = 100, .y = 80, .w = 520, .h = 420 } },
+    keybinds_open: bool = false,
+    spice_code: SpiceCodeDialogState = .{},
+    new_prim: NewPrimDialogState = .{},
+    marketplace_win: DialogState = .{ .win_rect = .{ .x = 80, .y = 50, .w = 820, .h = 560 } },
+    settings: SettingsDialogState = .{},
+    import_project: ImportDialogState = .{},
+};
+
+pub const PluginUI = struct {
+    panels_meta: std.ArrayListUnmanaged(PluginPanelMeta) = .{},
+    panels_state: std.ArrayListUnmanaged(PluginPanelState) = .{},
+    keybinds: std.ArrayListUnmanaged(PluginKeybind) = .{},
+    commands: std.ArrayListUnmanaged(PluginCommand) = .{},
+    key_to_panel: [256]i8 = [_]i8{-1} ** 256,
+
+    pub fn deinit(self: *PluginUI, a: std.mem.Allocator) void {
+        self.panels_meta.deinit(a);
+        self.panels_state.deinit(a);
+        self.keybinds.deinit(a);
+        self.commands.deinit(a);
+    }
+};
+
 pub const GuiStateCold = struct {
-    plugin_panels_meta: std.ArrayListUnmanaged(PluginPanelMeta) = .{},
-    plugin_panels_state: std.ArrayListUnmanaged(PluginPanelState) = .{},
-    plugin_keybinds: std.ArrayListUnmanaged(PluginKeybind) = .{},
-    plugin_commands: std.ArrayListUnmanaged(PluginCommand) = .{},
+    dialogs: Dialogs = .{},
+    plugins: PluginUI = .{},
     marketplace: MarketplaceState = .{},
     file_explorer: FileExplorerState = .{},
     library_browser: LibraryBrowserState = .{},
-    find_dialog: FindDialogState = .{},
-    props_dialog: PropsDialogState = .{},
-    keybinds_dialog: DialogState = .{ .win_rect = .{ .x = 100, .y = 80, .w = 520, .h = 420 } },
-    spice_code_dialog: SpiceCodeDialogState = .{},
-    new_prim_dialog: NewPrimDialogState = .{},
-    marketplace_win: DialogState = .{ .win_rect = .{ .x = 80, .y = 50, .w = 820, .h = 560 } },
-    settings_dialog: SettingsDialogState = .{},
-    import_project: ImportDialogState = .{},
-    multi_props_dialog: MultiPropsDialogState = .{},
     optimizer_windows: [4]OptimizerWindowState = [_]OptimizerWindowState{.{}} ** 4,
     n_optimizer_windows: u8 = 0,
     ctx_menu: CtxMenu = .{},
     command_buf: [128]u8 = [_]u8{0} ** 128,
-    key_to_panel: [256]i8 = [_]i8{-1} ** 256,
-    keybinds_open: bool = false,
-    chat_panel: ChatPanelState = .{},
     doc_editor: DocEditorState = .{},
 };
 
@@ -942,7 +959,7 @@ pub const Document = struct {
         const s = core.fileio.Reader.readCHN(data, a);
         const owned_name = try a.dupe(u8, path);
         errdefer a.free(owned_name);
-        const owned_origin = try a.dupe(u8, path);
+        const owned_origin = std.fs.cwd().realpathAlloc(a, path) catch try a.dupe(u8, path);
         return .{
             .alloc = a, .name = owned_name, .sch = s,
             .origin = .{ .chn_file = owned_origin }, .dirty = false,
@@ -1034,9 +1051,13 @@ pub const Document = struct {
     // ── Wire manipulation ──
 
     pub fn addWireSeg(self: *Document, start: Point, end: Point, net_name: ?[]const u8) !void {
+        try self.addWireSegBus(start, end, net_name, false);
+    }
+
+    pub fn addWireSegBus(self: *Document, start: Point, end: Point, net_name: ?[]const u8, is_bus: bool) !void {
         const a = self.alloc;
         const net_ref = if (net_name) |nn| (if (nn.len > 0) try self.sch.strings.add(a, nn) else core.string_pool.StringRef.empty) else core.string_pool.StringRef.empty;
-        try self.sch.wires.append(a, .{ .x0 = start[0], .y0 = start[1], .x1 = end[0], .y1 = end[1], .net_name = net_ref });
+        try self.sch.wires.append(a, .{ .x0 = start[0], .y0 = start[1], .x1 = end[0], .y1 = end[1], .net_name = net_ref, .bus = is_bus });
         self.dirty = true;
     }
 
@@ -1081,7 +1102,7 @@ pub const AppState = struct {
     status_msg: []const u8 = "Ready",
 
     // Warm: project config + commands — 8-byte aligned
-    project_dir: []const u8 = ".",
+    project_dir: []const u8 = "",
     config: ProjectConfig = undefined,
     queue: cmd.CommandQueue = .{},
     clipboard: Clipboard = .{},
@@ -1132,9 +1153,11 @@ pub const AppState = struct {
     // ── Lifecycle ──
 
     pub fn init(self: *AppState, project_dir: []const u8) void {
-        self.* = .{ .gpa = .{}, .project_dir = project_dir };
-        self.config = ProjectConfig.init(self.gpa.allocator());
-        self.tb_index = TbIndex.init(self.gpa.allocator());
+        self.* = .{ .gpa = .{} };
+        const a = self.gpa.allocator();
+        self.project_dir = a.dupe(u8, project_dir) catch project_dir;
+        self.config = ProjectConfig.init(a);
+        self.tb_index = TbIndex.init(a);
     }
 
     pub fn deinit(self: *AppState) void {
@@ -1142,10 +1165,10 @@ pub const AppState = struct {
         for (self.documents.items) |*doc| doc.deinit();
         self.documents.deinit(a);
         self.hierarchy_stack.deinit(a);
-        self.gui.cold.plugin_panels_meta.deinit(a);
-        self.gui.cold.plugin_panels_state.deinit(a);
-        self.gui.cold.plugin_keybinds.deinit(a);
-        self.gui.cold.plugin_commands.deinit(a);
+        self.gui.cold.plugins.panels_meta.deinit(a);
+        self.gui.cold.plugins.panels_state.deinit(a);
+        self.gui.cold.plugins.keybinds.deinit(a);
+        self.gui.cold.plugins.commands.deinit(a);
         self.gui.cold.marketplace.deinit(a);
         self.clipboard.instances.deinit(a);
         self.clipboard.wires.deinit(a);
@@ -1155,6 +1178,7 @@ pub const AppState = struct {
         self.tb_index.deinit();
         self.config.deinit();
         self.queue.deinit(a);
+        if (self.project_dir.len > 0) a.free(self.project_dir);
         _ = self.gpa.deinit();
     }
 
@@ -1165,11 +1189,89 @@ pub const AppState = struct {
     // ── Config / Logger ──
 
     pub fn loadConfig(self: *AppState) !void {
+        self.config.deinit();
         self.config = ProjectConfig.parseFromPath(self.allocator(), self.project_dir) catch |err| switch (err) {
-            error.FileNotFound => return,
-            else => return err,
+            error.FileNotFound => {
+                self.config = ProjectConfig.init(self.allocator());
+                return;
+            },
+            else => {
+                self.config = ProjectConfig.init(self.allocator());
+                return err;
+            },
         };
         self.buildTbIndex();
+        if (self.config.pdk) |pdk_name| {
+            if (pdk_name.len > 0) self.loadPdkDir(pdk_name);
+        }
+    }
+
+    pub fn loadPdkDir(self: *AppState, pdk_name: []const u8) void {
+        const a = self.allocator();
+        const home = utility.platform.homeDir() orelse return;
+        var path_buf: [512]u8 = undefined;
+        const dir_path = std.fmt.bufPrint(&path_buf, "{s}/.cache/schemify/pdk/{s}", .{ home, pdk_name }) catch return;
+
+        var dir = utility.platform.fs.cwd().openDir(dir_path, .{ .iterate = true }) catch return;
+        defer dir.close();
+
+        self.pdk.name = a.dupe(u8, pdk_name) catch return;
+
+        var iter = dir.iterate();
+        while (iter.next() catch null) |entry| {
+            if (!std.mem.endsWith(u8, entry.name, ".chn_prim")) continue;
+            const data = dir.readFileAlloc(a, entry.name, 4 << 20) catch continue;
+            defer a.free(data);
+
+            var sch = core.fileio.Reader.readCHN(data, a);
+            defer sch.deinit(a);
+
+            const cell_name = std.fs.path.stem(entry.name);
+            const owned_name = a.dupe(u8, cell_name) catch continue;
+
+            // Extract pin order from the parsed schematic's pins
+            const pin_slice = sch.pins.slice();
+            const pin_names = pin_slice.items(.name);
+            var pin_order: []const []const u8 = &.{};
+            if (pin_names.len > 0) {
+                const po = a.alloc([]const u8, pin_names.len) catch continue;
+                for (pin_names, 0..) |ref, i| {
+                    po[i] = a.dupe(u8, sch.str(ref)) catch "";
+                }
+                pin_order = po;
+            }
+
+            // Detect device kind from sym_props "type" field
+            var kind = core.types.DeviceKind.subckt;
+            for (sch.sym_props.items) |prop| {
+                if (std.mem.eql(u8, sch.str(prop.key), "type")) {
+                    const val = sch.str(prop.val);
+                    kind = inferKindFromType(val);
+                    break;
+                }
+            }
+
+            // Build file path for the PDK entry
+            const file_path = a.dupe(u8, dir_path) catch continue;
+
+            self.pdk.addPrimitive(a, .{
+                .cell_name = owned_name,
+                .file = file_path,
+                .library = pdk_name,
+                .kind = kind,
+                .prefix = core.devices.Devices.prefix_lut[@intFromEnum(kind)],
+                .pin_order = pin_order,
+                .model_name = owned_name,
+                .default_params = &.{},
+                .lib_includes = &.{},
+            }) catch {
+                a.free(owned_name);
+                a.free(file_path);
+                for (pin_order) |p| if (p.len > 0) a.free(p);
+                if (pin_order.len > 0) a.free(pin_order);
+                continue;
+            };
+        }
     }
 
     fn buildTbIndex(self: *AppState) void {
@@ -1219,6 +1321,28 @@ pub const AppState = struct {
         self.active_idx = @intCast(self.documents.items.len - 1);
     }
 
+    /// Load a project Config.toml from the given directory if it differs from the
+    /// currently loaded project. Triggers PDK loading and plugin spawning.
+    pub fn loadProjectFromDir(self: *AppState, dir: []const u8) void {
+        if (std.mem.eql(u8, dir, self.project_dir)) return;
+
+        const a = self.allocator();
+        if (self.project_dir.len > 0) a.free(self.project_dir);
+        self.project_dir = a.dupe(u8, dir) catch return;
+        self.pdk.deinit(a);
+        self.pdk = .{};
+        self.config.deinit();
+        self.config = ProjectConfig.parseFromPath(a, dir) catch {
+            self.config = ProjectConfig.init(a);
+            return;
+        };
+        self.buildTbIndex();
+        if (self.config.pdk) |pdk_name| {
+            if (pdk_name.len > 0) self.loadPdkDir(pdk_name);
+        }
+        self.plugin_refresh_requested = true;
+    }
+
     pub fn saveActiveTo(self: *AppState, path: []const u8) !void {
         const doc = self.active() orelse return;
         if (doc.sch.stype == .testbench) {
@@ -1265,21 +1389,33 @@ pub const AppState = struct {
 
     pub fn registerPluginPanelEx(self: *AppState, id: []const u8, title: []const u8, vim_cmd: []const u8, layout: PluginPanelLayout, keybind: u8, panel_id: u16) u16 {
         const a = self.allocator();
-        self.gui.cold.plugin_panels_meta.append(a, .{ .id = id, .title = title, .vim_cmd = vim_cmd }) catch return 0;
-        self.gui.cold.plugin_panels_state.append(a, .{ .layout = layout, .keybind = keybind, .panel_id = panel_id }) catch {
-            _ = self.gui.cold.plugin_panels_meta.pop();
+        self.gui.cold.plugins.panels_meta.append(a, .{ .id = id, .title = title, .vim_cmd = vim_cmd }) catch return 0;
+        self.gui.cold.plugins.panels_state.append(a, .{ .layout = layout, .keybind = keybind, .panel_id = panel_id }) catch {
+            _ = self.gui.cold.plugins.panels_meta.pop();
             return 0;
         };
-        if (keybind > 0) self.gui.cold.key_to_panel[keybind] = @intCast(self.gui.cold.plugin_panels_state.items.len - 1);
+        if (keybind > 0) self.gui.cold.plugins.key_to_panel[keybind] = @intCast(self.gui.cold.plugins.panels_state.items.len - 1);
         return panel_id;
     }
 
     pub fn registerPluginCommand(self: *AppState, id: []const u8, display_name: []const u8, description: []const u8) void {
         const a = self.allocator();
-        self.gui.cold.plugin_commands.append(a, .{ .id = id, .display_name = display_name, .description = description }) catch {};
+        self.gui.cold.plugins.commands.append(a, .{ .id = id, .display_name = display_name, .description = description }) catch {};
     }
 
 };
+
+fn inferKindFromType(type_str: []const u8) core.types.DeviceKind {
+    if (std.mem.eql(u8, type_str, "nmos") or std.mem.eql(u8, type_str, "nmos4")) return .nmos4;
+    if (std.mem.eql(u8, type_str, "pmos") or std.mem.eql(u8, type_str, "pmos4")) return .pmos4;
+    if (std.mem.eql(u8, type_str, "npn") or std.mem.eql(u8, type_str, "vertical_npn")) return .npn;
+    if (std.mem.eql(u8, type_str, "pnp") or std.mem.eql(u8, type_str, "vertical_pnp")) return .pnp;
+    if (std.mem.eql(u8, type_str, "resistor") or std.mem.startsWith(u8, type_str, "poly_resistor") or std.mem.endsWith(u8, type_str, "resistor")) return .resistor;
+    if (std.mem.eql(u8, type_str, "capacitor") or std.mem.startsWith(u8, type_str, "cap")) return .capacitor;
+    if (std.mem.eql(u8, type_str, "diode")) return .diode;
+    if (std.mem.eql(u8, type_str, "inductor")) return .inductor;
+    return .subckt;
+}
 
 // ── Global singleton ─────────────────────────────────────────────────────────
 

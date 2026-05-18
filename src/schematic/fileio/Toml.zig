@@ -120,7 +120,7 @@ pub const ProjectConfig = struct {
 // Parser
 // ─────────────────────────────────────────────────────────────────────────────
 
-const Section = enum { root, paths, simulation, plugins };
+const Section = enum { root, paths, simulation, plugins, pdk_switcher };
 
 fn parseInto(config: *ProjectConfig, content: []const u8) ParseError!void {
     const alloc = config.arena.allocator();
@@ -188,6 +188,10 @@ fn parseInto(config: *ProjectConfig, content: []const u8) ParseError!void {
                     config.plugins.?.enabled = try parseStrArray(alloc, val)
                 else if (std.mem.eql(u8, key, "disabled"))
                     config.plugins.?.disabled = try parseStrArray(alloc, val);
+            },
+            .pdk_switcher => {
+                if (std.mem.eql(u8, key, "active"))
+                    config.pdk = parseStr(alloc, val) catch null;
             },
         }
     }

@@ -104,10 +104,24 @@ pub const Subprocess = struct {
     }
 
     pub fn deinit(self: *Subprocess) void {
-        self.kill();
-        self.stdin_pipe.close();
-        self.stdout_pipe.close();
-        self.stderr_pipe.close();
+        if (self.alive) {
+            // child.kill() internally waits and calls cleanupStreams(),
+            // which closes stdin/stdout/stderr pipes.
+            _ = self.child.kill() catch {
+                // Process already gone — close pipes ourselves.
+                self.closePipes();
+            };
+        } else {
+            self.closePipes();
+        }
+        self.alive = false;
+    }
+
+    fn closePipes(self: *Subprocess) void {
+        // Only close if the child hasn't already closed them (nulled by cleanupStreams).
+        if (self.child.stdin != null) self.stdin_pipe.close();
+        if (self.child.stdout != null) self.stdout_pipe.close();
+        if (self.child.stderr != null) self.stderr_pipe.close();
     }
 };
 
@@ -139,8 +153,7 @@ test "writeLine sends data to child stdin" {
     try proc.writeLine("test line");
     // Close stdin so cat flushes and exits.
     proc.stdin_pipe.close();
-    // Reopen as a no-op to avoid double-close in deinit.
-    proc.stdin_pipe = proc.stdout_pipe;
+    proc.child.stdin = null;
 
     var buf: [256]u8 = undefined;
 

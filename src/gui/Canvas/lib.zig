@@ -57,6 +57,8 @@ pub fn draw(app: *AppState) CanvasEvent {
         .vp = vp,
         .pal = pal,
         .cmd_flags = app.cmd_flags,
+        .canvas_styles = theme.active_config.resolved.canvas,
+        .animation = theme.active_config.animation,
     };
 
     // Clip to canvas widget.

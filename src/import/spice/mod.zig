@@ -40,6 +40,8 @@ pub const ConvertResult = ct.ConvertResult;
 pub const ConvertResultList = ct.ConvertResultList;
 
 const DeviceKind = core.types.DeviceKind;
+const PinRef = core.types.PinRef;
+const StringRef = core.string_pool.StringRef;
 const Schemify = core.Schemify;
 
 // ── Backend struct (EasyImport interface) ───────────────────────────────────
@@ -259,16 +261,61 @@ fn buildComponent(
     try sch.setName(alloc, subckt.name);
     sch.stype = .schematic;
 
-    const n_ports = subckt.ports.len;
-    for (subckt.ports, 0..) |port, i| {
-        const pin_x: i32 = if (i < n_ports / 2 + n_ports % 2) -40 else 40;
-        const pin_y: i32 = -@as(i32, @intCast(i)) * 40;
-        try sch.drawPinStr(alloc, port, pin_x, pin_y, .inout);
+    // Classify ports: power on top/bottom, signals split left/right
+    var left_ports: List([]const u8) = .{};
+    var right_ports: List([]const u8) = .{};
+    var top_ports: List([]const u8) = .{};
+    var bottom_ports: List([]const u8) = .{};
+    for (subckt.ports) |port| {
+        if (Layout.isVddNet(port)) {
+            try top_ports.append(alloc, port);
+        } else if (Layout.isGndNet(port)) {
+            try bottom_ports.append(alloc, port);
+        } else if (isInputLikePort(port)) {
+            try left_ports.append(alloc, port);
+        } else if (isOutputLikePort(port)) {
+            try right_ports.append(alloc, port);
+        } else if (left_ports.items.len <= right_ports.items.len) {
+            try left_ports.append(alloc, port);
+        } else {
+            try right_ports.append(alloc, port);
+        }
+    }
+
+    const PIN_SPACING: i32 = 40;
+    const side_max: i32 = @intCast(@max(left_ports.items.len, right_ports.items.len));
+    const top_max: i32 = @intCast(@max(top_ports.items.len, bottom_ports.items.len));
+    const half_h: i32 = @divTrunc(@max(side_max, 1) * PIN_SPACING, 2);
+    const half_w: i32 = @max(@divTrunc(@max(top_max, 1) * PIN_SPACING, 2), half_h);
+    const sym_left: i32 = -half_w - 40;
+    const sym_right: i32 = half_w + 40;
+    const sym_top: i32 = -half_h - 40;
+    const sym_bottom: i32 = half_h + 40;
+
+    for (left_ports.items, 0..) |port, i| {
+        const py = -half_h + @as(i32, @intCast(i)) * PIN_SPACING;
+        try sch.drawPinStr(alloc, port, sym_left, py, .inout);
+    }
+    for (right_ports.items, 0..) |port, i| {
+        const py = -half_h + @as(i32, @intCast(i)) * PIN_SPACING;
+        try sch.drawPinStr(alloc, port, sym_right, py, .inout);
+    }
+    for (top_ports.items, 0..) |port, i| {
+        const n: i32 = @intCast(top_ports.items.len -| 1);
+        const px = @divTrunc(-n * PIN_SPACING, 2) + @as(i32, @intCast(i)) * PIN_SPACING;
+        try sch.drawPinStr(alloc, port, px, sym_top, .inout);
+    }
+    for (bottom_ports.items, 0..) |port, i| {
+        const n: i32 = @intCast(bottom_ports.items.len -| 1);
+        const px = @divTrunc(-n * PIN_SPACING, 2) + @as(i32, @intCast(i)) * PIN_SPACING;
+        try sch.drawPinStr(alloc, port, px, sym_bottom, .inout);
     }
 
     try populateInstances(alloc, &sch, subckt.elements, placed, labels);
     try populateWires(alloc, &sch, route_result);
+    try populateNetLabels(alloc, &sch, route_result);
     try populatePower(alloc, &sch, route_result.power);
+    try populateModels(alloc, &sch, netlist.models);
 
     for (netlist.globals) |g| {
         try sch.addGlobal(alloc, g);
@@ -295,7 +342,9 @@ fn buildTestbench(
 
     try populateInstances(alloc, &sch, netlist.top_elements, placed, labels);
     try populateWires(alloc, &sch, route_result);
+    try populateNetLabels(alloc, &sch, route_result);
     try populatePower(alloc, &sch, route_result.power);
+    try populateModels(alloc, &sch, netlist.models);
 
     for (netlist.globals) |g| {
         try sch.addGlobal(alloc, g);
@@ -363,13 +412,135 @@ fn populateInstances(
             .param_dx = if (lbl) |l| l.param_dx else 0,
             .param_dy = if (lbl) |l| l.param_dy else 0,
         });
-        try sch.sym_data.append(alloc, .{});
+
+        // Build sym_data with pin positions from Router geometry + net names from SPICE
+        const pin_names = pinNamesForKind(p.kind);
+        if (pin_names.len > 0) {
+            const pins = try alloc.alloc(PinRef, pin_names.len);
+            for (pin_names, 0..) |name, i| {
+                const abs = Router.pinPos(p, i) orelse {
+                    pins[i] = .{ .name = try sch.strings.add(alloc, name) };
+                    continue;
+                };
+                // Store explicit net from SPICE nodes
+                const net_ref: StringRef = if (i < elem.nodes.len)
+                    try sch.strings.add(alloc, elem.nodes[i])
+                else
+                    .empty;
+                pins[i] = .{
+                    .name = try sch.strings.add(alloc, name),
+                    .x = abs.x - p.x,
+                    .y = abs.y - p.y,
+                    .dir = .inout,
+                    .net = net_ref,
+                };
+            }
+            try sch.sym_data.append(alloc, .{ .pins = pins });
+        } else if (elem.nodes.len > 0) {
+            // Subcircuit/unknown instances: build pins from SPICE nodes with
+            // dynamic pin positions matching Router.pinPosN.
+            const pins = try alloc.alloc(PinRef, elem.nodes.len);
+            for (elem.nodes, 0..) |node, i| {
+                const abs_pos = Router.pinPosN(p, i, elem.nodes.len);
+                pins[i] = .{
+                    .name = try sch.strings.add(alloc, node),
+                    .x = if (abs_pos) |ap| ap.x - p.x else 0,
+                    .y = if (abs_pos) |ap| ap.y - p.y else 0,
+                    .dir = .inout,
+                    .net = try sch.strings.add(alloc, node),
+                };
+            }
+            try sch.sym_data.append(alloc, .{ .pins = pins });
+        } else {
+            try sch.sym_data.append(alloc, .{});
+        }
     }
 }
 
+/// Canonical pin names per device kind, matching Router pin offset order.
+fn pinNamesForKind(kind: DeviceKind) []const []const u8 {
+    return switch (kind) {
+        .nmos3, .pmos3 => &.{ "d", "g", "s" },
+        .nmos4, .pmos4, .nmos4_depl, .nmos_sub, .pmos_sub, .nmoshv4, .pmoshv4, .rnmos4 => &.{ "d", "g", "s", "b" },
+        .npn => &.{ "C", "B", "E" },
+        .pnp => &.{ "C", "B", "E" },
+        .njfet, .pjfet => &.{ "d", "g", "s" },
+        .vcvs, .vccs => &.{ "p", "n", "cp", "cn" },
+        .resistor, .resistor3, .var_resistor,
+        .capacitor, .inductor,
+        .vsource, .isource,
+        .diode, .zener,
+        => &.{ "p", "n" },
+        else => &.{},
+    };
+}
+
 fn populateWires(alloc: Allocator, sch: *Schemify, route_result: RouteResult) !void {
+    const bus_mod = core.bus;
+    const Wire = core.types.Wire;
     for (route_result.wires) |w| {
-        _ = try sch.addWireWithNet(alloc, w.x0, w.y0, w.x1, w.y1, w.net_name);
+        const is_bus = bus_mod.parseBusName(w.net_name) != null;
+        const color: u32 = if (Layout.isVddNet(w.net_name))
+            Wire.packColor(200, 50, 50) // red for VDD
+        else if (Layout.isGndNet(w.net_name))
+            Wire.packColor(50, 80, 200) // blue for VSS/GND
+        else
+            0;
+        const thickness: u8 = if (Layout.isPowerNet(w.net_name)) 20 else 0; // 2.0x for power
+        const idx = if (is_bus)
+            try sch.addWireFull(alloc, .{ .x0 = w.x0, .y0 = w.y0, .x1 = w.x1, .y1 = w.y1, .bus = true, .net_name = if (w.net_name.len > 0) try sch.strings.add(alloc, w.net_name) else .empty, .color = color, .thickness = thickness })
+        else
+            try sch.addWireWithNet(alloc, w.x0, w.y0, w.x1, w.y1, w.net_name);
+        // Set color/thickness for non-bus wires (addWireWithNet doesn't support them)
+        if (!is_bus and (color != 0 or thickness != 0)) {
+            sch.wires.items(.color)[idx] = color;
+            sch.wires.items(.thickness)[idx] = thickness;
+        }
+    }
+}
+
+const LabelPoint = struct { x: i32, y: i32 };
+
+fn populateNetLabels(alloc: Allocator, sch: *Schemify, route_result: RouteResult) !void {
+    var seen = std.StringHashMapUnmanaged(LabelPoint){};
+    defer seen.deinit(alloc);
+
+    for (route_result.wires) |w| {
+        if (w.net_name.len == 0) continue;
+        if (Layout.isPowerNet(w.net_name)) continue;
+
+        const gop = try seen.getOrPut(alloc, w.net_name);
+        if (gop.found_existing) {
+            // Check manhattan distance from last label to this wire endpoint
+            const prev = gop.value_ptr.*;
+            const dx = if (w.x0 > prev.x) w.x0 - prev.x else prev.x - w.x0;
+            const dy = if (w.y0 > prev.y) w.y0 - prev.y else prev.y - w.y0;
+            if (dx + dy <= 300) continue;
+            gop.value_ptr.* = .{ .x = w.x0, .y = w.y0 };
+        } else {
+            gop.value_ptr.* = .{ .x = w.x0, .y = w.y0 };
+        }
+
+        const prop_start: u32 = @intCast(sch.props.items.len);
+        try sch.props.append(alloc, .{
+            .key = try sch.strings.add(alloc, "lab"),
+            .val = try sch.strings.add(alloc, w.net_name),
+        });
+
+        try sch.instances.append(alloc, .{
+            .name = try sch.strings.add(alloc, w.net_name),
+            .symbol = try sch.strings.add(alloc, "lab_pin"),
+            .x = w.x0,
+            .y = w.y0,
+            .kind = .lab_pin,
+            .prop_start = prop_start,
+            .prop_count = 1,
+            .flags = .{},
+        });
+        // Lab pin has a single connection point at its origin
+        const pin = try alloc.alloc(PinRef, 1);
+        pin[0] = .{ .name = try sch.strings.add(alloc, "pin"), .x = 0, .y = 0, .dir = .inout };
+        try sch.sym_data.append(alloc, .{ .pins = pin });
     }
 }
 
@@ -395,7 +566,33 @@ fn populatePower(alloc: Allocator, sch: *Schemify, power_syms: []const PowerSym)
             .kind = kind,
             .flags = .{},
         });
-        try sch.sym_data.append(alloc, .{});
+        // Power symbol connects at -10 offset (Router places them +10 from pin)
+        const pin = try alloc.alloc(PinRef, 1);
+        const pin_dy: i32 = switch (ps.kind) {
+            .gnd => -10,
+            .vdd => 10,
+        };
+        pin[0] = .{ .name = try sch.strings.add(alloc, "pin"), .x = 0, .y = pin_dy, .dir = .inout };
+        try sch.sym_data.append(alloc, .{ .pins = pin });
+    }
+}
+
+fn populateModels(alloc: Allocator, sch: *Schemify, models: []const Model) !void {
+    for (models) |m| {
+        const prop_start: u32 = @intCast(sch.props.items.len);
+        for (m.params) |p| {
+            try sch.props.append(alloc, .{
+                .key = try sch.strings.add(alloc, p.key),
+                .val = try sch.strings.add(alloc, p.val),
+            });
+        }
+        const prop_count: u16 = @intCast(sch.props.items.len - prop_start);
+        try sch.model_defs.append(alloc, .{
+            .name = try sch.strings.add(alloc, m.name),
+            .kind = try sch.strings.add(alloc, m.kind),
+            .prop_start = prop_start,
+            .prop_count = prop_count,
+        });
     }
 }
 
@@ -568,6 +765,26 @@ fn sanitizeName(name: []const u8) []const u8 {
     if (name.len == 0) return "netlist";
     var iter = std.mem.tokenizeAny(u8, name, " \t");
     return iter.next() orelse "netlist";
+}
+
+fn isInputLikePort(name: []const u8) bool {
+    var buf: [128]u8 = undefined;
+    const lower = toLowerBuf(name, &buf) orelse return false;
+    const input_patterns = [_][]const u8{ "inp", "inn", "clk", "rst", "reset", "bias", "en", "in" };
+    for (input_patterns) |pat| {
+        if (std.mem.indexOf(u8, lower, pat) != null) return true;
+    }
+    return false;
+}
+
+fn isOutputLikePort(name: []const u8) bool {
+    var buf: [128]u8 = undefined;
+    const lower = toLowerBuf(name, &buf) orelse return false;
+    const output_patterns = [_][]const u8{ "outp", "outn", "out" };
+    for (output_patterns) |pat| {
+        if (std.mem.indexOf(u8, lower, pat) != null) return true;
+    }
+    return false;
 }
 
 fn toLowerBuf(s: []const u8, buf: []u8) ?[]const u8 {

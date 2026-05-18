@@ -23,6 +23,16 @@
           pkgs.sdl3
           pkgs.libglvnd
           pkgs.vulkan-loader
+          # Display server backends for SDL3
+          pkgs.wayland
+          pkgs.wayland-protocols
+          pkgs.libxkbcommon
+          pkgs.libdecor
+          pkgs.libx11
+          pkgs.libxcursor
+          pkgs.libxrandr
+          pkgs.libxi
+          pkgs.libxext
         ];
 
         # PySpice-rs runtime: python3 + numpy + pyspice-rs from GitHub
@@ -61,9 +71,10 @@
             export LD_LIBRARY_PATH="${lib.makeLibraryPath runtimeLibs}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
             # Auto-install pyspice-rs from GitHub into a local venv
+            # --system-site-packages inherits nix numpy/etc so we don't pip-install broken C extensions
             if [ ! -d .venv ]; then
               echo "Creating Python venv and installing pyspice-rs from GitHub..."
-              python3 -m venv .venv
+              python3 -m venv --system-site-packages .venv
               .venv/bin/pip install --quiet git+https://github.com/OmarSiwy/PySpice.git
             fi
             source .venv/bin/activate

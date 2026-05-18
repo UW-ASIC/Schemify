@@ -10,6 +10,7 @@ pub const Palette = struct {
     wire: Color,
     wire_sel: Color,
     wire_endpoint: Color,
+    bus: Color,
     inst_body: Color,
     inst_sel: Color,
     inst_pin: Color,
@@ -55,12 +56,18 @@ pub const Palette = struct {
         );
         const origin = withAlpha(t.border, if (t.dark) 190 else 170);
 
+        const bus_col = if (t.dark)
+            Color{ .r = 70, .g = 180, .b = 170, .a = 255 }
+        else
+            Color{ .r = 30, .g = 120, .b = 115, .a = 255 };
+
         var result = Palette{
             .canvas_bg = canvas_bg,
             .grid_dot = grid_dot,
             .wire = wire,
             .wire_sel = wire_sel,
             .wire_endpoint = wire_endpoint,
+            .bus = bus_col,
             .inst_body = inst_body,
             .inst_sel = wire_sel,
             .inst_pin = inst_pin,

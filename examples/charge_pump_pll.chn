@@ -1,0 +1,76 @@
+chn_testbench 1
+
+TESTBENCH PLL Charge Pump
+  instances:
+    Vdd  vsource  x=-170  y=0  sym=vsource  value=1.8
+    Vup  vsource  x=10  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.00000000005 0.00000000005 0.0000000005 0.00000001)
+    Vdn  vsource  x=230  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.00000000005 0.00000000005 0.0000000002 0.00000001)
+    Mp1  pmos  x=-170  y=-160  sym=pmos4
+      .parameters{   model=pmos_1v8  W=10u  L=500n  M=1 }
+    Mp_sw  pmos  x=-50  y=-80  sym=pmos4
+      .parameters{   model=pmos_1v8  W=5u  L=180n  M=1 }
+    Mn1  nmos  x=-230  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=5u  L=500n  M=1 }
+    Mn_sw  nmos  x=110  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=5u  L=180n  M=1 }
+    Vbn  vsource  x=-60  y=0  sym=vsource  value=500m
+    Mp_inv  pmos  x=70  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mn_inv  nmos  x=-110  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Rz  resistor  x=50  y=20  sym=res  value=5k  device=resistor
+    C1  capacitor  x=220  y=20  sym=capa  value=10p  device=capacitor
+    C2  capacitor  x=0  y=20  sym=capa  value=1p  device=capacitor
+    src_p  lab_pin  x=-190  y=-130  sym=lab_pin
+    n_filt  lab_pin  x=20  y=20  sym=lab_pin
+    dn  lab_pin  x=230  y=-30  sym=lab_pin
+    vbn  lab_pin  x=-250  y=120  sym=lab_pin
+    vctrl  lab_pin  x=80  y=20  sym=lab_pin
+    up_b  lab_pin  x=-30  y=-80  sym=lab_pin
+    src_n  lab_pin  x=-210  y=90  sym=lab_pin
+    up  lab_pin  x=10  y=-30  sym=lab_pin
+    gnd0  gnd  x=-170  y=40  sym=gnd
+    gnd1  gnd  x=10  y=40  sym=gnd
+    gnd2  gnd  x=230  y=40  sym=gnd
+    gnd3  gnd  x=-210  y=160  sym=gnd
+    gnd4  gnd  x=-210  y=130  sym=gnd
+    gnd5  gnd  x=130  y=130  sym=gnd
+    gnd6  gnd  x=-60  y=40  sym=gnd
+    gnd7  gnd  x=-90  y=160  sym=gnd
+    gnd8  gnd  x=-90  y=130  sym=gnd
+    vdd9  vdd  x=-170  y=-40  sym=vdd
+    vdd10  vdd  x=-190  y=-200  sym=vdd
+    vdd11  vdd  x=-150  y=-170  sym=vdd
+    vdd12  vdd  x=-190  y=-170  sym=vdd
+    vdd13  vdd  x=-70  y=-90  sym=vdd
+    vdd14  vdd  x=50  y=-100  sym=vdd
+    vdd15  vdd  x=50  y=-130  sym=vdd
+
+  wires:
+    -190 -130 -70 -130
+    -70 -130 -70 -110
+    20 20 120 20
+    120 20 120 -10
+    120 -10 220 -10
+    230 -30 90 -30
+    90 -30 90 120
+    -250 120 -250 50
+    -250 50 -60 50
+    -60 50 -60 -30
+    80 20 80 90
+    80 90 130 90
+    0 -10 80 -10
+    80 -10 80 20
+    -70 -50 0 -50
+    0 -50 0 -10
+    -30 -80 50 -80
+    50 -80 50 -150
+    -30 -80 -90 -80
+    -90 -80 -90 90
+    -210 90 -40 90
+    -40 90 -40 150
+    -40 150 130 150
+    10 -30 90 -30
+    90 -30 90 -120
+    10 -30 10 120
+    10 120 -130 120

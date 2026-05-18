@@ -10,16 +10,8 @@ SYMBOL lab_pin
     lab = ""
 
   drawing:
-    lines:
-      # Pin stub from connection point (0,0) going left to tag body
-      (0,0) (-4,0)
-      # Rectangular tag on the LEFT — pin on right (at origin), body extends left
-      (-4,-7) (-28,-7)
-      (-28,-7) (-28,7)
-      (-28,7) (-4,7)
-      (-4,7) (-4,-7)
-    # Small circle at the connection point
-    circle: (0,0) r=2
-    text: (-16,0) "@lab"
+    circle: (0,0) r=1
+    circle: (0,0) r=3
+    text: (-4,-6) "@lab"
     pin_positions:
       p: (0,0)

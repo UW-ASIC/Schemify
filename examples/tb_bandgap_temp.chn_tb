@@ -1,0 +1,13 @@
+chn_testbench 1
+
+TESTBENCH TB Bandgap Temperature
+  instances:
+    Xdut  subckt  x=-130  y=-120  sym=bandgap_reference
+    Vcc  vsource  x=20  y=0  sym=vsource  value=3.3
+    Rprobe  resistor  x=130  y=0  sym=res  value=10meg  device=resistor
+    vdd0  vdd  x=-130  y=-160  sym=vdd
+    vdd1  vdd  x=130  y=-40  sym=vdd
+    vdd2  vdd  x=-130  y=-100  sym=vdd
+    vdd3  vdd  x=20  y=-40  sym=vdd
+    gnd4  gnd  x=20  y=40  sym=gnd
+    gnd5  gnd  x=130  y=40  sym=gnd

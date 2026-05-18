@@ -26,9 +26,55 @@ fn unitDefault(family: UnitFamily) []const u8 {
     };
 }
 
+/// Convert SPICE value with SI suffix to Python-compatible numeric string.
+/// Returns a static buffer — caller must use immediately or copy.
+var py_val_buf: [64]u8 = undefined;
+
 fn pyUnitValue(val: []const u8, family: UnitFamily) []const u8 {
     if (val.len == 0) return unitDefault(family);
+    // Try to parse as number with SPICE suffix
+    const suffix_info = parseSpiceSuffix(val);
+    if (suffix_info.mantissa.len > 0) {
+        const result = std.fmt.bufPrint(&py_val_buf, "{s}{s}", .{ suffix_info.mantissa, suffix_info.exponent }) catch return val;
+        return result;
+    }
     return val;
+}
+
+const SuffixResult = struct { mantissa: []const u8, exponent: []const u8 };
+
+fn parseSpiceSuffix(val: []const u8) SuffixResult {
+    if (val.len == 0) return .{ .mantissa = "", .exponent = "" };
+    // Find where the suffix starts (first non-digit, non-dot, non-sign, non-e)
+    var i: usize = 0;
+    if (i < val.len and (val[i] == '+' or val[i] == '-')) i += 1;
+    while (i < val.len and (std.ascii.isDigit(val[i]) or val[i] == '.')) : (i += 1) {}
+    // Already has 'e' exponent — it's already Python-compatible
+    if (i < val.len and (val[i] == 'e' or val[i] == 'E')) return .{ .mantissa = "", .exponent = "" };
+    if (i == val.len) return .{ .mantissa = "", .exponent = "" }; // pure number, fine as-is
+    if (i == 0) return .{ .mantissa = "", .exponent = "" }; // no numeric prefix
+
+    const mantissa = val[0..i];
+    const suffix = val[i..];
+    const exp = spiceSuffixExponent(suffix) orelse return .{ .mantissa = "", .exponent = "" };
+    return .{ .mantissa = mantissa, .exponent = exp };
+}
+
+fn spiceSuffixExponent(s: []const u8) ?[]const u8 {
+    if (s.len == 0) return null;
+    const c = std.ascii.toLower(s[0]);
+    return switch (c) {
+        't' => "e12",
+        'g' => "e9",
+        'x' => "e6", // meg
+        'k' => "e3",
+        'm' => if (s.len >= 3 and std.ascii.toLower(s[1]) == 'e' and std.ascii.toLower(s[2]) == 'g') "e6" else "e-3",
+        'u' => "e-6",
+        'n' => "e-9",
+        'p' => "e-12",
+        'f' => "e-15",
+        else => null,
+    };
 }
 
 // ── Net helpers ──────────────────────────────────────────────────────────────
@@ -44,6 +90,33 @@ fn writePyNetArg(w: anytype, net: []const u8) !void {
         try w.writeByte('\'');
         try w.writeAll(net);
         try w.writeByte('\'');
+    }
+}
+
+/// Detect complex source specifications (DC+AC, SIN, PULSE, etc.)
+fn isComplexSourceValue(val: []const u8) bool {
+    if (std.mem.indexOfScalar(u8, val, ' ') != null) return true;
+    if (std.mem.indexOfScalar(u8, val, '(') != null) return true;
+    // Check for SPICE keywords
+    var buf: [8]u8 = undefined;
+    const lo = if (val.len <= 8) blk: {
+        for (val[0..@min(val.len, 8)], 0..) |c, i| buf[i] = std.ascii.toLower(c);
+        break :blk buf[0..@min(val.len, 8)];
+    } else val[0..0];
+    if (std.mem.startsWith(u8, lo, "dc") or std.mem.startsWith(u8, lo, "ac") or
+        std.mem.startsWith(u8, lo, "sin") or std.mem.startsWith(u8, lo, "pulse") or
+        std.mem.startsWith(u8, lo, "pwl")) return true;
+    return false;
+}
+
+/// Write a Python-safe variable name: replace chars invalid in identifiers with '_'.
+fn writePyVarName(w: anytype, name: []const u8) !void {
+    for (name) |c| {
+        if (std.ascii.isAlphanumeric(c) or c == '_') {
+            try w.writeByte(c);
+        } else {
+            try w.writeByte('_');
+        }
     }
 }
 
@@ -87,6 +160,15 @@ fn findProp(pool: *const StringPool, prop_slice: []const Property, key: []const 
 // Public API
 // ═════════════════════════════════════════════════════════════════════════════
 
+pub const Mode = enum {
+    /// Emit subcircuit instances as circuit.X() calls (default).
+    hierarchical,
+    /// Skip subcircuit/digital instances — only emit primitive devices.
+    top_only,
+    /// Emit subcircuit instances + request PySpice-rs to flatten internally.
+    flat,
+};
+
 /// Pure function: schematic data + connectivity -> PySpice-rs Python circuit definition.
 /// Returns the circuit-building code only (no imports, no analysis section).
 /// Caller owns the returned slice.
@@ -102,12 +184,48 @@ pub fn emitCircuitDef(
     conns: []const Conn,
     conn_starts: []const u32,
     conn_counts: []const u16,
+    model_defs: []const types.ModelDef,
+) ![]u8 {
+    return emitCircuitDefMode(a, pool, name, instances, props, conns, conn_starts, conn_counts, model_defs, .hierarchical);
+}
+
+/// Like `emitCircuitDef` but with explicit netlist mode.
+pub fn emitCircuitDefMode(
+    a: Allocator,
+    pool: *const StringPool,
+    name: []const u8,
+    instances: []const Instance,
+    props: []const Property,
+    conns: []const Conn,
+    conn_starts: []const u32,
+    conn_counts: []const u16,
+    model_defs: []const types.ModelDef,
+    mode: Mode,
 ) ![]u8 {
     var buf: List(u8) = .{};
     errdefer buf.deinit(a);
     const w = buf.writer(a);
 
     try w.print("circuit = Circuit('{s}')\n", .{name});
+
+    // Emit model definitions
+    for (model_defs) |md| {
+        const md_name = pool.get(md.name);
+        const md_kind = pool.get(md.kind);
+        try w.print("circuit.model('{s}', '{s}'", .{ md_name, md_kind });
+        const md_props = props[md.prop_start..][0..md.prop_count];
+        for (md_props) |p| {
+            const key = pool.get(p.key);
+            const val = pool.get(p.val);
+            // Python reserved word 'is' needs ** dict expansion
+            if (std.mem.eql(u8, key, "is")) {
+                try w.print(", **{{'is': {s}}}", .{val});
+            } else {
+                try w.print(", {s}={s}", .{ key, val });
+            }
+        }
+        try w.writeAll(")\n");
+    }
 
     for (instances, 0..) |inst, idx| {
         const kind = inst.kind;
@@ -133,31 +251,34 @@ pub fn emitCircuitDef(
                 const val = findProp(pool, inst_props, "value") orelse "1k";
                 const net_a = resolveConnNet(pool, "p", inst_conns) orelse connNetAt(pool, inst_conns, 0);
                 const net_b = resolveConnNet(pool, "n", inst_conns) orelse connNetAt(pool, inst_conns, 1);
-                try w.print("{s} = circuit.R('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.R(name='{s}', positive=", .{desig});
                 try writePyNetArg(w, net_a);
-                try w.writeAll(", ");
+                try w.writeAll(", negative=");
                 try writePyNetArg(w, net_b);
-                try w.print(", {s})\n", .{pyUnitValue(val, .resistor)});
+                try w.print(", value={s})\n", .{pyUnitValue(val, .resistor)});
             },
             .capacitor => {
                 const val = findProp(pool, inst_props, "value") orelse "1p";
                 const net_a = resolveConnNet(pool, "p", inst_conns) orelse connNetAt(pool, inst_conns, 0);
                 const net_b = resolveConnNet(pool, "n", inst_conns) orelse connNetAt(pool, inst_conns, 1);
-                try w.print("{s} = circuit.C('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.C(name='{s}', positive=", .{desig});
                 try writePyNetArg(w, net_a);
-                try w.writeAll(", ");
+                try w.writeAll(", negative=");
                 try writePyNetArg(w, net_b);
-                try w.print(", {s})\n", .{pyUnitValue(val, .capacitor)});
+                try w.print(", value={s})\n", .{pyUnitValue(val, .capacitor)});
             },
             .inductor => {
                 const val = findProp(pool, inst_props, "value") orelse "1u";
                 const net_a = resolveConnNet(pool, "p", inst_conns) orelse connNetAt(pool, inst_conns, 0);
                 const net_b = resolveConnNet(pool, "n", inst_conns) orelse connNetAt(pool, inst_conns, 1);
-                try w.print("{s} = circuit.L('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.L(name='{s}', positive=", .{desig});
                 try writePyNetArg(w, net_a);
-                try w.writeAll(", ");
+                try w.writeAll(", negative=");
                 try writePyNetArg(w, net_b);
-                try w.print(", {s})\n", .{pyUnitValue(val, .inductor)});
+                try w.print(", value={s})\n", .{pyUnitValue(val, .inductor)});
             },
 
             .nmos3, .pmos3, .nmos4, .pmos4, .nmos4_depl,
@@ -173,19 +294,23 @@ pub fn emitCircuitDef(
                 const model_name = findProp(pool, inst_props, "model") orelse
                     findProp(pool, inst_props, "device_model") orelse
                     normalizedSymbolName(sym_name);
-                try w.print("{s} = circuit.MOSFET('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.M(name='{s}', drain=", .{desig});
                 try writePyNetArg(w, drain);
-                try w.writeAll(", ");
+                try w.writeAll(", gate=");
                 try writePyNetArg(w, gate);
-                try w.writeAll(", ");
+                try w.writeAll(", source=");
                 try writePyNetArg(w, source);
-                try w.writeAll(", ");
+                try w.writeAll(", bulk=");
                 try writePyNetArg(w, bulk);
                 try w.print(", model='{s}'", .{model_name});
-                if (findProp(pool, inst_props, "W")) |wv| try w.print(", W={s}", .{wv});
-                if (findProp(pool, inst_props, "w")) |wv| try w.print(", W={s}", .{wv});
-                if (findProp(pool, inst_props, "L")) |lv| try w.print(", L={s}", .{lv});
-                if (findProp(pool, inst_props, "l")) |lv| try w.print(", L={s}", .{lv});
+                if (findProp(pool, inst_props, "W")) |wv| try w.print(", W='{s}'", .{wv});
+                if (findProp(pool, inst_props, "w")) |wv| try w.print(", W='{s}'", .{wv});
+                if (findProp(pool, inst_props, "L")) |lv| try w.print(", L='{s}'", .{lv});
+                if (findProp(pool, inst_props, "l")) |lv| try w.print(", L='{s}'", .{lv});
+                if (findProp(pool, inst_props, "M")) |mv| {
+                    if (!std.mem.eql(u8, mv, "1")) try w.print(", M={s}", .{mv});
+                }
                 try w.writeAll(")\n");
             },
 
@@ -199,11 +324,12 @@ pub fn emitCircuitDef(
                 const model_name = findProp(pool, inst_props, "model") orelse
                     findProp(pool, inst_props, "device_model") orelse
                     normalizedSymbolName(sym_name);
-                try w.print("{s} = circuit.BJT('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.Q(name='{s}', collector=", .{desig});
                 try writePyNetArg(w, collector);
-                try w.writeAll(", ");
+                try w.writeAll(", base=");
                 try writePyNetArg(w, base);
-                try w.writeAll(", ");
+                try w.writeAll(", emitter=");
                 try writePyNetArg(w, emitter);
                 try w.print(", model='{s}')\n", .{model_name});
             },
@@ -214,9 +340,10 @@ pub fn emitCircuitDef(
                 const model_name = findProp(pool, inst_props, "model") orelse
                     findProp(pool, inst_props, "device_model") orelse
                     normalizedSymbolName(sym_name);
-                try w.print("{s} = circuit.D('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.D(name='{s}', anode=", .{desig});
                 try writePyNetArg(w, anode);
-                try w.writeAll(", ");
+                try w.writeAll(", cathode=");
                 try writePyNetArg(w, cathode);
                 try w.print(", model='{s}')\n", .{model_name});
             },
@@ -225,21 +352,31 @@ pub fn emitCircuitDef(
                 const val = findProp(pool, inst_props, "value") orelse findProp(pool, inst_props, "dc") orelse "0";
                 const net_p = resolveConnNet(pool, "p", inst_conns) orelse connNetAt(pool, inst_conns, 0);
                 const net_n = resolveConnNet(pool, "n", inst_conns) orelse connNetAt(pool, inst_conns, 1);
-                try w.print("{s} = circuit.V('{s}', ", .{ raw_name, desig });
-                try writePyNetArg(w, net_p);
-                try w.writeAll(", ");
-                try writePyNetArg(w, net_n);
-                try w.print(", {s})\n", .{pyUnitValue(val, .vsource)});
+                if (isComplexSourceValue(val)) {
+                    try w.print("circuit.raw_spice('{s} {s} {s} {s}')\n", .{ raw_name, net_p, net_n, val });
+                } else {
+                    try writePyVarName(w, raw_name);
+                    try w.print(" = circuit.V(name='{s}', positive=", .{desig});
+                    try writePyNetArg(w, net_p);
+                    try w.writeAll(", negative=");
+                    try writePyNetArg(w, net_n);
+                    try w.print(", value={s})\n", .{pyUnitValue(val, .vsource)});
+                }
             },
             .isource => {
                 const val = findProp(pool, inst_props, "value") orelse findProp(pool, inst_props, "dc") orelse "0";
                 const net_p = resolveConnNet(pool, "p", inst_conns) orelse connNetAt(pool, inst_conns, 0);
                 const net_n = resolveConnNet(pool, "n", inst_conns) orelse connNetAt(pool, inst_conns, 1);
-                try w.print("{s} = circuit.I('{s}', ", .{ raw_name, desig });
-                try writePyNetArg(w, net_p);
-                try w.writeAll(", ");
-                try writePyNetArg(w, net_n);
-                try w.print(", {s})\n", .{pyUnitValue(val, .isource)});
+                if (isComplexSourceValue(val)) {
+                    try w.print("circuit.raw_spice('{s} {s} {s} {s}')\n", .{ raw_name, net_p, net_n, val });
+                } else {
+                    try writePyVarName(w, raw_name);
+                    try w.print(" = circuit.I(name='{s}', positive=", .{desig});
+                    try writePyNetArg(w, net_p);
+                    try w.writeAll(", negative=");
+                    try writePyNetArg(w, net_n);
+                    try w.print(", value={s})\n", .{pyUnitValue(val, .isource)});
+                }
             },
 
             .vcvs => {
@@ -248,15 +385,16 @@ pub fn emitCircuitDef(
                 const cp = resolveConnNet(pool, "cp", inst_conns) orelse connNetAt(pool, inst_conns, 2);
                 const cn = resolveConnNet(pool, "cn", inst_conns) orelse connNetAt(pool, inst_conns, 3);
                 const gain = findProp(pool, inst_props, "gain") orelse findProp(pool, inst_props, "value") orelse "1";
-                try w.print("{s} = circuit.VCVS('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.E(name='{s}', positive=", .{desig});
                 try writePyNetArg(w, p);
-                try w.writeAll(", ");
+                try w.writeAll(", negative=");
                 try writePyNetArg(w, n);
-                try w.writeAll(", ");
+                try w.writeAll(", control_positive=");
                 try writePyNetArg(w, cp);
-                try w.writeAll(", ");
+                try w.writeAll(", control_negative=");
                 try writePyNetArg(w, cn);
-                try w.print(", {s})\n", .{gain});
+                try w.print(", voltage_gain={s})\n", .{gain});
             },
             .vccs => {
                 const p = resolveConnNet(pool, "p", inst_conns) orelse connNetAt(pool, inst_conns, 0);
@@ -264,42 +402,47 @@ pub fn emitCircuitDef(
                 const cp = resolveConnNet(pool, "cp", inst_conns) orelse connNetAt(pool, inst_conns, 2);
                 const cn = resolveConnNet(pool, "cn", inst_conns) orelse connNetAt(pool, inst_conns, 3);
                 const gain = findProp(pool, inst_props, "gain") orelse findProp(pool, inst_props, "value") orelse "1";
-                try w.print("{s} = circuit.VCCS('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.G(name='{s}', positive=", .{desig});
                 try writePyNetArg(w, p);
-                try w.writeAll(", ");
+                try w.writeAll(", negative=");
                 try writePyNetArg(w, n);
-                try w.writeAll(", ");
+                try w.writeAll(", control_positive=");
                 try writePyNetArg(w, cp);
-                try w.writeAll(", ");
+                try w.writeAll(", control_negative=");
                 try writePyNetArg(w, cn);
-                try w.print(", {s})\n", .{gain});
+                try w.print(", transconductance={s})\n", .{gain});
             },
             .ccvs => {
                 const p = resolveConnNet(pool, "p", inst_conns) orelse connNetAt(pool, inst_conns, 0);
                 const n = resolveConnNet(pool, "n", inst_conns) orelse connNetAt(pool, inst_conns, 1);
-                const vsrc = findProp(pool, inst_props, "vsrc") orelse "V0";
+                const vsrc = findProp(pool, inst_props, "vsrc") orelse findProp(pool, inst_props, "model") orelse "V0";
                 const gain = findProp(pool, inst_props, "gain") orelse findProp(pool, inst_props, "value") orelse "1";
-                try w.print("{s} = circuit.CCVS('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.H(name='{s}', positive=", .{desig});
                 try writePyNetArg(w, p);
-                try w.writeAll(", ");
+                try w.writeAll(", negative=");
                 try writePyNetArg(w, n);
-                try w.print(", '{s}', {s})\n", .{ vsrc, gain });
+                try w.print(", vsense='{s}', transresistance={s})\n", .{ vsrc, gain });
             },
             .cccs => {
                 const p = resolveConnNet(pool, "p", inst_conns) orelse connNetAt(pool, inst_conns, 0);
                 const n = resolveConnNet(pool, "n", inst_conns) orelse connNetAt(pool, inst_conns, 1);
-                const vsrc = findProp(pool, inst_props, "vsrc") orelse "V0";
+                const vsrc = findProp(pool, inst_props, "vsrc") orelse findProp(pool, inst_props, "model") orelse "V0";
                 const gain = findProp(pool, inst_props, "gain") orelse findProp(pool, inst_props, "value") orelse "1";
-                try w.print("{s} = circuit.CCCS('{s}', ", .{ raw_name, desig });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.F(name='{s}', positive=", .{desig});
                 try writePyNetArg(w, p);
-                try w.writeAll(", ");
+                try w.writeAll(", negative=");
                 try writePyNetArg(w, n);
-                try w.print(", '{s}', {s})\n", .{ vsrc, gain });
+                try w.print(", vsense='{s}', current_gain={s})\n", .{ vsrc, gain });
             },
 
             .subckt, .digital_instance => {
+                if (mode == .top_only) continue;
                 const sub_name = normalizedSymbolName(sym_name);
-                try w.print("{s} = circuit.X('{s}', '{s}'", .{ raw_name, desig, sub_name });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.X('{s}', '{s}'", .{ desig, sub_name });
                 for (inst_conns) |c| {
                     try w.writeAll(", ");
                     try writePyNetArg(w, pool.get(c.net));
@@ -310,8 +453,10 @@ pub fn emitCircuitDef(
             .gnd, .vdd, .lab_pin, .input_pin, .output_pin, .inout_pin => continue,
 
             else => {
+                if (mode == .top_only) continue;
                 const sub_name = normalizedSymbolName(sym_name);
-                try w.print("{s} = circuit.X('{s}', '{s}'", .{ raw_name, desig, sub_name });
+                try writePyVarName(w, raw_name);
+                try w.print(" = circuit.X('{s}', '{s}'", .{ desig, sub_name });
                 for (inst_conns) |c| {
                     try w.writeAll(", ");
                     try writePyNetArg(w, pool.get(c.net));
@@ -319,6 +464,10 @@ pub fn emitCircuitDef(
                 try w.writeAll(")\n");
             },
         }
+    }
+
+    if (mode == .flat) {
+        try w.writeAll("circuit = circuit.build_flat_circuit()\n");
     }
 
     return buf.toOwnedSlice(a);
@@ -335,9 +484,27 @@ pub fn emitTemplate(
     conns: []const Conn,
     conn_starts: []const u32,
     conn_counts: []const u16,
+    model_defs: []const types.ModelDef,
     backend: []const u8,
 ) ![]u8 {
-    const circuit_def = try emitCircuitDef(a, pool, name, instances, props, conns, conn_starts, conn_counts);
+    return emitTemplateMode(a, pool, name, instances, props, conns, conn_starts, conn_counts, model_defs, backend, .hierarchical);
+}
+
+/// Like `emitTemplate` but with explicit netlist mode.
+pub fn emitTemplateMode(
+    a: Allocator,
+    pool: *const StringPool,
+    name: []const u8,
+    instances: []const Instance,
+    props: []const Property,
+    conns: []const Conn,
+    conn_starts: []const u32,
+    conn_counts: []const u16,
+    model_defs: []const types.ModelDef,
+    backend: []const u8,
+    mode: Mode,
+) ![]u8 {
+    const circuit_def = try emitCircuitDefMode(a, pool, name, instances, props, conns, conn_starts, conn_counts, model_defs, mode);
     defer a.free(circuit_def);
 
     var buf: List(u8) = .{};
@@ -353,13 +520,15 @@ pub fn emitTemplate(
         \\
     );
     try w.writeAll(circuit_def);
-    try w.print("# Backend: {s}\n", .{backend});
     try w.writeAll(
         \\
         \\# ──── SCHEMIFY_MARKER ──── (do not edit above this line)
         \\# Analysis code — edit freely below
         \\
-        \\sim = circuit.simulator()
+        \\
+    );
+    try w.print("sim = circuit.simulator(simulator='{s}')\n", .{backend});
+    try w.writeAll(
         \\sim.temperature = 27
         \\
         \\# Example: operating point
@@ -398,7 +567,7 @@ test "empty circuit" {
     var pool: StringPool = .{};
     defer pool.deinit(a);
 
-    const result = try emitCircuitDef(a, &pool, "test", &.{}, &.{}, &.{}, &.{}, &.{});
+    const result = try emitCircuitDef(a, &pool, "test", &.{}, &.{}, &.{}, &.{}, &.{}, &.{});
     defer a.free(result);
     try std.testing.expectEqualStrings("circuit = Circuit('test')\n", result);
 }
@@ -426,10 +595,10 @@ test "resistor emission" {
     };
     const conn_starts = [_]u32{0};
     const conn_counts = [_]u16{2};
-    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts);
+    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts, &.{});
     defer a.free(result);
 
-    try std.testing.expect(std.mem.indexOf(u8, result, "circuit.R('1', 'vcc', 'out', 10k)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "circuit.R(name='1', positive='vcc', negative='out', value=10e3)") != null);
 }
 
 test "ground net substitution" {
@@ -455,7 +624,7 @@ test "ground net substitution" {
     };
     const conn_starts = [_]u32{0};
     const conn_counts = [_]u16{2};
-    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts);
+    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts, &.{});
     defer a.free(result);
 
     try std.testing.expect(std.mem.indexOf(u8, result, "circuit.gnd") != null);
@@ -489,12 +658,12 @@ test "mosfet emission" {
     };
     const conn_starts = [_]u32{0};
     const conn_counts = [_]u16{4};
-    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts);
+    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts, &.{});
     defer a.free(result);
 
-    try std.testing.expect(std.mem.indexOf(u8, result, "circuit.MOSFET('1', 'drain', 'gate', circuit.gnd, circuit.gnd, model='nch'") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "W=1u") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "L=180n") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "circuit.M(name='1', drain='drain', gate='gate', source=circuit.gnd, bulk=circuit.gnd, model='nch'") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "W='1u'") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "L='180n'") != null);
 }
 
 test "template has marker" {
@@ -502,12 +671,12 @@ test "template has marker" {
     var pool: StringPool = .{};
     defer pool.deinit(a);
 
-    const result = try emitTemplate(a, &pool, "test", &.{}, &.{}, &.{}, &.{}, &.{}, "ngspice");
+    const result = try emitTemplate(a, &pool, "test", &.{}, &.{}, &.{}, &.{}, &.{}, &.{}, "ngspice");
     defer a.free(result);
 
     try std.testing.expect(std.mem.indexOf(u8, result, "SCHEMIFY_MARKER") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "from pyspice_rs import Circuit") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "Backend: ngspice") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "simulator='ngspice'") != null);
 }
 
 test "subcircuit emission" {
@@ -531,7 +700,7 @@ test "subcircuit emission" {
     };
     const conn_starts = [_]u32{0};
     const conn_counts = [_]u16{3};
-    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &.{}, &test_conns, &conn_starts, &conn_counts);
+    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &.{}, &test_conns, &conn_starts, &conn_counts, &.{});
     defer a.free(result);
 
     try std.testing.expect(std.mem.indexOf(u8, result, "circuit.X('1', 'opamp'") != null);
@@ -562,10 +731,10 @@ test "bjt emission" {
     };
     const conn_starts = [_]u32{0};
     const conn_counts = [_]u16{3};
-    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts);
+    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts, &.{});
     defer a.free(result);
 
-    try std.testing.expect(std.mem.indexOf(u8, result, "circuit.BJT('1', 'vcc', 'base', circuit.gnd, model='2N2222')") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "circuit.Q(name='1', collector='vcc', base='base', emitter=circuit.gnd, model='2N2222')") != null);
 }
 
 test "diode emission" {
@@ -591,10 +760,10 @@ test "diode emission" {
     };
     const conn_starts = [_]u32{0};
     const conn_counts = [_]u16{2};
-    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts);
+    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &test_props, &test_conns, &conn_starts, &conn_counts, &.{});
     defer a.free(result);
 
-    try std.testing.expect(std.mem.indexOf(u8, result, "circuit.D('1', 'anode_net', 'cathode_net', model='1N4148')") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "circuit.D(name='1', anode='anode_net', cathode='cathode_net', model='1N4148')") != null);
 }
 
 test "skips non-electrical instances" {
@@ -610,7 +779,7 @@ test "skips non-electrical instances" {
         .{ .name = h.str("VDD"), .symbol = h.str("vdd"), .kind = .vdd },
         .{ .name = h.str("lab"), .symbol = h.str("lab_pin"), .kind = .lab_pin },
     };
-    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &.{}, &.{}, &.{}, &.{});
+    const result = try emitCircuitDef(a, &h.pool, "test", &instances, &.{}, &.{}, &.{}, &.{}, &.{});
     defer a.free(result);
 
     try std.testing.expectEqualStrings("circuit = Circuit('test')\n", result);

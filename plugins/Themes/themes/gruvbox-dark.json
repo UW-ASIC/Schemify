@@ -1,0 +1,47 @@
+{
+  "name": "Gruvbox Dark",
+  "dark": true,
+  "roles": {
+    "control": { "fill": "#3c3836", "corner_radius": [4, 4, 4, 4] },
+    "window": { "fill": "#282828" },
+    "accent": { "fill": "#d65d0e" }
+  },
+  "widgets": {
+    "button": {
+      "fill": "#504945",
+      "fill_hover": "#665c54",
+      "text": "#ebdbb2",
+      "variants": {
+        "primary": { "fill": "#458588" },
+        "danger": { "fill": "#cc241d" }
+      }
+    },
+    "tab": {
+      "variants": { "active": { "fill": "#3c3836" } }
+    }
+  },
+  "canvas": {
+    "wire": { "color": "#458588", "color_selected": "#d65d0e", "stroke_width": 1.8, "style": "ortho" },
+    "pin": { "color": "#d79921", "radius": 2.5, "shape": "circle" },
+    "instance_body": { "fill": "#3c3836", "stroke_color": "#689d6a" },
+    "grid": { "color": "#504945", "style": "dots", "dot_size": 1.0 },
+    "selection_rect": { "color": "#458588", "fill_color": "#45858822" }
+  },
+  "toolbar_bg": [40, 40, 40],
+  "tabbar_bg": [50, 48, 47],
+  "tab_active_bg": [60, 56, 54],
+  "statusbar_bg": [40, 40, 40],
+  "sidebar_bg": [50, 48, 47],
+  "text_primary": [235, 219, 178],
+  "text_secondary": [168, 153, 132],
+  "accent": [214, 93, 14],
+  "separator": [80, 73, 69],
+  "hover_bg": [80, 73, 69],
+  "canvas_bg": [40, 40, 40],
+  "wire": [69, 133, 136],
+  "wire_selected": [214, 93, 14],
+  "instance_body": [60, 56, 54],
+  "instance_pin": [215, 153, 33],
+  "symbol_line": [104, 157, 106],
+  "grid_dot": [80, 73, 69, 80]
+}

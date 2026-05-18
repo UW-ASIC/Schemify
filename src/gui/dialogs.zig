@@ -60,7 +60,7 @@ pub fn drawAll(app: *AppState) void {
 // ══════════════════════════════════════════════════════════════════════════════
 
 fn drawPropsDialog(app: *AppState) void {
-    const pd = &app.gui.cold.props_dialog;
+    const pd = &app.gui.cold.dialogs.props;
     // Position in bottom-left of window
     const win = dvui.windowRect();
     const w: f32 = 520;
@@ -73,7 +73,7 @@ fn drawPropsDialog(app: *AppState) void {
 }
 
 fn drawPropsContent(app: *AppState) void {
-    const pd = &app.gui.cold.props_dialog;
+    const pd = &app.gui.cold.dialogs.props;
     const fio = app.active() orelse return;
     const accent = theme_config.chromeAccent();
     const muted = theme_config.chromeTextSecondary();
@@ -195,7 +195,7 @@ fn drawPropsContent(app: *AppState) void {
 }
 
 fn applyPropsChanges(app: *AppState) void {
-    const pd = &app.gui.cold.props_dialog;
+    const pd = &app.gui.cold.dialogs.props;
     const fio = app.active() orelse return;
     if (pd.inst_idx >= fio.sch.instances.len) return;
 
@@ -241,12 +241,12 @@ fn sliceToNull(buf: []const u8) []const u8 {
 // ══════════════════════════════════════════════════════════════════════════════
 
 fn drawMultiPropsDialog(app: *AppState) void {
-    const mpd = &app.gui.cold.multi_props_dialog;
+    const mpd = &app.gui.cold.dialogs.multi_props;
     dialog("Batch Edit Properties", &mpd.is_open, &mpd.win_rect, true, 520, 360, drawMultiPropsContent, app);
 }
 
 fn drawMultiPropsContent(app: *AppState) void {
-    const mpd = &app.gui.cold.multi_props_dialog;
+    const mpd = &app.gui.cold.dialogs.multi_props;
     const fio = app.active() orelse return;
 
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 } });
@@ -322,7 +322,7 @@ fn drawMultiPropsContent(app: *AppState) void {
 }
 
 fn applyMultiPropsChanges(app: *AppState) void {
-    const mpd = &app.gui.cold.multi_props_dialog;
+    const mpd = &app.gui.cold.dialogs.multi_props;
     const fio = app.active() orelse return;
 
     var applied: usize = 0;
@@ -381,12 +381,12 @@ fn applyMultiPropsChanges(app: *AppState) void {
 // ══════════════════════════════════════════════════════════════════════════════
 
 fn drawFindDialog(app: *AppState) void {
-    const fd = &app.gui.cold.find_dialog;
+    const fd = &app.gui.cold.dialogs.find;
     dialog("Find / Select", &fd.is_open, &fd.win_rect, false, 320, 200, drawFindContent, app);
 }
 
 fn drawFindContent(app: *AppState) void {
-    const fd = &app.gui.cold.find_dialog;
+    const fd = &app.gui.cold.dialogs.find;
 
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 } });
     defer body.deinit();
@@ -439,7 +439,7 @@ fn drawFindContent(app: *AppState) void {
 }
 
 fn countMatches(app: *AppState) usize {
-    const fd = &app.gui.cold.find_dialog;
+    const fd = &app.gui.cold.dialogs.find;
     const query = fd.query_buf[0..fd.query_len];
     if (query.len == 0) return 0;
     const doc = app.active() orelse return 0;
@@ -452,7 +452,7 @@ fn countMatches(app: *AppState) usize {
 }
 
 fn selectAllMatches(app: *AppState) void {
-    const fd = &app.gui.cold.find_dialog;
+    const fd = &app.gui.cold.dialogs.find;
     const query = fd.query_buf[0..fd.query_len];
     if (query.len == 0) {
         app.status_msg = "No search query";
@@ -510,10 +510,10 @@ fn toLowerA(c: u8) u8 {
 // ══════════════════════════════════════════════════════════════════════════════
 
 fn drawKeybindsDialog(app: *AppState) void {
-    const kd = &app.gui.cold.keybinds_dialog;
+    const kd = &app.gui.cold.dialogs.keybinds;
     // Sync from keybinds_open flag
-    kd.is_open = kd.is_open or app.gui.cold.keybinds_open;
-    app.gui.cold.keybinds_open = false;
+    kd.is_open = kd.is_open or app.gui.cold.dialogs.keybinds_open;
+    app.gui.cold.dialogs.keybinds_open = false;
     dialog("Keyboard Shortcuts", &kd.is_open, &kd.win_rect, false, 500, 400, drawKeybindsContent, app);
 }
 
@@ -536,7 +536,7 @@ fn drawKeybindsContent(app: *AppState) void {
         };
         dvui.labelNoFmt(@src(), astr, .{}, .{ .expand = .horizontal, .id_extra = i + 1000 });
     }
-    if (dvui.button(@src(), "Close [Esc]", .{}, .{})) app.gui.cold.keybinds_dialog.is_open = false;
+    if (dvui.button(@src(), "Close [Esc]", .{}, .{})) app.gui.cold.dialogs.keybinds.is_open = false;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -544,7 +544,7 @@ fn drawKeybindsContent(app: *AppState) void {
 // ══════════════════════════════════════════════════════════════════════════════
 
 fn drawSpiceCodeDialog(app: *AppState) void {
-    const sd = &app.gui.cold.spice_code_dialog;
+    const sd = &app.gui.cold.dialogs.spice_code;
     dialog("SPICE Netlist", &sd.is_open, &sd.win_rect, true, 640, 440, drawSpiceContent, app);
 }
 
@@ -573,12 +573,12 @@ fn drawSpiceContent(app: *AppState) void {
 // ══════════════════════════════════════════════════════════════════════════════
 
 fn drawNewPrimDialog(app: *AppState) void {
-    const npd = &app.gui.cold.new_prim_dialog;
+    const npd = &app.gui.cold.dialogs.new_prim;
     dialog("New Primitive", &npd.is_open, &npd.win_rect, true, 540, 440, drawNewPrimContent, app);
 }
 
 fn drawNewPrimContent(app: *AppState) void {
-    const npd = &app.gui.cold.new_prim_dialog;
+    const npd = &app.gui.cold.dialogs.new_prim;
 
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .padding = .{ .x = 10, .y = 8, .w = 10, .h = 8 } });
     defer body.deinit();
@@ -665,7 +665,7 @@ fn drawNewPrimContent(app: *AppState) void {
 }
 
 fn createPrimitiveFile(app: *AppState) void {
-    const npd = &app.gui.cold.new_prim_dialog;
+    const npd = &app.gui.cold.dialogs.new_prim;
     const name = sliceToNull(&npd.name_buf);
     if (name.len == 0) {
         npd.status_msg = "Name cannot be empty";
@@ -834,7 +834,7 @@ fn drawMissingSymbols(app: *AppState) void {
 const external = @import("import");
 
 fn drawImportDialog(app: *AppState) void {
-    const imp = &app.gui.cold.import_project;
+    const imp = &app.gui.cold.dialogs.import_project;
     dialog("Import External Project", &imp.is_open, &imp.win_rect, true, 520, 320, drawImportContent, app);
 }
 
@@ -852,7 +852,7 @@ fn detectFormat(path: []const u8) st.ImportDialogState.Format {
 }
 
 fn drawImportContent(app: *AppState) void {
-    const imp = &app.gui.cold.import_project;
+    const imp = &app.gui.cold.dialogs.import_project;
 
     var body = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .padding = .{ .x = 12, .y = 10, .w = 12, .h = 10 } });
     defer body.deinit();
@@ -948,7 +948,7 @@ fn drawImportContent(app: *AppState) void {
 }
 
 fn runImport(app: *AppState) void {
-    const imp = &app.gui.cold.import_project;
+    const imp = &app.gui.cold.dialogs.import_project;
     const path = imp.getPath();
     if (path.len == 0) {
         imp.status_msg = "No file path specified";

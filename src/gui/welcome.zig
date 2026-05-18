@@ -189,7 +189,7 @@ fn drawQuickActions(
         .corner_radius = .{ .x = 6, .y = 6, .w = 6, .h = 6 },
         .margin = .{ .x = 0, .y = 0, .w = 8, .h = 0 },
     })) {
-        app.gui.cold.import_project.is_open = true;
+        app.gui.cold.dialogs.import_project.is_open = true;
     }
 }
 

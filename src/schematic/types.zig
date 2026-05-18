@@ -142,7 +142,24 @@ pub const Wire = struct {
     y0: i32,
     x1: i32,
     y1: i32,
+    /// Packed RGBA color override. 0 = use theme default.
+    color: u32 = 0,
+    /// Thickness multiplier in tenths (e.g. 20 = 2.0x). 0 = default.
+    thickness: u8 = 0,
     bus: bool = false,
+
+    pub fn colorRGB(self: Wire) ?[3]u8 {
+        if (self.color == 0) return null;
+        return .{
+            @truncate(self.color >> 24),
+            @truncate(self.color >> 16),
+            @truncate(self.color >> 8),
+        };
+    }
+
+    pub fn packColor(r: u8, g: u8, b: u8) u32 {
+        return (@as(u32, r) << 24) | (@as(u32, g) << 16) | (@as(u32, b) << 8) | 0xFF;
+    }
 };
 
 pub const Pin = struct {
@@ -157,6 +174,13 @@ pub const Pin = struct {
 pub const Property = struct {
     key: StringRef = .empty,
     val: StringRef = .empty,
+};
+
+pub const ModelDef = struct {
+    name: StringRef = .empty,
+    kind: StringRef = .empty,
+    prop_start: u32 = 0,
+    prop_count: u16 = 0,
 };
 
 pub const Conn = struct {
@@ -215,6 +239,9 @@ pub const PinRef = struct {
     y: i32 = 0,
     dir: PinDir = .inout,
     propag: bool = true,
+    /// Explicit net assignment (from import). When non-empty, connectivity
+    /// uses this directly instead of geometric resolution.
+    net: StringRef = .empty,
 };
 
 pub const SymData = struct {

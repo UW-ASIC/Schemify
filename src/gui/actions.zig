@@ -19,8 +19,22 @@ pub fn enqueue(app: *AppState, cmd: command.Command, ok_msg: []const u8) void {
 
 pub fn runGuiCommand(app: *AppState, gui_cmd: GuiCommand) void {
     switch (gui_cmd) {
-        .view_schematic => { app.gui.hot.view_mode = .schematic; app.status_msg = "Schematic view"; },
-        .view_symbol => { app.gui.hot.view_mode = .symbol; app.status_msg = "Symbol view"; },
+        .view_schematic => {
+            if (app.gui.cold.dialogs.settings.editing_theme_json) {
+                app.gui.cold.dialogs.settings.editing_theme_json = false;
+                app.gui.cold.doc_editor.loaded = false;
+            }
+            app.gui.hot.view_mode = .schematic;
+            app.status_msg = "Schematic view";
+        },
+        .view_symbol => {
+            if (app.gui.cold.dialogs.settings.editing_theme_json) {
+                app.gui.cold.dialogs.settings.editing_theme_json = false;
+                app.gui.cold.doc_editor.loaded = false;
+            }
+            app.gui.hot.view_mode = .symbol;
+            app.status_msg = "Symbol view";
+        },
         .view_doc => { app.gui.hot.view_mode = .doc; app.status_msg = "Documentation view"; },
         .file_open => { app.open_file_explorer = true; },
     }
@@ -174,7 +188,7 @@ pub fn runVimCommand(app: *AppState, line: []const u8) void {
 
     // Plugin-registered commands (fallback).
     _ = rest;
-    for (app.gui.cold.plugin_commands.items) |pc| {
+    for (app.gui.cold.plugins.commands.items) |pc| {
         if (!std.mem.eql(u8, pc.id, name)) continue;
         const pr = std.mem.trim(u8, parts.rest(), " \t");
         enqueue(app, .{ .immediate = .{ .plugin_command = .{ .tag = pc.id, .payload = pr } } }, pc.display_name);

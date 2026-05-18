@@ -105,13 +105,13 @@ pub fn handleEdit(und: Undoable, state: anytype) Error!void {
                 }
                 inst_name = std.fmt.bufPrint(&name_buf, "{c}{d}", .{ pfx_ch, counter }) catch "X1";
             }
-            _ = try fio.sch.addComponent(fio.alloc, .{ .name = inst_name, .symbol = p.sym_path, .x = p.x, .y = p.y });
+            _ = try fio.sch.addComponent(fio.alloc, .{ .name = inst_name, .symbol = p.sym_path, .x = p.x, .y = p.y, .rot = p.rot, .flip = p.flip });
             fio.dirty = true;
         },
 
         .add_wire => |p| {
             const fio = state.active() orelse return;
-            try fio.addWireSeg(.{ p.x0, p.y0 }, .{ p.x1, p.y1 }, p.net_name);
+            try fio.addWireSegBus(.{ p.x0, p.y0 }, .{ p.x1, p.y1 }, p.net_name, p.bus);
         },
 
         .set_instance_prop => |p| {
@@ -165,6 +165,17 @@ pub fn handleEdit(und: Undoable, state: anytype) Error!void {
             fio.sch.setWireNetName(fio.alloc, p.wire_idx, p.new_name) catch {};
             fio.dirty = true;
             state.setStatus("Net renamed");
+        },
+
+        .set_wire_color => |p| {
+            const fio = state.active() orelse return;
+            if (p.wire_idx >= fio.sch.wires.len) {
+                state.setStatus("Invalid wire index");
+                return;
+            }
+            fio.sch.wires.items(.color)[p.wire_idx] = p.color;
+            fio.dirty = true;
+            state.setStatus(if (p.color == 0) "Wire color cleared" else "Wire color set");
         },
 
         .set_spice_code => |p| {

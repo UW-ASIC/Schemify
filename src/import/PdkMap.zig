@@ -19,46 +19,10 @@ pub const PdkEntry = struct {
 
 // ── Comptime defaults ───────────────────────────────────────────────────────
 
+/// Fallback table — generic/universal prefixes only.
+/// PDK-specific mappings (sky130, GF180, IHP, TSMC, etc.) are loaded
+/// at runtime from a project-level JSON file via `loadFromFile`.
 pub const pdk_table = [_]PdkEntry{
-    // Sky130
-    .{ .prefix = "sky130_fd_pr__nfet", .kind = .nmos4 },
-    .{ .prefix = "sky130_fd_pr__pfet", .kind = .pmos4 },
-    .{ .prefix = "sky130_fd_pr__res", .kind = .resistor },
-    .{ .prefix = "sky130_fd_pr__cap", .kind = .capacitor },
-    .{ .prefix = "sky130_fd_pr__diode", .kind = .diode },
-    .{ .prefix = "sky130_fd_pr__npn", .kind = .npn },
-    .{ .prefix = "sky130_fd_pr__pnp", .kind = .pnp },
-    // GF180MCU
-    .{ .prefix = "gf180mcu_fd_pr__nfet", .kind = .nmos4 },
-    .{ .prefix = "gf180mcu_fd_pr__pfet", .kind = .pmos4 },
-    .{ .prefix = "gf180mcu_fd_pr__res", .kind = .resistor },
-    .{ .prefix = "gf180mcu_fd_pr__cap", .kind = .capacitor },
-    .{ .prefix = "gf180mcu_fd_pr__diode", .kind = .diode },
-    .{ .prefix = "gf180mcu_fd_pr__vnpn", .kind = .npn },
-    .{ .prefix = "gf180mcu_fd_pr__vpnp", .kind = .pnp },
-    // IHP SG13G2
-    .{ .prefix = "sg13_lv_nmos", .kind = .nmos4 },
-    .{ .prefix = "sg13_hv_nmos", .kind = .nmos4 },
-    .{ .prefix = "sg13_lv_pmos", .kind = .pmos4 },
-    .{ .prefix = "sg13_hv_pmos", .kind = .pmos4 },
-    .{ .prefix = "npn13g2", .kind = .npn },
-    .{ .prefix = "pnpMPA", .kind = .pnp },
-    .{ .prefix = "sg13_lv_res", .kind = .resistor },
-    .{ .prefix = "sg13_hv_res", .kind = .resistor },
-    // GF180 short-form (Cadence cell names)
-    .{ .prefix = "cap_mim_", .kind = .capacitor },
-    .{ .prefix = "cap_nmos_", .kind = .capacitor },
-    .{ .prefix = "cap_pmos_", .kind = .capacitor },
-    .{ .prefix = "sc_diode", .kind = .diode },
-    .{ .prefix = "nfet_", .kind = .nmos4 },
-    .{ .prefix = "pfet_", .kind = .pmos4 },
-    .{ .prefix = "npn_", .kind = .npn },
-    .{ .prefix = "pnp_", .kind = .pnp },
-    .{ .prefix = "diode_", .kind = .diode },
-    // TSMC short-form
-    .{ .prefix = "nch_", .kind = .nmos4 },
-    .{ .prefix = "pch_", .kind = .pmos4 },
-    // Universal / GPDK
     .{ .prefix = "nmos", .kind = .nmos4 },
     .{ .prefix = "pmos", .kind = .pmos4 },
     .{ .prefix = "vpnp", .kind = .pnp },
@@ -238,6 +202,28 @@ const JsonEntry = struct {
     kind: []const u8,
 };
 
+/// Default JSON filename looked up in the project directory.
+pub const default_json_name = "pdk_map.json";
+
+/// Load PDK entries from a project directory: tries `pdk_map.json`, then
+/// falls back to the comptime `pdk_table`.  JSON entries are prepended
+/// (higher priority) before the universal fallback entries.
+pub fn loadOrDefault(alloc: Allocator, project_dir: ?[]const u8) []const PdkEntry {
+    if (project_dir) |dir| {
+        var buf: [1024]u8 = undefined;
+        const json_path = std.fmt.bufPrint(&buf, "{s}/{s}", .{ dir, default_json_name }) catch
+            return &pdk_table;
+        if (loadFromFile(alloc, json_path)) |user_entries| {
+            // Concat: user entries (checked first) + universal fallback
+            var combined: std.ArrayListUnmanaged(PdkEntry) = .{};
+            combined.appendSlice(alloc, user_entries) catch return user_entries;
+            combined.appendSlice(alloc, &pdk_table) catch return user_entries;
+            return combined.toOwnedSlice(alloc) catch user_entries;
+        } else |_| {}
+    }
+    return &pdk_table;
+}
+
 // ── Pin translation (Cadence pin names -> Schemify) ─────────────────────────
 
 pub const PinContext = enum {
@@ -372,31 +358,42 @@ test "resolveKind -- analogLib exact matches" {
     try testing.expectEqual(DeviceKind.behavioral, resolveKind(&pdk_table, "bsource"));
 }
 
-test "resolveKind -- TSMC cells" {
-    try std.testing.expectEqual(DeviceKind.nmos4, resolveKind(&pdk_table, "nch"));
-    try std.testing.expectEqual(DeviceKind.pmos4, resolveKind(&pdk_table, "pch"));
-    try std.testing.expectEqual(DeviceKind.nmos4, resolveKind(&pdk_table, "nch_lvt"));
-    try std.testing.expectEqual(DeviceKind.pmos4, resolveKind(&pdk_table, "pch_hvt"));
-}
-
-test "resolveKind -- GF180MCU prefix fallback" {
-    try std.testing.expectEqual(DeviceKind.nmos4, resolveKind(&pdk_table, "nfet_03v3"));
-    try std.testing.expectEqual(DeviceKind.pmos4, resolveKind(&pdk_table, "pfet_06v0"));
+test "resolveKind -- universal prefix fallback" {
+    try std.testing.expectEqual(DeviceKind.nmos4, resolveKind(&pdk_table, "nmos_3v3"));
+    try std.testing.expectEqual(DeviceKind.pmos4, resolveKind(&pdk_table, "pmos_1v8"));
     try std.testing.expectEqual(DeviceKind.npn, resolveKind(&pdk_table, "npn_10x10"));
-    try std.testing.expectEqual(DeviceKind.capacitor, resolveKind(&pdk_table, "cap_mim_2f5fF"));
+    try std.testing.expectEqual(DeviceKind.capacitor, resolveKind(&pdk_table, "cap_100f"));
 }
 
 test "resolveKind -- unknown falls to .subckt" {
     try std.testing.expectEqual(DeviceKind.subckt, resolveKind(&pdk_table, "my_custom_opamp"));
 }
 
-test "matchPdkPrefix -- sky130 nfet" {
-    const m = matchPdkPrefix(&pdk_table, "sky130_fd_pr__nfet_01v8") orelse unreachable;
+test "resolveKind -- PDK-specific needs JSON (falls to .subckt without it)" {
+    try std.testing.expectEqual(DeviceKind.subckt, resolveKind(&pdk_table, "sky130_fd_pr__nfet_01v8"));
+    try std.testing.expectEqual(DeviceKind.subckt, resolveKind(&pdk_table, "gf180mcu_fd_pr__nfet_03v3"));
+}
+
+test "matchPdkPrefix -- universal nmos" {
+    const m = matchPdkPrefix(&pdk_table, "nmos") orelse unreachable;
     try std.testing.expectEqual(DeviceKind.nmos4, m.kind);
 }
 
 test "matchPdkPrefix -- no match" {
     try std.testing.expect(matchPdkPrefix(&pdk_table, "generic_xyz") == null);
+}
+
+test "parseJson -- loaded entries resolve PDK names" {
+    const json =
+        \\[{"prefix":"sky130_fd_pr__nfet","kind":"nmos4"},{"prefix":"sky130_fd_pr__pfet","kind":"pmos4"}]
+    ;
+    const entries = try parseJson(std.testing.allocator, json);
+    defer {
+        for (entries) |e| std.testing.allocator.free(e.prefix);
+        std.testing.allocator.free(entries);
+    }
+    try std.testing.expectEqual(DeviceKind.nmos4, resolveKind(entries, "sky130_fd_pr__nfet_01v8"));
+    try std.testing.expectEqual(DeviceKind.pmos4, resolveKind(entries, "sky130_fd_pr__pfet_01v8"));
 }
 
 test "parseJson -- valid entries" {

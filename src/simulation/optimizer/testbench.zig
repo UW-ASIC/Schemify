@@ -508,6 +508,142 @@ fn parseMeasurementList(
     }
 }
 
+// ── discoverMeasurementsFromDecl ─────────────────────────────────────────────
+
+/// Parse a measurements declaration string (from .chn_tb `measurements:` line).
+/// Format: "gain_db (dB), bandwidth_hz (Hz), phase_margin (deg)"
+/// Reuses the same comma-separated "name (unit)" format as discoverMeasurements.
+pub fn discoverMeasurementsFromDecl(decl: []const u8) types.FixedList(DiscoveredMeasurement, 64) {
+    var result: types.FixedList(DiscoveredMeasurement, 64) = .{};
+    if (decl.len == 0) return result;
+    parseMeasurementList(decl, &result);
+    return result;
+}
+
+// ── testbenchReferencesDut ──────────────────────────────────────────────────
+
+/// Check if a testbench file's content references a given DUT name.
+/// Looks for `sym=<dut_name>` in instance lines, indicating the testbench
+/// instantiates the design under test.
+pub fn testbenchReferencesDut(tb_content: []const u8, dut_name: []const u8) bool {
+    if (dut_name.len == 0) return false;
+    // Build the pattern "sym=<dut_name>" to search for.
+    var pattern_buf: [128]u8 = undefined;
+    const pattern = std.fmt.bufPrint(&pattern_buf, "sym={s}", .{dut_name}) catch return false;
+    return std.mem.indexOf(u8, tb_content, pattern) != null;
+}
+
+// ── DiscoveredDevice ─────────────────────────────────────────────────────────
+
+pub const DiscoveredDevice = struct {
+    instance: [types.max_name_len]u8 = .{0} ** types.max_name_len,
+    instance_len: u8 = 0,
+    device_type: types.DeviceType = .mosfet,
+    kind_str: [16]u8 = .{0} ** 16,
+    kind_str_len: u8 = 0,
+    current_w: [16]u8 = .{0} ** 16,
+    current_l: [16]u8 = .{0} ** 16,
+    current_nf: [8]u8 = .{0} ** 8,
+    enabled: bool = true,
+    bound_min: [16]u8 = .{0} ** 16,
+    bound_max: [16]u8 = .{0} ** 16,
+
+    pub fn instanceSlice(self: *const DiscoveredDevice) []const u8 {
+        return self.instance[0..self.instance_len];
+    }
+
+    pub fn kindSlice(self: *const DiscoveredDevice) []const u8 {
+        return self.kind_str[0..self.kind_str_len];
+    }
+
+    fn setBuf(buf: []u8, val: []const u8) void {
+        const len = @min(val.len, buf.len);
+        @memcpy(buf[0..len], val[0..len]);
+    }
+};
+
+// ── discoverOptimizableDevices ───────────────────────────────────────────────
+
+const schematic = @import("schematic");
+const DeviceKind = schematic.types.DeviceKind;
+const StringPool = schematic.string_pool.StringPool;
+const Property = schematic.types.Property;
+const StringRef = schematic.string_pool.StringRef;
+
+/// Scan schematic instances to find optimizable devices (MOSFETs, BJTs, resistors).
+/// Populates `out` with discovered devices and returns the count.
+/// Pure function — no allocations, no side effects.
+pub fn discoverOptimizableDevices(
+    kinds: []const DeviceKind,
+    names: []const StringRef,
+    prop_starts: []const u32,
+    prop_counts: []const u16,
+    props: []const Property,
+    pool: *const StringPool,
+    out: *[32]DiscoveredDevice,
+) u8 {
+    var count: u8 = 0;
+    for (kinds, names, prop_starts, prop_counts) |kind, name_ref, ps, pc| {
+        const dev_type: ?types.DeviceType = switch (kind) {
+            .nmos3, .nmos4, .nmos4_depl, .nmos_sub, .nmoshv4, .rnmos4 => .mosfet,
+            .pmos3, .pmos4, .pmos_sub, .pmoshv4 => .mosfet,
+            .npn, .pnp => .bjt,
+            .resistor, .resistor3 => .resistor,
+            else => null,
+        };
+        if (dev_type == null) continue;
+        if (count >= 32) break;
+
+        var dev = DiscoveredDevice{ .device_type = dev_type.? };
+
+        // Instance name
+        const inst_name = pool.get(name_ref);
+        const nlen: u8 = @intCast(@min(inst_name.len, types.max_name_len));
+        @memcpy(dev.instance[0..nlen], inst_name[0..nlen]);
+        dev.instance_len = nlen;
+
+        // Kind string
+        const kind_name = @tagName(kind);
+        const klen: u8 = @intCast(@min(kind_name.len, 16));
+        @memcpy(dev.kind_str[0..klen], kind_name[0..klen]);
+        dev.kind_str_len = klen;
+
+        // Extract W/L/NF from instance properties
+        const inst_props = props[ps..][0..pc];
+        for (inst_props) |p| {
+            const key = pool.get(p.key);
+            const val = pool.get(p.val);
+            if (std.mem.eql(u8, key, "W") or std.mem.eql(u8, key, "w"))
+                DiscoveredDevice.setBuf(&dev.current_w, val)
+            else if (std.mem.eql(u8, key, "L") or std.mem.eql(u8, key, "l"))
+                DiscoveredDevice.setBuf(&dev.current_l, val)
+            else if (std.mem.eql(u8, key, "nf") or std.mem.eql(u8, key, "NF"))
+                DiscoveredDevice.setBuf(&dev.current_nf, val);
+        }
+
+        // Default bounds based on device type
+        switch (dev_type.?) {
+            .mosfet => {
+                DiscoveredDevice.setBuf(&dev.bound_min, "3");
+                DiscoveredDevice.setBuf(&dev.bound_max, "25");
+            },
+            .bjt => {
+                DiscoveredDevice.setBuf(&dev.bound_min, "1");
+                DiscoveredDevice.setBuf(&dev.bound_max, "50");
+            },
+            .resistor => {
+                DiscoveredDevice.setBuf(&dev.bound_min, "0.5u");
+                DiscoveredDevice.setBuf(&dev.bound_max, "50u");
+            },
+            .parameter => {},
+        }
+
+        out[count] = dev;
+        count += 1;
+    }
+    return count;
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 test "parseTbMeasurements: valid JSON" {
@@ -724,4 +860,54 @@ test "extractMeasurement: missing value returns null" {
         \\{"name": "gain", "unit": "dB"}
     ;
     try std.testing.expect(extractMeasurement(obj) == null);
+}
+
+test "discoverMeasurementsFromDecl: basic" {
+    const result = discoverMeasurementsFromDecl("gain_db (dB), bandwidth_hz (Hz), phase_margin (deg)");
+    try std.testing.expectEqual(@as(usize, 3), result.len);
+    try std.testing.expectEqualStrings("gain_db", result.items[0].nameSlice());
+    try std.testing.expectEqualStrings("dB", result.items[0].unitSlice());
+    try std.testing.expectEqualStrings("bandwidth_hz", result.items[1].nameSlice());
+    try std.testing.expectEqualStrings("Hz", result.items[1].unitSlice());
+    try std.testing.expectEqualStrings("phase_margin", result.items[2].nameSlice());
+    try std.testing.expectEqualStrings("deg", result.items[2].unitSlice());
+}
+
+test "discoverMeasurementsFromDecl: empty" {
+    const result = discoverMeasurementsFromDecl("");
+    try std.testing.expectEqual(@as(usize, 0), result.len);
+}
+
+test "discoverMeasurementsFromDecl: no units" {
+    const result = discoverMeasurementsFromDecl("gain, bw, pm");
+    try std.testing.expectEqual(@as(usize, 3), result.len);
+    try std.testing.expectEqualStrings("gain", result.items[0].nameSlice());
+    try std.testing.expectEqual(@as(u8, 0), result.items[0].unit_len);
+}
+
+test "testbenchReferencesDut: match" {
+    const content =
+        \\chn_testbench 1
+        \\
+        \\TESTBENCH tb_opamp
+        \\  instances:
+        \\    x1  subckt  x=100  y=-200  sym=opamp
+        \\    vdd  vsource  x=200  y=0
+    ;
+    try std.testing.expect(testbenchReferencesDut(content, "opamp"));
+}
+
+test "testbenchReferencesDut: no match" {
+    const content =
+        \\chn_testbench 1
+        \\
+        \\TESTBENCH tb_opamp
+        \\  instances:
+        \\    x1  subckt  x=100  y=-200  sym=amplifier
+    ;
+    try std.testing.expect(!testbenchReferencesDut(content, "opamp"));
+}
+
+test "testbenchReferencesDut: empty dut name" {
+    try std.testing.expect(!testbenchReferencesDut("sym=opamp", ""));
 }

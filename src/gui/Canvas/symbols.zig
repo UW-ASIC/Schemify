@@ -27,11 +27,11 @@ const SubcktCache = st.SubcktCache;
 // Subcircuit symbol resolution
 // ═══════════════════════════════════════════════════════════════════════════
 
-fn resolveSubcktSymbol(symbol: []const u8, doc_origin: st.Origin, project_dir: []const u8, doc: *st.Document) ?*const SubcktSymbol {
+fn resolveSubcktSymbol(symbol: []const u8, doc_origin: st.Origin, project_dir: []const u8, pdk_name: []const u8, doc: *st.Document) ?*const SubcktSymbol {
     if (doc.subckt_cache.getPtr(symbol)) |cached| return cached;
 
     var path_buf: [512]u8 = undefined;
-    const chn_path = resolveSubcktPath(symbol, doc_origin, project_dir, &path_buf) orelse return null;
+    const chn_path = resolveSubcktPath(symbol, doc_origin, project_dir, pdk_name, &path_buf) orelse return null;
 
     const arena = doc.subcktAllocator();
     const data = utility.platform.fs.cwd().readFileAlloc(arena, chn_path, std.math.maxInt(usize)) catch return null;
@@ -97,12 +97,27 @@ fn pathExists(path: []const u8) bool {
     return true;
 }
 
-fn resolveSubcktPath(symbol: []const u8, doc_origin: st.Origin, project_dir: []const u8, buf: *[512]u8) ?[]const u8 {
+fn resolveSubcktPath(symbol: []const u8, doc_origin: st.Origin, project_dir: []const u8, pdk_name: []const u8, buf: *[512]u8) ?[]const u8 {
     const base = if (std.mem.endsWith(u8, symbol, ".sym")) symbol[0 .. symbol.len - ".sym".len] else symbol;
     if (std.mem.endsWith(u8, base, ".chn")) { if (pathExists(base)) return base; }
     const dir: []const u8 = switch (doc_origin) { .chn_file => |p| std.fs.path.dirname(p) orelse ".", else => "." };
     inline for ([_]struct { d: []const u8, s: []const u8 }{ .{ .d = dir, .s = base }, .{ .d = project_dir, .s = base }, .{ .d = dir, .s = std.fs.path.stem(base) } }) |trial| {
         if (std.fmt.bufPrint(buf, "{s}/{s}.chn", .{ trial.d, trial.s })) |path| { if (pathExists(path)) return path; } else |_| {}
+    }
+    // Check PDK cache: ~/.cache/schemify/pdk/{pdk_name}/{name}.chn_prim
+    if (pdk_name.len > 0) {
+        const home = utility.platform.homeDir() orelse return null;
+        // Try full symbol name
+        if (std.fmt.bufPrint(buf, "{s}/.cache/schemify/pdk/{s}/{s}.chn_prim", .{ home, pdk_name, base })) |path| {
+            if (pathExists(path)) return path;
+        } else |_| {}
+        // Strip PDK prefix (e.g. "sky130_fd_pr__nfet_01v8" -> "nfet_01v8")
+        if (std.mem.lastIndexOfLinear(u8, base, "__")) |idx| {
+            const stripped = base[idx + 2 ..];
+            if (std.fmt.bufPrint(buf, "{s}/.cache/schemify/pdk/{s}/{s}.chn_prim", .{ home, pdk_name, stripped })) |path| {
+                if (pathExists(path)) return path;
+            } else |_| {}
+        }
     }
     return null;
 }
@@ -135,6 +150,9 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, app: *st.AppState, 
     var pending_labels: h.LabelList = .{};
     defer pending_labels.deinit(lalloc);
 
+    const sym_w: f32 = @max(0.9, 1.8 * vp.scale);
+    const dec_w: f32 = sym_w * 0.6;
+
     for (0..sch.instances.len) |i| {
         const selected = i < sel.instances.bit_length and sel.instances.isSet(i);
         const origin = h.w2p(.{ ix[i], iy[i] }, vp);
@@ -146,15 +164,23 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, app: *st.AppState, 
 
         const prim: ?*const primitives.PrimEntry = primitives.findByNameRuntime(@tagName(ikind[i]));
         const is_port = if (prim) |entry| isPortPin(entry.kind_name) else false;
-        const color = if (selected) pal.inst_sel else if (is_port) port_pin_color else pal.symbol_line;
+        const color = if (selected) pal.inst_sel else if (is_port) port_pin_color else ctx.canvas_styles.instance.stroke_color;
 
         const fill = ctx.cmd_flags.fill_rects;
         if (prim) |entry| {
             if (is_port) drawPortPinFill(entry, origin, rot, flip, vp, port_pin_fill, &batch);
             drawPrimEntry(entry, origin, rot, flip, vp, color, &batch, fill);
+            // Hollow circles at pin positions (Virtuoso style).
+            const pin_r: f32 = @max(2.0, 3.0 * @min(vp.scale, 2.0));
+            for (entry.pinPositions()) |pp| {
+                if (entry.non_electrical and pp.x == 0 and pp.y == 0) continue;
+                const pp_rf = h.applyRotFlip(@floatFromInt(pp.x), @floatFromInt(pp.y), rot, flip);
+                const pp_px = origin + Vec2{ pp_rf[0], pp_rf[1] } * @as(Vec2, @splat(vp.scale));
+                batch.addHollowCircle(pp_px, pin_r, dec_w, color);
+            }
         } else {
             const sym_str = sch.str(isymbol[i]);
-            const subckt = if (active_doc) |doc| resolveSubcktSymbol(sym_str, doc_origin, app.project_dir, doc) else null;
+            const subckt = if (active_doc) |doc| resolveSubcktSymbol(sym_str, doc_origin, app.project_dir, app.pdk.name, doc) else null;
             if (subckt) |s| {
                 drawSubcktBox(s, origin, rot, flip, vp, color, &batch, &pending_labels, lalloc, fill);
             } else {
@@ -163,35 +189,36 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, app: *st.AppState, 
                 if (active_doc) |doc| doc.addMissingSymbol(sym_str);
             }
         }
-
-        // Pin marker cross at instance origin.
-        const pin_arm: f32 = @max(2.0, 3.0 * @min(vp.scale, 2.0));
-        const pin_color = if (selected) pal.wire_sel else pal.inst_pin;
-        batch.addLine(origin[0] - pin_arm, origin[1], origin[0] + pin_arm, origin[1], 0.8, pin_color);
-        batch.addLine(origin[0], origin[1] - pin_arm, origin[0], origin[1] + pin_arm, 0.8, pin_color);
-
-        // Pin connection squares.
-        if (prim) |entry| {
-            const pin_sq: f32 = @max(2.5, 3.5 * @min(vp.scale, 2.0));
-            for (entry.pinPositions()) |pp| {
-                if (entry.non_electrical and pp.x == 0 and pp.y == 0) continue;
-                const pp_rf = h.applyRotFlip(@floatFromInt(pp.x), @floatFromInt(pp.y), rot, flip);
-                const pp_px = origin + Vec2{ pp_rf[0], pp_rf[1] } * @as(Vec2, @splat(vp.scale));
-                batch.addDot(pp_px, pin_sq, pal.wire_endpoint);
-            }
-        }
     }
 
     batch.flush();
     h.drainLabels(&pending_labels, vp);
 
-    // Instance name labels.
+    // Instance name labels — positioned from primitive text annotations when available.
     if (vp.scale >= 0.3) {
+        const label_col = types.Color{ .r = ctx.canvas_styles.instance.stroke_color.r, .g = ctx.canvas_styles.instance.stroke_color.g, .b = ctx.canvas_styles.instance.stroke_color.b, .a = 180 };
         for (0..sch.instances.len) |i| {
             const nm = sch.str(iname[i]);
             if (nm.len == 0) continue;
             const origin = h.w2p(.{ ix[i], iy[i] }, vp);
-            h.drawLabel(nm, origin[0] + 25.0 * vp.scale, origin[1] - 20.0 * vp.scale, pal.inst_pin, vp, i);
+            const rot = iflags[i].rot;
+            const flip = iflags[i].flip;
+            const prim: ?*const primitives.PrimEntry = primitives.findByNameRuntime(@tagName(ikind[i]));
+            // Use @name text position from primitive if available.
+            if (prim) |entry| {
+                var placed = false;
+                for (entry.drawTexts()) |dt| {
+                    if (std.mem.eql(u8, dt.content, "@name")) {
+                        const rf = h.applyRotFlip(@floatFromInt(dt.x), @floatFromInt(dt.y), rot, flip);
+                        h.drawLabel(nm, origin[0] + rf[0] * vp.scale, origin[1] + rf[1] * vp.scale, label_col, vp, i);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) h.drawLabel(nm, origin[0] + 15.0 * vp.scale, origin[1] - 15.0 * vp.scale, label_col, vp, i);
+            } else {
+                h.drawLabel(nm, origin[0] + 25.0 * vp.scale, origin[1] - 20.0 * vp.scale, label_col, vp, i);
+            }
         }
     }
 }
@@ -199,7 +226,6 @@ pub fn draw(ctx: *const RenderContext, sch: *const Schemify, app: *st.AppState, 
 /// Draw symbol view (geometry, pins, texts).
 pub fn drawSymbol(ctx: *const RenderContext, sch: *const Schemify) void {
     const vp = ctx.vp;
-    const pal = ctx.pal;
     const prev_clip = dvui.clip(.{ .x = vp.bounds.x, .y = vp.bounds.y, .w = vp.bounds.w, .h = vp.bounds.h });
     defer dvui.clipSet(prev_clip);
 
@@ -213,8 +239,8 @@ pub fn drawSymbol(ctx: *const RenderContext, sch: *const Schemify) void {
     var pending_labels: h.LabelList = .{};
     defer pending_labels.deinit(lalloc);
 
-    if (has_geometry) drawSymbolGeometry(sch, vp, sym_w, pal, &batch, &pending_labels, lalloc)
-    else if (sch.pins.len > 0) drawAutoSymbolBox(sch, vp, sym_w, pal, &batch, &pending_labels, lalloc);
+    if (has_geometry) drawSymbolGeometry(sch, vp, sym_w, ctx, &batch, &pending_labels, lalloc)
+    else if (sch.pins.len > 0) drawAutoSymbolBox(sch, vp, sym_w, ctx, &batch, &pending_labels, lalloc);
     batch.flush();
     h.drainLabels(&pending_labels, vp);
 
@@ -226,7 +252,7 @@ pub fn drawSymbol(ctx: *const RenderContext, sch: *const Schemify) void {
             const txt = sch.str(tcontent[i]);
             if (txt.len == 0) continue;
             const p = h.w2p(.{ tx[i], ty[i] }, vp);
-            h.drawLabel(txt, p[0], p[1], pal.symbol_line, vp, sch.pins.len + i);
+            h.drawLabel(txt, p[0], p[1], ctx.canvas_styles.instance.stroke_color, vp, sch.pins.len + i);
         }
     }
 }
@@ -321,9 +347,9 @@ fn drawSubcktBox(sym: *const SubcktSymbol, origin: Vec2, rot: u2, flip: bool, vp
             const py: f32 = @floatFromInt(sym.pin_y[pi]);
             const ep = h.applyRotFlip(if (px < 0) -half_w else half_w, py, rot, flip);
             const ep_px = origin + Vec2{ ep[0], ep[1] } * s;
-            const label_x = if (px < 0) ep_px[0] + 3.0 * vp.scale else blk: {
+            const label_x = if (px < 0) ep_px[0] + 4.0 * vp.scale else blk: {
                 const w = h.measureLabelWidth(name, vp);
-                break :blk ep_px[0] - w - 3.0 * vp.scale;
+                break :blk ep_px[0] - w - 4.0 * vp.scale;
             };
             h.queueLabel(labels, lalloc, name, label_x, ep_px[1] - 8.0 * vp.scale, color, 0x8000 + pi);
         }
@@ -476,34 +502,37 @@ fn drawGenericBox(origin: Vec2, rot: u2, flip: bool, vp: RenderViewport, color: 
     }
 }
 
-fn drawSymbolGeometry(sch: *const Schemify, vp: RenderViewport, sym_w: f32, pal: types.Palette, batch: *h.LineBatch, labels: *h.LabelList, lalloc: Allocator) void {
+fn drawSymbolGeometry(sch: *const Schemify, vp: RenderViewport, sym_w: f32, ctx: *const RenderContext, batch: *h.LineBatch, labels: *h.LabelList, lalloc: Allocator) void {
+    const stroke_col = ctx.canvas_styles.instance.stroke_color;
+    const pin_col = ctx.canvas_styles.pin.color;
+    const pal = ctx.pal;
     if (sch.lines.len > 0) {
         const lx0 = sch.lines.items(.x0); const ly0 = sch.lines.items(.y0);
         const lx1 = sch.lines.items(.x1); const ly1 = sch.lines.items(.y1);
         for (0..sch.lines.len) |i| {
             const a = h.w2p(.{ lx0[i], ly0[i] }, vp);
             const b = h.w2p(.{ lx1[i], ly1[i] }, vp);
-            batch.addLine(a[0], a[1], b[0], b[1], sym_w, pal.symbol_line);
+            batch.addLine(a[0], a[1], b[0], b[1], sym_w, stroke_col);
         }
     }
     if (sch.rects.len > 0) {
         const rx0 = sch.rects.items(.x0); const ry0 = sch.rects.items(.y0);
         const rx1 = sch.rects.items(.x1); const ry1 = sch.rects.items(.y1);
         for (0..sch.rects.len) |i| {
-            batch.addRectOutline(h.w2p(.{ rx0[i], ry0[i] }, vp), h.w2p(.{ rx1[i], ry1[i] }, vp), sym_w, pal.symbol_line);
+            batch.addRectOutline(h.w2p(.{ rx0[i], ry0[i] }, vp), h.w2p(.{ rx1[i], ry1[i] }, vp), sym_w, stroke_col);
         }
     }
     if (sch.circles.len > 0) {
         const ccx = sch.circles.items(.cx); const ccy = sch.circles.items(.cy); const crad = sch.circles.items(.radius);
         for (0..sch.circles.len) |i| {
-            h.strokeCircle(h.w2p(.{ ccx[i], ccy[i] }, vp), @as(f32, @floatFromInt(crad[i])) * vp.scale, sym_w, pal.symbol_line);
+            h.strokeCircle(h.w2p(.{ ccx[i], ccy[i] }, vp), @as(f32, @floatFromInt(crad[i])) * vp.scale, sym_w, stroke_col);
         }
     }
     if (sch.arcs.len > 0) {
         const acx = sch.arcs.items(.cx); const acy = sch.arcs.items(.cy);
         const arad = sch.arcs.items(.radius); const astart = sch.arcs.items(.start_angle); const asweep = sch.arcs.items(.sweep_angle);
         for (0..sch.arcs.len) |i| {
-            h.strokeArc(h.w2p(.{ acx[i], acy[i] }, vp), @as(f32, @floatFromInt(arad[i])) * vp.scale, astart[i], asweep[i], sym_w, pal.symbol_line);
+            h.strokeArc(h.w2p(.{ acx[i], acy[i] }, vp), @as(f32, @floatFromInt(arad[i])) * vp.scale, astart[i], asweep[i], sym_w, stroke_col);
         }
     }
     if (sch.pins.len > 0) {
@@ -512,18 +541,21 @@ fn drawSymbolGeometry(sch: *const Schemify, vp: RenderViewport, sym_w: f32, pal:
         const pin_arm: f32 = @max(3.0, 4.0 * @min(vp.scale, 2.0));
         for (0..sch.pins.len) |i| {
             const p = h.w2p(.{ px[i], py[i] }, vp);
-            batch.addLine(p[0] - pin_arm, p[1], p[0] + pin_arm, p[1], 1.0, pal.inst_pin);
-            batch.addLine(p[0], p[1] - pin_arm, p[0], p[1] + pin_arm, 1.0, pal.inst_pin);
+            batch.addLine(p[0] - pin_arm, p[1], p[0] + pin_arm, p[1], 1.0, pin_col);
+            batch.addLine(p[0], p[1] - pin_arm, p[0], p[1] + pin_arm, 1.0, pin_col);
             drawPinSymbol(batch, p, pdirs[i], true, pin_arm * 0.75, pal.wire_endpoint);
             const pn = sch.str(pname[i]);
             if (vp.scale >= 0.3 and pn.len > 0) {
-                h.queueLabel(labels, lalloc, pn, p[0] + 8.0 * vp.scale, p[1] - 14.0 * vp.scale, pal.inst_pin, i);
+                h.queueLabel(labels, lalloc, pn, p[0] + 8.0 * vp.scale, p[1] - 14.0 * vp.scale, pin_col, i);
             }
         }
     }
 }
 
-fn drawAutoSymbolBox(sch: *const Schemify, vp: RenderViewport, sym_w: f32, pal: types.Palette, batch: *h.LineBatch, labels: *h.LabelList, lalloc: Allocator) void {
+fn drawAutoSymbolBox(sch: *const Schemify, vp: RenderViewport, sym_w: f32, ctx: *const RenderContext, batch: *h.LineBatch, labels: *h.LabelList, lalloc: Allocator) void {
+    const stroke_col = ctx.canvas_styles.instance.stroke_color;
+    const pin_col = ctx.canvas_styles.pin.color;
+    const pal = ctx.pal;
     const dirs = sch.pins.items(.dir);
     const px = sch.pins.items(.x);
     const py = sch.pins.items(.y);
@@ -548,14 +580,14 @@ fn drawAutoSymbolBox(sch: *const Schemify, vp: RenderViewport, sym_w: f32, pal: 
     const tr = h.w2p(.{ box_w, 0 }, vp);
     const br = h.w2p(.{ box_w, box_h }, vp);
     const bl = h.w2p(.{ 0, box_h }, vp);
-    batch.addLine(tl[0], tl[1], tr[0], tr[1], sym_w, pal.symbol_line);
-    batch.addLine(tr[0], tr[1], br[0], br[1], sym_w, pal.symbol_line);
-    batch.addLine(br[0], br[1], bl[0], bl[1], sym_w, pal.symbol_line);
-    batch.addLine(bl[0], bl[1], tl[0], tl[1], sym_w, pal.symbol_line);
+    batch.addLine(tl[0], tl[1], tr[0], tr[1], sym_w, stroke_col);
+    batch.addLine(tr[0], tr[1], br[0], br[1], sym_w, stroke_col);
+    batch.addLine(br[0], br[1], bl[0], bl[1], sym_w, stroke_col);
+    batch.addLine(bl[0], bl[1], tl[0], tl[1], sym_w, stroke_col);
 
     if (vp.scale >= 0.2) {
         const cx = h.w2p(.{ @divTrunc(box_w, 2), @divTrunc(box_h, 2) }, vp);
-        h.queueLabel(labels, lalloc, sch_name, cx[0] - 40.0, cx[1] - 8.0, pal.symbol_line, 50000);
+        h.queueLabel(labels, lalloc, sch_name, cx[0] - 40.0, cx[1] - 8.0, stroke_col, 50000);
     }
 
     var li: i32 = 0;
@@ -577,19 +609,19 @@ fn drawAutoSymbolBox(sch: *const Schemify, vp: RenderViewport, sym_w: f32, pal: 
         if (is_left) {
             const stub_start = h.w2p(.{ -stub_len, pin_y }, vp);
             const stub_end = h.w2p(.{ 0, pin_y }, vp);
-            batch.addLine(stub_start[0], stub_start[1], stub_end[0], stub_end[1], sym_w, pal.symbol_line);
+            batch.addLine(stub_start[0], stub_start[1], stub_end[0], stub_end[1], sym_w, stroke_col);
             drawPinSymbol(batch, stub_start, dirs[i], true, pin_arm * 0.75, pal.wire_endpoint);
             const pn_l = sch.str(pname[i]);
             if (vp.scale >= 0.3 and pn_l.len > 0)
-                h.queueLabel(labels, lalloc, pn_l, stub_end[0] + 4.0 * vp.scale, stub_end[1] - 12.0 * vp.scale, pal.inst_pin, i);
+                h.queueLabel(labels, lalloc, pn_l, stub_end[0] + 4.0 * vp.scale, stub_end[1] - 12.0 * vp.scale, pin_col, i);
         } else {
             const stub_start = h.w2p(.{ box_w, pin_y }, vp);
             const stub_end = h.w2p(.{ box_w + stub_len, pin_y }, vp);
-            batch.addLine(stub_start[0], stub_start[1], stub_end[0], stub_end[1], sym_w, pal.symbol_line);
+            batch.addLine(stub_start[0], stub_start[1], stub_end[0], stub_end[1], sym_w, stroke_col);
             drawPinSymbol(batch, stub_end, dirs[i], false, pin_arm * 0.75, pal.wire_endpoint);
             const pn_r = sch.str(pname[i]);
             if (vp.scale >= 0.3 and pn_r.len > 0)
-                h.queueLabel(labels, lalloc, pn_r, stub_start[0] - 60.0 * vp.scale, stub_start[1] - 12.0 * vp.scale, pal.inst_pin, i);
+                h.queueLabel(labels, lalloc, pn_r, stub_start[0] - 60.0 * vp.scale, stub_start[1] - 12.0 * vp.scale, pin_col, i);
         }
     }
 }

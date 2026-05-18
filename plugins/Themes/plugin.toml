@@ -1,0 +1,9 @@
+[plugin]
+name        = "Community Themes"
+version     = "1.0.0"
+author      = "Schemify"
+description = "12 community color schemes: Catppuccin, Everforest, Gruvbox, Nord, Dracula, Tokyo Night, Solarized, One Dark, Rose Pine"
+scope       = "user"
+
+[theme]
+type = "theme-pack"

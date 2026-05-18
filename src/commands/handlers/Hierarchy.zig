@@ -77,19 +77,9 @@ fn descendInto(state: anytype, comptime ext: []const u8, comptime kind: []const 
 }
 
 fn makeSymbolFromSchematic(state: anytype) void {
-    if (is_wasm) { state.setStatus("Not available in browser"); return; }
     const fio = state.active() orelse { state.setStatus("No active document"); return; };
     const sch = &fio.sch;
-
-    const base_path: []const u8 = switch (fio.origin) {
-        .chn_file => |p| p,
-        else => { state.setStatus("Save the schematic first"); return; },
-    };
-    var path_buf: [512]u8 = undefined;
-    const prim_path = std.fmt.bufPrint(&path_buf, "{s}_prim", .{base_path}) catch {
-        state.setStatus("Path too long");
-        return;
-    };
+    const alloc = state.allocator();
 
     const ikind = sch.instances.items(.kind);
     const iname = sch.instances.items(.name);
@@ -100,18 +90,14 @@ fn makeSymbolFromSchematic(state: anytype) void {
     for (0..sch.instances.len) |i| if (ikind[i].isLabel()) { pin_count += 1; };
     if (pin_count == 0) { state.setStatus("No I/O pins found in schematic"); return; }
 
-    const alloc = state.allocator();
-    var buf_list: std.ArrayListUnmanaged(u8) = .{};
-    defer buf_list.deinit(alloc);
-    const w = buf_list.writer(alloc);
+    // Clear existing symbol geometry (pins + drawing)
+    sch.pins.shrinkRetainingCapacity(0);
+    sch.lines.shrinkRetainingCapacity(0);
+    sch.rects.shrinkRetainingCapacity(0);
+    sch.circles.shrinkRetainingCapacity(0);
+    sch.arcs.shrinkRetainingCapacity(0);
 
-    const stem = std.fs.path.stem(base_path);
-
-    w.writeAll("chn_prim 1\n\nSYMBOL ") catch { state.setStatus("Out of memory"); return; };
-    w.writeAll(stem) catch return;
-    w.writeByte('\n') catch return;
-    w.writeAll("  desc: Auto-generated symbol\n") catch return;
-
+    // Bounding box from label positions
     var lo_x: i32 = std.math.maxInt(i32);
     var lo_y: i32 = std.math.maxInt(i32);
     var hi_x: i32 = std.math.minInt(i32);
@@ -125,28 +111,29 @@ fn makeSymbolFromSchematic(state: anytype) void {
     }
     lo_x -= 40; lo_y -= 40; hi_x += 40; hi_y += 40;
 
-    w.writeAll("  pins:\n") catch return;
+    // Populate pins from I/O label instances
     for (0..sch.instances.len) |i| {
         if (!ikind[i].isLabel()) continue;
-        const dir_str: []const u8 = switch (ikind[i]) {
-            .input_pin => "in",
-            .output_pin => "out",
-            .inout_pin => "inout",
-            .lab_pin => "inout",
-            else => "inout",
+        const dir: @import("schematic").types.PinDir = switch (ikind[i]) {
+            .input_pin => .input,
+            .output_pin => .output,
+            .inout_pin, .lab_pin => .inout,
+            else => .inout,
         };
-        w.print("    {s}  {s}  x={d}  y={d}\n", .{ sch.str(iname[i]), dir_str, ixx[i], iyy[i] }) catch return;
+        sch.drawPinStr(alloc, sch.str(iname[i]), ixx[i], iyy[i], dir) catch {
+            state.setStatus("Out of memory");
+            return;
+        };
     }
 
-    w.print("  drawing:\n    rect {d} {d} {d} {d}\n", .{ lo_x, lo_y, hi_x, hi_y }) catch return;
-
-    @import("utility").platform.fs.cwd().writeFile(.{ .sub_path = prim_path, .data = buf_list.items }) catch {
-        state.setStatus("Failed to write symbol file");
+    // Bounding rectangle as symbol body
+    sch.drawRect(alloc, .{ .x0 = lo_x, .y0 = lo_y, .x1 = hi_x, .y1 = hi_y }) catch {
+        state.setStatus("Out of memory");
         return;
     };
-    var msg_buf: [256]u8 = undefined;
-    const msg = std.fmt.bufPrint(&msg_buf, "Symbol created: {s}", .{prim_path}) catch "Symbol created";
-    state.setStatusBuf(msg);
+
+    fio.dirty = true;
+    state.setStatus("Symbol generated from schematic pins");
 }
 
 fn makeSchematicFromSymbol(state: anytype) void {

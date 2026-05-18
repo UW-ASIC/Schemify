@@ -17,6 +17,7 @@ const Conn = core.types.Conn;
 // ── Device resolution (delegated to PdkMap) ─────────────────────────────────
 
 pub fn resolveDeviceKind(cell: []const u8) DeviceKind {
+    // Uses universal fallback + cell_map; PDK-specific entries loaded via JSON at project level
     return PdkMap.resolveKind(&PdkMap.pdk_table, cell);
 }
 

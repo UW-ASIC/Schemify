@@ -40,6 +40,8 @@ pub const RenderContext = struct {
     vp: RenderViewport,
     pal: Palette,
     cmd_flags: st.CommandFlags,
+    canvas_styles: theme.CanvasStyles = .{},
+    animation: theme.AnimationState = .{},
 };
 
 // Drawing constants

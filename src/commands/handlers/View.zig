@@ -94,13 +94,13 @@ pub fn handleView(imm: Immediate, state: anytype) void {
         .decrease_line_width => { state.cmd_flags.line_width = @max(1, state.cmd_flags.line_width - 1); state.setStatus("Line width decreased"); },
         .snap_halve => { state.tool.snap_size = @max(1.0, state.tool.snap_size / 2.0); state.setStatus("Snap halved"); },
         .snap_double => { state.tool.snap_size = @min(100.0, state.tool.snap_size * 2.0); state.setStatus("Snap doubled"); },
-        .show_keybinds => { state.gui.cold.keybinds_open = true; state.setStatus("Keybinds"); },
+        .show_keybinds => { state.gui.cold.dialogs.keybinds_open = true; state.setStatus("Keybinds"); },
         .pan_interactive => { state.tool.active = .pan; state.setStatus("Pan mode"); },
         .show_context_menu => { state.gui.cold.ctx_menu.open = true; state.setStatus("Context menu"); },
         .toggle_orthogonal_routing => toggleFlag(state, "orthogonal_routing", "Orthogonal routing"),
-        .toggle_chat_panel => {
-            state.gui.cold.chat_panel.visible = !state.gui.cold.chat_panel.visible;
-            state.setStatus(if (state.gui.cold.chat_panel.visible) "Chat panel opened" else "Chat panel closed");
+        .toggle_bus_mode => {
+            state.tool.bus_mode = !state.tool.bus_mode;
+            state.setStatus(if (state.tool.bus_mode) "Bus mode ON" else "Bus mode OFF");
         },
         .view_doc => {
             state.gui.hot.view_mode = .doc;

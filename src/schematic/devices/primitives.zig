@@ -12,6 +12,7 @@ const MAX_SEGS = 48;
 const MAX_CIRCLES = 8;
 const MAX_ARCS = 8;
 const MAX_RECTS = 4;
+const MAX_TEXTS = 4;
 const MAX_PIN_POS = 8;
 const MAX_PIN_NAME = 8;
 
@@ -21,6 +22,7 @@ pub const DrawSeg = struct { x0: i16, y0: i16, x1: i16, y1: i16 };
 pub const DrawCircle = struct { cx: i16, cy: i16, r: i16 };
 pub const DrawArc = struct { cx: i16, cy: i16, r: i16, start: i16, sweep: i16 };
 pub const DrawRect = struct { x0: i16, y0: i16, x1: i16, y1: i16 };
+pub const DrawText = struct { x: i16, y: i16, content: []const u8 };
 
 pub const PinPos = struct {
     name: [MAX_PIN_NAME]u8 = [_]u8{0} ** MAX_PIN_NAME,
@@ -56,6 +58,8 @@ pub const PrimEntry = struct {
     arc_count: u8 = 0,
     rects: [MAX_RECTS]DrawRect = [_]DrawRect{.{ .x0 = 0, .y0 = 0, .x1 = 0, .y1 = 0 }} ** MAX_RECTS,
     rect_count: u8 = 0,
+    texts: [MAX_TEXTS]DrawText = [_]DrawText{.{ .x = 0, .y = 0, .content = "" }} ** MAX_TEXTS,
+    text_count: u8 = 0,
     pin_positions: [MAX_PIN_POS]PinPos = [_]PinPos{.{}} ** MAX_PIN_POS,
     pin_pos_count: u8 = 0,
 
@@ -65,6 +69,7 @@ pub const PrimEntry = struct {
     pub fn drawCircles(self: *const PrimEntry) []const DrawCircle { return self.circles[0..self.circle_count]; }
     pub fn drawArcs(self: *const PrimEntry) []const DrawArc { return self.arcs[0..self.arc_count]; }
     pub fn drawRects(self: *const PrimEntry) []const DrawRect { return self.rects[0..self.rect_count]; }
+    pub fn drawTexts(self: *const PrimEntry) []const DrawText { return self.texts[0..self.text_count]; }
     pub fn pinPositions(self: *const PrimEntry) []const PinPos { return self.pin_positions[0..self.pin_pos_count]; }
     pub fn hasDrawing(self: *const PrimEntry) bool {
         return self.segment_count > 0 or self.circle_count > 0 or self.arc_count > 0 or self.rect_count > 0;
@@ -283,7 +288,27 @@ fn parsePrim(comptime src: []const u8, comptime meta: EmbeddedPrim) PrimEntry {
                 if (parseTwoPoints(afterPrefix(line, "rect:"))) |pts| if (r.rect_count < MAX_RECTS) { r.rects[r.rect_count] = .{ .x0 = pts[0], .y0 = pts[1], .x1 = pts[2], .y1 = pts[3] }; r.rect_count += 1; };
                 state = .drawing; continue;
             }
-            if (startsWith(line, "text:")) { state = .drawing; continue; }
+            if (startsWith(line, "text:")) {
+                if (r.text_count < MAX_TEXTS) {
+                    const rest = afterPrefix(line, "text:");
+                    if (parseOnePoint(rest)) |pt| {
+                        // Find content after the closing paren — either quoted or bare.
+                        var ci: usize = 0;
+                        while (ci < rest.len and rest[ci] != ')') ci += 1;
+                        if (ci < rest.len) ci += 1; // skip ')'
+                        const after = trim(rest[ci..]);
+                        const content = if (after.len >= 2 and after[0] == '"' and after[after.len - 1] == '"')
+                            after[1 .. after.len - 1]
+                        else
+                            after;
+                        if (content.len > 0) {
+                            r.texts[r.text_count] = .{ .x = pt[0], .y = pt[1], .content = content };
+                            r.text_count += 1;
+                        }
+                    }
+                }
+                state = .drawing; continue;
+            }
         }
 
         // Data item parsing
@@ -390,4 +415,16 @@ test "all prims have kind_name set" {
 
 test "all prims have drawing" {
     for (&parsed_prims) |*p| try std.testing.expect(p.hasDrawing());
+}
+
+test "resistor has 2 texts at expected positions" {
+    const r = findByName("resistor") orelse return error.NotFound;
+    try std.testing.expectEqual(@as(u8, 2), r.text_count);
+    const texts = r.drawTexts();
+    try std.testing.expectEqual(@as(i16, 15), texts[0].x);
+    try std.testing.expectEqual(@as(i16, 0), texts[0].y);
+    try std.testing.expectEqualStrings("@name", texts[0].content);
+    try std.testing.expectEqual(@as(i16, 15), texts[1].x);
+    try std.testing.expectEqual(@as(i16, 10), texts[1].y);
+    try std.testing.expectEqualStrings("@r", texts[1].content);
 }

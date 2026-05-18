@@ -1,0 +1,105 @@
+chn_testbench 1
+
+TESTBENCH 8-bit R-2R DAC
+  instances:
+    Vdata[0]  vsource  x=-1260  y=0  sym=vsource  value=0
+    Vdata[1]  vsource  x=-1150  y=0  sym=vsource  value=3.3
+    Vdata[2]  vsource  x=-1040  y=0  sym=vsource  value=0
+    Vdata[3]  vsource  x=-930  y=0  sym=vsource  value=3.3
+    Vdata[4]  vsource  x=-820  y=0  sym=vsource  value=0
+    Vdata[5]  vsource  x=-710  y=0  sym=vsource  value=3.3
+    Vdata[6]  vsource  x=-600  y=0  sym=vsource  value=0
+    Vdata[7]  vsource  x=-490  y=0  sym=vsource  value=3.3
+    Rterm  resistor  x=-380  y=120  sym=res  value=20k  device=resistor
+    R2r0  resistor  x=-280  y=0  sym=res  value=20k  device=resistor
+    Rr0  resistor  x=-180  y=0  sym=res  value=10k  device=resistor
+    R2r1  resistor  x=-90  y=0  sym=res  value=20k  device=resistor
+    Rr1  resistor  x=10  y=0  sym=res  value=10k  device=resistor
+    R2r2  resistor  x=100  y=0  sym=res  value=20k  device=resistor
+    Rr2  resistor  x=200  y=0  sym=res  value=10k  device=resistor
+    R2r3  resistor  x=300  y=0  sym=res  value=20k  device=resistor
+    Rr3  resistor  x=390  y=0  sym=res  value=10k  device=resistor
+    R2r4  resistor  x=490  y=0  sym=res  value=20k  device=resistor
+    Rr4  resistor  x=580  y=0  sym=res  value=10k  device=resistor
+    R2r5  resistor  x=680  y=0  sym=res  value=20k  device=resistor
+    Rr5  resistor  x=780  y=0  sym=res  value=10k  device=resistor
+    R2r6  resistor  x=870  y=0  sym=res  value=20k  device=resistor
+    Rr6  resistor  x=970  y=0  sym=res  value=10k  device=resistor
+    R2r7  resistor  x=1060  y=0  sym=res  value=20k  device=resistor
+    Rout  resistor  x=1160  y=0  sym=res  value=1  device=resistor
+    Rload  resistor  x=1260  y=120  sym=res  value=1meg  device=resistor
+    vout  lab_pin  x=1130  y=0  sym=lab_pin
+    n1  lab_pin  x=-210  y=0  sym=lab_pin
+    n6  lab_pin  x=750  y=0  sym=lab_pin
+    n2  lab_pin  x=-20  y=0  sym=lab_pin
+    n4  lab_pin  x=360  y=0  sym=lab_pin
+    n7  lab_pin  x=940  y=0  sym=lab_pin
+    n3  lab_pin  x=170  y=0  sym=lab_pin
+    n5  lab_pin  x=550  y=0  sym=lab_pin
+    n0  lab_pin  x=-380  y=90  sym=lab_pin
+    data[0]  lab_pin  x=-1260  y=-30  sym=lab_pin
+    data[0]  lab_pin  x=-250  y=-30  sym=lab_pin
+    data[1]  lab_pin  x=-1150  y=-30  sym=lab_pin
+    data[1]  lab_pin  x=-60  y=-30  sym=lab_pin
+    data[2]  lab_pin  x=-1040  y=-30  sym=lab_pin
+    data[2]  lab_pin  x=130  y=-30  sym=lab_pin
+    data[3]  lab_pin  x=-930  y=-30  sym=lab_pin
+    data[3]  lab_pin  x=330  y=-20  sym=lab_pin
+    data[4]  lab_pin  x=-820  y=-30  sym=lab_pin
+    data[4]  lab_pin  x=520  y=-30  sym=lab_pin
+    data[5]  lab_pin  x=-710  y=-30  sym=lab_pin
+    data[5]  lab_pin  x=710  y=-20  sym=lab_pin
+    data[6]  lab_pin  x=-600  y=-30  sym=lab_pin
+    data[6]  lab_pin  x=900  y=-30  sym=lab_pin
+    data[7]  lab_pin  x=-490  y=-30  sym=lab_pin
+    data[7]  lab_pin  x=1090  y=-20  sym=lab_pin
+    gnd0  gnd  x=-1260  y=40  sym=gnd
+    gnd1  gnd  x=-1150  y=40  sym=gnd
+    gnd2  gnd  x=-1040  y=40  sym=gnd
+    gnd3  gnd  x=-930  y=40  sym=gnd
+    gnd4  gnd  x=-820  y=40  sym=gnd
+    gnd5  gnd  x=-710  y=40  sym=gnd
+    gnd6  gnd  x=-600  y=40  sym=gnd
+    gnd7  gnd  x=-490  y=40  sym=gnd
+    gnd8  gnd  x=-380  y=160  sym=gnd
+    gnd9  gnd  x=1260  y=160  sym=gnd
+
+  wires:
+    1130 0 1260 0
+    1260 0 1260 90
+    -210 0 -120 0
+    -120 0 40 0
+    750 0 840 0
+    840 0 1000 0
+    -20 0 70 0
+    70 0 230 0
+    360 0 460 0
+    460 0 610 0
+    940 0 1030 0
+    1030 0 1190 0
+    170 0 270 0
+    270 0 420 0
+    550 0 650 0
+    650 0 810 0
+    -380 90 -310 90
+    -310 90 -310 0
+    -310 0 -150 0
+    -1260 -30 -250 -30 bus=1
+    -250 -30 -250 0 bus=1
+    -1150 -30 -60 -30 bus=1
+    -60 -30 -60 0 bus=1
+    -1040 -30 130 -30 bus=1
+    130 -30 130 0 bus=1
+    -930 -30 -930 -20 bus=1
+    -930 -20 330 -20 bus=1
+    330 -20 330 0 bus=1
+    -820 -30 520 -30 bus=1
+    520 -30 520 0 bus=1
+    -710 -30 -710 -20 bus=1
+    -710 -20 710 -20 bus=1
+    710 -20 710 0 bus=1
+    -600 -30 900 -30 bus=1
+    900 -30 900 0 bus=1
+    -490 -30 -490 -20 bus=1
+    -490 -20 1090 -20 bus=1
+    1090 -20 1090 0 bus=1

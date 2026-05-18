@@ -65,7 +65,7 @@ fn dispatchImmediate(imm: Immediate, state: anytype) DispatchError!void {
         .export_netlist,
         .print_schematic,
         .toggle_orthogonal_routing,
-        .toggle_chat_panel,
+        .toggle_bus_mode,
         .view_doc,
         => h.handleView(imm, state),
 
@@ -174,11 +174,27 @@ fn dispatchImmediate(imm: Immediate, state: anytype) DispatchError!void {
         .characterize_pdk => |p| {
             state.log.info("CMD", "characterize PDK: {s}", .{p.pdk_name});
         },
+        .load_pdk => |p| {
+            state.loadPdkDir(p.pdk_name);
+            state.log.info("CMD", "loaded PDK: {s} ({d} primitives)", .{ p.pdk_name, state.pdk.primCount() });
+        },
+
+        // Simulation
+        .view_pyspice_netlist => {
+            h.handleViewPySpiceNetlist(state);
+        },
 
         // Generate schematic from PySpice
         .generate_schematic_from_pyspice => {
             state.log.info("CMD", "generate schematic from pyspice (stub)", .{});
         },
+
+        // Canvas interaction
+        .canvas_click,
+        .canvas_double_click,
+        .canvas_right_click,
+        .select_rect,
+        => h.handleCanvas(imm, state),
     }
 }
 
@@ -230,6 +246,7 @@ fn dispatchUndoable(und: Undoable, state: anytype) DispatchError!void {
         .set_instance_prop,
         .rename_instance,
         .rename_net,
+        .set_wire_color,
         .set_spice_code,
         .set_documentation,
         => try h.handleEdit(und, state),

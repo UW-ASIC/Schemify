@@ -3,6 +3,7 @@ const dvui = @import("dvui");
 const st = @import("state");
 const AppState = st.AppState;
 const theme_config = @import("theme_config");
+const simulation = @import("simulation");
 
 inline fn winRectPtr(wr: *st.WinRect) *dvui.Rect {
     return @ptrCast(wr);
@@ -16,8 +17,13 @@ pub fn drawAll(app: *AppState) void {
 }
 
 fn drawWindow(app: *AppState, win: *st.OptimizerWindowState, win_idx: usize) void {
-    _ = app;
     if (!win.is_open) return;
+
+    // Run discovery once on first open
+    if (!win.discovery_done) {
+        runDiscovery(app, win);
+        win.discovery_done = true;
+    }
     const bg = theme_config.chromeToolbarBg();
     var fwin = dvui.floatingWindow(@src(), .{
         .open_flag = &win.is_open,
@@ -66,6 +72,53 @@ fn drawTabBar(win: *st.OptimizerWindowState) void {
     }
 }
 
+// ── Discovery ────────────────────────────────────────────────────────────────
+
+fn runDiscovery(app: *AppState, win: *st.OptimizerWindowState) void {
+    const doc = app.active() orelse return;
+    const sch = &doc.sch;
+
+    // Discover optimizable devices from schematic instances
+    const inst_slice = sch.instances.slice();
+    win.n_discovered_devices = simulation.optimizer.discoverOptimizableDevices(
+        inst_slice.items(.kind),
+        inst_slice.items(.name),
+        inst_slice.items(.prop_start),
+        inst_slice.items(.prop_count),
+        sch.props.items,
+        &sch.strings,
+        &win.discovered_devices,
+    );
+
+    // Pre-populate device_entries from discovered devices
+    for (win.discovered_devices[0..win.n_discovered_devices], 0..) |dd, i| {
+        win.device_entries[i].enabled = dd.enabled;
+        @memcpy(win.device_entries[i].instance_buf[0..dd.instance_len], dd.instance[0..dd.instance_len]);
+        win.device_entries[i].instance_len = dd.instance_len;
+        win.device_entries[i].device_type = @intFromEnum(dd.device_type);
+        @memcpy(&win.device_entries[i].bound_min_buf, &dd.bound_min);
+        @memcpy(&win.device_entries[i].bound_max_buf, &dd.bound_max);
+    }
+    win.n_devices = win.n_discovered_devices;
+
+    // Discover measurements from .chn_tb measurements_decl field
+    const meas_decl = sch.strings.get(sch.measurements_decl);
+    if (meas_decl.len > 0) {
+        const meas_list = simulation.optimizer.discoverMeasurementsFromDecl(meas_decl);
+        const n: u8 = @intCast(@min(meas_list.len, 64));
+        @memcpy(win.discovered_measurements[0..n], meas_list.items[0..n]);
+        win.n_discovered_measurements = n;
+
+        // Pre-populate spec entries from discovered measurements
+        for (win.discovered_measurements[0..n], 0..) |dm, i| {
+            if (i >= 32) break;
+            @memcpy(win.spec_entries[i].name_buf[0..dm.name_len], dm.name[0..dm.name_len]);
+            win.spec_entries[i].name_len = dm.name_len;
+        }
+        win.n_specs = @intCast(@min(n, 32));
+    }
+}
+
 // ── Setup tab ────────────────────────────────────────────────────────────────
 
 fn drawSetupTab(win: *st.OptimizerWindowState) void {
@@ -78,29 +131,42 @@ fn drawSetupTab(win: *st.OptimizerWindowState) void {
     dvui.labelNoFmt(@src(), "Devices", .{}, .{ .id_extra = 100, .style = .highlight });
     _ = dvui.separator(@src(), .{ .id_extra = 101 });
     {
-        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .horizontal, .min_size_content = .{ .h = 120 }, .id_extra = 102 });
+        var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .horizontal, .min_size_content = .{ .h = 150 }, .id_extra = 102 });
         defer scroll.deinit();
 
-        if (win.n_devices == 0) {
-            dvui.labelNoFmt(@src(), "(no devices added)", .{}, .{ .id_extra = 103, .color_text = muted });
+        if (win.n_discovered_devices == 0 and win.n_devices == 0) {
+            dvui.labelNoFmt(@src(), "(no optimizable devices found)", .{}, .{ .id_extra = 103, .color_text = muted });
         } else {
-            for (0..win.n_devices) |i| {
+            // Show discovered devices as checkboxes with bounds
+            const n = @max(win.n_discovered_devices, win.n_devices);
+            for (0..n) |i| {
                 var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = i });
                 defer row.deinit();
 
                 _ = dvui.checkbox(@src(), &win.device_entries[i].enabled, "", .{ .id_extra = i });
 
-                var te = dvui.textEntry(@src(), .{
-                    .text = .{ .buffer = &win.device_entries[i].instance_buf },
-                    .placeholder = "Instance name",
-                }, .{ .id_extra = i, .expand = .horizontal });
-                te.deinit();
+                // Instance name (read-only for discovered, editable for manual)
+                if (i < win.n_discovered_devices) {
+                    const dd = &win.discovered_devices[i];
+                    var label_buf: [80]u8 = undefined;
+                    const label = std.fmt.bufPrint(&label_buf, "{s}  {s}", .{ dd.instanceSlice(), dd.kindSlice() }) catch dd.instanceSlice();
+                    dvui.labelNoFmt(@src(), label, .{}, .{ .id_extra = i, .min_size_content = .{ .w = 180 }, .gravity_y = 0.5 });
+                } else {
+                    var te = dvui.textEntry(@src(), .{
+                        .text = .{ .buffer = &win.device_entries[i].instance_buf },
+                        .placeholder = "Instance name",
+                    }, .{ .id_extra = i, .min_size_content = .{ .w = 180 } });
+                    te.deinit();
+                }
 
+                // Bounds
                 var te_min = dvui.textEntry(@src(), .{
                     .text = .{ .buffer = &win.device_entries[i].bound_min_buf },
                     .placeholder = "Min",
                 }, .{ .id_extra = i, .min_size_content = .{ .w = 60 } });
                 te_min.deinit();
+
+                dvui.labelNoFmt(@src(), "to", .{}, .{ .id_extra = i, .gravity_y = 0.5 });
 
                 var te_max = dvui.textEntry(@src(), .{
                     .text = .{ .buffer = &win.device_entries[i].bound_max_buf },
@@ -127,18 +193,31 @@ fn drawSetupTab(win: *st.OptimizerWindowState) void {
         var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .horizontal, .min_size_content = .{ .h = 100 }, .id_extra = 122 });
         defer scroll.deinit();
 
-        if (win.n_specs == 0) {
-            dvui.labelNoFmt(@src(), "(no specifications added)", .{}, .{ .id_extra = 123, .color_text = muted });
+        if (win.n_discovered_measurements == 0 and win.n_specs == 0) {
+            dvui.labelNoFmt(@src(), "(no measurements discovered)", .{}, .{ .id_extra = 123, .color_text = muted });
         } else {
-            for (0..win.n_specs) |i| {
+            const n = @max(win.n_discovered_measurements, win.n_specs);
+            for (0..n) |i| {
+                if (i >= 32) break;
                 var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = i });
                 defer row.deinit();
 
-                var te_name = dvui.textEntry(@src(), .{
-                    .text = .{ .buffer = &win.spec_entries[i].name_buf },
-                    .placeholder = "Spec name",
-                }, .{ .id_extra = i, .expand = .horizontal });
-                te_name.deinit();
+                // Measurement name (read-only for discovered)
+                if (i < win.n_discovered_measurements) {
+                    const dm = &win.discovered_measurements[i];
+                    var label_buf: [80]u8 = undefined;
+                    const label = if (dm.unit_len > 0)
+                        std.fmt.bufPrint(&label_buf, "{s} ({s})", .{ dm.nameSlice(), dm.unitSlice() }) catch dm.nameSlice()
+                    else
+                        dm.nameSlice();
+                    dvui.labelNoFmt(@src(), label, .{}, .{ .id_extra = i, .min_size_content = .{ .w = 160 }, .gravity_y = 0.5 });
+                } else {
+                    var te_name = dvui.textEntry(@src(), .{
+                        .text = .{ .buffer = &win.spec_entries[i].name_buf },
+                        .placeholder = "Spec name",
+                    }, .{ .id_extra = i, .min_size_content = .{ .w = 160 } });
+                    te_name.deinit();
+                }
 
                 var te_target = dvui.textEntry(@src(), .{
                     .text = .{ .buffer = &win.spec_entries[i].target_buf },
