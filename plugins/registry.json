@@ -2,139 +2,6 @@
   "version": 1,
   "plugins": [
     {
-      "id": "AgentHarness",
-      "name": "AgentHarness",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "LLM agent harness: JSON-RPC unix socket exposing the full Schemify command surface, file I/O, and plugin skill docs.",
-      "tags": [
-        "agent",
-        "llm",
-        "automation",
-        "ai",
-        "harness"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/AgentHarness/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/AgentHarness/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/AgentHarness.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/AgentHarness.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/AgentHarness.wasm"
-      }
-    },
-    {
-      "id": "CCreator",
-      "name": "CCreator",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "Full-stack circuit toolkit: define PDK-agnostic circuits, switch PDKs with gm/Id-preserving remap, optimize transistor sizing via Bayesian optimization, and export to Schemify schematics.",
-      "tags": [
-        "analog",
-        "circuit",
-        "simulation",
-        "testbench",
-        "spice",
-        "pdk",
-        "optimization",
-        "gm/id",
-        "import"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/CCreator/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/CCreator/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/CCreator.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/CCreator.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/CCreator.wasm"
-      }
-    },
-    {
-      "id": "XSchemDropIN",
-      "name": "EasyImport",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "Drop-in XSchem project bridge: reads xschemrc, converts .sch/.sym to .chn/.chn_tb in .temp_schemify/, generates Config.toml.",
-      "tags": [
-        "xschem",
-        "import",
-        "conversion",
-        "dropin"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/EasyImport/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/EasyImport/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/XSchemDropIN.wasm"
-      }
-    },
-    {
-      "id": "GMIDOptimizer",
-      "name": "GMIDOptimizer",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "Bayesian gm/ID optimization: size MOSFETs by optimizing gm/Id ratios with GP surrogate and Expected Improvement acquisition.",
-      "tags": [
-        "analog",
-        "optimization",
-        "gm/id",
-        "bayesian",
-        "mosfet"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GMIDOptimizer/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GMIDOptimizer/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GMIDOptimizer.wasm"
-      }
-    },
-    {
-      "id": "GitBlame",
-      "name": "GitBlame",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "Shows git blame annotations for schematic elements \u2014 displays last-commit author and message alongside selected components.",
-      "tags": [
-        "git",
-        "vcs",
-        "blame",
-        "annotations"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GitBlame/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GitBlame/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GitBlame.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GitBlame.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GitBlame.wasm"
-      }
-    },
-    {
-      "id": "GmIDVisualizer",
-      "name": "GmIDVisualizer",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "gm/ID characterization: DC sweep MOSFET/BJT models, generate plots and LUT data.",
-      "tags": [
-        "analog",
-        "gm/id",
-        "characterization",
-        "pdk"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GmIDVisualizer/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/GmIDVisualizer/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/GmIDVisualizer.wasm"
-      }
-    },
-    {
       "id": "PDKSwitcher",
       "name": "PDKSwitcher",
       "author": "UWASIC",
@@ -154,94 +21,22 @@
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/PDKSwitcher/logo.svg",
       "download": {
         "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcher.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcher.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcher.wasm"
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcher.dylib"
       }
     },
     {
-      "id": "PDKSwitcherino",
-      "name": "PDKSwitcherino",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "Cross-PDK circuit remapping: switch between sky130, ihp-sg13g2, and gf180mcu with gm/Id-preserving transistor resizing.",
-      "tags": [
-        "pdk",
-        "sky130",
-        "gf180",
-        "ihp",
-        "remapping"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/PDKSwitcherino/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/PDKSwitcherino/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/PDKSwitcherino.wasm"
-      }
-    },
-    {
-      "id": "SpiceImport",
-      "name": "SpiceImport",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "Import ngspice netlists (.sp/.cir/.net) as Schemify schematics. Performs topological placement, Manhattan wire routing, and power-symbol insertion.",
-      "tags": [
-        "spice",
-        "ngspice",
-        "import",
-        "netlist",
-        "conversion"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/SpiceImport/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/SpiceImport/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/SpiceImport.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/SpiceImport.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/SpiceImport.wasm"
-      }
-    },
-    {
-      "id": "Themes",
+      "id": "CommunityThemes",
       "name": "Themes",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "Live theme switcher for Schemify. Ships with 7 built-in color themes (dark and light) and supports user-defined themes via ~/.config/Schemify/themes/*.json.",
-      "tags": [
-        "ui",
-        "themes",
-        "colors",
-        "customization"
-      ],
+      "author": "Schemify",
+      "version": "1.0.0",
+      "description": "12 community color schemes: Catppuccin, Everforest, Gruvbox, Nord, Dracula, Tokyo Night, Solarized, One Dark, Rose Pine",
+      "tags": [],
       "repo": "https://github.com/UW-ASIC/Schemify",
       "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/Themes/README.md",
       "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/Themes/logo.svg",
       "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/Themes.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/Themes.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/Themes.wasm"
-      }
-    },
-    {
-      "id": "VimKeybinds",
-      "name": "VimKeybinds",
-      "author": "UWASIC",
-      "version": "0.1.0",
-      "description": "Vim-style modal keybindings: NORMAL/INSERT/VISUAL modes with hjkl navigation, numeric prefixes, and standard vim editing commands.",
-      "tags": [
-        "vim",
-        "keybinds",
-        "modal",
-        "navigation"
-      ],
-      "repo": "https://github.com/UW-ASIC/Schemify",
-      "readme_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/VimKeybinds/README.md",
-      "logo_url": "https://raw.githubusercontent.com/UW-ASIC/Schemify/main/plugins/VimKeybinds/logo.svg",
-      "download": {
-        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/VimKeybinds.so",
-        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/VimKeybinds.dylib",
-        "wasm": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/VimKeybinds.wasm"
+        "linux": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/CommunityThemes.so",
+        "macos": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-latest/CommunityThemes.dylib"
       }
     }
   ]
