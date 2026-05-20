@@ -9,7 +9,7 @@ use schemify_core::schematic::{
     Arc, Circle, Instance, Line, Polygon, Rect, Schematic, Text, Wire,
 };
 use schemify_core::simulation::{SimResult, SpiceBackend};
-use schemify_core::types::{DeviceKind, Sym};
+use schemify_core::types::{Connectivity, DeviceKind, Sym};
 use schemify_io::config::ProjectConfig;
 
 pub const MAX_UNDO_HISTORY: usize = 64;
@@ -32,29 +32,6 @@ impl Default for Origin {
     }
 }
 
-
-#[derive(Debug, Clone, Default)]
-pub struct Connectivity {
-    pub nets: HashMap<String, Vec<NetConnection>>,
-    pub point_to_net: HashMap<(i32, i32), u32>,
-}
-
-#[derive(Debug, Clone)]
-pub struct NetConnection {
-    pub net_id: u32,
-    pub ref_a: i32,
-    pub ref_b: i32,
-    pub pin_or_label: String,
-    pub kind: NetConnKind,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum NetConnKind {
-    InstancePin = 0,
-    WireEndpoint,
-    Label,
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct BackendAvailability {
@@ -377,6 +354,7 @@ pub struct GuiState {
     pub library_browser: LibraryBrowserState,
     pub optimizer_windows: Vec<OptimizerWindowState>,
     pub ctx_menu: ContextMenu,
+    pub left_panel_tab: LeftPanelTab,
     pub command_buf: String,
     pub doc_editor: DocEditorState,
 }
@@ -388,6 +366,14 @@ pub enum ViewMode {
     Schematic = 0,
     Symbol,
     Documentation,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum LeftPanelTab {
+    #[default]
+    FileExplorer = 0,
+    Library,
 }
 
 // ====================================================
