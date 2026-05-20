@@ -3326,9 +3326,17 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
+ "js-sys",
+ "log",
  "rfd",
  "schemify-core",
  "schemify-handler",
+ "schemify-io",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -5352,6 +5360,15 @@ name = "xml-rs"
 version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ae8337f8a065cfc972643663ea4279e04e7256de865aa66fe25cec5fb912d3f"
+
+[[package]]
+name = "xtask"
+version = "0.1.0"
+dependencies = [
+ "lasso",
+ "schemify-handler",
+ "schemify-io",
+]
 
 [[package]]
 name = "yoke"
