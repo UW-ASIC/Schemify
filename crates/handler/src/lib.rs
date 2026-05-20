@@ -1,0 +1,202 @@
+pub mod state;
+mod dispatch;
+mod spice_import;
+
+use std::io;
+use std::path::Path;
+
+use schemify_core::commands::Tool;
+use schemify_core::devices::Pdk;
+use schemify_core::schematic::{InstanceVec, Pin, Property, Schematic, WireVec};
+use schemify_core::simulation::SimResult;
+use schemify_core::types::Sym;
+
+use state::*;
+
+/// Opaque application handle. All mutation goes through `dispatch(Command)`.
+/// Display crate reads state through accessor methods.
+pub struct App {
+    state: AppState,
+}
+
+impl App {
+    pub fn new() -> Self {
+        Self {
+            state: AppState::new(),
+        }
+    }
+
+    // ── File operations (called by display after OS file dialog) ──
+
+    pub fn open_file(&mut self, path: &Path) -> io::Result<()> {
+        let content = std::fs::read_to_string(path)?;
+        let schematic =
+            schemify_io::reader::read_chn(&content, &mut self.state.interner);
+        let name = path
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        let doc = Document {
+            schematic,
+            name,
+            origin: Origin::File(path.to_owned()),
+            ..Default::default()
+        };
+        self.state.documents.push(doc);
+        self.state.active_doc = self.state.documents.len() - 1;
+        Ok(())
+    }
+
+    pub fn save_to_path(&mut self, path: &Path) -> io::Result<()> {
+        let doc = &self.state.documents[self.state.active_doc];
+        match schemify_io::writer::write_chn(&doc.schematic, &self.state.interner) {
+            Some(content) => {
+                std::fs::write(path, &content)?;
+                let doc = self.state.active_document_mut();
+                doc.origin = Origin::File(path.to_owned());
+                doc.dirty = false;
+                doc.name = path
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
+                Ok(())
+            }
+            None => Err(io::Error::new(
+                io::ErrorKind::Other,
+                "serialization failed",
+            )),
+        }
+    }
+
+    // ── Core type accessors (display reads these to render) ──
+
+    pub fn schematic(&self) -> &Schematic {
+        &self.active_doc().schematic
+    }
+
+    pub fn wires(&self) -> &WireVec {
+        &self.active_doc().schematic.wires
+    }
+
+    pub fn instances(&self) -> &InstanceVec {
+        &self.active_doc().schematic.instances
+    }
+
+    pub fn pins(&self) -> &[Pin] {
+        &self.active_doc().schematic.pins
+    }
+
+    pub fn properties(&self) -> &[Property] {
+        &self.active_doc().schematic.properties
+    }
+
+    pub fn resolve(&self, sym: Sym) -> &str {
+        self.state.interner.resolve(&sym)
+    }
+
+    // ── Simulation / PDK ──
+
+    pub fn sim_results(&self) -> Option<&SimResult> {
+        self.active_doc().sim_results.as_ref()
+    }
+
+    pub fn pdk(&self) -> Option<&Pdk> {
+        self.state.pdk.as_ref()
+    }
+
+    // ── View state (decomposed primitives at API surface) ──
+
+    pub fn zoom(&self) -> f32 {
+        self.active_doc().viewport.zoom
+    }
+
+    pub fn pan(&self) -> [f32; 2] {
+        self.active_doc().viewport.pan
+    }
+
+    pub fn active_tool(&self) -> Tool {
+        self.state.tool.active
+    }
+
+    pub fn active_doc_name(&self) -> &str {
+        &self.active_doc().name
+    }
+
+    pub fn active_doc_idx(&self) -> usize {
+        self.state.active_doc
+    }
+
+    pub fn documents(&self) -> &[Document] {
+        &self.state.documents
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.active_doc().dirty
+    }
+
+    pub fn can_undo(&self) -> bool {
+        !self.active_doc().undo_history.is_empty()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        !self.active_doc().redo_history.is_empty()
+    }
+
+    // ── Selection ──
+
+    pub fn selection(&self) -> &Selection {
+        &self.active_doc().selection
+    }
+
+    pub fn is_instance_selected(&self, idx: usize) -> bool {
+        self.active_doc().selection.instances.contains(&idx)
+    }
+
+    pub fn is_wire_selected(&self, idx: usize) -> bool {
+        self.active_doc().selection.wires.contains(&idx)
+    }
+
+    // ── GUI state ──
+
+    pub fn view_flags(&self) -> &ViewFlags {
+        &self.state.gui.view_flags
+    }
+
+    pub fn gui(&self) -> &GuiState {
+        &self.state.gui
+    }
+
+    pub fn tool_state(&self) -> &ToolState {
+        &self.state.tool
+    }
+
+    pub fn status_msg(&self) -> &str {
+        &self.state.status_msg
+    }
+
+    pub fn canvas_size(&self) -> [f32; 2] {
+        self.state.canvas_size
+    }
+
+    pub fn show_grid(&self) -> bool {
+        self.state.show_grid
+    }
+
+    // ── Setters for display-driven state ──
+
+    pub fn set_canvas_size(&mut self, w: f32, h: f32) {
+        self.state.canvas_size = [w, h];
+    }
+
+    pub fn set_cursor_world(&mut self, x: i32, y: i32) {
+        self.state.gui.canvas.cursor_world = [x, y];
+    }
+
+    // ── Private ──
+
+    fn active_doc(&self) -> &Document {
+        self.state.active_document()
+    }
+}

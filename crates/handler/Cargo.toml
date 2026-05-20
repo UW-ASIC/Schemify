@@ -1,0 +1,10 @@
+[package]
+name = "schemify-handler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+schemify-core = { path = "../core" }
+schemify-io = { path = "../io" }
+spice-to-schematic = { path = "../../../SpiceToSchematic", default-features = false }
+lasso = "0.7"

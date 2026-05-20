@@ -1,0 +1,21 @@
+chn_prim 1.0
+
+SYMBOL verilog_a_block
+  desc: Verilog-A module
+  pins [2]:
+    p  i
+    n  o
+  params [3]:
+    source_file =
+    model_name =
+    category = analog
+  block_type: verilog_a
+  spice_prefix: X
+  spice_format: "@name @p @n"
+  drawing:
+    rect: (-30,-20) (30,20)
+    text: (0,0) "VERILOG-A"
+    circle: (0,0) r=15
+    pin_positions:
+      p: (-30,0)
+      n: (30,0)
