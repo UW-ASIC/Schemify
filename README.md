@@ -27,9 +27,45 @@ cargo build --features schemify-plugins/wasm
 
 ## Run
 
+### GUI
+
 ```sh
-cargo run -p schemify-display
+cargo run
 ```
+
+### CLI
+
+Pass a subcommand to run headless against a schematic file:
+
+```sh
+# Import a SPICE netlist
+cargo run -- --file my_schematic.chn import-spice my_circuit.spice --save
+
+# Place a device
+cargo run -- --file my_schematic.chn place-device \
+    --symbol-path resistor --name R1 --x 100 --y 200 --save
+
+# Add a wire
+cargo run -- --file my_schematic.chn add-wire \
+    --x0 0 --y0 0 --x1 100 --y1 0 --save
+
+# Transform operations
+cargo run -- --file my_schematic.chn rotate-cw --save
+cargo run -- --file my_schematic.chn flip-horizontal --save
+
+# Set properties
+cargo run -- --file my_schematic.chn set-instance-prop \
+    --idx 0 --key value --value 10k --save
+
+# Run simulation
+cargo run -- --file my_schematic.chn run-sim
+
+# List all commands
+cargo run -- help
+```
+
+Every `Command` variant in `schemify-core` is available as a CLI subcommand.
+Use `--file` to load a schematic and `--save` to write changes back.
 
 ## Architecture
 
