@@ -161,7 +161,7 @@ pub fn render_widget_list(ui: &mut egui::Ui, widgets: &[ParsedWidget]) -> Vec<Co
 
 /// Render plugin panels assigned to the given sidebar layout.
 pub fn show_sidebar(ui: &mut egui::Ui, app: &App, layout: PanelLayout) {
-    let panels = &app.gui().plugins_ui.panels;
+    let panels = &app.panels().plugins_ui.panels;
     for panel in panels {
         if panel.layout != layout || !panel.visible {
             continue;
@@ -175,7 +175,7 @@ pub fn show_sidebar(ui: &mut egui::Ui, app: &App, layout: PanelLayout) {
 /// Show a right side panel if any right-sidebar plugin panels are visible.
 pub fn show_right_panel(ctx: &egui::Context, app: &App) {
     let has_right = app
-        .gui()
+        .panels()
         .plugins_ui
         .panels
         .iter()
@@ -197,7 +197,7 @@ pub fn show_right_panel(ctx: &egui::Context, app: &App) {
 
 /// Render plugin panels in the bottom bar area (below canvas).
 pub fn show_bottom(ui: &mut egui::Ui, app: &App) {
-    let panels = &app.gui().plugins_ui.panels;
+    let panels = &app.panels().plugins_ui.panels;
     let has_bottom = panels
         .iter()
         .any(|p| p.layout == PanelLayout::BottomBar && p.visible);
@@ -230,7 +230,7 @@ pub fn show_bottom(ui: &mut egui::Ui, app: &App) {
 pub fn show_overlays(ctx: &egui::Context, app: &mut App) {
     // Collect overlay panel info to avoid borrow conflicts
     let overlay_info: Vec<(usize, String, PluginLoadState)> = app
-        .gui()
+        .panels()
         .plugins_ui
         .panels
         .iter()
@@ -251,7 +251,7 @@ pub fn show_overlays(ctx: &egui::Context, app: &mut App) {
             });
 
         if !open {
-            if let Some(p) = app.gui_mut().plugins_ui.panels.get_mut(*idx) {
+            if let Some(p) = app.panels_mut().plugins_ui.panels.get_mut(*idx) {
                 p.visible = false;
             }
         }

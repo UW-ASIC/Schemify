@@ -203,11 +203,55 @@ impl App {
     // ── GUI state ──
 
     pub fn view_flags(&self) -> &ViewFlags {
-        &self.state.gui.view_flags
+        &self.state.view.view_flags
     }
 
-    pub fn gui(&self) -> &GuiState {
-        &self.state.gui
+    pub fn canvas(&self) -> &CanvasState {
+        &self.state.canvas
+    }
+
+    pub fn canvas_mut(&mut self) -> &mut CanvasState {
+        &mut self.state.canvas
+    }
+
+    pub fn view(&self) -> &ViewState {
+        &self.state.view
+    }
+
+    pub fn view_mut(&mut self) -> &mut ViewState {
+        &mut self.state.view
+    }
+
+    pub fn dialogs(&self) -> &DialogStates {
+        &self.state.dialogs
+    }
+
+    pub fn dialogs_mut(&mut self) -> &mut DialogStates {
+        &mut self.state.dialogs
+    }
+
+    pub fn panels(&self) -> &PanelState {
+        &self.state.panels
+    }
+
+    pub fn panels_mut(&mut self) -> &mut PanelState {
+        &mut self.state.panels
+    }
+
+    pub fn editor(&self) -> &EditorState {
+        &self.state.editor
+    }
+
+    pub fn editor_mut(&mut self) -> &mut EditorState {
+        &mut self.state.editor
+    }
+
+    pub fn ctx_menu(&self) -> &ContextMenu {
+        &self.state.ctx_menu
+    }
+
+    pub fn ctx_menu_mut(&mut self) -> &mut ContextMenu {
+        &mut self.state.ctx_menu
     }
 
     pub fn tool_state(&self) -> &ToolState {
@@ -219,27 +263,21 @@ impl App {
     }
 
     pub fn canvas_size(&self) -> [f32; 2] {
-        self.state.canvas_size
+        self.state.view.canvas_size
     }
 
     pub fn show_grid(&self) -> bool {
-        self.state.show_grid
+        self.state.view.show_grid
     }
 
     // ── Setters for display-driven state ──
 
     pub fn set_canvas_size(&mut self, w: f32, h: f32) {
-        self.state.canvas_size = [w, h];
+        self.state.view.canvas_size = [w, h];
     }
 
     pub fn set_cursor_world(&mut self, x: i32, y: i32) {
-        self.state.gui.canvas.cursor_world = [x, y];
-    }
-
-    // ── Mutable GUI state (display-driven, not schematic mutations) ──
-
-    pub fn gui_mut(&mut self) -> &mut GuiState {
-        &mut self.state.gui
+        self.state.canvas.cursor_world = [x, y];
     }
 
     pub fn start_placement(&mut self, symbol_path: String, name: String) {

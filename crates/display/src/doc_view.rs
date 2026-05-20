@@ -5,14 +5,14 @@ use schemify_handler::App;
 
 /// Show the documentation editor view (when ViewMode::Documentation is active).
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let mode = app.gui().doc_editor.mode;
+    let mode = app.editor().doc_editor.mode;
     let mut new_mode = mode;
 
     // Load doc content on first show
-    if !app.gui().doc_editor.loaded {
+    if !app.editor().doc_editor.loaded {
         let doc_text = app.schematic().documentation.clone();
-        app.gui_mut().doc_editor.buf = doc_text;
-        app.gui_mut().doc_editor.loaded = true;
+        app.editor_mut().doc_editor.buf = doc_text;
+        app.editor_mut().doc_editor.loaded = true;
     }
 
     let mut save_requested = false;
@@ -36,21 +36,21 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             save_requested = true;
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let word_count = app.gui().doc_editor.buf.split_whitespace().count();
+            let word_count = app.editor().doc_editor.buf.split_whitespace().count();
             ui.weak(format!("{} words", word_count));
         });
     });
     ui.separator();
 
     if new_mode != mode {
-        app.gui_mut().doc_editor.mode = new_mode;
+        app.editor_mut().doc_editor.mode = new_mode;
     }
 
-    match app.gui().doc_editor.mode {
+    match app.editor().doc_editor.mode {
         DocEditorMode::Edit => {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.add(
-                    egui::TextEdit::multiline(&mut app.gui_mut().doc_editor.buf)
+                    egui::TextEdit::multiline(&mut app.editor_mut().doc_editor.buf)
                         .code_editor()
                         .desired_width(f32::INFINITY)
                         .desired_rows(30),
@@ -59,14 +59,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         }
         DocEditorMode::Preview => {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let text = app.gui().doc_editor.buf.clone();
+                let text = app.editor().doc_editor.buf.clone();
                 render_simple_markdown(ui, &text);
             });
         }
     }
 
     if save_requested {
-        let text = app.gui().doc_editor.buf.clone();
+        let text = app.editor().doc_editor.buf.clone();
         app.dispatch(Command::SetDocumentation(text));
     }
 }

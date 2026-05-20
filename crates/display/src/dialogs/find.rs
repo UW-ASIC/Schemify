@@ -3,7 +3,7 @@ use schemify_handler::state::FindResult;
 use schemify_handler::App;
 
 pub fn show(ctx: &egui::Context, app: &mut App) {
-    if !app.gui().dialogs.find.is_open {
+    if !app.dialogs().find.is_open {
         return;
     }
 
@@ -18,7 +18,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
             .collect()
     };
 
-    let find = &mut app.gui_mut().dialogs.find;
+    let find = &mut app.dialogs_mut().find;
 
     // Track actions to perform after the window closure
     let mut open_props_idx: Option<usize> = None;
@@ -124,7 +124,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
 
     // Open properties dialog for the selected instance
     if let Some(idx) = open_props_idx {
-        let props = &mut app.gui_mut().dialogs.props;
+        let props = &mut app.dialogs_mut().props;
         props.is_open = true;
         props.inst_idx = idx;
         props.initialized = false;

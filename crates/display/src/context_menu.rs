@@ -5,7 +5,7 @@ use schemify_handler::App;
 
 /// Show right-click context menu (floating overlay).
 pub fn show(ctx: &egui::Context, app: &mut App) {
-    let cm = app.gui().ctx_menu.clone();
+    let cm = app.ctx_menu().clone();
     if !cm.open {
         return;
     }
@@ -177,7 +177,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
     }
 
     if close {
-        app.gui_mut().ctx_menu.open = false;
+        app.ctx_menu_mut().open = false;
     }
     for cmd in cmds {
         app.dispatch(cmd);

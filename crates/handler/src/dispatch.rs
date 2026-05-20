@@ -27,13 +27,13 @@ impl App {
             ZoomReset => self.state.active_document_mut().viewport.zoom_reset(),
             ZoomFit => self.handle_zoom_fit(),
             ToggleFullscreen => {
-                self.state.gui.view_flags.fullscreen = !self.state.gui.view_flags.fullscreen;
+                self.state.view.view_flags.fullscreen = !self.state.view.view_flags.fullscreen;
             }
             ToggleColorScheme => {
-                self.state.gui.view_flags.dark_mode = !self.state.gui.view_flags.dark_mode;
+                self.state.view.view_flags.dark_mode = !self.state.view.view_flags.dark_mode;
             }
             ToggleGrid => {
-                self.state.show_grid = !self.state.show_grid;
+                self.state.view.show_grid = !self.state.view.show_grid;
             }
 
             // ── File (immediate, no undo) ──
@@ -116,17 +116,17 @@ impl App {
             }
 
             // ── Dialogs (immediate) ──
-            OpenFindDialog => self.state.gui.dialogs.find.is_open = true,
-            OpenPropsDialog => self.state.gui.dialogs.props.is_open = true,
-            OpenSettings => self.state.gui.dialogs.settings.is_open = true,
+            OpenFindDialog => self.state.dialogs.find.is_open = true,
+            OpenPropsDialog => self.state.dialogs.props.is_open = true,
+            OpenSettings => self.state.dialogs.settings.is_open = true,
             OpenSpiceCodeEditor => {
-                self.state.gui.dialogs.spice_code.is_open = true;
-                self.state.gui.dialogs.spice_code.buf =
+                self.state.dialogs.spice_code.is_open = true;
+                self.state.dialogs.spice_code.buf =
                     self.state.active_document().schematic.spice_body.clone();
             }
-            OpenNewPrimDialog => self.state.gui.dialogs.new_prim.is_open = true,
-            OpenMarketplace => self.state.gui.dialogs.marketplace.is_open = true,
-            OpenImportDialog => self.state.gui.dialogs.import.is_open = true,
+            OpenNewPrimDialog => self.state.dialogs.new_prim.is_open = true,
+            OpenMarketplace => self.state.dialogs.marketplace.is_open = true,
+            OpenImportDialog => self.state.dialogs.import.is_open = true,
 
             // ── Movement (invertible, push inverse) ──
             MoveInstance { idx, dx, dy } => {
@@ -464,18 +464,18 @@ impl App {
                                 self.state.documents.push(doc);
                                 self.state.active_doc = self.state.documents.len() - 1;
                                 self.state.status_msg = "SPICE import complete".into();
-                                self.state.gui.dialogs.import.is_open = false;
+                                self.state.dialogs.import.is_open = false;
                             }
                             Err(e) => {
                                 self.state.status_msg = format!("SPICE import failed: {e}");
-                                self.state.gui.dialogs.import.status_msg =
+                                self.state.dialogs.import.status_msg =
                                     format!("Error: {e}");
                             }
                         }
                     }
                     Err(e) => {
                         self.state.status_msg = format!("Cannot read file: {e}");
-                        self.state.gui.dialogs.import.status_msg = format!("Error: {e}");
+                        self.state.dialogs.import.status_msg = format!("Error: {e}");
                     }
                 }
             }
@@ -1085,7 +1085,7 @@ impl App {
     fn handle_zoom_fit(&mut self) {
         let bounds = compute_bounds(&self.state.active_document().schematic);
         if let Some((min_x, min_y, max_x, max_y)) = bounds {
-            let [cw, ch] = self.state.canvas_size;
+            let [cw, ch] = self.state.view.canvas_size;
             let w = (max_x - min_x) as f32;
             let h = (max_y - min_y) as f32;
             if w > 0.0 && h > 0.0 {
