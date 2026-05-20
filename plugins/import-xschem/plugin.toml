@@ -1,9 +1,0 @@
-[plugin]
-name = "ImportXSchem"
-version = "0.1.0"
-description = "Import XSchem .sch and .sym files"
-entry = "schemify-plugin-import-xschem"
-runtime = "subprocess"
-
-[capabilities]
-commands = true
