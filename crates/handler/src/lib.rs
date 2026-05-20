@@ -1,12 +1,18 @@
+pub mod examples;
 pub mod ir;
+pub mod s2s;
 pub mod state;
 mod connectivity;
 mod dispatch;
 mod spice_import;
 
 use std::collections::HashSet;
+use std::path::PathBuf;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::io;
-use std::path::{Path, PathBuf};
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
 
 use schemify_core::commands::{Command, Tool};
 use schemify_core::devices::Pdk;
@@ -32,6 +38,7 @@ impl App {
 
     // ── File operations (called by display after OS file dialog) ──
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn open_file(&mut self, path: &Path) -> io::Result<()> {
         let content = std::fs::read_to_string(path)?;
         let schematic =
@@ -52,6 +59,7 @@ impl App {
         Ok(())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn save_to_path(&mut self, path: &Path) -> io::Result<()> {
         let doc = &self.state.documents[self.state.active_doc];
         match schemify_io::writer::write_chn(&doc.schematic, &self.state.interner) {
@@ -72,6 +80,20 @@ impl App {
                 "serialization failed",
             )),
         }
+    }
+
+    /// Load a schematic from in-memory content (used by WASM / tests).
+    pub fn open_from_content(&mut self, name: &str, content: &str) {
+        let schematic =
+            schemify_io::reader::read_chn(content, &mut self.state.interner);
+        let doc = Document {
+            schematic,
+            name: name.to_string(),
+            origin: Origin::Memory,
+            ..Default::default()
+        };
+        self.state.documents.push(doc);
+        self.state.active_doc = self.state.documents.len() - 1;
     }
 
     // ── Core type accessors (display reads these to render) ──
@@ -233,6 +255,28 @@ impl App {
 
     pub fn set_project_dir(&mut self, path: PathBuf) {
         self.state.project_dir = path;
+    }
+
+    // ── Canvas interaction helpers (display-driven viewport/selection) ──
+
+    pub fn set_pan(&mut self, x: f32, y: f32) {
+        self.state.active_document_mut().viewport.pan = [x, y];
+    }
+
+    pub fn select_instance(&mut self, idx: usize) {
+        self.state.active_document_mut().selection.instances.insert(idx);
+    }
+
+    pub fn select_wire(&mut self, idx: usize) {
+        self.state.active_document_mut().selection.wires.insert(idx);
+    }
+
+    pub fn set_wire_start(&mut self, pos: Option<[i32; 2]>) {
+        self.state.tool.wire_start = pos;
+    }
+
+    pub fn set_draw_first_point(&mut self, pos: Option<[i32; 2]>) {
+        self.state.tool.draw.first_point = pos;
     }
 
     // ── Private ──

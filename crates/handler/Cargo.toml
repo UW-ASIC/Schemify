@@ -6,9 +6,11 @@ edition = "2021"
 [dependencies]
 schemify-core = { path = "../core" }
 schemify-io = { path = "../io" }
-spice-to-schematic = { path = "../../../SpiceToSchematic", default-features = false }
+schemify-sim = { path = "../sim" }
+anyhow = "1"
+thiserror = "2"
 lasso = "0.7"
 serde = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
