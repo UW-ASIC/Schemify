@@ -76,6 +76,7 @@ impl App {
                 doc.selection.circles = (0..sch.circles.len()).collect();
                 doc.selection.arcs = (0..sch.arcs.len()).collect();
                 doc.selection.texts = (0..sch.texts.len()).collect();
+                doc.selection.polygons = (0..sch.polygons.len()).collect();
             }
             SelectNone => self.state.active_document_mut().selection.clear(),
             InvertSelection => {
@@ -87,6 +88,7 @@ impl App {
                 invert_set(&mut doc.selection.circles, doc.schematic.circles.len());
                 invert_set(&mut doc.selection.arcs, doc.schematic.arcs.len());
                 invert_set(&mut doc.selection.texts, doc.schematic.texts.len());
+                invert_set(&mut doc.selection.polygons, doc.schematic.polygons.len());
             }
 
             // ── Clipboard (immediate for copy, undoable for cut/paste) ──
@@ -646,6 +648,13 @@ impl App {
             doc.schematic.texts[idx].x += dx;
             doc.schematic.texts[idx].y += dy;
         }
+        let indices: Vec<usize> = doc.selection.polygons.iter().copied().collect();
+        for idx in indices {
+            for pt in &mut doc.schematic.polygons[idx].points {
+                pt[0] += dx;
+                pt[1] += dy;
+            }
+        }
     }
 
     fn rotate_selected(&mut self, clockwise: bool) {
@@ -705,6 +714,33 @@ impl App {
             doc.schematic.lines[idx].x1 = snap(doc.schematic.lines[idx].x1, grid);
             doc.schematic.lines[idx].y1 = snap(doc.schematic.lines[idx].y1, grid);
         }
+        let indices: Vec<usize> = doc.selection.rects.iter().copied().collect();
+        for idx in indices {
+            doc.schematic.rects[idx].x = snap(doc.schematic.rects[idx].x, grid);
+            doc.schematic.rects[idx].y = snap(doc.schematic.rects[idx].y, grid);
+        }
+        let indices: Vec<usize> = doc.selection.circles.iter().copied().collect();
+        for idx in indices {
+            doc.schematic.circles[idx].cx = snap(doc.schematic.circles[idx].cx, grid);
+            doc.schematic.circles[idx].cy = snap(doc.schematic.circles[idx].cy, grid);
+        }
+        let indices: Vec<usize> = doc.selection.arcs.iter().copied().collect();
+        for idx in indices {
+            doc.schematic.arcs[idx].cx = snap(doc.schematic.arcs[idx].cx, grid);
+            doc.schematic.arcs[idx].cy = snap(doc.schematic.arcs[idx].cy, grid);
+        }
+        let indices: Vec<usize> = doc.selection.texts.iter().copied().collect();
+        for idx in indices {
+            doc.schematic.texts[idx].x = snap(doc.schematic.texts[idx].x, grid);
+            doc.schematic.texts[idx].y = snap(doc.schematic.texts[idx].y, grid);
+        }
+        let indices: Vec<usize> = doc.selection.polygons.iter().copied().collect();
+        for idx in indices {
+            for pt in &mut doc.schematic.polygons[idx].points {
+                pt[0] = snap(pt[0], grid);
+                pt[1] = snap(pt[1], grid);
+            }
+        }
     }
 }
 
@@ -738,6 +774,9 @@ impl App {
         }
         for &idx in &doc.selection.texts {
             clip.texts.push(doc.schematic.texts[idx].clone());
+        }
+        for &idx in &doc.selection.polygons {
+            clip.polygons.push(doc.schematic.polygons[idx].clone());
         }
 
         self.state.clipboard = clip;
@@ -824,6 +863,18 @@ impl App {
         for i in base..doc.schematic.texts.len() {
             doc.selection.texts.insert(i);
         }
+
+        let base = doc.schematic.polygons.len();
+        for mut p in clip.polygons {
+            for pt in &mut p.points {
+                pt[0] += offset;
+                pt[1] += offset;
+            }
+            doc.schematic.polygons.push(p);
+        }
+        for i in base..doc.schematic.polygons.len() {
+            doc.selection.polygons.insert(i);
+        }
     }
 }
 
@@ -843,6 +894,7 @@ impl App {
         remove_selected_aos(&mut doc.schematic.circles, &doc.selection.circles);
         remove_selected_aos(&mut doc.schematic.arcs, &doc.selection.arcs);
         remove_selected_aos(&mut doc.schematic.texts, &doc.selection.texts);
+        remove_selected_aos(&mut doc.schematic.polygons, &doc.selection.polygons);
 
         doc.selection.clear();
     }
@@ -891,6 +943,12 @@ impl App {
         let text_indices: Vec<usize> = self.state.documents[doc_idx]
             .selection
             .texts
+            .iter()
+            .copied()
+            .collect();
+        let polygon_indices: Vec<usize> = self.state.documents[doc_idx]
+            .selection
+            .polygons
             .iter()
             .copied()
             .collect();
@@ -959,6 +1017,16 @@ impl App {
             let new_idx = doc.schematic.texts.len();
             doc.schematic.texts.push(t);
             doc.selection.texts.insert(new_idx);
+        }
+        for idx in polygon_indices {
+            let mut p = doc.schematic.polygons[idx].clone();
+            for pt in &mut p.points {
+                pt[0] += offset;
+                pt[1] += offset;
+            }
+            let new_idx = doc.schematic.polygons.len();
+            doc.schematic.polygons.push(p);
+            doc.selection.polygons.insert(new_idx);
         }
     }
 }
@@ -1223,6 +1291,15 @@ fn compute_bounds(sch: &Schematic) -> Option<(i32, i32, i32, i32)> {
         min_y = min_y.min(t.y);
         max_x = max_x.max(t.x);
         max_y = max_y.max(t.y);
+    }
+    for poly in &sch.polygons {
+        for pt in &poly.points {
+            any = true;
+            min_x = min_x.min(pt[0]);
+            min_y = min_y.min(pt[1]);
+            max_x = max_x.max(pt[0]);
+            max_y = max_y.max(pt[1]);
+        }
     }
 
     if any {

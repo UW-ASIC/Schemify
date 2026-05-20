@@ -205,6 +205,7 @@ pub struct Selection {
     pub circles: HashSet<usize>,
     pub arcs: HashSet<usize>,
     pub texts: HashSet<usize>,
+    pub polygons: HashSet<usize>,
 }
 
 impl Selection {
@@ -216,6 +217,7 @@ impl Selection {
         self.circles.clear();
         self.arcs.clear();
         self.texts.clear();
+        self.polygons.clear();
     }
 
     pub fn is_empty(&self) -> bool {
@@ -226,6 +228,7 @@ impl Selection {
             && self.circles.is_empty()
             && self.arcs.is_empty()
             && self.texts.is_empty()
+            && self.polygons.is_empty()
     }
 
     pub fn count(&self) -> usize {
@@ -236,6 +239,7 @@ impl Selection {
             + self.circles.len()
             + self.arcs.len()
             + self.texts.len()
+            + self.polygons.len()
     }
 }
 
