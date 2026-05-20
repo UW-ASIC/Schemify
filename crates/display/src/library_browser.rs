@@ -3,7 +3,7 @@ use schemify_core::primitives::PRIMITIVES;
 use schemify_handler::App;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let selected = app.gui().library_browser.selected_prim;
+    let selected = app.panels().library_browser.selected_prim;
 
     let mut new_selected = selected;
     let mut place: Option<(String, String)> = None;
@@ -27,7 +27,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     });
 
     if new_selected != selected {
-        app.gui_mut().library_browser.selected_prim = new_selected;
+        app.panels_mut().library_browser.selected_prim = new_selected;
     }
     if let Some((path, name)) = place {
         app.start_placement(path, name);

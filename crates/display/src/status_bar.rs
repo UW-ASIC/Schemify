@@ -8,7 +8,7 @@ use schemify_handler::App;
 // ====================================================
 
 pub fn show(ctx: &egui::Context, app: &mut App) {
-    let in_command_mode = app.gui().command_mode;
+    let in_command_mode = app.editor().command_mode;
 
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
@@ -25,10 +25,10 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
 
 fn show_normal(ui: &mut egui::Ui, app: &App) {
     let status = app.status_msg();
-    let cursor = app.gui().canvas.cursor_world;
+    let cursor = app.canvas().cursor_world;
     let tool = app.active_tool();
     let snap = app.tool_state().snap_size;
-    let view_mode = app.gui().view_mode;
+    let view_mode = app.view().view_mode;
     let zoom = app.zoom();
 
     if !status.is_empty() {
@@ -62,7 +62,7 @@ fn show_normal(ui: &mut egui::Ui, app: &App) {
 fn show_command_mode(ui: &mut egui::Ui, app: &mut App) {
     ui.label(":");
 
-    let buf = &mut app.gui_mut().command_buf;
+    let buf = &mut app.editor_mut().command_buf;
     let response = ui.add(
         egui::TextEdit::singleline(buf)
             .desired_width(ui.available_width() - 180.0)
@@ -73,7 +73,7 @@ fn show_command_mode(ui: &mut egui::Ui, app: &mut App) {
     if !response.has_focus() {
         response.request_focus();
     }
-    app.gui_mut().text_entry_focused = true;
+    app.editor_mut().text_entry_focused = true;
 
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         ui.weak("Enter to run | Esc to cancel");
@@ -89,7 +89,7 @@ fn show_command_mode(ui: &mut egui::Ui, app: &mut App) {
     });
 
     if enter {
-        let line = app.gui().command_buf.clone();
+        let line = app.editor().command_buf.clone();
         exit_command_mode(app);
         execute_vim_command(&line, app);
     } else if escape {
@@ -98,10 +98,10 @@ fn show_command_mode(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn exit_command_mode(app: &mut App) {
-    let gui = app.gui_mut();
-    gui.command_mode = false;
-    gui.command_buf.clear();
-    gui.text_entry_focused = false;
+    let editor = app.editor_mut();
+    editor.command_mode = false;
+    editor.command_buf.clear();
+    editor.text_entry_focused = false;
 }
 
 // ── Vim command parser & executor ───────────────────────────────────────────
@@ -213,7 +213,7 @@ fn execute_vim_command(line: &str, app: &mut App) {
     match parse_vim_command(line) {
         VimResult::Dispatch(cmd) => app.dispatch(cmd),
         VimResult::SetView(mode) => {
-            app.gui_mut().view_mode = mode;
+            app.view_mut().view_mode = mode;
         }
         VimResult::Unknown => {
             // Could set a status message; for now just ignore.

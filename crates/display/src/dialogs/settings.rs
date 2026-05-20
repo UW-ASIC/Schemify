@@ -126,14 +126,14 @@ const KEYBIND_TABLE: &[(&str, &str)] = &[
 // ── Main entry point ────────────────────────────────────────────────────────
 
 pub fn show(ctx: &egui::Context, app: &mut App) {
-    if !app.gui().dialogs.settings.is_open {
+    if !app.dialogs().settings.is_open {
         return;
     }
 
     // Seed the JSON buffer on first open if empty.
-    if app.gui().dialogs.settings.json_edit_buf.is_empty() {
+    if app.dialogs().settings.json_edit_buf.is_empty() {
         let text = format_tokens(&ThemeTokens::dark());
-        let state = &mut app.gui_mut().dialogs.settings;
+        let state = &mut app.dialogs_mut().settings;
         state.json_edit_buf = text;
         state.status_msg.clear();
     }
@@ -146,7 +146,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
         .resizable(true)
         .default_size([540.0, 440.0])
         .show(ctx, |ui| {
-            let state = &mut app.gui_mut().dialogs.settings;
+            let state = &mut app.dialogs_mut().settings;
 
             // Tab bar
             ui.horizontal(|ui| {
@@ -168,12 +168,12 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
     // Apply theme outside the window closure (needs &egui::Context).
     if let Some(tokens) = apply_tokens {
         apply_theme(ctx, &tokens);
-        app.gui_mut().dialogs.settings.status_msg = "Theme applied.".into();
-        app.gui_mut().dialogs.settings.dirty = false;
+        app.dialogs_mut().settings.status_msg = "Theme applied.".into();
+        app.dialogs_mut().settings.dirty = false;
     }
 
     if !is_open {
-        app.gui_mut().dialogs.settings.is_open = false;
+        app.dialogs_mut().settings.is_open = false;
     }
 }
 

@@ -3,7 +3,7 @@ use schemify_core::commands::Command;
 use schemify_handler::App;
 
 pub fn show(ctx: &egui::Context, app: &mut App) {
-    if !app.gui().dialogs.spice_code.is_open {
+    if !app.dialogs().spice_code.is_open {
         return;
     }
 
@@ -11,7 +11,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
     let mut cmds: Vec<Command> = Vec::new();
 
     {
-        let state = &mut app.gui_mut().dialogs.spice_code;
+        let state = &mut app.dialogs_mut().spice_code;
 
         // Seed buffer on first open
         if state.buf.is_empty() && !current_body.is_empty() {

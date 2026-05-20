@@ -7,13 +7,13 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
     let can_undo = app.can_undo();
     let can_redo = app.can_redo();
     let grid_on = app.show_grid();
-    let view_mode = app.gui().view_mode;
+    let view_mode = app.view().view_mode;
     #[cfg(not(target_arch = "wasm32"))]
     let active_idx = app.active_doc_idx();
 
     // Snapshot plugin info before entering egui closures (avoids borrow conflicts)
     let plugin_info: Vec<(usize, String, bool)> = app
-        .gui()
+        .panels()
         .plugins_ui
         .panels
         .iter()
@@ -21,14 +21,14 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
         .map(|(i, p)| (i, p.name.clone(), p.visible))
         .collect();
     let plugin_cmds: Vec<(String, String)> = app
-        .gui()
+        .panels()
         .plugins_ui
         .commands
         .iter()
         .map(|c| (c.name.clone(), c.description.clone()))
         .collect();
 
-    let view_flags = app.gui().view_flags.clone();
+    let view_flags = app.view().view_flags.clone();
 
     let mut cmds: Vec<Command> = Vec::new();
     #[cfg(not(target_arch = "wasm32"))]
@@ -107,19 +107,19 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
     }
 
     if let Some(mode) = new_view_mode {
-        app.gui_mut().view_mode = mode;
+        app.view_mut().view_mode = mode;
     }
     if toggle_crosshair {
-        app.gui_mut().view_flags.crosshair = !view_flags.crosshair;
+        app.view_mut().view_flags.crosshair = !view_flags.crosshair;
     }
     if toggle_netlist {
-        app.gui_mut().view_flags.show_netlist = !view_flags.show_netlist;
+        app.view_mut().view_flags.show_netlist = !view_flags.show_netlist;
     }
     if toggle_fill_rects {
-        app.gui_mut().view_flags.fill_rects = !view_flags.fill_rects;
+        app.view_mut().view_flags.fill_rects = !view_flags.fill_rects;
     }
     if let Some(idx) = toggle_panel {
-        if let Some(p) = app.gui_mut().plugins_ui.panels.get_mut(idx) {
+        if let Some(p) = app.panels_mut().plugins_ui.panels.get_mut(idx) {
             p.visible = !p.visible;
         }
     }

@@ -3,12 +3,12 @@ use schemify_core::commands::Command;
 use schemify_handler::App;
 
 pub fn show(ctx: &egui::Context, app: &mut App) {
-    if !app.gui().dialogs.props.is_open {
+    if !app.dialogs().props.is_open {
         return;
     }
 
     // Pre-collect instance data while we have immutable access
-    let inst_idx = app.gui().dialogs.props.inst_idx;
+    let inst_idx = app.dialogs().props.inst_idx;
     let sch = app.schematic();
     if inst_idx >= sch.instances.len() {
         return;
@@ -44,7 +44,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
         .collect();
 
     // Initialize buffers on first frame
-    let state = &mut app.gui_mut().dialogs.props;
+    let state = &mut app.dialogs_mut().props;
     if !state.initialized {
         state.name_buf = inst_name.clone();
         state.prop_values = props.iter().map(|(_, v)| v.clone()).collect();

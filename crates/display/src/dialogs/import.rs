@@ -7,7 +7,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
     let mut cmds: Vec<Command> = Vec::new();
 
     {
-        let state = &mut app.gui_mut().dialogs.import;
+        let state = &mut app.dialogs_mut().import;
         if !state.is_open {
             return;
         }

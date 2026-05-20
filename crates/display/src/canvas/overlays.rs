@@ -43,7 +43,7 @@ pub fn render(
     }
 
     // Rubber band selection rectangle.
-    if app.gui().canvas.rubber_band_active {
+    if app.canvas().rubber_band_active {
         draw_rubber_band(painter, app, viewport, palette);
     }
 
@@ -87,7 +87,7 @@ fn draw_wire_preview(
     );
 
     // Manhattan-constrained preview from start to cursor.
-    let cur = app.gui().canvas.cursor_world;
+    let cur = app.canvas().cursor_world;
     let dx = (cur[0] - ws[0]).unsigned_abs();
     let dy = (cur[1] - ws[1]).unsigned_abs();
     // Route horizontal-first if dx >= dy, else vertical-first.
@@ -122,7 +122,7 @@ fn draw_placement_ghost(
     );
     let ww = (1.5 * viewport.zoom).max(1.0);
     let stroke = Stroke::new(ww, ghost_col);
-    let cursor = app.gui().canvas.cursor_world;
+    let cursor = app.canvas().cursor_world;
     let origin = viewport.w2p(cursor[0], cursor[1]);
     let flags = schemify_core::types::InstanceFlags::new(pl.rotation, pl.flip, false);
 
@@ -204,7 +204,7 @@ fn draw_drawing_preview(
 ) {
     let tool = app.active_tool();
     let draw = &app.tool_state().draw;
-    let cursor = app.gui().canvas.cursor_world;
+    let cursor = app.canvas().cursor_world;
     let preview_col = Color32::from_rgba_premultiplied(
         palette.wire_preview.r(),
         palette.wire_preview.g(),
@@ -350,7 +350,7 @@ fn draw_rubber_band(
     viewport: &CanvasViewport,
     palette: &CanvasPalette,
 ) {
-    let cs = &app.gui().canvas;
+    let cs = &app.canvas();
     let start = cs.rubber_band_start;
     let end = cs.rubber_band_end;
 
@@ -377,7 +377,7 @@ fn draw_crosshair(
     viewport: &CanvasViewport,
     palette: &CanvasPalette,
 ) {
-    let cursor = app.gui().canvas.cursor_world;
+    let cursor = app.canvas().cursor_world;
     let p = viewport.w2p(cursor[0], cursor[1]);
     let clip = painter.clip_rect();
     let col = Color32::from_rgba_premultiplied(

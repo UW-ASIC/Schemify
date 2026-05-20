@@ -46,7 +46,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
     // Read project_dir before mutable borrow
     let project_dir = app.project_dir().to_path_buf();
 
-    let state = &mut app.gui_mut().dialogs.new_prim;
+    let state = &mut app.dialogs_mut().new_prim;
     if !state.is_open {
         return;
     }

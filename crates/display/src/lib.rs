@@ -55,7 +55,7 @@ impl eframe::App for SchemifyApp {
         tab_bar::show(ctx, &mut self.app);
         status_bar::show(ctx, &mut self.app);
 
-        let left_tab = self.app.gui().left_panel_tab;
+        let left_tab = self.app.panels().left_panel_tab;
         let mut new_tab = left_tab;
 
         egui::SidePanel::left("left_panel")
@@ -88,7 +88,7 @@ impl eframe::App for SchemifyApp {
             });
 
         if new_tab != left_tab {
-            self.app.gui_mut().left_panel_tab = new_tab;
+            self.app.panels_mut().left_panel_tab = new_tab;
         }
 
         plugin_panels::show_right_panel(ctx, &self.app);
@@ -97,7 +97,7 @@ impl eframe::App for SchemifyApp {
             if self.should_show_welcome() {
                 welcome::show(ui, &mut self.app);
             } else {
-                let view_mode = self.app.gui().view_mode;
+                let view_mode = self.app.view().view_mode;
                 match view_mode {
                     ViewMode::Documentation => {
                         doc_view::show(ui, &mut self.app);
@@ -123,7 +123,7 @@ impl eframe::App for SchemifyApp {
 // ── Keyboard shortcuts (driven by keybinds table) ───────────────────────────
 
 fn handle_shortcuts(ctx: &egui::Context, app: &mut App) {
-    if app.gui().text_entry_focused || app.gui().command_mode {
+    if app.editor().text_entry_focused || app.editor().command_mode {
         return;
     }
 
@@ -131,16 +131,16 @@ fn handle_shortcuts(ctx: &egui::Context, app: &mut App) {
         match &kb.command {
             KeyCommand::Dispatch(cmd) => app.dispatch(cmd.clone()),
             KeyCommand::EnterCommandMode => {
-                app.gui_mut().command_mode = true;
+                app.editor_mut().command_mode = true;
             }
             KeyCommand::SetViewSchematic => {
-                app.gui_mut().view_mode = ViewMode::Schematic;
+                app.view_mut().view_mode = ViewMode::Schematic;
             }
             KeyCommand::SetViewSymbol => {
-                app.gui_mut().view_mode = ViewMode::Symbol;
+                app.view_mut().view_mode = ViewMode::Symbol;
             }
             KeyCommand::SetViewDoc => {
-                app.gui_mut().view_mode = ViewMode::Documentation;
+                app.view_mut().view_mode = ViewMode::Documentation;
             }
         }
     }

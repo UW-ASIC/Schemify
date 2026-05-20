@@ -11,7 +11,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
         .collect();
     let active = app.active_doc_idx();
     let tab_count = doc_info.len();
-    let view_mode = app.gui().view_mode;
+    let view_mode = app.view().view_mode;
 
     let mut cmd = None;
     let mut new_view_mode: Option<ViewMode> = None;
@@ -92,6 +92,6 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
         app.dispatch(c);
     }
     if let Some(mode) = new_view_mode {
-        app.gui_mut().view_mode = mode;
+        app.view_mut().view_mode = mode;
     }
 }

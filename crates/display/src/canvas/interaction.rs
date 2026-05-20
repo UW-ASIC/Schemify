@@ -31,18 +31,18 @@ pub fn handle(
 fn handle_space_key(app: &mut App, ctx: &egui::Context) {
     ctx.input(|i| {
         if i.key_pressed(egui::Key::Space) {
-            app.gui_mut().canvas.space_held = true;
-            app.gui_mut().canvas.space_drag_happened = false;
+            app.canvas_mut().space_held = true;
+            app.canvas_mut().space_drag_happened = false;
         }
         if i.key_released(egui::Key::Space) {
-            let cs = &app.gui().canvas;
+            let cs = &app.canvas();
             let drag_happened = cs.space_drag_happened;
-            app.gui_mut().canvas.space_held = false;
+            app.canvas_mut().space_held = false;
             if !drag_happened {
                 // Toggle sticky grab mode.
-                app.gui_mut().canvas.pan_mode = PanMode::Grab;
+                app.canvas_mut().pan_mode = PanMode::Grab;
             }
-            app.gui_mut().canvas.space_drag_happened = false;
+            app.canvas_mut().space_drag_happened = false;
         }
     });
 }
@@ -106,23 +106,23 @@ fn handle_mouse_press(
     }
 
     if response.clicked_by(PointerButton::Primary) {
-        let cs = &app.gui().canvas;
+        let cs = &app.canvas();
 
         if cs.pan_mode == PanMode::Grab {
             // Click to exit grab mode.
-            app.gui_mut().canvas.pan_mode = PanMode::Off;
-            app.gui_mut().canvas.dragging = false;
-            app.gui_mut().canvas.move_active = false;
-            app.gui_mut().canvas.move_hit_idx = None;
+            app.canvas_mut().pan_mode = PanMode::Off;
+            app.canvas_mut().dragging = false;
+            app.canvas_mut().move_active = false;
+            app.canvas_mut().move_hit_idx = None;
             return;
         }
 
         if cs.space_held {
             // Space + click -> start pan drag (handled in drag section).
             if let Some(pos) = response.interact_pointer_pos() {
-                app.gui_mut().canvas.dragging = true;
-                app.gui_mut().canvas.drag_is_pan = true;
-                app.gui_mut().canvas.drag_last = [pos.x, pos.y];
+                app.canvas_mut().dragging = true;
+                app.canvas_mut().drag_is_pan = true;
+                app.canvas_mut().drag_last = [pos.x, pos.y];
             }
             return;
         }
@@ -155,10 +155,10 @@ fn handle_mouse_press(
             let inst_hit = hit_test_instance(app, wx, wy);
             let wire_hit = hit_test_wire(app, wx, wy);
 
-            app.gui_mut().ctx_menu.open = true;
-            app.gui_mut().ctx_menu.pixel_pos = [pos.x, pos.y];
-            app.gui_mut().ctx_menu.inst_idx = inst_hit;
-            app.gui_mut().ctx_menu.wire_idx = wire_hit;
+            app.ctx_menu_mut().open = true;
+            app.ctx_menu_mut().pixel_pos = [pos.x, pos.y];
+            app.ctx_menu_mut().inst_idx = inst_hit;
+            app.ctx_menu_mut().wire_idx = wire_hit;
         }
     }
 
@@ -190,13 +190,13 @@ fn handle_mouse_drag(
         return;
     }
 
-    let cs = &app.gui().canvas;
+    let cs = &app.canvas();
 
     // Space + drag -> pan.
     if cs.drag_is_pan || cs.space_held {
         let delta = response.drag_delta();
         if delta.length_sq() > 0.0 {
-            app.gui_mut().canvas.space_drag_happened = true;
+            app.canvas_mut().space_drag_happened = true;
             pan_by_pixel_delta(app, viewport, delta);
         }
         return;
@@ -204,17 +204,17 @@ fn handle_mouse_drag(
 
     // Move-drag promotion: check if we exceed the threshold.
     if let Some(pos) = response.interact_pointer_pos() {
-        let cs = &app.gui().canvas;
+        let cs = &app.canvas();
         if !cs.move_active && cs.move_hit_idx.is_some() {
             let dx_px = pos.x - cs.move_press_pixel[0];
             let dy_px = pos.y - cs.move_press_pixel[1];
             if dx_px * dx_px + dy_px * dy_px >= MOVE_DRAG_THRESHOLD_PX * MOVE_DRAG_THRESHOLD_PX {
-                app.gui_mut().canvas.move_active = true;
-                app.gui_mut().canvas.drag_last = [pos.x, pos.y];
+                app.canvas_mut().move_active = true;
+                app.canvas_mut().drag_last = [pos.x, pos.y];
             }
         }
 
-        let cs = &app.gui().canvas;
+        let cs = &app.canvas();
         if cs.move_active {
             // Move selected objects by drag delta.
             let prev = snap_world(viewport, Pos2::new(cs.drag_last[0], cs.drag_last[1]), snap);
@@ -224,12 +224,12 @@ fn handle_mouse_drag(
             if dx != 0 || dy != 0 {
                 app.dispatch(Command::MoveSelected { dx, dy });
             }
-            app.gui_mut().canvas.drag_last = [pos.x, pos.y];
+            app.canvas_mut().drag_last = [pos.x, pos.y];
             return;
         }
 
         // Rubber-band selection drag.
-        let cs = &app.gui().canvas;
+        let cs = &app.canvas();
         if app.active_tool() == Tool::Select && cs.move_hit_idx.is_none() {
             let dx_px = pos.x - cs.move_press_pixel[0];
             let dy_px = pos.y - cs.move_press_pixel[1];
@@ -237,12 +237,12 @@ fn handle_mouse_drag(
                 && dx_px * dx_px + dy_px * dy_px
                     >= MOVE_DRAG_THRESHOLD_PX * MOVE_DRAG_THRESHOLD_PX
             {
-                app.gui_mut().canvas.rubber_band_active = true;
+                app.canvas_mut().rubber_band_active = true;
             }
 
-            if app.gui().canvas.rubber_band_active {
+            if app.canvas().rubber_band_active {
                 let [wx, wy] = snap_world(viewport, pos, snap);
-                app.gui_mut().canvas.rubber_band_end = [wx, wy];
+                app.canvas_mut().rubber_band_end = [wx, wy];
             }
         }
     }
@@ -259,7 +259,7 @@ fn handle_mouse_release(
     // We detect release indirectly: if the button was being dragged and is no longer.
     // egui doesn't have a direct "released" event, but drag_stopped works.
     if response.drag_stopped_by(PointerButton::Primary) {
-        let cs = &app.gui().canvas;
+        let cs = &app.canvas();
 
         // Complete rubber-band selection.
         if cs.rubber_band_active {
@@ -273,16 +273,16 @@ fn handle_mouse_release(
             select_in_rect(app, min_x, min_y, max_x, max_y);
         }
 
-        app.gui_mut().canvas.rubber_band_active = false;
-        app.gui_mut().canvas.move_active = false;
-        app.gui_mut().canvas.move_hit_idx = None;
-        app.gui_mut().canvas.dragging = false;
-        app.gui_mut().canvas.drag_is_pan = false;
+        app.canvas_mut().rubber_band_active = false;
+        app.canvas_mut().move_active = false;
+        app.canvas_mut().move_hit_idx = None;
+        app.canvas_mut().dragging = false;
+        app.canvas_mut().drag_is_pan = false;
     }
 
     if response.drag_stopped_by(PointerButton::Middle) {
-        app.gui_mut().canvas.dragging = false;
-        app.gui_mut().canvas.drag_is_pan = false;
+        app.canvas_mut().dragging = false;
+        app.canvas_mut().drag_is_pan = false;
     }
 }
 
@@ -296,21 +296,21 @@ fn handle_select_click(app: &mut App, _viewport: &CanvasViewport, pos: Pos2, wx:
 
     if inst_hit.is_some() || wire_hit.is_some() {
         // Prime move: record which object was hit in case of drag.
-        app.gui_mut().canvas.move_press_pixel = [pos.x, pos.y];
-        app.gui_mut().canvas.move_start_world = [wx, wy];
-        app.gui_mut().canvas.drag_last = [pos.x, pos.y];
+        app.canvas_mut().move_press_pixel = [pos.x, pos.y];
+        app.canvas_mut().move_start_world = [wx, wy];
+        app.canvas_mut().drag_last = [pos.x, pos.y];
     }
 
     // Check if we clicked on an already-selected object (for move).
     if let Some(idx) = inst_hit {
         if app.is_instance_selected(idx) {
-            app.gui_mut().canvas.move_hit_idx = Some(idx);
+            app.canvas_mut().move_hit_idx = Some(idx);
             return;
         }
     }
     if let Some(idx) = wire_hit {
         if app.is_wire_selected(idx) {
-            app.gui_mut().canvas.move_hit_idx = Some(idx);
+            app.canvas_mut().move_hit_idx = Some(idx);
             return;
         }
     }
@@ -319,23 +319,23 @@ fn handle_select_click(app: &mut App, _viewport: &CanvasViewport, pos: Pos2, wx:
     app.dispatch(Command::SelectNone);
 
     if let Some(idx) = inst_hit {
-        app.gui_mut().canvas.move_hit_idx = Some(idx);
+        app.canvas_mut().move_hit_idx = Some(idx);
         app.select_instance(idx);
         return;
     }
 
     if let Some(idx) = wire_hit {
-        app.gui_mut().canvas.move_hit_idx = Some(idx);
+        app.canvas_mut().move_hit_idx = Some(idx);
         app.select_wire(idx);
         return;
     }
 
     // Clicked on empty space — prepare for rubber band.
-    app.gui_mut().canvas.rubber_band_start = [wx, wy];
-    app.gui_mut().canvas.rubber_band_end = [wx, wy];
-    app.gui_mut().canvas.rubber_band_active = false;
-    app.gui_mut().canvas.move_press_pixel = [pos.x, pos.y];
-    app.gui_mut().canvas.move_hit_idx = None;
+    app.canvas_mut().rubber_band_start = [wx, wy];
+    app.canvas_mut().rubber_band_end = [wx, wy];
+    app.canvas_mut().rubber_band_active = false;
+    app.canvas_mut().move_press_pixel = [pos.x, pos.y];
+    app.canvas_mut().move_hit_idx = None;
 }
 
 // ── Wire tool click ─────────────────────────────────────────────────────────

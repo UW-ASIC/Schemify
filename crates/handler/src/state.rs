@@ -58,7 +58,8 @@ pub struct AppState {
     // --- Hot: every frame ---
     pub documents: Vec<Document>,
     pub active_doc: usize,
-    pub gui: GuiState,
+    pub canvas: CanvasState,
+    pub view: ViewState,
     pub tool: ToolState,
     pub status_msg: String,
 
@@ -69,14 +70,18 @@ pub struct AppState {
     pub clipboard: Clipboard,
     pub highlighted_nets: HashSet<Sym>,
 
+    // --- Panels & dialogs ---
+    pub panels: PanelState,
+    pub dialogs: DialogStates,
+    pub editor: EditorState,
+    pub ctx_menu: ContextMenu,
+
     // --- Cold: infrequent ---
     pub pdk: Option<Pdk>,
     pub hierarchy_stack: Vec<HierEntry>,
     pub last_netlist: String,
     pub sim_backend: SpiceBackend,
     pub backend_avail: BackendAvailability,
-    pub canvas_size: [f32; 2],
-    pub show_grid: bool,
     pub settings: PersistentSettings,
     /// Opaque plugin blob storage, keyed by plugin ID
     pub plugin_data: HashMap<String, Vec<u8>>,
@@ -94,7 +99,8 @@ impl AppState {
 
             documents: vec![Document::default()],
             active_doc: 0,
-            gui: GuiState::default(),
+            canvas: CanvasState::default(),
+            view: ViewState::default(),
             tool: ToolState::new(),
             status_msg: String::new(),
 
@@ -104,13 +110,16 @@ impl AppState {
             clipboard: Clipboard::default(),
             highlighted_nets: HashSet::new(),
 
+            panels: PanelState::default(),
+            dialogs: DialogStates::default(),
+            editor: EditorState::default(),
+            ctx_menu: ContextMenu::default(),
+
             pdk: None,
             hierarchy_stack: Vec::new(),
             last_netlist: String::new(),
             sim_backend: SpiceBackend::default(),
             backend_avail: BackendAvailability::default(),
-            canvas_size: [800.0, 600.0],
-            show_grid: true,
             settings: PersistentSettings::default(),
             plugin_data: HashMap::new(),
 
@@ -340,27 +349,50 @@ impl Default for ViewFlags {
 }
 
 // ====================================================
-// GUI State (hot + cold)
+// View State: rendering toggles and mode
+// ====================================================
+
+#[derive(Debug, Clone)]
+pub struct ViewState {
+    pub view_mode: ViewMode,
+    pub view_flags: ViewFlags,
+    pub show_grid: bool,
+    pub canvas_size: [f32; 2],
+}
+
+impl Default for ViewState {
+    fn default() -> Self {
+        Self {
+            view_mode: ViewMode::default(),
+            view_flags: ViewFlags::default(),
+            show_grid: true,
+            canvas_size: [800.0, 600.0],
+        }
+    }
+}
+
+// ====================================================
+// Panel layout state
 // ====================================================
 
 #[derive(Debug, Clone, Default)]
-pub struct GuiState {
-    // Hot: every frame
-    pub canvas: CanvasState,
-    pub view_mode: ViewMode,
-    pub view_flags: ViewFlags,
-    pub command_mode: bool,
-    pub text_entry_focused: bool,
-
-    // Cold: infrequent
-    pub dialogs: DialogStates,
-    pub plugins_ui: PluginUiState,
+pub struct PanelState {
+    pub left_panel_tab: LeftPanelTab,
     pub file_explorer: FileExplorerState,
     pub library_browser: LibraryBrowserState,
+    pub plugins_ui: PluginUiState,
     pub optimizer_windows: Vec<OptimizerWindowState>,
-    pub ctx_menu: ContextMenu,
-    pub left_panel_tab: LeftPanelTab,
+}
+
+// ====================================================
+// Editor / command bar state
+// ====================================================
+
+#[derive(Debug, Clone, Default)]
+pub struct EditorState {
+    pub command_mode: bool,
     pub command_buf: String,
+    pub text_entry_focused: bool,
     pub doc_editor: DocEditorState,
 }
 
