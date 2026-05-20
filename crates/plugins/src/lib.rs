@@ -8,4 +8,4 @@ pub mod manager;
 pub use manager::{PluginManager, PluginState};
 pub use manifest::PluginManifest;
 pub use host::HostAction;
-pub use capability::{Capability, HostCapabilities};
+pub use capability::{Capability, HostCapabilities, NegotiatedCapabilities, negotiate};

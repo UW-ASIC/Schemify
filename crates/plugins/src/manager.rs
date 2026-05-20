@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::capability::{Capability, HostCapabilities};
+use crate::capability::{self, Capability, HostCapabilities, NegotiatedCapabilities};
 use crate::host::HostAction;
 use crate::jsonrpc::IncomingMessage;
 use crate::manifest::{ManifestError, PluginManifest};
@@ -20,22 +20,52 @@ pub enum PluginState {
     Error,
 }
 
+impl PluginState {
+    /// Whether a transition to the given target state is valid.
+    pub fn can_transition_to(self, target: PluginState) -> bool {
+        matches!(
+            (self, target),
+            // Discovered -> Starting (begin launch)
+            (PluginState::Discovered, PluginState::Starting)
+            // Discovered -> Error (manifest issue detected late)
+            | (PluginState::Discovered, PluginState::Error)
+            // Starting -> Running (spawn succeeded)
+            | (PluginState::Starting, PluginState::Running)
+            // Starting -> Error (spawn failed)
+            | (PluginState::Starting, PluginState::Error)
+            // Running -> Stopping (shutdown requested)
+            | (PluginState::Running, PluginState::Stopping)
+            // Running -> Error (process crashed)
+            | (PluginState::Running, PluginState::Error)
+            // Stopping -> Stopped (clean shutdown)
+            | (PluginState::Stopping, PluginState::Stopped)
+            // Stopping -> Error (shutdown failed)
+            | (PluginState::Stopping, PluginState::Error)
+            // Stopped -> Starting (restart)
+            | (PluginState::Stopped, PluginState::Starting)
+            // Error -> Starting (retry)
+            | (PluginState::Error, PluginState::Starting)
+        )
+    }
+}
+
 /// Per-plugin runtime slot.
-struct PluginSlot {
-    manifest: PluginManifest,
-    dir: PathBuf,
-    state: PluginState,
-    capability: Capability,
-    transport: Option<Subprocess>,
-    error_msg: Option<String>,
+pub(crate) struct PluginSlot {
+    pub(crate) manifest: PluginManifest,
+    pub(crate) dir: PathBuf,
+    pub(crate) state: PluginState,
+    pub(crate) capability: Capability,
+    pub(crate) negotiated: Option<NegotiatedCapabilities>,
+    pub(crate) transport: Option<Subprocess>,
+    pub(crate) error_msg: Option<String>,
 }
 
 /// Manages discovery, lifecycle, and IPC for all plugins.
 pub struct PluginManager {
-    plugins: HashMap<String, PluginSlot>,
-    #[allow(dead_code)]
+    pub(crate) plugins: HashMap<String, PluginSlot>,
     next_rpc_id: u32,
     host_caps: HostCapabilities,
+    scan_dirs: Vec<PathBuf>,
     max_drain: usize,
 }
 
@@ -45,11 +75,29 @@ impl PluginManager {
             plugins: HashMap::new(),
             next_rpc_id: 1,
             host_caps: HostCapabilities::default(),
+            scan_dirs: Vec::new(),
             max_drain: 16,
         }
     }
 
-    /// Scan a directory for plugin subdirectories containing plugin.toml.
+    /// Add a directory to be scanned for plugins.
+    pub fn add_scan_dir(&mut self, dir: PathBuf) {
+        if !self.scan_dirs.contains(&dir) {
+            self.scan_dirs.push(dir);
+        }
+    }
+
+    /// Scan all registered directories for plugin subdirectories containing plugin.toml.
+    pub fn scan_directories(&mut self) -> Vec<ManifestError> {
+        let dirs: Vec<PathBuf> = self.scan_dirs.clone();
+        let mut errors = Vec::new();
+        for dir in &dirs {
+            errors.extend(self.discover(dir));
+        }
+        errors
+    }
+
+    /// Scan a single directory for plugin subdirectories containing plugin.toml.
     pub fn discover(&mut self, plugins_dir: &Path) -> Vec<ManifestError> {
         let mut errors = Vec::new();
         let entries = match std::fs::read_dir(plugins_dir) {
@@ -74,6 +122,10 @@ impl PluginManager {
                     }
                     let capability =
                         Capability::from_manifest(&manifest.capabilities);
+                    let negotiated = Some(capability::negotiate(
+                        &self.host_caps,
+                        &manifest.capabilities,
+                    ));
                     self.plugins.insert(
                         name,
                         PluginSlot {
@@ -81,6 +133,7 @@ impl PluginManager {
                             dir: path,
                             state: PluginState::Discovered,
                             capability,
+                            negotiated,
                             transport: None,
                             error_msg: None,
                         },
@@ -95,6 +148,11 @@ impl PluginManager {
     /// List all discovered plugin names.
     pub fn plugin_names(&self) -> Vec<&str> {
         self.plugins.keys().map(|s| s.as_str()).collect()
+    }
+
+    /// Number of discovered plugins.
+    pub fn plugin_count(&self) -> usize {
+        self.plugins.len()
     }
 
     /// Get the state of a plugin.
@@ -112,6 +170,11 @@ impl PluginManager {
         self.plugins
             .get(name)
             .and_then(|s| s.error_msg.as_deref())
+    }
+
+    /// Get negotiated capabilities for a plugin.
+    pub fn negotiated_caps(&self, name: &str) -> Option<&NegotiatedCapabilities> {
+        self.plugins.get(name).and_then(|s| s.negotiated.as_ref())
     }
 
     /// Start a discovered plugin: spawn subprocess + send initialize.
@@ -198,6 +261,24 @@ impl PluginManager {
         }
     }
 
+    /// Shutdown all plugins (stop running ones, clear state).
+    pub fn shutdown_all(&mut self) {
+        self.stop_all();
+        // Clear all transports to ensure cleanup
+        for slot in self.plugins.values_mut() {
+            if let Some(ref mut transport) = slot.transport {
+                transport.kill();
+            }
+            slot.transport = None;
+            match slot.state {
+                PluginState::Running | PluginState::Starting => {
+                    slot.state = PluginState::Stopped;
+                }
+                _ => {}
+            }
+        }
+    }
+
     /// Tick: drain messages from all running plugins, return host actions.
     pub fn tick(&mut self) -> Vec<HostAction> {
         let mut actions = Vec::new();
@@ -248,7 +329,7 @@ impl PluginManager {
                         }
                     }
                     IncomingMessage::Response { .. } => {
-                        // Response to our request — currently no pending request tracking
+                        // Response to our request -- currently no pending request tracking
                     }
                 }
             }
@@ -346,11 +427,38 @@ impl PluginManager {
             .map_err(|e| format!("send error failed: {e}"))
     }
 
-    #[allow(dead_code)]
     fn next_id(&mut self) -> u32 {
         let id = self.next_rpc_id;
         self.next_rpc_id = self.next_rpc_id.wrapping_add(1);
         id
+    }
+
+    /// Send a request to a plugin and return the request id.
+    pub fn send_request(
+        &mut self,
+        plugin_name: &str,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<u32, String> {
+        let id = self.next_id();
+        let slot = self
+            .plugins
+            .get_mut(plugin_name)
+            .ok_or_else(|| format!("unknown plugin: {plugin_name}"))?;
+        let transport = slot
+            .transport
+            .as_mut()
+            .ok_or_else(|| format!("{plugin_name} not running"))?;
+        transport
+            .send_request(id, method, params)
+            .map_err(|e| format!("send request failed: {e}"))?;
+        Ok(id)
+    }
+}
+
+impl Default for PluginManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -434,6 +542,7 @@ entry = "nonexistent_binary_xyz"
                 dir: std::env::temp_dir(),
                 state: PluginState::Discovered,
                 capability: Capability::default(),
+                negotiated: None,
                 transport: None,
                 error_msg: None,
             },
@@ -444,5 +553,197 @@ entry = "nonexistent_binary_xyz"
         assert!(result.is_err());
         assert_eq!(mgr.plugin_state("Fake"), Some(PluginState::Error));
         assert!(mgr.error_msg("Fake").is_some());
+    }
+
+    #[test]
+    fn scan_directories_multiple() {
+        let base = std::env::temp_dir().join("schemify_test_scan_multi");
+        let _ = fs::remove_dir_all(&base);
+
+        let dir_a = base.join("dir_a");
+        let dir_b = base.join("dir_b");
+        fs::create_dir_all(&dir_a).unwrap();
+        fs::create_dir_all(&dir_b).unwrap();
+
+        setup_plugin_dir(
+            &dir_a,
+            "plug_a",
+            r#"
+[plugin]
+name = "PlugA"
+version = "1.0.0"
+entry = "echo a"
+"#,
+        );
+        setup_plugin_dir(
+            &dir_b,
+            "plug_b",
+            r#"
+[plugin]
+name = "PlugB"
+version = "2.0.0"
+entry = "echo b"
+"#,
+        );
+
+        let mut mgr = PluginManager::new();
+        mgr.add_scan_dir(dir_a);
+        mgr.add_scan_dir(dir_b);
+        let errors = mgr.scan_directories();
+        assert!(errors.is_empty());
+        assert_eq!(mgr.plugin_count(), 2);
+        assert!(mgr.plugin_names().contains(&"PlugA"));
+        assert!(mgr.plugin_names().contains(&"PlugB"));
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn state_transitions_valid() {
+        assert!(PluginState::Discovered.can_transition_to(PluginState::Starting));
+        assert!(PluginState::Starting.can_transition_to(PluginState::Running));
+        assert!(PluginState::Starting.can_transition_to(PluginState::Error));
+        assert!(PluginState::Running.can_transition_to(PluginState::Stopping));
+        assert!(PluginState::Running.can_transition_to(PluginState::Error));
+        assert!(PluginState::Stopping.can_transition_to(PluginState::Stopped));
+        assert!(PluginState::Stopping.can_transition_to(PluginState::Error));
+        assert!(PluginState::Stopped.can_transition_to(PluginState::Starting));
+        assert!(PluginState::Error.can_transition_to(PluginState::Starting));
+    }
+
+    #[test]
+    fn state_transitions_invalid() {
+        assert!(!PluginState::Discovered.can_transition_to(PluginState::Running));
+        assert!(!PluginState::Discovered.can_transition_to(PluginState::Stopping));
+        assert!(!PluginState::Discovered.can_transition_to(PluginState::Stopped));
+        assert!(!PluginState::Running.can_transition_to(PluginState::Starting));
+        assert!(!PluginState::Running.can_transition_to(PluginState::Discovered));
+        assert!(!PluginState::Stopped.can_transition_to(PluginState::Running));
+        assert!(!PluginState::Error.can_transition_to(PluginState::Running));
+    }
+
+    #[test]
+    fn stop_not_running_returns_error() {
+        let mut mgr = PluginManager::new();
+        let manifest = PluginManifest::parse(
+            r#"
+[plugin]
+name = "Idle"
+version = "0.1.0"
+entry = "echo"
+"#,
+        )
+        .unwrap();
+
+        mgr.plugins.insert(
+            "Idle".into(),
+            PluginSlot {
+                manifest,
+                dir: std::env::temp_dir(),
+                state: PluginState::Discovered,
+                capability: Capability::default(),
+                negotiated: None,
+                transport: None,
+                error_msg: None,
+            },
+        );
+
+        let result = mgr.stop_plugin("Idle");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not running"));
+    }
+
+    #[test]
+    fn start_unknown_returns_error() {
+        let mut mgr = PluginManager::new();
+        let result = mgr.start_plugin("DoesNotExist");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("unknown plugin"));
+    }
+
+    #[test]
+    fn shutdown_all_clears_state() {
+        let mut mgr = PluginManager::new();
+        let manifest = PluginManifest::parse(
+            r#"
+[plugin]
+name = "ShutTest"
+version = "0.1.0"
+entry = "echo"
+"#,
+        )
+        .unwrap();
+
+        mgr.plugins.insert(
+            "ShutTest".into(),
+            PluginSlot {
+                manifest,
+                dir: std::env::temp_dir(),
+                state: PluginState::Discovered,
+                capability: Capability::default(),
+                negotiated: None,
+                transport: None,
+                error_msg: None,
+            },
+        );
+
+        mgr.shutdown_all();
+        // Discovered plugins stay discovered (no transport to clean)
+        assert_eq!(
+            mgr.plugin_state("ShutTest"),
+            Some(PluginState::Discovered)
+        );
+    }
+
+    #[test]
+    fn negotiated_caps_set_on_discover() {
+        let tmp = std::env::temp_dir().join("schemify_test_neg_caps");
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+
+        setup_plugin_dir(
+            &tmp,
+            "neg_test",
+            r#"
+[plugin]
+name = "NegTest"
+version = "1.0.0"
+entry = "echo"
+
+[capabilities]
+panels = true
+commands = false
+overlays = true
+theme = false
+"#,
+        );
+
+        let mut mgr = PluginManager::new();
+        mgr.discover(&tmp);
+
+        let neg = mgr.negotiated_caps("NegTest").unwrap();
+        assert!(neg.panels);
+        assert!(!neg.commands);
+        assert!(neg.overlays);
+        assert!(!neg.theme);
+        assert!(neg.query_instances);
+        assert!(neg.query_nets);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn add_scan_dir_deduplicates() {
+        let mut mgr = PluginManager::new();
+        let dir = PathBuf::from("/tmp/test_dedup");
+        mgr.add_scan_dir(dir.clone());
+        mgr.add_scan_dir(dir.clone());
+        assert_eq!(mgr.scan_dirs.len(), 1);
+    }
+
+    #[test]
+    fn default_impl() {
+        let mgr = PluginManager::default();
+        assert_eq!(mgr.plugin_count(), 0);
     }
 }

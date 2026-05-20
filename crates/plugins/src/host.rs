@@ -314,4 +314,193 @@ mod tests {
             other => panic!("expected QueryInstances, got {other:?}"),
         }
     }
+
+    #[test]
+    fn query_nets_request() {
+        let action = handle_request("test", &full_cap(), 7, "state/query_nets", None);
+        match action {
+            HostAction::QueryNets { request_id, plugin_id } => {
+                assert_eq!(request_id, 7);
+                assert_eq!(plugin_id, "test");
+            }
+            other => panic!("expected QueryNets, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn handle_overlay_update() {
+        let action = handle_notification(
+            "overlay_plugin",
+            &full_cap(),
+            "overlay/update",
+            Some(json!({
+                "name": "drc_errors",
+                "z_order": 10,
+                "visible": true,
+                "shapes": [
+                    {
+                        "Marker": {
+                            "x": 100.0,
+                            "y": 200.0,
+                            "kind": "Error",
+                            "color": [255, 0, 0, 255]
+                        }
+                    }
+                ]
+            })),
+        );
+        match action {
+            Some(HostAction::UpdateOverlay(layer)) => {
+                assert_eq!(layer.plugin_id, "overlay_plugin");
+                assert_eq!(layer.name, "drc_errors");
+                assert_eq!(layer.z_order, 10);
+                assert!(layer.visible);
+                assert_eq!(layer.shapes.len(), 1);
+            }
+            other => panic!("expected UpdateOverlay, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn handle_theme_override() {
+        let action = handle_notification(
+            "theme_plugin",
+            &full_cap(),
+            "theme/override",
+            Some(json!({
+                "priority": 5,
+                "overrides": {
+                    "accent": {"Color": [255, 0, 128, 255]}
+                }
+            })),
+        );
+        match action {
+            Some(HostAction::ThemeOverride(ov)) => {
+                assert_eq!(ov.plugin_id, "theme_plugin");
+                assert_eq!(ov.priority, 5);
+                assert!(ov.overrides.contains_key("accent"));
+            }
+            other => panic!("expected ThemeOverride, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn handle_command_dispatch() {
+        let action = handle_notification(
+            "test",
+            &full_cap(),
+            "commands/dispatch",
+            Some(json!({"action": "zoom_in"})),
+        );
+        match action {
+            Some(HostAction::DispatchCommand { plugin_id, command_json }) => {
+                assert_eq!(plugin_id, "test");
+                assert_eq!(command_json["action"], "zoom_in");
+            }
+            other => panic!("expected DispatchCommand, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn handle_log() {
+        let action = handle_notification(
+            "test",
+            &full_cap(),
+            "host/log",
+            Some(json!({"level": "warn", "message": "something happened"})),
+        );
+        match action {
+            Some(HostAction::Log { level, message, .. }) => {
+                assert_eq!(level, "warn");
+                assert_eq!(message, "something happened");
+            }
+            other => panic!("expected Log, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn handle_log_default_level() {
+        let action = handle_notification(
+            "test",
+            &full_cap(),
+            "host/log",
+            Some(json!({"message": "no level specified"})),
+        );
+        match action {
+            Some(HostAction::Log { level, .. }) => {
+                assert_eq!(level, "info");
+            }
+            other => panic!("expected Log, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn unknown_notification_returns_none() {
+        let action = handle_notification(
+            "test",
+            &full_cap(),
+            "totally/unknown",
+            None,
+        );
+        assert!(action.is_none());
+    }
+
+    #[test]
+    fn missing_params_returns_none() {
+        let action = handle_notification(
+            "test",
+            &full_cap(),
+            "panels/register",
+            None,
+        );
+        assert!(action.is_none());
+    }
+
+    #[test]
+    fn overlay_without_capability_blocked() {
+        let no_overlay = Capability {
+            panels: true,
+            commands: true,
+            overlays: false,
+            theme: true,
+            ..Default::default()
+        };
+        let action = handle_notification(
+            "test",
+            &no_overlay,
+            "overlay/update",
+            Some(json!({"name": "test", "shapes": []})),
+        );
+        assert!(action.is_none());
+    }
+
+    #[test]
+    fn theme_without_capability_blocked() {
+        let no_theme = Capability {
+            panels: true,
+            commands: true,
+            overlays: true,
+            theme: false,
+            ..Default::default()
+        };
+        let action = handle_notification(
+            "test",
+            &no_theme,
+            "theme/override",
+            Some(json!({"overrides": {}})),
+        );
+        assert!(action.is_none());
+    }
+
+    #[test]
+    fn parse_all_slot_ids() {
+        assert_eq!(parse_slot_id("LeftSidebar"), Some(SlotId::LeftSidebar));
+        assert_eq!(parse_slot_id("RightSidebar"), Some(SlotId::RightSidebar));
+        assert_eq!(parse_slot_id("BottomBar"), Some(SlotId::BottomBar));
+        assert_eq!(parse_slot_id("Toolbar"), Some(SlotId::Toolbar));
+        assert_eq!(parse_slot_id("MenuBar"), Some(SlotId::MenuBar));
+        assert_eq!(parse_slot_id("CanvasOverlay"), Some(SlotId::CanvasOverlay));
+        assert_eq!(parse_slot_id("StatusBar"), Some(SlotId::StatusBar));
+        assert_eq!(parse_slot_id("InvalidSlot"), None);
+    }
 }
