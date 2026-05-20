@@ -39,6 +39,7 @@ pub fn show(ctx: &egui::Context, app: &mut App) {
                 ui.horizontal(|ui| {
                     ui.label("Path:");
                     ui.text_edit_singleline(&mut state.path_buf);
+                    #[cfg(not(target_arch = "wasm32"))]
                     if ui.button("Browse...").clicked() {
                         if let Some(path) = rfd::FileDialog::new().pick_file() {
                             state.path_buf = path.display().to_string();

@@ -2,6 +2,44 @@ use eframe::egui;
 use schemify_handler::App;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    show_native(ui, app);
+
+    #[cfg(target_arch = "wasm32")]
+    show_web(ui, app);
+
+    ui.separator();
+    show_examples(ui, app);
+}
+
+fn show_examples(ui: &mut egui::Ui, app: &mut App) {
+    use schemify_handler::examples::{self, ExampleKind};
+
+    let examples = examples::all();
+
+    egui::CollapsingHeader::new("Examples")
+        .default_open(false)
+        .show(ui, |ui| {
+            for kind in [ExampleKind::Schematic, ExampleKind::Testbench, ExampleKind::Primitive] {
+                let filtered: Vec<_> = examples.iter().filter(|e| e.kind == kind).collect();
+                if filtered.is_empty() {
+                    continue;
+                }
+                egui::CollapsingHeader::new(kind.label())
+                    .default_open(kind == ExampleKind::Schematic)
+                    .show(ui, |ui| {
+                        for ex in &filtered {
+                            if ui.selectable_label(false, ex.name).clicked() {
+                                app.open_from_content(ex.name, ex.content);
+                            }
+                        }
+                    });
+            }
+        });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn show_native(ui: &mut egui::Ui, app: &mut App) {
     let project_dir = app.project_dir().to_path_buf();
 
     if project_dir.as_os_str().is_empty() {
@@ -18,7 +56,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         });
         ui.separator();
 
-        // List .chn files in project directory
         if let Ok(entries) = std::fs::read_dir(&project_dir) {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let mut files: Vec<_> = entries
@@ -53,5 +90,30 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 app.set_project_dir(dir);
             }
         }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn show_web(ui: &mut egui::Ui, app: &mut App) {
+    ui.label("Project files (read-only)");
+    ui.separator();
+
+    let docs = app.documents();
+    if docs.is_empty() {
+        ui.weak("No schematics loaded.");
+    } else {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            let active = app.active_doc_idx();
+            for (i, doc) in docs.iter().enumerate() {
+                let label = if doc.name.is_empty() {
+                    "(untitled)"
+                } else {
+                    &doc.name
+                };
+                if ui.selectable_label(i == active, label).clicked() {
+                    app.dispatch(schemify_core::commands::Command::SwitchTab(i));
+                }
+            }
+        });
     }
 }
