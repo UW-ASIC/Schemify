@@ -1,6 +1,11 @@
+use std::path::PathBuf;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io;
-use std::path::{Path, PathBuf};
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
 
 // ====================================================
 // Project Configuration (parsed from Config.toml)
@@ -37,6 +42,7 @@ pub struct PluginOptions {
 // Parser (minimal TOML subset, matches Zig impl)
 // ====================================================
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn parse_from_path(project_dir: &Path) -> io::Result<ProjectConfig> {
     let path = project_dir.join("Config.toml");
     match fs::read_to_string(&path) {
@@ -225,6 +231,7 @@ fn dispatch_array(config: &mut ProjectConfig, section: TomlSection, key: &str, v
 // Glob Expansion (recursive directory walk)
 // ====================================================
 
+#[cfg(not(target_arch = "wasm32"))]
 fn expand_path_globs(config: &mut ProjectConfig, project_dir: &Path) {
     config.paths.schematics =
         expand_globs(project_dir, &config.paths.schematics, ".chn");
@@ -234,6 +241,7 @@ fn expand_path_globs(config: &mut ProjectConfig, project_dir: &Path) {
         expand_globs(project_dir, &config.paths.primitives, ".chn_prim");
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn expand_globs(project_dir: &Path, raw: &[PathBuf], ext: &str) -> Vec<PathBuf> {
     let mut result = Vec::new();
     for p in raw {
@@ -257,6 +265,7 @@ fn expand_globs(project_dir: &Path, raw: &[PathBuf], ext: &str) -> Vec<PathBuf> 
     result
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn walk_dir(abs_dir: &Path, rel_prefix: &str, ext: &str, out: &mut Vec<PathBuf>) {
     let entries = match fs::read_dir(abs_dir) {
         Ok(e) => e,
@@ -294,6 +303,7 @@ fn walk_dir(abs_dir: &Path, rel_prefix: &str, ext: &str, out: &mut Vec<PathBuf>)
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn matches_ext(name: &str, ext: &str) -> bool {
     if !name.ends_with(ext) {
         return false;
