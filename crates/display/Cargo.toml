@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 schemify-core = { path = "../core" }
 schemify-handler = { path = "../handler" }
+eframe = "0.31"
+egui = "0.31"
+rfd = "0.15"

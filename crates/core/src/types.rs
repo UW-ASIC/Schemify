@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /// Interned string handle. Resolve via handler's interner.
 pub type Sym = lasso::Spur;
 
@@ -355,6 +357,20 @@ impl InstanceFlags {
     pub fn rotation(self) -> u8 { self.0 & 0x03 }
     pub fn flip(self) -> bool { self.0 & Self::FLIP_BIT != 0 }
     pub fn bus(self) -> bool { self.0 & Self::BUS_BIT != 0 }
+
+    /// Apply rotation + flip to a local pin offset.
+    /// Flip is applied first (negate x), then rotation.
+    /// Caller adds instance (x, y) to get absolute position.
+    pub fn transform_point(self, px: i32, py: i32) -> (i32, i32) {
+        let fx = if self.flip() { -px } else { px };
+        match self.rotation() {
+            0 => (fx, py),
+            1 => (-py, fx),
+            2 => (-fx, -py),
+            3 => (py, -fx),
+            _ => unreachable!(),
+        }
+    }
 }
 
 // ====================================================
@@ -390,4 +406,48 @@ impl Default for Color {
     fn default() -> Self {
         Self::NONE
     }
+}
+
+// ====================================================
+// Connectivity (cross-boundary: handler computes, display/sim read)
+// ====================================================
+
+#[derive(Debug, Clone, Default)]
+pub struct Connectivity {
+    /// All resolved nets
+    pub nets: Vec<Net>,
+    /// Point (x,y) -> net index
+    pub point_to_net: HashMap<(i32, i32), usize>,
+    /// Per-instance: pin connections (instance_idx -> connections)
+    pub instance_connections: Vec<Vec<PinConnection>>,
+    /// Net index -> resolved name (parallel to nets)
+    pub net_names: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Net {
+    pub name: String,
+    pub connections: Vec<NetEndpoint>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NetEndpoint {
+    pub x: i32,
+    pub y: i32,
+    pub kind: NetConnKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum NetConnKind {
+    WireEndpoint { wire_idx: usize },
+    InstancePin { instance_idx: usize, pin_name: String },
+    Label { name: String },
+}
+
+#[derive(Debug, Clone)]
+pub struct PinConnection {
+    pub pin_name: String,
+    pub net_idx: usize,
+    pub x: i32,
+    pub y: i32,
 }

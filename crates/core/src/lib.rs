@@ -4,3 +4,6 @@ pub mod commands;
 pub mod simulation;
 pub mod devices;
 pub mod primitives;
+pub mod theme;
+pub mod plugin_types;
+pub mod traits;
