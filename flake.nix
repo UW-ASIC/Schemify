@@ -73,6 +73,7 @@
             wasm-bindgen-cli
             binaryen # wasm-opt
             cargo-watch
+            xschem # for roundtrip netlist tests
           ];
 
           # Tell cargo to use clang + mold as the linker for native builds.
