@@ -5,9 +5,9 @@ use serde_json::{json, Value};
 
 use crate::capability::{self, Capability, HostCapabilities, NegotiatedCapabilities};
 use crate::host::HostAction;
-use crate::jsonrpc::IncomingMessage;
+use crate::jsonrpc::{self, IncomingMessage};
 use crate::manifest::{ManifestError, PluginManifest};
-use crate::runtime::Subprocess;
+use crate::transport::{self, PluginTransport};
 
 /// Plugin lifecycle state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,7 +56,7 @@ pub(crate) struct PluginSlot {
     pub(crate) state: PluginState,
     pub(crate) capability: Capability,
     pub(crate) negotiated: Option<NegotiatedCapabilities>,
-    pub(crate) transport: Option<Subprocess>,
+    pub(crate) transport: Option<Box<dyn PluginTransport>>,
     pub(crate) error_msg: Option<String>,
 }
 
@@ -177,7 +177,7 @@ impl PluginManager {
         self.plugins.get(name).and_then(|s| s.negotiated.as_ref())
     }
 
-    /// Start a discovered plugin: spawn subprocess + send initialize.
+    /// Start a discovered plugin: create transport, spawn, send initialize.
     pub fn start_plugin(&mut self, name: &str) -> Result<(), String> {
         let slot = self
             .plugins
@@ -197,24 +197,25 @@ impl PluginManager {
         slot.state = PluginState::Starting;
         slot.error_msg = None;
 
-        let command = &slot.manifest.plugin.entry;
-        let cwd = &slot.dir;
+        let runtime_str = slot.manifest.plugin.runtime.as_transport_str();
+        let mut new_transport = transport::create_transport(runtime_str);
 
-        match Subprocess::spawn(command, cwd) {
-            Ok(mut transport) => {
+        match new_transport.spawn(&slot.manifest, &slot.dir) {
+            Ok(()) => {
                 let init_params = json!({
                     "host_capabilities": self.host_caps,
                     "plugin_name": name,
                 });
-                if let Err(e) = transport.send_notification(
+                let init_msg = jsonrpc::encode_notification(
                     "lifecycle/initialize",
                     Some(init_params),
-                ) {
+                );
+                if let Err(e) = new_transport.send(&init_msg) {
                     slot.state = PluginState::Error;
                     slot.error_msg = Some(format!("send initialize failed: {e}"));
                     return Err(slot.error_msg.clone().unwrap());
                 }
-                slot.transport = Some(transport);
+                slot.transport = Some(new_transport);
                 slot.state = PluginState::Running;
                 Ok(())
             }
@@ -226,7 +227,7 @@ impl PluginManager {
         }
     }
 
-    /// Stop a running plugin: send shutdown + kill.
+    /// Stop a running plugin: send shutdown + stop transport.
     pub fn stop_plugin(&mut self, name: &str) -> Result<(), String> {
         let slot = self
             .plugins
@@ -239,9 +240,10 @@ impl PluginManager {
 
         slot.state = PluginState::Stopping;
 
-        if let Some(ref mut transport) = slot.transport {
-            let _ = transport.send_notification("lifecycle/shutdown", None);
-            transport.kill();
+        if let Some(ref mut t) = slot.transport {
+            let shutdown_msg = jsonrpc::encode_notification("lifecycle/shutdown", None);
+            let _ = t.send(&shutdown_msg);
+            let _ = t.stop();
         }
         slot.transport = None;
         slot.state = PluginState::Stopped;
@@ -266,8 +268,8 @@ impl PluginManager {
         self.stop_all();
         // Clear all transports to ensure cleanup
         for slot in self.plugins.values_mut() {
-            if let Some(ref mut transport) = slot.transport {
-                transport.kill();
+            if let Some(ref mut t) = slot.transport {
+                let _ = t.stop();
             }
             slot.transport = None;
             match slot.state {
@@ -291,13 +293,13 @@ impl PluginManager {
 
         for name in names {
             let slot = self.plugins.get_mut(&name).unwrap();
-            let transport = match slot.transport.as_mut() {
+            let t = match slot.transport.as_mut() {
                 Some(t) => t,
                 None => continue,
             };
 
             // Check alive
-            if !transport.is_alive() {
+            if !t.is_running() {
                 slot.state = PluginState::Error;
                 slot.error_msg = Some("process exited unexpectedly".into());
                 slot.transport = None;
@@ -305,32 +307,42 @@ impl PluginManager {
             }
 
             // Drain messages
-            let msgs = transport.drain_messages(self.max_drain);
-            for msg in msgs {
-                match msg {
-                    IncomingMessage::Request { id, method, params } => {
-                        let action = crate::host::handle_request(
-                            &name,
-                            &slot.capability,
-                            id,
-                            &method,
-                            params,
-                        );
-                        actions.push(action);
-                    }
-                    IncomingMessage::Notification { method, params } => {
-                        if let Some(action) = crate::host::handle_notification(
-                            &name,
-                            &slot.capability,
-                            &method,
-                            params,
-                        ) {
-                            actions.push(action);
+            for _ in 0..self.max_drain {
+                match t.recv() {
+                    Ok(Some(line)) => {
+                        match jsonrpc::parse_line(&line) {
+                            Ok(msg) => match msg {
+                                IncomingMessage::Request { id, method, params } => {
+                                    let action = crate::host::handle_request(
+                                        &name,
+                                        &slot.capability,
+                                        id,
+                                        &method,
+                                        params,
+                                    );
+                                    actions.push(action);
+                                }
+                                IncomingMessage::Notification { method, params } => {
+                                    if let Some(action) = crate::host::handle_notification(
+                                        &name,
+                                        &slot.capability,
+                                        &method,
+                                        params,
+                                    ) {
+                                        actions.push(action);
+                                    }
+                                }
+                                IncomingMessage::Response { .. } => {
+                                    // Response to our request -- currently no pending request tracking
+                                }
+                            },
+                            Err(_) => {
+                                // Malformed JSON line, skip
+                            }
                         }
                     }
-                    IncomingMessage::Response { .. } => {
-                        // Response to our request -- currently no pending request tracking
-                    }
+                    Ok(None) => break,
+                    Err(_) => break,
                 }
             }
         }
@@ -349,13 +361,12 @@ impl PluginManager {
             .plugins
             .get_mut(name)
             .ok_or_else(|| format!("unknown plugin: {name}"))?;
-        let transport = slot
+        let t = slot
             .transport
             .as_mut()
             .ok_or_else(|| format!("{name} not running"))?;
-        transport
-            .send_notification(method, params)
-            .map_err(|e| format!("send failed: {e}"))
+        let msg = jsonrpc::encode_notification(method, params);
+        t.send(&msg).map_err(|e| format!("send failed: {e}"))
     }
 
     /// Broadcast a notification to all running plugins.
@@ -397,13 +408,12 @@ impl PluginManager {
             .plugins
             .get_mut(plugin_name)
             .ok_or_else(|| format!("unknown plugin: {plugin_name}"))?;
-        let transport = slot
+        let t = slot
             .transport
             .as_mut()
             .ok_or_else(|| format!("{plugin_name} not running"))?;
-        transport
-            .send_response(id, result)
-            .map_err(|e| format!("send response failed: {e}"))
+        let msg = jsonrpc::encode_response(id, result);
+        t.send(&msg).map_err(|e| format!("send response failed: {e}"))
     }
 
     /// Send an error response back to a plugin.
@@ -418,13 +428,12 @@ impl PluginManager {
             .plugins
             .get_mut(plugin_name)
             .ok_or_else(|| format!("unknown plugin: {plugin_name}"))?;
-        let transport = slot
+        let t = slot
             .transport
             .as_mut()
             .ok_or_else(|| format!("{plugin_name} not running"))?;
-        transport
-            .send_error(id, code, message)
-            .map_err(|e| format!("send error failed: {e}"))
+        let msg = jsonrpc::encode_error(id, code, message);
+        t.send(&msg).map_err(|e| format!("send error failed: {e}"))
     }
 
     fn next_id(&mut self) -> u32 {
@@ -445,13 +454,12 @@ impl PluginManager {
             .plugins
             .get_mut(plugin_name)
             .ok_or_else(|| format!("unknown plugin: {plugin_name}"))?;
-        let transport = slot
+        let t = slot
             .transport
             .as_mut()
             .ok_or_else(|| format!("{plugin_name} not running"))?;
-        transport
-            .send_request(id, method, params)
-            .map_err(|e| format!("send request failed: {e}"))?;
+        let msg = jsonrpc::encode_request(id, method, params);
+        t.send(&msg).map_err(|e| format!("send request failed: {e}"))?;
         Ok(id)
     }
 }
