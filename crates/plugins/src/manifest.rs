@@ -187,4 +187,105 @@ entry = "bare.py"
         assert!(!m.capabilities.panels);
         assert!(m.panels.panel.is_empty());
     }
+
+    #[test]
+    fn missing_optional_fields_default() {
+        let toml = r#"
+[plugin]
+name = "Defaults"
+version = "0.1.0"
+entry = "run.sh"
+"#;
+        let m = PluginManifest::parse(toml).unwrap();
+        assert_eq!(m.plugin.description, "");
+        assert_eq!(m.plugin.runtime, PluginRuntime::Subprocess);
+        assert!(!m.capabilities.panels);
+        assert!(!m.capabilities.commands);
+        assert!(!m.capabilities.overlays);
+        assert!(!m.capabilities.theme);
+        assert!(m.panels.panel.is_empty());
+        assert!(m.commands.command.is_empty());
+    }
+
+    #[test]
+    fn runtime_native_variant() {
+        let toml = r#"
+[plugin]
+name = "Native"
+version = "1.0.0"
+entry = "libplugin.so"
+runtime = "native"
+"#;
+        let m = PluginManifest::parse(toml).unwrap();
+        assert_eq!(m.plugin.runtime, PluginRuntime::Native);
+    }
+
+    #[test]
+    fn multiple_panels_and_commands() {
+        let toml = r#"
+[plugin]
+name = "Multi"
+version = "1.0.0"
+entry = "multi.py"
+
+[capabilities]
+panels = true
+commands = true
+
+[[panels.panel]]
+name = "Panel A"
+slot = "LeftSidebar"
+priority = 1
+
+[[panels.panel]]
+name = "Panel B"
+slot = "RightSidebar"
+priority = 2
+
+[[commands.command]]
+name = "cmd_a"
+description = "Command A"
+
+[[commands.command]]
+name = "cmd_b"
+keybind = "Ctrl+B"
+"#;
+        let m = PluginManifest::parse(toml).unwrap();
+        assert_eq!(m.panels.panel.len(), 2);
+        assert_eq!(m.panels.panel[0].name, "Panel A");
+        assert_eq!(m.panels.panel[1].priority, 2);
+        assert_eq!(m.commands.command.len(), 2);
+        assert_eq!(m.commands.command[0].description, "Command A");
+        assert_eq!(m.commands.command[1].keybind.as_deref(), Some("Ctrl+B"));
+        assert!(m.commands.command[0].keybind.is_none());
+    }
+
+    #[test]
+    fn manifest_error_display() {
+        let err = ManifestError::Io(
+            std::path::PathBuf::from("/tmp/test.toml"),
+            std::io::Error::new(std::io::ErrorKind::NotFound, "not found"),
+        );
+        let msg = format!("{err}");
+        assert!(msg.contains("/tmp/test.toml"));
+        assert!(msg.contains("not found"));
+    }
+
+    #[test]
+    fn invalid_toml_returns_error() {
+        let result = PluginManifest::parse("this is not valid toml {{{}}}");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn missing_required_field() {
+        // Missing entry field
+        let toml = r#"
+[plugin]
+name = "NoEntry"
+version = "1.0.0"
+"#;
+        let result = PluginManifest::parse(toml);
+        assert!(result.is_err());
+    }
 }
