@@ -5,6 +5,7 @@ use schemify_core::primitives;
 use schemify_handler::App;
 use schemify_handler::state::ArcStep;
 
+use super::geometry;
 use super::palette::CanvasPalette;
 use super::viewport::CanvasViewport;
 
@@ -153,17 +154,7 @@ fn draw_placement_ghost(
                 );
                 let radius_px = c.r as f32 * viewport.zoom;
                 if radius_px > 0.5 {
-                    let n = 16_usize;
-                    let mut prev = Pos2::new(center.x + radius_px, center.y);
-                    for si in 1..=n {
-                        let angle = si as f32 * std::f32::consts::TAU / n as f32;
-                        let cur = Pos2::new(
-                            center.x + radius_px * angle.cos(),
-                            center.y + radius_px * angle.sin(),
-                        );
-                        painter.line_segment([prev, cur], stroke);
-                        prev = cur;
-                    }
+                    geometry::stroke_circle(painter, center, radius_px, 16, stroke);
                 }
             }
         } else {
@@ -295,7 +286,7 @@ fn draw_drawing_preview(
                                 sweep += 360.0;
                             }
                             if radius_px > 1.0 {
-                                stroke_arc_overlay(
+                                geometry::stroke_arc(
                                     painter,
                                     center,
                                     radius_px,
@@ -348,35 +339,6 @@ fn draw_drawing_preview(
             }
         }
         _ => {}
-    }
-}
-
-fn stroke_arc_overlay(
-    painter: &Painter,
-    center: Pos2,
-    radius_px: f32,
-    start_deg: f32,
-    sweep_deg: f32,
-    stroke: Stroke,
-) {
-    let n_segs = ((sweep_deg.abs() / 10.0) as usize).clamp(8, 64);
-    let start_rad = start_deg.to_radians();
-    let sweep_rad = sweep_deg.to_radians();
-
-    let mut prev = Pos2::new(
-        center.x + radius_px * start_rad.cos(),
-        center.y - radius_px * start_rad.sin(),
-    );
-
-    for i in 1..=n_segs {
-        let t = i as f32 / n_segs as f32;
-        let angle = start_rad + sweep_rad * t;
-        let cur = Pos2::new(
-            center.x + radius_px * angle.cos(),
-            center.y - radius_px * angle.sin(),
-        );
-        painter.line_segment([prev, cur], stroke);
-        prev = cur;
     }
 }
 

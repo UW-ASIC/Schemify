@@ -3,67 +3,11 @@ use std::collections::HashMap;
 use egui::{Color32, FontId, Painter, Pos2, Stroke, StrokeKind};
 
 use schemify_core::primitives;
-use schemify_core::types::Color;
 use schemify_handler::App;
 
+use super::geometry;
 use super::palette::CanvasPalette;
 use super::viewport::CanvasViewport;
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-/// Convert a schematic Color to egui Color32, falling back to a default.
-fn color_or(c: Color, default: Color32) -> Color32 {
-    if c.is_none() {
-        default
-    } else {
-        Color32::from_rgba_premultiplied(c.r, c.g, c.b, c.a)
-    }
-}
-
-/// Draw an arc approximated with line segments.
-fn stroke_arc(
-    painter: &Painter,
-    center: Pos2,
-    radius_px: f32,
-    start_deg: f32,
-    sweep_deg: f32,
-    stroke: Stroke,
-) {
-    let n_segs = ((sweep_deg.abs() / 10.0) as usize).clamp(8, 64);
-    let start_rad = start_deg.to_radians();
-    let sweep_rad = sweep_deg.to_radians();
-
-    let mut prev = Pos2::new(
-        center.x + radius_px * start_rad.cos(),
-        center.y - radius_px * start_rad.sin(),
-    );
-
-    for i in 1..=n_segs {
-        let t = i as f32 / n_segs as f32;
-        let angle = start_rad + sweep_rad * t;
-        let cur = Pos2::new(
-            center.x + radius_px * angle.cos(),
-            center.y - radius_px * angle.sin(),
-        );
-        painter.line_segment([prev, cur], stroke);
-        prev = cur;
-    }
-}
-
-/// Draw a circle approximated with line segments.
-fn stroke_circle_approx(painter: &Painter, center: Pos2, radius_px: f32, stroke: Stroke) {
-    let n_segs = 24_usize;
-    let mut prev = Pos2::new(center.x + radius_px, center.y);
-    for i in 1..=n_segs {
-        let angle = (i as f32) * std::f32::consts::TAU / n_segs as f32;
-        let cur = Pos2::new(
-            center.x + radius_px * angle.cos(),
-            center.y + radius_px * angle.sin(),
-        );
-        painter.line_segment([prev, cur], stroke);
-        prev = cur;
-    }
-}
 
 // ── Wire rendering ──────────────────────────────────────────────────────────
 
@@ -119,11 +63,7 @@ pub fn render_wires(
             wire_w
         };
 
-        let thickness_mult = if wires.thickness[i] != 0 {
-            wires.thickness[i] as f32 / 10.0
-        } else {
-            1.0
-        };
+        let thickness_mult = geometry::thickness_width(wires.thickness[i]);
         let w = base_w * thickness_mult;
 
         painter.line_segment([a, b], Stroke::new(w, col));
@@ -257,7 +197,7 @@ pub fn render_instances(
                 );
                 let radius_px = c.r as f32 * viewport.zoom;
                 if radius_px > 0.5 {
-                    stroke_circle_approx(painter, center, radius_px, stroke);
+                    geometry::stroke_circle(painter, center, radius_px, 24, stroke);
                 }
             }
 
@@ -270,7 +210,7 @@ pub fn render_instances(
                 );
                 let radius_px = a.r as f32 * viewport.zoom;
                 if radius_px > 0.5 {
-                    stroke_arc(
+                    geometry::stroke_arc(
                         painter,
                         center,
                         radius_px,
@@ -396,12 +336,8 @@ pub fn render_geometry(
     for line in &sch.lines {
         let a = viewport.w2p(line.x0, line.y0);
         let b = viewport.w2p(line.x1, line.y1);
-        let col = color_or(line.color, palette.geometry_line);
-        let w = if line.thickness > 0 {
-            line.thickness as f32 / 10.0
-        } else {
-            1.0
-        };
+        let col = geometry::color_or(line.color, palette.geometry_line);
+        let w = geometry::thickness_width(line.thickness);
         painter.line_segment([a, b], Stroke::new(w, col));
     }
 
@@ -410,13 +346,9 @@ pub fn render_geometry(
         let p0 = viewport.w2p(r.x, r.y);
         let p1 = viewport.w2p(r.x + r.width, r.y + r.height);
         let rect = egui::Rect::from_two_pos(p0, p1);
-        let fill_col = color_or(r.fill, palette.geometry_fill);
-        let stroke_col = color_or(r.stroke, palette.geometry_line);
-        let w = if r.thickness > 0 {
-            r.thickness as f32 / 10.0
-        } else {
-            1.0
-        };
+        let fill_col = geometry::color_or(r.fill, palette.geometry_fill);
+        let stroke_col = geometry::color_or(r.stroke, palette.geometry_line);
+        let w = geometry::thickness_width(r.thickness);
         if !r.fill.is_none() || app.view_flags().fill_rects {
             painter.rect_filled(rect, 0.0, fill_col);
         }
@@ -427,13 +359,9 @@ pub fn render_geometry(
     for c in &sch.circles {
         let center = viewport.w2p(c.cx, c.cy);
         let radius_px = c.radius as f32 * viewport.zoom;
-        let fill_col = color_or(c.fill, Color32::TRANSPARENT);
-        let stroke_col = color_or(c.stroke, palette.geometry_line);
-        let w = if c.thickness > 0 {
-            c.thickness as f32 / 10.0
-        } else {
-            1.0
-        };
+        let fill_col = geometry::color_or(c.fill, Color32::TRANSPARENT);
+        let stroke_col = geometry::color_or(c.stroke, palette.geometry_line);
+        let w = geometry::thickness_width(c.thickness);
         if !c.fill.is_none() {
             painter.circle_filled(center, radius_px, fill_col);
         }
@@ -444,14 +372,10 @@ pub fn render_geometry(
     for a in &sch.arcs {
         let center = viewport.w2p(a.cx, a.cy);
         let radius_px = a.radius as f32 * viewport.zoom;
-        let col = color_or(a.stroke, palette.geometry_line);
-        let w = if a.thickness > 0 {
-            a.thickness as f32 / 10.0
-        } else {
-            1.0
-        };
+        let col = geometry::color_or(a.stroke, palette.geometry_line);
+        let w = geometry::thickness_width(a.thickness);
         if radius_px > 0.5 {
-            stroke_arc(
+            geometry::stroke_arc(
                 painter,
                 center,
                 radius_px,
@@ -467,12 +391,8 @@ pub fn render_geometry(
         if poly.points.len() < 2 {
             continue;
         }
-        let stroke_col = color_or(poly.stroke, palette.geometry_line);
-        let w = if poly.thickness > 0 {
-            poly.thickness as f32 / 10.0
-        } else {
-            1.0
-        };
+        let stroke_col = geometry::color_or(poly.stroke, palette.geometry_line);
+        let w = geometry::thickness_width(poly.thickness);
         let points: Vec<Pos2> = poly
             .points
             .iter()
@@ -481,7 +401,7 @@ pub fn render_geometry(
 
         // Fill if there is a fill color.
         if !poly.fill.is_none() && points.len() >= 3 {
-            let fill_col = color_or(poly.fill, Color32::TRANSPARENT);
+            let fill_col = geometry::color_or(poly.fill, Color32::TRANSPARENT);
             painter.add(egui::Shape::convex_polygon(
                 points.clone(),
                 fill_col,
@@ -510,7 +430,7 @@ pub fn render_geometry(
                 continue;
             }
             let p = viewport.w2p(t.x, t.y);
-            let col = color_or(t.color, palette.text_label);
+            let col = geometry::color_or(t.color, palette.text_label);
             let size = (t.font_size * viewport.zoom).max(8.0);
             let font = FontId::proportional(size);
             painter.text(p, egui::Align2::LEFT_TOP, content, font, col);

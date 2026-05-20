@@ -1,3 +1,4 @@
+mod geometry;
 mod grid;
 mod interaction;
 mod overlays;
