@@ -1,15 +1,19 @@
+pub mod ir;
 pub mod state;
+mod connectivity;
 mod dispatch;
 mod spice_import;
 
+use std::collections::HashSet;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use schemify_core::commands::Tool;
+use schemify_core::commands::{Command, Tool};
 use schemify_core::devices::Pdk;
 use schemify_core::schematic::{InstanceVec, Pin, Property, Schematic, WireVec};
 use schemify_core::simulation::SimResult;
-use schemify_core::types::Sym;
+use schemify_core::traits::{AppRead, AppWrite};
+use schemify_core::types::{Connectivity, Sym};
 
 use state::*;
 
@@ -94,6 +98,19 @@ impl App {
 
     pub fn resolve(&self, sym: Sym) -> &str {
         self.state.interner.resolve(&sym)
+    }
+
+    // ── Connectivity (lazy-computed, cached) ──
+
+    pub fn connectivity(&mut self) -> &Connectivity {
+        if self.state.active_document().connectivity.is_none() {
+            let conn = connectivity::resolve(
+                &self.state.active_document().schematic,
+                &self.state.interner,
+            );
+            self.state.active_document_mut().connectivity = Some(conn);
+        }
+        self.state.active_document().connectivity.as_ref().unwrap()
     }
 
     // ── Simulation / PDK ──
@@ -194,9 +211,87 @@ impl App {
         self.state.gui.canvas.cursor_world = [x, y];
     }
 
+    // ── Mutable GUI state (display-driven, not schematic mutations) ──
+
+    pub fn gui_mut(&mut self) -> &mut GuiState {
+        &mut self.state.gui
+    }
+
+    pub fn start_placement(&mut self, symbol_path: String, name: String) {
+        self.state.tool.active = Tool::Select;
+        self.state.tool.placement = Some(Placement {
+            symbol_path,
+            name,
+            rotation: 0,
+            flip: false,
+        });
+    }
+
+    pub fn project_dir(&self) -> &Path {
+        &self.state.project_dir
+    }
+
+    pub fn set_project_dir(&mut self, path: PathBuf) {
+        self.state.project_dir = path;
+    }
+
     // ── Private ──
 
     fn active_doc(&self) -> &Document {
         self.state.active_document()
+    }
+}
+
+// ── AppRead / AppWrite trait impls ──
+
+impl AppRead for App {
+    fn schematic(&self) -> &Schematic {
+        self.schematic()
+    }
+
+    fn resolve(&self, sym: Sym) -> &str {
+        self.resolve(sym)
+    }
+
+    fn zoom(&self) -> f32 {
+        self.zoom()
+    }
+
+    fn pan(&self) -> [f32; 2] {
+        self.pan()
+    }
+
+    fn selected_instances(&self) -> &HashSet<usize> {
+        &self.active_doc().selection.instances
+    }
+
+    fn selected_wires(&self) -> &HashSet<usize> {
+        &self.active_doc().selection.wires
+    }
+
+    fn show_grid(&self) -> bool {
+        self.show_grid()
+    }
+
+    fn canvas_size(&self) -> [f32; 2] {
+        self.canvas_size()
+    }
+
+    fn active_tool(&self) -> Tool {
+        self.active_tool()
+    }
+}
+
+impl AppWrite for App {
+    fn dispatch(&mut self, cmd: Command) {
+        self.dispatch(cmd)
+    }
+
+    fn set_canvas_size(&mut self, w: f32, h: f32) {
+        self.set_canvas_size(w, h)
+    }
+
+    fn set_cursor_world(&mut self, x: i32, y: i32) {
+        self.set_cursor_world(x, y)
     }
 }
