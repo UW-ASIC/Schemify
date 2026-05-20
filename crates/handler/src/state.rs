@@ -24,6 +24,7 @@ pub enum Origin {
     Unsaved,
     Buffer(String),
     File(PathBuf),
+    Memory,
 }
 
 impl Default for Origin {
