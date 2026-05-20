@@ -1,0 +1,7 @@
+[package]
+name = "schemify-sim"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+schemify-core = { path = "../core" }

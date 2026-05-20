@@ -1,0 +1,50 @@
+chn_prim 1.0
+
+SYMBOL pmos
+  desc: P-channel MOSFET (4-terminal)
+
+  pins [4]:
+    d  inout
+    g  in
+    s  inout
+    b  inout
+
+  params [5]:
+    w     = 1u
+    l     = 100n
+    nf    = 1
+    m     = 1
+    model = pch
+
+  spice_prefix: M
+  spice_format: "@name @d @g @s @b @model w=@w l=@l nf=@nf m=@m"
+
+  drawing:
+    lines:
+      # Channel body (vertical bar at x=5)
+      (5,-30) (5,30)
+      # Source horizontal stub (source at top for PMOS)
+      (5,-20) (20,-20)
+      # Source vertical lead
+      (20,-30) (20,-20)
+      # Drain horizontal stub (drain at bottom for PMOS)
+      (5,20) (20,20)
+      # Drain vertical lead
+      (20,20) (20,30)
+      # Gate plate (vertical bar at x=-5)
+      (-5,-15) (-5,15)
+      # Gate lead (stops before bubble)
+      (-20,0) (-13,0)
+      # Body lead
+      (10,0) (20,0)
+      # Body arrow (PMOS: pointing outward from channel)
+      (5,-5) (10,0)
+      (5,5) (10,0)
+    circle: (-9,0) r=4
+    text: (25,-15) "@name"
+    text: (25,15) "@w/@l"
+    pin_positions:
+      d: (20,30)
+      g: (-20,0)
+      s: (20,-30)
+      b: (20,0)

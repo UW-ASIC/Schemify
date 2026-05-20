@@ -1,0 +1,8 @@
+[package]
+name = "schemify-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lasso = "0.7"
+soa_derive = "0.13"

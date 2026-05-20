@@ -1,0 +1,8 @@
+[package]
+name = "schemify-display"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+schemify-core = { path = "../core" }
+schemify-handler = { path = "../handler" }
