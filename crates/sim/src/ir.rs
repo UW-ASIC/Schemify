@@ -1,7 +1,12 @@
+//! Circuit IR types mirroring PySpice-rs's `CircuitIR` schema.
+//!
+//! SchemifyRS serializes these to JSON; PySpice-rs deserializes and runs.
+//! No Rust crate dependency — JSON is the contract.
+
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
-// ── Core IR types (mirrors PySpice circuit-ir.schema.json) ──
+// ── Top-level ──
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CircuitIR {
@@ -10,6 +15,8 @@ pub struct CircuitIR {
     pub subcircuit_defs: Vec<Subcircuit>,
     pub model_libraries: Vec<ModelLibrary>,
 }
+
+// ── Subcircuit ──
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Subcircuit {
@@ -23,6 +30,8 @@ pub struct Subcircuit {
     pub includes: Vec<String>,
     pub libs: Vec<(String, String)>,
     pub osdi_loads: Vec<String>,
+    #[serde(default)]
+    pub verilog_blocks: Vec<VerilogBlock>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -59,7 +68,33 @@ pub struct ModelDef {
     pub parameters: Vec<(String, String)>,
 }
 
-// ── Component types ──
+// ── Verilog blocks ──
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VerilogBlock {
+    pub source: String,
+    pub mode: VerilogMode,
+    pub instance_name: String,
+    pub connections: HashMap<String, VerilogConnection>,
+    pub pdk: Option<String>,
+    pub liberty: Option<String>,
+    pub spice_models: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum VerilogMode {
+    Simulate,
+    Synthesize,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum VerilogConnection {
+    Single(String),
+    Bus(Vec<String>),
+}
+
+// ── Components ──
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -88,7 +123,7 @@ pub enum Component {
     RawSpice { line: String },
 }
 
-// ── Value and waveform types ──
+// ── Values & waveforms ──
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -136,7 +171,13 @@ pub struct StepParam {
     pub sweep_type: Option<String>,
 }
 
-// ── Analysis types ──
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct SimOptions {
+    pub portable: Vec<(String, String)>,
+    pub backend_specific: HashMap<String, Vec<(String, String)>>,
+}
+
+// ── Analysis ──
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -145,7 +186,11 @@ pub enum Analysis {
     Dc { sweeps: Vec<DcSweep> },
     Ac { variation: String, points: u32, start: f64, stop: f64 },
     Transient { step: f64, stop: f64, start: Option<f64>, max_step: Option<f64>, uic: bool },
-    Noise { output: String, reference: String, source: String, variation: String, points: u32, start: f64, stop: f64, points_per_summary: Option<u32> },
+    Noise {
+        output: String, reference: String, source: String,
+        variation: String, points: u32, start: f64, stop: f64,
+        points_per_summary: Option<u32>,
+    },
     Tf { output: String, source: String },
     Sensitivity { output: String, ac: Option<AcSweepParams> },
     PoleZero { node1: String, node2: String, node3: String, node4: String, tf_type: String, pz_type: String },
@@ -156,16 +201,31 @@ pub enum Analysis {
     Stability { probe: String, variation: String, points: u32, start: f64, stop: f64 },
     TransientNoise { step: f64, stop: f64 },
     Fourier { fundamental: f64, outputs: Vec<String>, num_harmonics: Option<u32> },
+    // Vendor-specific
     XyceSampling { num_samples: u32, distributions: Vec<(String, String)> },
     XyceEmbeddedSampling { num_samples: u32, distributions: Vec<(String, String)> },
     XycePce { num_samples: u32, distributions: Vec<(String, String)>, order: u32 },
     XyceFft { signal: String, np: u32, start: f64, stop: f64, window: String, format: String },
     SpectreSweep { param: String, start: f64, stop: f64, step: f64, inner: String, inner_type: String },
     SpectreMonteCarlo { iterations: u32, inner: String, inner_type: String, seed: Option<u64> },
-    SpectrePac { pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32, variation: String, points: u32, start: f64, stop: f64, sweep_type: String },
-    SpectrePnoise { pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32, output: String, reference: String, variation: String, points: u32, start: f64, stop: f64 },
-    SpectrePxf { pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32, output: String, source: String, variation: String, points: u32, start: f64, stop: f64 },
-    SpectrePstb { pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32, probe: String, variation: String, points: u32, start: f64, stop: f64 },
+    SpectrePac {
+        pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32,
+        variation: String, points: u32, start: f64, stop: f64, sweep_type: String,
+    },
+    SpectrePnoise {
+        pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32,
+        output: String, reference: String,
+        variation: String, points: u32, start: f64, stop: f64,
+    },
+    SpectrePxf {
+        pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32,
+        output: String, source: String,
+        variation: String, points: u32, start: f64, stop: f64,
+    },
+    SpectrePstb {
+        pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32,
+        probe: String, variation: String, points: u32, start: f64, stop: f64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -184,13 +244,7 @@ pub struct AcSweepParams {
     pub stop: f64,
 }
 
-// ── Simulation options ──
-
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct SimOptions {
-    pub portable: Vec<(String, String)>,
-    pub backend_specific: HashMap<String, Vec<(String, String)>>,
-}
+// ── Model libraries ──
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModelLibrary {
@@ -215,6 +269,7 @@ impl Default for Subcircuit {
             includes: Vec::new(),
             libs: Vec::new(),
             osdi_loads: Vec::new(),
+            verilog_blocks: Vec::new(),
         }
     }
 }
@@ -238,10 +293,28 @@ impl Default for Testbench {
     }
 }
 
+impl Subcircuit {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            ..Self::default()
+        }
+    }
+}
+
 impl CircuitIR {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
-            top: Subcircuit { name: name.into(), ..Subcircuit::default() },
+            top: Subcircuit::new(name),
+            testbench: None,
+            subcircuit_defs: Vec::new(),
+            model_libraries: Vec::new(),
+        }
+    }
+
+    pub fn with_top(top: Subcircuit) -> Self {
+        Self {
+            top,
             testbench: None,
             subcircuit_defs: Vec::new(),
             model_libraries: Vec::new(),
@@ -258,17 +331,9 @@ impl CircuitIR {
 }
 
 impl IrValue {
-    pub fn numeric(v: f64) -> Self {
-        Self::Numeric { value: v }
-    }
-
-    pub fn expr(e: impl Into<String>) -> Self {
-        Self::Expression { expr: e.into() }
-    }
-
-    pub fn raw(t: impl Into<String>) -> Self {
-        Self::Raw { text: t.into() }
-    }
+    pub fn numeric(v: f64) -> Self { Self::Numeric { value: v } }
+    pub fn expr(e: impl Into<String>) -> Self { Self::Expression { expr: e.into() } }
+    pub fn raw(t: impl Into<String>) -> Self { Self::Raw { text: t.into() } }
 }
 
 #[cfg(test)]
@@ -276,88 +341,188 @@ mod tests {
     use super::*;
 
     #[test]
-    fn roundtrip_voltage_divider() {
-        let ir = CircuitIR {
-            top: Subcircuit {
-                name: "Voltage Divider".into(),
-                components: vec![
-                    Component::VoltageSource {
-                        name: "in".into(),
-                        np: "input".into(),
-                        nm: "0".into(),
-                        value: IrValue::numeric(10.0),
-                        waveform: None,
-                    },
-                    Component::Resistor {
-                        name: "1".into(),
-                        n1: "input".into(),
-                        n2: "output".into(),
-                        value: IrValue::numeric(10_000.0),
-                        params: vec![],
-                    },
-                    Component::Resistor {
-                        name: "2".into(),
-                        n1: "output".into(),
-                        n2: "0".into(),
-                        value: IrValue::numeric(10_000.0),
-                        params: vec![],
-                    },
-                ],
-                ..Subcircuit::default()
-            },
-            testbench: Some(Testbench {
-                dut: "Voltage Divider".into(),
-                analyses: vec![Analysis::Op],
-                ..Testbench::default()
-            }),
-            subcircuit_defs: vec![],
-            model_libraries: vec![],
+    fn resistor_roundtrip() {
+        let comp = Component::Resistor {
+            name: "R1".into(),
+            n1: "a".into(),
+            n2: "b".into(),
+            value: IrValue::numeric(10_000.0),
+            params: vec![],
         };
-
-        let json = ir.to_json().unwrap();
-        let parsed: CircuitIR = CircuitIR::from_json(&json).unwrap();
-        assert_eq!(ir, parsed);
+        let json = serde_json::to_string(&comp).unwrap();
+        assert!(json.contains(r#""type":"Resistor"#));
+        let back: Component = serde_json::from_str(&json).unwrap();
+        assert_eq!(comp, back);
     }
 
     #[test]
-    fn construct_mosfet() {
-        let m = Component::Mosfet {
+    fn mosfet_with_params() {
+        let comp = Component::Mosfet {
             name: "M1".into(),
-            nd: "d".into(),
-            ng: "g".into(),
-            ns: "s".into(),
-            nb: "b".into(),
+            nd: "drain".into(),
+            ng: "gate".into(),
+            ns: "source".into(),
+            nb: "bulk".into(),
             model: "nmos_3p3".into(),
             params: vec![
                 ("W".into(), "1u".into()),
                 ("L".into(), "180n".into()),
             ],
         };
-        let json = serde_json::to_string(&m).unwrap();
-        assert!(json.contains("\"type\":\"Mosfet\""));
+        let json = serde_json::to_string(&comp).unwrap();
+        let back: Component = serde_json::from_str(&json).unwrap();
+        assert_eq!(comp, back);
     }
 
     #[test]
-    fn construct_analyses() {
+    fn voltage_source_with_pulse() {
+        let comp = Component::VoltageSource {
+            name: "V1".into(),
+            np: "vdd".into(),
+            nm: "0".into(),
+            value: IrValue::numeric(0.0),
+            waveform: Some(IrWaveform::Pulse {
+                initial: 0.0,
+                pulsed: 3.3,
+                delay: 0.0,
+                rise_time: 1e-9,
+                fall_time: 1e-9,
+                pulse_width: 5e-6,
+                period: 10e-6,
+            }),
+        };
+        let json = serde_json::to_string(&comp).unwrap();
+        assert!(json.contains(r#""type":"Pulse"#));
+        let back: Component = serde_json::from_str(&json).unwrap();
+        assert_eq!(comp, back);
+    }
+
+    #[test]
+    fn full_circuit_ir() {
+        let mut top = Subcircuit::new("voltage_divider");
+        top.components.push(Component::Resistor {
+            name: "R1".into(),
+            n1: "in".into(),
+            n2: "out".into(),
+            value: IrValue::numeric(10_000.0),
+            params: vec![],
+        });
+        top.components.push(Component::Resistor {
+            name: "R2".into(),
+            n1: "out".into(),
+            n2: "0".into(),
+            value: IrValue::numeric(10_000.0),
+            params: vec![],
+        });
+        top.components.push(Component::VoltageSource {
+            name: "V1".into(),
+            np: "in".into(),
+            nm: "0".into(),
+            value: IrValue::numeric(5.0),
+            waveform: None,
+        });
+
+        let mut ir = CircuitIR::with_top(top);
+        ir.testbench = Some(Testbench {
+            dut: "voltage_divider".into(),
+            stimulus: vec![],
+            analyses: vec![
+                Analysis::Op,
+                Analysis::Dc {
+                    sweeps: vec![DcSweep {
+                        source: "V1".into(),
+                        start: 0.0,
+                        stop: 5.0,
+                        step: 0.1,
+                    }],
+                },
+                Analysis::Ac {
+                    variation: "dec".into(),
+                    points: 100,
+                    start: 1.0,
+                    stop: 1e9,
+                },
+            ],
+            options: SimOptions::default(),
+            saves: vec!["V(out)".into()],
+            measures: vec![],
+            temperature: Some(27.0),
+            nominal_temperature: None,
+            initial_conditions: vec![],
+            node_sets: vec![],
+            step_params: vec![],
+            extra_lines: vec![],
+        });
+
+        let json = serde_json::to_string_pretty(&ir).unwrap();
+        let back: CircuitIR = serde_json::from_str(&json).unwrap();
+        assert_eq!(ir, back);
+        assert_eq!(back.top.components.len(), 3);
+        assert_eq!(back.testbench.unwrap().analyses.len(), 3);
+    }
+
+    #[test]
+    fn subcircuit_instance() {
+        let mut top = Subcircuit::new("top");
+        top.instances.push(Instance {
+            name: "X1".into(),
+            subcircuit: "opamp".into(),
+            port_mapping: vec!["inp".into(), "inn".into(), "out".into(), "vdd".into(), "vss".into()],
+            parameters: vec![("gain".into(), "1000".into())],
+        });
+
+        let sub = Subcircuit {
+            name: "opamp".into(),
+            ports: vec![
+                Port { name: "inp".into(), direction: PortDirection::Input },
+                Port { name: "inn".into(), direction: PortDirection::Input },
+                Port { name: "out".into(), direction: PortDirection::Output },
+                Port { name: "vdd".into(), direction: PortDirection::InOut },
+                Port { name: "vss".into(), direction: PortDirection::InOut },
+            ],
+            parameters: vec![ParamDef { name: "gain".into(), default: Some("100".into()) }],
+            ..Subcircuit::default()
+        };
+
+        let ir = CircuitIR {
+            top,
+            testbench: None,
+            subcircuit_defs: vec![sub],
+            model_libraries: vec![],
+        };
+
+        let json = serde_json::to_string(&ir).unwrap();
+        let back: CircuitIR = serde_json::from_str(&json).unwrap();
+        assert_eq!(ir, back);
+    }
+
+    #[test]
+    fn analysis_variants_serialize() {
         let analyses = vec![
             Analysis::Op,
-            Analysis::Dc { sweeps: vec![DcSweep { source: "V1".into(), start: 0.0, stop: 5.0, step: 0.1 }] },
-            Analysis::Ac { variation: "dec".into(), points: 100, start: 1.0, stop: 1e9 },
             Analysis::Transient { step: 1e-9, stop: 1e-3, start: None, max_step: None, uic: false },
+            Analysis::Noise {
+                output: "out".into(), reference: "0".into(), source: "V1".into(),
+                variation: "dec".into(), points: 100, start: 1.0, stop: 1e9,
+                points_per_summary: None,
+            },
+            Analysis::HarmonicBalance { frequencies: vec![1e9], harmonics: vec![7] },
         ];
         for a in &analyses {
             let json = serde_json::to_string(a).unwrap();
-            assert!(!json.is_empty());
+            let back: Analysis = serde_json::from_str(&json).unwrap();
+            assert_eq!(*a, back);
         }
     }
 
     #[test]
-    fn waveform_sin() {
-        let w = IrWaveform::Sin {
-            offset: 0.0, amplitude: 1.0, frequency: 1e6,
-            delay: 0.0, damping: 0.0, phase: 0.0,
-        };
-        let json = serde_json::to_string(&w).unwrap();
-        assert!(json.contains("\"type\":\"Sin\""));
+    fn ir_value_tagged() {
+        let v = IrValue::numeric(42.0);
+        let json = serde_json::to_string(&v).unwrap();
+        assert!(json.contains(r#""type":"Numeric"#));
+
+        let v = IrValue::expr("gm * 2");
+        let json = serde_json::to_string(&v).unwrap();
+        assert!(json.contains(r#""type":"Expression"#));
     }
 }
