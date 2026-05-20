@@ -7,6 +7,18 @@ use std::path::Path;
 pub enum PluginRuntime {
     Native,
     Subprocess,
+    Wasm,
+}
+
+impl PluginRuntime {
+    /// Return the transport string used by `create_transport()`.
+    pub fn as_transport_str(&self) -> &'static str {
+        match self {
+            Self::Native => "native",
+            Self::Subprocess => "subprocess",
+            Self::Wasm => "wasm",
+        }
+    }
 }
 
 impl Default for PluginRuntime {
@@ -218,6 +230,26 @@ runtime = "native"
 "#;
         let m = PluginManifest::parse(toml).unwrap();
         assert_eq!(m.plugin.runtime, PluginRuntime::Native);
+    }
+
+    #[test]
+    fn runtime_wasm_variant() {
+        let toml = r#"
+[plugin]
+name = "WasmPlugin"
+version = "1.0.0"
+entry = "plugin.wasm"
+runtime = "wasm"
+"#;
+        let m = PluginManifest::parse(toml).unwrap();
+        assert_eq!(m.plugin.runtime, PluginRuntime::Wasm);
+    }
+
+    #[test]
+    fn runtime_transport_str() {
+        assert_eq!(PluginRuntime::Native.as_transport_str(), "native");
+        assert_eq!(PluginRuntime::Subprocess.as_transport_str(), "subprocess");
+        assert_eq!(PluginRuntime::Wasm.as_transport_str(), "wasm");
     }
 
     #[test]
