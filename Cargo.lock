@@ -3302,6 +3302,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemify"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "schemify-core",
+ "schemify-display",
+ "schemify-handler",
+]
+
+[[package]]
 name = "schemify-core"
 version = "0.1.0"
 dependencies = [
@@ -3325,12 +3335,14 @@ dependencies = [
 name = "schemify-handler"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "lasso",
  "schemify-core",
  "schemify-io",
+ "schemify-sim",
  "serde",
  "serde_json",
- "spice-to-schematic",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -3635,17 +3647,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "spice-to-schematic"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
