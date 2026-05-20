@@ -1,7 +1,10 @@
 pub mod examples;
+pub mod geometry;
 pub mod ir;
 pub mod s2s;
 pub mod state;
+pub mod transform;
+pub mod plugin_dist;
 mod connectivity;
 mod dispatch;
 mod spice_import;
