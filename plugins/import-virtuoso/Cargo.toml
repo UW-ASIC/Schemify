@@ -1,0 +1,14 @@
+[workspace]
+
+[package]
+name = "schemify-plugin-import-virtuoso"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "schemify-plugin-import-virtuoso"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

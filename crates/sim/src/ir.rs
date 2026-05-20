@@ -1,170 +1,273 @@
-/// SPICE component instance in a netlist.
-#[derive(Debug, Clone)]
-pub enum SpiceComponent {
-    Resistor { name: String, nodes: [String; 2], value: Value },
-    Capacitor { name: String, nodes: [String; 2], value: Value },
-    Inductor { name: String, nodes: [String; 2], value: Value },
-    Diode { name: String, nodes: [String; 2], model: String },
-    Mosfet { name: String, nodes: [String; 4], model: String, params: Vec<Param> },
-    Bjt { name: String, nodes: [String; 3], model: String, params: Vec<Param> },
-    Jfet { name: String, nodes: [String; 3], model: String, params: Vec<Param> },
-    Vsource { name: String, nodes: [String; 2], value: Value },
-    Isource { name: String, nodes: [String; 2], value: Value },
-    Vcvs { name: String, nodes: [String; 4], gain: Value },
-    Vccs { name: String, nodes: [String; 4], gain: Value },
-    Ccvs { name: String, nodes: [String; 4], gain: Value },
-    Cccs { name: String, nodes: [String; 4], gain: Value },
-    Subcircuit { name: String, nodes: Vec<String>, subckt_name: String, params: Vec<Param> },
+use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
+
+// ── Core IR types (mirrors PySpice circuit-ir.schema.json) ──
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CircuitIR {
+    pub top: Subcircuit,
+    pub testbench: Option<Testbench>,
+    pub subcircuit_defs: Vec<Subcircuit>,
+    pub model_libraries: Vec<ModelLibrary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Subcircuit {
+    pub name: String,
+    pub ports: Vec<Port>,
+    pub parameters: Vec<ParamDef>,
+    pub components: Vec<Component>,
+    pub instances: Vec<Instance>,
+    pub models: Vec<ModelDef>,
+    pub raw_spice: Vec<String>,
+    pub includes: Vec<String>,
+    pub libs: Vec<(String, String)>,
+    pub osdi_loads: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Port {
+    pub name: String,
+    pub direction: PortDirection,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum PortDirection {
+    InOut,
+    Input,
+    Output,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParamDef {
+    pub name: String,
+    pub default: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Instance {
+    pub name: String,
+    pub subcircuit: String,
+    pub port_mapping: Vec<String>,
+    pub parameters: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModelDef {
+    pub name: String,
+    pub kind: String,
+    pub parameters: Vec<(String, String)>,
+}
+
+// ── Component types ──
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum Component {
+    Resistor { name: String, n1: String, n2: String, value: IrValue, params: Vec<(String, String)> },
+    Capacitor { name: String, n1: String, n2: String, value: IrValue, params: Vec<(String, String)> },
+    Inductor { name: String, n1: String, n2: String, value: IrValue, params: Vec<(String, String)> },
+    MutualInductor { name: String, inductor1: String, inductor2: String, coupling: f64 },
+    VoltageSource { name: String, np: String, nm: String, value: IrValue, waveform: Option<IrWaveform> },
+    CurrentSource { name: String, np: String, nm: String, value: IrValue, waveform: Option<IrWaveform> },
+    BehavioralVoltage { name: String, np: String, nm: String, expression: String },
+    BehavioralCurrent { name: String, np: String, nm: String, expression: String },
+    Vcvs { name: String, np: String, nm: String, ncp: String, ncm: String, gain: f64 },
+    Vccs { name: String, np: String, nm: String, ncp: String, ncm: String, transconductance: f64 },
+    Cccs { name: String, np: String, nm: String, vsense: String, gain: f64 },
+    Ccvs { name: String, np: String, nm: String, vsense: String, transresistance: f64 },
+    Diode { name: String, np: String, nm: String, model: String, params: Vec<(String, String)> },
+    Bjt { name: String, nc: String, nb: String, ne: String, model: String, params: Vec<(String, String)> },
+    Mosfet { name: String, nd: String, ng: String, ns: String, nb: String, model: String, params: Vec<(String, String)> },
+    Jfet { name: String, nd: String, ng: String, ns: String, model: String, params: Vec<(String, String)> },
+    Mesfet { name: String, nd: String, ng: String, ns: String, model: String, params: Vec<(String, String)> },
+    VSwitch { name: String, np: String, nm: String, ncp: String, ncm: String, model: String },
+    ISwitch { name: String, np: String, nm: String, vcontrol: String, model: String },
+    TLine { name: String, inp: String, inm: String, outp: String, outm: String, z0: f64, td: f64 },
+    Xspice { name: String, connections: Vec<String>, model: String },
+    RawSpice { line: String },
+}
+
+// ── Value and waveform types ──
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum IrValue {
+    Numeric { value: f64 },
+    Expression { expr: String },
     Raw { text: String },
 }
 
-/// A numeric or symbolic value in a SPICE netlist.
-#[derive(Debug, Clone)]
-pub enum Value {
-    /// Bare numeric literal, emitted with SI suffixes.
-    Literal(f64),
-    /// Parameter reference (e.g. `gm`).
-    Param(String),
-    /// Expression (e.g. `gm * 2`), wrapped in braces for SPICE dialects.
-    Expr(String),
-    /// Pre-formatted SI literal passthrough (e.g. `"10k"`, `"1u"`).
-    SiLiteral(String),
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum IrWaveform {
+    Sin { offset: f64, amplitude: f64, frequency: f64, delay: f64, damping: f64, phase: f64 },
+    Pulse { initial: f64, pulsed: f64, delay: f64, rise_time: f64, fall_time: f64, pulse_width: f64, period: f64 },
+    Pwl { values: Vec<(f64, f64)> },
+    Exp { initial: f64, pulsed: f64, rise_delay: f64, rise_tau: f64, fall_delay: f64, fall_tau: f64 },
+    Sffm { offset: f64, amplitude: f64, carrier_freq: f64, modulation_index: f64, signal_freq: f64 },
+    Am { amplitude: f64, offset: f64, modulating_freq: f64, carrier_freq: f64, delay: f64 },
 }
 
-/// A key=value parameter pair.
-#[derive(Debug, Clone)]
-pub struct Param {
-    pub key: String,
-    pub value: Value,
-}
+// ── Testbench ──
 
-/// A complete SPICE netlist.
-#[derive(Debug, Clone)]
-pub struct SpiceNetlist {
-    pub title: String,
-    pub includes: Vec<String>,
-    pub params: Vec<Param>,
-    pub models: Vec<ModelStatement>,
-    pub subcircuits: Vec<SubcircuitDef>,
-    pub components: Vec<SpiceComponent>,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Testbench {
+    pub dut: String,
+    pub stimulus: Vec<Component>,
     pub analyses: Vec<Analysis>,
-    pub measurements: Vec<Measurement>,
-    pub options: Vec<String>,
+    pub options: SimOptions,
+    pub saves: Vec<String>,
+    pub measures: Vec<String>,
+    pub temperature: Option<f64>,
+    pub nominal_temperature: Option<f64>,
+    pub initial_conditions: Vec<(String, f64)>,
+    pub node_sets: Vec<(String, f64)>,
+    pub step_params: Vec<StepParam>,
+    pub extra_lines: Vec<String>,
 }
 
-/// `.model` statement.
-#[derive(Debug, Clone)]
-pub struct ModelStatement {
-    pub name: String,
-    pub model_type: String,
-    pub params: Vec<Param>,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StepParam {
+    pub param: String,
+    pub start: f64,
+    pub stop: f64,
+    pub step: f64,
+    pub sweep_type: Option<String>,
 }
 
-/// `.subckt` definition block.
-#[derive(Debug, Clone)]
-pub struct SubcircuitDef {
-    pub name: String,
-    pub ports: Vec<String>,
-    pub params: Vec<Param>,
-    pub components: Vec<SpiceComponent>,
-    pub models: Vec<ModelStatement>,
-}
+// ── Analysis types ──
 
-/// Simulation analysis command.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Analysis {
     Op,
-    Dc { source: String, start: f64, stop: f64, step: f64 },
-    Ac { variation: AcVariation, points: u32, start: f64, stop: f64 },
-    Tran { step: f64, stop: f64, start: f64 },
-    Noise { output: String, source: String, variation: AcVariation, points: u32, start: f64, stop: f64 },
+    Dc { sweeps: Vec<DcSweep> },
+    Ac { variation: String, points: u32, start: f64, stop: f64 },
+    Transient { step: f64, stop: f64, start: Option<f64>, max_step: Option<f64>, uic: bool },
+    Noise { output: String, reference: String, source: String, variation: String, points: u32, start: f64, stop: f64, points_per_summary: Option<u32> },
+    Tf { output: String, source: String },
+    Sensitivity { output: String, ac: Option<AcSweepParams> },
+    PoleZero { node1: String, node2: String, node3: String, node4: String, tf_type: String, pz_type: String },
+    Distortion { variation: String, points: u32, start: f64, stop: f64, f2overf1: Option<f64> },
+    Pss { fundamental: f64, stabilization: f64, observe_node: String, points_per_period: u32, harmonics: u32 },
+    HarmonicBalance { frequencies: Vec<f64>, harmonics: Vec<u32> },
+    SPar { variation: String, points: u32, start: f64, stop: f64 },
+    Stability { probe: String, variation: String, points: u32, start: f64, stop: f64 },
+    TransientNoise { step: f64, stop: f64 },
+    Fourier { fundamental: f64, outputs: Vec<String>, num_harmonics: Option<u32> },
+    XyceSampling { num_samples: u32, distributions: Vec<(String, String)> },
+    XyceEmbeddedSampling { num_samples: u32, distributions: Vec<(String, String)> },
+    XycePce { num_samples: u32, distributions: Vec<(String, String)>, order: u32 },
+    XyceFft { signal: String, np: u32, start: f64, stop: f64, window: String, format: String },
+    SpectreSweep { param: String, start: f64, stop: f64, step: f64, inner: String, inner_type: String },
+    SpectreMonteCarlo { iterations: u32, inner: String, inner_type: String, seed: Option<u64> },
+    SpectrePac { pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32, variation: String, points: u32, start: f64, stop: f64, sweep_type: String },
+    SpectrePnoise { pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32, output: String, reference: String, variation: String, points: u32, start: f64, stop: f64 },
+    SpectrePxf { pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32, output: String, source: String, variation: String, points: u32, start: f64, stop: f64 },
+    SpectrePstb { pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32, probe: String, variation: String, points: u32, start: f64, stop: f64 },
 }
 
-/// AC sweep variation type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AcVariation {
-    Dec,
-    Oct,
-    Lin,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DcSweep {
+    pub source: String,
+    pub start: f64,
+    pub stop: f64,
+    pub step: f64,
 }
 
-/// `.meas` / `.MEASURE` statement.
-#[derive(Debug, Clone)]
-pub struct Measurement {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AcSweepParams {
+    pub variation: String,
+    pub points: u32,
+    pub start: f64,
+    pub stop: f64,
+}
+
+// ── Simulation options ──
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct SimOptions {
+    pub portable: Vec<(String, String)>,
+    pub backend_specific: HashMap<String, Vec<(String, String)>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModelLibrary {
     pub name: String,
-    pub analysis: String,
-    pub expr: String,
+    pub path: String,
+    pub corner: Option<String>,
+    pub backend_paths: HashMap<String, String>,
 }
 
-// ---------------------------------------------------------------------------
-// Defaults & convenience constructors
-// ---------------------------------------------------------------------------
+// ── Defaults & constructors ──
 
-impl Default for SpiceNetlist {
+impl Default for Subcircuit {
     fn default() -> Self {
         Self {
-            title: String::new(),
-            includes: Vec::new(),
-            params: Vec::new(),
-            models: Vec::new(),
-            subcircuits: Vec::new(),
+            name: String::new(),
+            ports: Vec::new(),
+            parameters: Vec::new(),
             components: Vec::new(),
-            analyses: Vec::new(),
-            measurements: Vec::new(),
-            options: Vec::new(),
+            instances: Vec::new(),
+            models: Vec::new(),
+            raw_spice: Vec::new(),
+            includes: Vec::new(),
+            libs: Vec::new(),
+            osdi_loads: Vec::new(),
         }
     }
 }
 
-impl SpiceNetlist {
-    /// Create a netlist with only a title.
-    pub fn new(title: impl Into<String>) -> Self {
-        Self { title: title.into(), ..Self::default() }
+impl Default for Testbench {
+    fn default() -> Self {
+        Self {
+            dut: String::new(),
+            stimulus: Vec::new(),
+            analyses: Vec::new(),
+            options: SimOptions::default(),
+            saves: Vec::new(),
+            measures: Vec::new(),
+            temperature: None,
+            nominal_temperature: None,
+            initial_conditions: Vec::new(),
+            node_sets: Vec::new(),
+            step_params: Vec::new(),
+            extra_lines: Vec::new(),
+        }
     }
 }
 
-impl Param {
-    pub fn new(key: impl Into<String>, value: Value) -> Self {
-        Self { key: key.into(), value }
+impl CircuitIR {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            top: Subcircuit { name: name.into(), ..Subcircuit::default() },
+            testbench: None,
+            subcircuit_defs: Vec::new(),
+            model_libraries: Vec::new(),
+        }
+    }
+
+    pub fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(self)
+    }
+
+    pub fn from_json(json: &str) -> serde_json::Result<Self> {
+        serde_json::from_str(json)
     }
 }
 
-impl Value {
-    /// Shorthand for `Value::Literal`.
-    pub fn lit(v: f64) -> Self {
-        Self::Literal(v)
+impl IrValue {
+    pub fn numeric(v: f64) -> Self {
+        Self::Numeric { value: v }
     }
 
-    /// Shorthand for `Value::SiLiteral`.
-    pub fn si(s: impl Into<String>) -> Self {
-        Self::SiLiteral(s.into())
-    }
-}
-
-impl SpiceComponent {
-    /// Create a resistor.
-    pub fn resistor(name: impl Into<String>, a: impl Into<String>, b: impl Into<String>, value: Value) -> Self {
-        Self::Resistor { name: name.into(), nodes: [a.into(), b.into()], value }
+    pub fn expr(e: impl Into<String>) -> Self {
+        Self::Expression { expr: e.into() }
     }
 
-    /// Create a capacitor.
-    pub fn capacitor(name: impl Into<String>, a: impl Into<String>, b: impl Into<String>, value: Value) -> Self {
-        Self::Capacitor { name: name.into(), nodes: [a.into(), b.into()], value }
-    }
-
-    /// Create an inductor.
-    pub fn inductor(name: impl Into<String>, a: impl Into<String>, b: impl Into<String>, value: Value) -> Self {
-        Self::Inductor { name: name.into(), nodes: [a.into(), b.into()], value }
-    }
-
-    /// Create a voltage source.
-    pub fn vsource(name: impl Into<String>, p: impl Into<String>, n: impl Into<String>, value: Value) -> Self {
-        Self::Vsource { name: name.into(), nodes: [p.into(), n.into()], value }
-    }
-
-    /// Create a current source.
-    pub fn isource(name: impl Into<String>, p: impl Into<String>, n: impl Into<String>, value: Value) -> Self {
-        Self::Isource { name: name.into(), nodes: [p.into(), n.into()], value }
+    pub fn raw(t: impl Into<String>) -> Self {
+        Self::Raw { text: t.into() }
     }
 }
 
@@ -173,184 +276,88 @@ mod tests {
     use super::*;
 
     #[test]
-    fn construct_resistor() {
-        let r = SpiceComponent::resistor("R0", "a", "b", Value::lit(10_000.0));
-        assert!(format!("{r:?}").contains("Resistor"));
+    fn roundtrip_voltage_divider() {
+        let ir = CircuitIR {
+            top: Subcircuit {
+                name: "Voltage Divider".into(),
+                components: vec![
+                    Component::VoltageSource {
+                        name: "in".into(),
+                        np: "input".into(),
+                        nm: "0".into(),
+                        value: IrValue::numeric(10.0),
+                        waveform: None,
+                    },
+                    Component::Resistor {
+                        name: "1".into(),
+                        n1: "input".into(),
+                        n2: "output".into(),
+                        value: IrValue::numeric(10_000.0),
+                        params: vec![],
+                    },
+                    Component::Resistor {
+                        name: "2".into(),
+                        n1: "output".into(),
+                        n2: "0".into(),
+                        value: IrValue::numeric(10_000.0),
+                        params: vec![],
+                    },
+                ],
+                ..Subcircuit::default()
+            },
+            testbench: Some(Testbench {
+                dut: "Voltage Divider".into(),
+                analyses: vec![Analysis::Op],
+                ..Testbench::default()
+            }),
+            subcircuit_defs: vec![],
+            model_libraries: vec![],
+        };
+
+        let json = ir.to_json().unwrap();
+        let parsed: CircuitIR = CircuitIR::from_json(&json).unwrap();
+        assert_eq!(ir, parsed);
     }
 
     #[test]
     fn construct_mosfet() {
-        let m = SpiceComponent::Mosfet {
+        let m = Component::Mosfet {
             name: "M1".into(),
-            nodes: ["d".into(), "g".into(), "s".into(), "b".into()],
+            nd: "d".into(),
+            ng: "g".into(),
+            ns: "s".into(),
+            nb: "b".into(),
             model: "nmos_3p3".into(),
             params: vec![
-                Param::new("W", Value::si("1u")),
-                Param::new("L", Value::si("180n")),
+                ("W".into(), "1u".into()),
+                ("L".into(), "180n".into()),
             ],
         };
-        assert!(format!("{m:?}").contains("Mosfet"));
-    }
-
-    #[test]
-    fn construct_subcircuit_instance() {
-        let x = SpiceComponent::Subcircuit {
-            name: "X1".into(),
-            nodes: vec!["in".into(), "out".into(), "vdd".into(), "vss".into()],
-            subckt_name: "opamp".into(),
-            params: vec![Param::new("gain", Value::lit(1000.0))],
-        };
-        assert!(format!("{x:?}").contains("Subcircuit"));
-    }
-
-    #[test]
-    fn construct_diode() {
-        let d = SpiceComponent::Diode {
-            name: "D1".into(),
-            nodes: ["a".into(), "k".into()],
-            model: "1N4148".into(),
-        };
-        assert!(format!("{d:?}").contains("Diode"));
-    }
-
-    #[test]
-    fn construct_bjt() {
-        let q = SpiceComponent::Bjt {
-            name: "Q1".into(),
-            nodes: ["c".into(), "b".into(), "e".into()],
-            model: "2N2222".into(),
-            params: vec![],
-        };
-        assert!(format!("{q:?}").contains("Bjt"));
-    }
-
-    #[test]
-    fn construct_jfet() {
-        let j = SpiceComponent::Jfet {
-            name: "J1".into(),
-            nodes: ["d".into(), "g".into(), "s".into()],
-            model: "2N5457".into(),
-            params: vec![],
-        };
-        assert!(format!("{j:?}").contains("Jfet"));
-    }
-
-    #[test]
-    fn construct_controlled_sources() {
-        let vcvs = SpiceComponent::Vcvs {
-            name: "E1".into(),
-            nodes: ["out+".into(), "out-".into(), "in+".into(), "in-".into()],
-            gain: Value::lit(10.0),
-        };
-        assert!(format!("{vcvs:?}").contains("Vcvs"));
-
-        let vccs = SpiceComponent::Vccs {
-            name: "G1".into(),
-            nodes: ["out+".into(), "out-".into(), "in+".into(), "in-".into()],
-            gain: Value::lit(0.001),
-        };
-        assert!(format!("{vccs:?}").contains("Vccs"));
-
-        let ccvs = SpiceComponent::Ccvs {
-            name: "H1".into(),
-            nodes: ["out+".into(), "out-".into(), "in+".into(), "in-".into()],
-            gain: Value::lit(100.0),
-        };
-        assert!(format!("{ccvs:?}").contains("Ccvs"));
-
-        let cccs = SpiceComponent::Cccs {
-            name: "F1".into(),
-            nodes: ["out+".into(), "out-".into(), "in+".into(), "in-".into()],
-            gain: Value::lit(5.0),
-        };
-        assert!(format!("{cccs:?}").contains("Cccs"));
-    }
-
-    #[test]
-    fn construct_raw() {
-        let r = SpiceComponent::Raw { text: ".lib 'models.lib' tt".into() };
-        assert!(format!("{r:?}").contains("Raw"));
-    }
-
-    #[test]
-    fn construct_sources() {
-        let v = SpiceComponent::vsource("V1", "vdd", "0", Value::lit(3.3));
-        assert!(format!("{v:?}").contains("Vsource"));
-
-        let i = SpiceComponent::isource("I1", "a", "b", Value::si("1m"));
-        assert!(format!("{i:?}").contains("Isource"));
+        let json = serde_json::to_string(&m).unwrap();
+        assert!(json.contains("\"type\":\"Mosfet\""));
     }
 
     #[test]
     fn construct_analyses() {
-        let analyses: Vec<Analysis> = vec![
+        let analyses = vec![
             Analysis::Op,
-            Analysis::Dc { source: "V1".into(), start: 0.0, stop: 5.0, step: 0.1 },
-            Analysis::Ac { variation: AcVariation::Dec, points: 100, start: 1.0, stop: 1e9 },
-            Analysis::Tran { step: 1e-9, stop: 1e-3, start: 0.0 },
-            Analysis::Noise {
-                output: "V(out)".into(),
-                source: "V1".into(),
-                variation: AcVariation::Dec,
-                points: 10,
-                start: 1.0,
-                stop: 1e9,
-            },
+            Analysis::Dc { sweeps: vec![DcSweep { source: "V1".into(), start: 0.0, stop: 5.0, step: 0.1 }] },
+            Analysis::Ac { variation: "dec".into(), points: 100, start: 1.0, stop: 1e9 },
+            Analysis::Transient { step: 1e-9, stop: 1e-3, start: None, max_step: None, uic: false },
         ];
         for a in &analyses {
-            let dbg = format!("{a:?}");
-            assert!(!dbg.is_empty());
+            let json = serde_json::to_string(a).unwrap();
+            assert!(!json.is_empty());
         }
     }
 
     #[test]
-    fn construct_model_statement() {
-        let m = ModelStatement {
-            name: "nmos_3p3".into(),
-            model_type: "nmos".into(),
-            params: vec![
-                Param::new("vth0", Value::lit(0.4)),
-                Param::new("tox", Value::lit(7e-9)),
-            ],
+    fn waveform_sin() {
+        let w = IrWaveform::Sin {
+            offset: 0.0, amplitude: 1.0, frequency: 1e6,
+            delay: 0.0, damping: 0.0, phase: 0.0,
         };
-        assert!(format!("{m:?}").contains("nmos_3p3"));
-    }
-
-    #[test]
-    fn construct_subcircuit_def() {
-        let s = SubcircuitDef {
-            name: "opamp".into(),
-            ports: vec!["in+".into(), "in-".into(), "out".into(), "vdd".into(), "vss".into()],
-            params: vec![Param::new("gain", Value::lit(1000.0))],
-            components: vec![
-                SpiceComponent::resistor("R1", "in+", "mid", Value::si("10k")),
-            ],
-            models: vec![],
-        };
-        assert!(format!("{s:?}").contains("opamp"));
-    }
-
-    #[test]
-    fn construct_measurement() {
-        let m = Measurement {
-            name: "vout_avg".into(),
-            analysis: "TRAN".into(),
-            expr: "AVG V(out)".into(),
-        };
-        assert!(format!("{m:?}").contains("vout_avg"));
-    }
-
-    #[test]
-    fn default_netlist() {
-        let nl = SpiceNetlist::default();
-        assert!(nl.title.is_empty());
-        assert!(nl.components.is_empty());
-        assert!(nl.analyses.is_empty());
-    }
-
-    #[test]
-    fn netlist_new_with_title() {
-        let nl = SpiceNetlist::new("Test Circuit");
-        assert_eq!(nl.title, "Test Circuit");
+        let json = serde_json::to_string(&w).unwrap();
+        assert!(json.contains("\"type\":\"Sin\""));
     }
 }
