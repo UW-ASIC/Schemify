@@ -1,0 +1,16 @@
+{
+  "base_path": "devices",
+  "fallback_path": "devices",
+  "device_map": {
+    "nmos": { "default": "nmos4" },
+    "pmos": { "default": "pmos4" },
+    "npn": { "default": "npn" },
+    "pnp": { "default": "pnp" },
+    "resistor": { "default": "res" },
+    "capacitor": { "default": "capa" },
+    "inductor": { "default": "ind" },
+    "diode": { "default": "diode" },
+    "vsource": { "default": "vsource" },
+    "isource": { "default": "isource" }
+  }
+}

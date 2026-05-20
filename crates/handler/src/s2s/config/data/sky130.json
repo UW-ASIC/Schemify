@@ -1,0 +1,37 @@
+{
+  "base_path": "sky130_fd_pr",
+  "fallback_path": "devices",
+  "device_map": {
+    "nmos": {
+      "default": "nfet_01v8",
+      "generic": "nmos4",
+      "by_model": {
+        "nshort": "nfet_01v8",
+        "nlowvt": "nfet_01v8_lvt",
+        "nhv": "nfet_g5v0d10v5",
+        "nmos_model": "nfet_01v8"
+      }
+    },
+    "pmos": {
+      "default": "pfet_01v8",
+      "generic": "pmos4",
+      "by_model": {
+        "pshort": "pfet_01v8",
+        "plowvt": "pfet_01v8_lvt",
+        "phv": "pfet_g5v0d10v5",
+        "pmos_model": "pfet_01v8"
+      }
+    },
+    "npn": { "default": "npn_05v5_W1p00L1p00" },
+    "pnp": { "default": "pnp_05v5_W0p68L0p68" },
+    "resistor": {
+      "default": "res_generic_nd",
+      "by_model": { "rhipoly": "res_high_po" }
+    },
+    "capacitor": { "default": "cap_mim_m3_1" },
+    "inductor": { "default": "ind" },
+    "diode": { "default": "diode_pw2nd_05v5" },
+    "vsource": { "default": "vsource" },
+    "isource": { "default": "isource" }
+  }
+}

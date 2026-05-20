@@ -1,8 +1,8 @@
 use lasso::Rodeo;
-use spice_to_schematic::ir::{self, NetClass};
-use spice_to_schematic::output::schemify::SchemifyBackend;
-use spice_to_schematic::parser::SpiceParser;
-use spice_to_schematic::{annotation, placement, recognition, routing::Router};
+use crate::s2s::ir::{self, NetClass};
+use crate::s2s::output::schemify::SchemifyBackend;
+use crate::s2s::parser::SpiceParser;
+use crate::s2s::{annotation, placement, recognition, routing::Router};
 
 use schemify_core::schematic::{Instance, ModelDef, Property, Schematic, Wire};
 use schemify_core::types::{Color, DeviceKind, InstanceFlags, SchematicType};
