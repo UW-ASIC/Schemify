@@ -1,0 +1,5 @@
+.title RC Integrator
+Vin vin 0 0 PULSE(0 1 0 0.000001 0.000001 0.000005 0.00002)
+R1 vin vout 10k
+C1 vout 0 1n
+.end

@@ -1,0 +1,30 @@
+chn_testbench 1
+
+TESTBENCH Wheatstone Bridge
+  instances:
+    Vin  vsource  x=-250  y=0  sym=vsource  value=10
+    R1  resistor  x=-140  y=0  sym=res  value=1k  device=resistor
+    R2  resistor  x=-40  y=120  sym=res  value=2k  device=resistor
+    R3  resistor  x=60  y=0  sym=res  value=1k  device=resistor
+    R4  resistor  x=150  y=120  sym=res  value=2.2k  device=resistor
+    Rg  resistor  x=250  y=0  sym=res  value=10k  device=resistor
+    vb  lab_pin  x=220  y=0  sym=lab_pin
+    vin  lab_pin  x=-250  y=-30  sym=lab_pin
+    va  lab_pin  x=-170  y=0  sym=lab_pin
+    va  lab_pin  x=280  y=50  sym=lab_pin
+    gnd0  gnd  x=-250  y=40  sym=gnd
+    gnd1  gnd  x=-40  y=160  sym=gnd
+    gnd2  gnd  x=150  y=160  sym=gnd
+
+  wires:
+    220 0 150 0
+    150 0 150 90
+    30 0 220 0
+    -250 -30 -110 -30
+    -110 -30 -110 0
+    -110 0 90 0
+    -170 0 -170 90
+    -170 90 -40 90
+    -40 90 -40 50
+    -40 50 280 50
+    280 50 280 0

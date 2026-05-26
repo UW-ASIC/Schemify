@@ -1,0 +1,44 @@
+chn_testbench 1
+
+TESTBENCH Buck Converter
+  instances:
+    Vin  vsource  x=-370  y=0  sym=vsource  value=3.3
+    Vpwm  vsource  x=-260  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.00000001 0.00000001 0.000000545 0.000001)
+    Mhs  pmos  x=-150  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=500u  L=180n  M=1 }
+    Mls  nmos  x=-30  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=250u  L=180n  M=1 }
+    L1  inductor  x=90  y=0  sym=ind  value=1u
+    Cout  capacitor  x=170  y=120  sym=capa  value=10u  device=capacitor
+    Resr  resistor  x=270  y=0  sym=res  value=10m  device=resistor
+    Rload  resistor  x=370  y=120  sym=res  value=1.8  device=resistor
+    vin  lab_pin  x=-170  y=-120  sym=lab_pin
+    vout  lab_pin  x=60  y=0  sym=lab_pin
+    vout  lab_pin  x=370  y=90  sym=lab_pin
+    vpwm  lab_pin  x=-260  y=-30  sym=lab_pin
+    sw  lab_pin  x=-170  y=-90  sym=lab_pin
+    sw  lab_pin  x=-10  y=90  sym=lab_pin
+    gnd0  gnd  x=-370  y=40  sym=gnd
+    gnd1  gnd  x=-260  y=40  sym=gnd
+    gnd2  gnd  x=-10  y=160  sym=gnd
+    gnd3  gnd  x=-10  y=130  sym=gnd
+    gnd4  gnd  x=170  y=160  sym=gnd
+    gnd5  gnd  x=370  y=160  sym=gnd
+
+  wires:
+    -170 -120 -170 -150
+    -370 -30 -370 -120
+    -370 -120 -170 -120
+    60 0 170 0
+    170 0 170 90
+    370 90 300 90
+    300 90 300 0
+    170 90 370 90
+    -260 -30 -130 -30
+    -130 -30 -130 -120
+    -130 -120 -50 -120
+    -50 -120 -50 120
+    -170 -90 -10 -90
+    -10 -90 -10 90
+    -10 90 120 90
+    120 90 120 0

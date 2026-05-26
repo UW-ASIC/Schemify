@@ -1,0 +1,54 @@
+chn_testbench 1
+
+TESTBENCH Sample and Hold
+  instances:
+    Vdd  vsource  x=-450  y=0  sym=vsource  value=1.8
+    Vin  vsource  x=-340  y=0  sym=vsource  value=900m SIN(0.9 0.4 10000 0 0 0)
+    Vclk  vsource  x=-230  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.0000000001 0.0000000001 0.000000025 0.0000001)
+    Vclkb  vsource  x=-120  y=0  sym=vsource  value=0 PULSE(1.8 0 0 0.0000000001 0.0000000001 0.000000025 0.0000001)
+    Mns  nmos  x=-10  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=180n  M=1 }
+    Mps  pmos  x=110  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=4u  L=180n  M=1 }
+    Chold  capacitor  x=230  y=120  sym=capa  value=1p  device=capacitor
+    Mbuf  nmos  x=340  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=10u  L=180n  M=1 }
+    Ibias  isource  x=450  y=0  sym=isource  value=100u
+    vout  lab_pin  x=360  y=150  sym=lab_pin
+    phib  lab_pin  x=-120  y=-30  sym=lab_pin
+    phi  lab_pin  x=-230  y=-30  sym=lab_pin
+    vhold  lab_pin  x=10  y=150  sym=lab_pin
+    vhold  lab_pin  x=280  y=90  sym=lab_pin
+    vin  lab_pin  x=-340  y=-30  sym=lab_pin
+    vin  lab_pin  x=10  y=90  sym=lab_pin
+    gnd0  gnd  x=-450  y=40  sym=gnd
+    gnd1  gnd  x=-340  y=40  sym=gnd
+    gnd2  gnd  x=-230  y=40  sym=gnd
+    gnd3  gnd  x=-120  y=40  sym=gnd
+    gnd4  gnd  x=10  y=130  sym=gnd
+    gnd5  gnd  x=230  y=160  sym=gnd
+    gnd6  gnd  x=360  y=130  sym=gnd
+    gnd7  gnd  x=450  y=40  sym=gnd
+    vdd8  vdd  x=-450  y=-40  sym=vdd
+    vdd9  vdd  x=90  y=-130  sym=vdd
+    vdd10  vdd  x=360  y=80  sym=vdd
+
+  wires:
+    360 150 450 150
+    450 150 450 -30
+    -120 -30 130 -30
+    130 -30 130 -120
+    -230 -30 -230 120
+    -230 120 -30 120
+    10 150 90 150
+    90 150 90 -90
+    10 150 120 150
+    120 150 120 90
+    120 90 230 90
+    230 90 280 90
+    280 90 280 120
+    280 120 320 120
+    -340 -30 -340 90
+    -340 90 10 90
+    10 90 10 -150
+    10 -150 90 -150

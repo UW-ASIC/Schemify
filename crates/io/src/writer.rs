@@ -3,6 +3,7 @@ use std::fmt::Write;
 use lasso::Rodeo;
 
 use schemify_core::schematic::*;
+use schemify_core::simulation::{SpiceBackend, StimulusLang};
 use schemify_core::types::*;
 
 /// Serialize a Schematic to CHN format.
@@ -31,6 +32,7 @@ fn write_chn_impl(w: &mut String, s: &Schematic, int: &Rodeo) -> std::fmt::Resul
         SchematicType::Testbench => {
             let name = if s.name.is_empty() { "untitled" } else { &s.name };
             writeln!(w, "\nTESTBENCH {name}")?;
+            write_testbench_metadata(w, s)?;
         }
         SchematicType::Schematic => {
             writeln!(w, "\nSCHEMATIC")?;
@@ -63,6 +65,16 @@ fn write_sym_metadata(w: &mut String, s: &Schematic, int: &Rodeo) -> std::fmt::R
         } else if key == "type" {
             writeln!(w, "  type: {val}")?;
         }
+    }
+    Ok(())
+}
+
+fn write_testbench_metadata(w: &mut String, s: &Schematic) -> std::fmt::Result {
+    if s.stimulus_lang != StimulusLang::default() {
+        writeln!(w, "  stimulus_lang: {}", s.stimulus_lang.as_str())?;
+    }
+    if s.sim_backend != SpiceBackend::default() {
+        writeln!(w, "  sim_backend: {}", s.sim_backend.as_str())?;
     }
     Ok(())
 }

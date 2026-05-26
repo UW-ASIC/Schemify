@@ -1,0 +1,100 @@
+name: Deploy Schemify WASM Viewer
+
+on:
+  workflow_call:
+    inputs:
+      project_path:
+        description: "Path to Schemify project directory (relative to caller repo root)"
+        required: false
+        type: string
+        default: "."
+      schemify_ref:
+        description: "SchemifyRS git ref to build from (branch, tag, or SHA)"
+        required: false
+        type: string
+        default: "main"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # 1. Checkout the caller's repo (contains Config.toml + .chn files)
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          path: project
+
+      # 2. Checkout SchemifyRS (contains build tooling + WASM source)
+      - name: Checkout SchemifyRS
+        uses: actions/checkout@v4
+        with:
+          repository: omarElhassworthy/SchemifyRS
+          ref: ${{ inputs.schemify_ref }}
+          path: schemify
+
+      # 3. Toolchain
+      - name: Install Rust + wasm32 target
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: schemify
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli
+
+      - name: Install binaryen (wasm-opt)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq binaryen
+
+      # 4. Build WASM from SchemifyRS
+      - name: Build WASM
+        working-directory: schemify
+        run: |
+          cargo build \
+            -p schemify-display \
+            --lib \
+            --target wasm32-unknown-unknown \
+            --release
+
+      - name: Run wasm-bindgen
+        working-directory: schemify
+        run: |
+          wasm-bindgen \
+            --target web \
+            --out-dir ../dist \
+            --no-typescript \
+            target/wasm32-unknown-unknown/release/schemify_display.wasm
+
+      - name: Optimize WASM
+        run: wasm-opt -O2 dist/schemify_display_bg.wasm -o dist/schemify_display_bg.wasm
+
+      # 5. Bundle caller's project data
+      - name: Copy web assets
+        run: cp schemify/web/index.html dist/
+
+      - name: Bundle project data
+        run: |
+          chmod +x schemify/scripts/bundle-project.sh
+          schemify/scripts/bundle-project.sh "project/${{ inputs.project_path }}" > dist/project.json
+
+      # 6. Deploy
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

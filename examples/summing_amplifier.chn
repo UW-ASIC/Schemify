@@ -1,0 +1,45 @@
+chn_testbench 1
+
+TESTBENCH Summing Amplifier
+  instances:
+    Vcc  vsource  x=-470  y=0  sym=vsource  value=15
+    Vee  vsource  x=-360  y=0  sym=vsource  value=-15
+    V1  vsource  x=-250  y=0  sym=vsource  value=1
+    V2  vsource  x=-140  y=0  sym=vsource  value=500m
+    V3  vsource  x=-30  y=0  sym=vsource  value=-300m
+    R1  resistor  x=80  y=0  sym=res  value=10k  device=resistor
+    R2  resistor  x=170  y=0  sym=res  value=10k  device=resistor
+    R3  resistor  x=270  y=0  sym=res  value=10k  device=resistor
+    Rf  resistor  x=370  y=0  sym=res  value=10k  device=resistor
+    Eamp  vcvs  x=470  y=120  sym=vcvs  value=1000000
+    vout  lab_pin  x=340  y=0  sym=lab_pin
+    v3  lab_pin  x=-30  y=-30  sym=lab_pin
+    v3  lab_pin  x=300  y=-30  sym=lab_pin
+    v2  lab_pin  x=-140  y=-30  sym=lab_pin
+    v2  lab_pin  x=200  y=-30  sym=lab_pin
+    v1  lab_pin  x=-250  y=-30  sym=lab_pin
+    vminus  lab_pin  x=50  y=0  sym=lab_pin
+    vminus  lab_pin  x=400  y=0  sym=lab_pin
+    gnd0  gnd  x=-470  y=40  sym=gnd
+    gnd1  gnd  x=-360  y=40  sym=gnd
+    gnd2  gnd  x=-250  y=40  sym=gnd
+    gnd3  gnd  x=-140  y=40  sym=gnd
+    gnd4  gnd  x=-30  y=40  sym=gnd
+    gnd5  gnd  x=470  y=160  sym=gnd
+    gnd6  gnd  x=440  y=100  sym=gnd
+
+  wires:
+    340 0 470 0
+    470 0 470 90
+    -30 -30 300 -30
+    300 -30 300 0
+    -140 -30 200 -30
+    200 -30 200 0
+    -250 -30 -70 -30
+    -70 -30 -70 0
+    -70 0 110 0
+    50 0 140 0
+    140 0 240 0
+    240 0 400 0
+    400 0 400 150
+    400 150 440 150

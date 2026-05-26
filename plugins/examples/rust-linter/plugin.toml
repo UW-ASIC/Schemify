@@ -1,0 +1,22 @@
+[plugin]
+id = "rust-linter"
+name = "Schematic Linter"
+version = "0.1.0"
+description = "Queries nets, flags floating nodes with error markers"
+entry = "./target/release/rust-linter"
+runtime = "subprocess"
+api_version = 1
+
+[capabilities]
+panels = false
+commands = true
+overlays = true
+theme = false
+
+[events]
+listen = ["schematic_changed"]
+
+[[commands.command]]
+name = "lint_now"
+description = "Run schematic lint check"
+keybind = "Ctrl+Shift+L"

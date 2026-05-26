@@ -1,0 +1,8 @@
+[plugin]
+id = "bash-minimal"
+name = "Bash Minimal"
+version = "0.1.0"
+description = "Absolute minimum viable plugin in bash"
+entry = "bash plugin.sh"
+runtime = "subprocess"
+api_version = 1

@@ -1,0 +1,45 @@
+chn_testbench 1
+
+TESTBENCH Transmission Gate
+  instances:
+    Vdd  vsource  x=-390  y=0  sym=vsource  value=1.8
+    Vctrl  vsource  x=-280  y=0  sym=vsource  value=1.8
+    Vctrlb  vsource  x=-170  y=0  sym=vsource  value=0
+    Vin  vsource  x=-60  y=0  sym=vsource  value=900m
+    Mn  nmos  x=50  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=180n  M=1 }
+    Mp  pmos  x=170  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=4u  L=180n  M=1 }
+    Rload  resistor  x=290  y=120  sym=res  value=100k  device=resistor
+    Cload  capacitor  x=390  y=120  sym=capa  value=100f  device=capacitor
+    vin  lab_pin  x=-60  y=-30  sym=lab_pin
+    vin  lab_pin  x=150  y=90  sym=lab_pin
+    ctrlb  lab_pin  x=-170  y=-30  sym=lab_pin
+    ctrl  lab_pin  x=-280  y=-30  sym=lab_pin
+    vout  lab_pin  x=70  y=150  sym=lab_pin
+    gnd0  gnd  x=-390  y=40  sym=gnd
+    gnd1  gnd  x=-280  y=40  sym=gnd
+    gnd2  gnd  x=-170  y=40  sym=gnd
+    gnd3  gnd  x=-60  y=40  sym=gnd
+    gnd4  gnd  x=70  y=130  sym=gnd
+    gnd5  gnd  x=290  y=160  sym=gnd
+    gnd6  gnd  x=390  y=160  sym=gnd
+    vdd7  vdd  x=-390  y=-40  sym=vdd
+    vdd8  vdd  x=150  y=-130  sym=vdd
+
+  wires:
+    -60 -30 70 -30
+    70 -30 70 90
+    70 90 150 90
+    150 90 150 -150
+    -170 -30 -170 -120
+    -170 -120 190 -120
+    -280 -30 -280 120
+    -280 120 30 120
+    70 150 110 150
+    110 150 110 -90
+    110 -90 150 -90
+    70 150 180 150
+    180 150 180 90
+    180 90 290 90
+    290 90 390 90

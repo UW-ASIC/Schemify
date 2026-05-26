@@ -1,0 +1,22 @@
+chn_testbench 1
+
+TESTBENCH TB Comparator Speed
+  instances:
+    Xdut  subckt  x=-240  y=-120  sym=comparator
+    Vdd  vsource  x=-100  y=0  sym=vsource  value=1.8
+    Vref  vsource  x=20  y=0  sym=vsource  value=900m
+    Vin  vsource  x=130  y=0  sym=vsource  value=0 PULSE(0.89 0.91 0 0.0000000001 0.0000000001 0.00000002 0.00000004)
+    Cload  capacitor  x=240  y=120  sym=capa  value=50f  device=capacitor
+    vin  lab_pin  x=-240  y=-150  sym=lab_pin
+    vin  lab_pin  x=130  y=-150  sym=lab_pin
+    vdd0  vdd  x=-240  y=-100  sym=vdd
+    vdd1  vdd  x=20  y=-40  sym=vdd
+    gnd2  gnd  x=-100  y=40  sym=gnd
+    gnd3  gnd  x=20  y=40  sym=gnd
+    gnd4  gnd  x=130  y=40  sym=gnd
+    gnd5  gnd  x=240  y=160  sym=gnd
+    vdd6  vdd  x=-100  y=-40  sym=vdd
+
+  wires:
+    -240 -150 130 -150
+    130 -150 130 -30

@@ -1,0 +1,13 @@
+.title Sample and Hold
+.model nmos_1v8 nmos(level=1 kp=0.00012 vto=0.5)
+.model pmos_1v8 pmos(level=1 kp=6e-05 vto=-0.5)
+Vdd vdd 0 1.8
+Vin vin 0 900m SIN(0.9 0.4 10000 0 0 0)
+Vclk phi 0 0 PULSE(0 1.8 0 0.0000000001 0.0000000001 0.000000025 0.0000001)
+Vclkb phib 0 0 PULSE(1.8 0 0 0.0000000001 0.0000000001 0.000000025 0.0000001)
+Mns vin phi vhold 0 nmos_1v8 W=2u L=180n
+Mps vin phib vhold vdd pmos_1v8 W=4u L=180n
+Chold vhold 0 1p
+Mbuf vdd vhold vout 0 nmos_1v8 W=10u L=180n
+Ibias vout 0 100u
+.end

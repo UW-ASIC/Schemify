@@ -4,18 +4,6 @@ use std::path::Path;
 /// Current host API version.
 pub const API_VERSION: &str = "0.1.0";
 
-/// Runtime capability flags (what a plugin is allowed to do).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Capability {
-    pub panels: bool,
-    pub commands: bool,
-    pub overlays: bool,
-    pub theme: bool,
-    pub file_read_project: bool,
-    pub file_write_plugin_data: bool,
-    pub schematic_mutate: bool,
-}
-
 /// What the host supports (sent during initialize).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HostCapabilities {
@@ -69,43 +57,6 @@ pub fn negotiate(host: &HostCapabilities, plugin: &ManifestCapabilities) -> Nego
     }
 }
 
-impl Capability {
-    /// Build capabilities from manifest declarations.
-    pub fn from_manifest(caps: &ManifestCapabilities) -> Self {
-        Self {
-            panels: caps.panels,
-            commands: caps.commands,
-            overlays: caps.overlays,
-            theme: caps.theme,
-            ..Default::default()
-        }
-    }
-
-    /// Build capabilities from negotiated result.
-    pub fn from_negotiated(neg: &NegotiatedCapabilities) -> Self {
-        Self {
-            panels: neg.panels,
-            commands: neg.commands,
-            overlays: neg.overlays,
-            theme: neg.theme,
-            ..Default::default()
-        }
-    }
-
-    /// Merge two capability sets (union).
-    pub fn merge(self, other: Self) -> Self {
-        Self {
-            panels: self.panels || other.panels,
-            commands: self.commands || other.commands,
-            overlays: self.overlays || other.overlays,
-            theme: self.theme || other.theme,
-            file_read_project: self.file_read_project || other.file_read_project,
-            file_write_plugin_data: self.file_write_plugin_data || other.file_write_plugin_data,
-            schematic_mutate: self.schematic_mutate || other.schematic_mutate,
-        }
-    }
-}
-
 /// Check if `path` is under `allowed_dir`.
 pub fn is_path_under(path: &Path, allowed_dir: &Path) -> bool {
     match (path.canonicalize(), allowed_dir.canonicalize()) {
@@ -117,39 +68,6 @@ pub fn is_path_under(path: &Path, allowed_dir: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn from_manifest_caps() {
-        let mc = ManifestCapabilities {
-            panels: true,
-            commands: false,
-            overlays: true,
-            theme: false,
-        };
-        let cap = Capability::from_manifest(&mc);
-        assert!(cap.panels);
-        assert!(!cap.commands);
-        assert!(cap.overlays);
-        assert!(!cap.theme);
-    }
-
-    #[test]
-    fn merge_union() {
-        let a = Capability {
-            panels: true,
-            ..Default::default()
-        };
-        let b = Capability {
-            commands: true,
-            theme: true,
-            ..Default::default()
-        };
-        let merged = a.merge(b);
-        assert!(merged.panels);
-        assert!(merged.commands);
-        assert!(merged.theme);
-        assert!(!merged.overlays);
-    }
 
     #[test]
     fn negotiate_intersection() {
@@ -207,23 +125,6 @@ mod tests {
         // query caps are host-only
         assert!(neg.query_instances);
         assert!(neg.query_nets);
-    }
-
-    #[test]
-    fn from_negotiated_roundtrip() {
-        let neg = NegotiatedCapabilities {
-            panels: true,
-            commands: false,
-            overlays: true,
-            theme: false,
-            query_instances: true,
-            query_nets: true,
-        };
-        let cap = Capability::from_negotiated(&neg);
-        assert!(cap.panels);
-        assert!(!cap.commands);
-        assert!(cap.overlays);
-        assert!(!cap.theme);
     }
 
     #[test]

@@ -1,0 +1,17 @@
+chn_testbench 1
+
+TESTBENCH RL High-Pass Filter
+  instances:
+    Vin  vsource  x=-100  y=0  sym=vsource  value=1
+    L1  inductor  x=10  y=0  sym=ind  value=10m
+    R1  resistor  x=100  y=120  sym=res  value=1k  device=resistor
+    vin  lab_pin  x=-100  y=-30  sym=lab_pin
+    vout  lab_pin  x=-20  y=0  sym=lab_pin
+    gnd0  gnd  x=-100  y=40  sym=gnd
+    gnd1  gnd  x=100  y=160  sym=gnd
+
+  wires:
+    -100 -30 40 -30
+    40 -30 40 0
+    -20 0 100 0
+    100 0 100 90

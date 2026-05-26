@@ -1,0 +1,45 @@
+chn_testbench 1
+
+TESTBENCH TB Diff Pair Multi-Corner
+  instances:
+    Vdd  vsource  x=-80  y=0  sym=vsource  value=1.8
+    Rd1  resistor  x=-30  y=120  sym=res  value=10k  device=resistor
+    Rd2  resistor  x=90  y=120  sym=res  value=10k  device=resistor
+    M1  nmos  x=-140  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=10u  L=180n  M=1 }
+    M2  nmos  x=-20  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=10u  L=180n  M=1 }
+    Itail  isource  x=30  y=0  sym=isource  value=100u
+    Vinp  vsource  x=140  y=0  sym=vsource  value=DC 0.9 AC 0.5
+    Vinn  vsource  x=250  y=0  sym=vsource  value=DC 0.9 AC -0.5
+    outn  lab_pin  x=90  y=150  sym=lab_pin
+    outp  lab_pin  x=-30  y=150  sym=lab_pin
+    tail  lab_pin  x=-120  y=150  sym=lab_pin
+    inn  lab_pin  x=-40  y=120  sym=lab_pin
+    inp  lab_pin  x=-160  y=120  sym=lab_pin
+    gnd0  gnd  x=-80  y=40  sym=gnd
+    gnd1  gnd  x=-120  y=130  sym=gnd
+    gnd2  gnd  x=0  y=130  sym=gnd
+    gnd3  gnd  x=30  y=-20  sym=gnd
+    gnd4  gnd  x=140  y=40  sym=gnd
+    gnd5  gnd  x=250  y=40  sym=gnd
+    vdd6  vdd  x=-80  y=-40  sym=vdd
+    vdd7  vdd  x=-30  y=80  sym=vdd
+    vdd8  vdd  x=90  y=80  sym=vdd
+
+  wires:
+    90 150 50 150
+    50 150 50 90
+    50 90 0 90
+    -30 150 -80 150
+    -80 150 -80 90
+    -80 90 -120 90
+    -120 150 0 150
+    0 150 0 30
+    0 30 30 30
+    -40 120 -40 50
+    -40 50 250 50
+    250 50 250 -30
+    -160 120 -160 50
+    -160 50 140 50
+    140 50 140 -30

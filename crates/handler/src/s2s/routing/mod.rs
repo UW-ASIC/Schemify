@@ -13,7 +13,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use crate::s2s::ir::{Instance, Label, Net, Subcircuit, Wire};
-use crate::s2s::output::{pin_position, Backend};
+use crate::s2s::output::{pin_position, PinGeometry};
 use classifier::NetStrategy;
 
 /// Grid resolution for the A* routing grid.
@@ -70,7 +70,7 @@ impl Router {
     ///
     /// Uses the net classifier to decide strategy, then A* for Wire-strategy nets
     /// with L-shape fallback, and net labels for Label-strategy nets.
-    pub fn route(&self, subckt: &mut Subcircuit, backend: &dyn Backend) {
+    pub fn route(&self, subckt: &mut Subcircuit, backend: &dyn PinGeometry) {
         let adaptive_mult = adaptive_multiplier(subckt) * self.budget_multiplier;
         let strategies = classifier::classify_nets(subckt, backend);
 
@@ -98,10 +98,20 @@ impl Router {
             }
         }
 
+        // Clear obstacle cells at and around pin positions so A* and L-shape
+        // can enter/exit pins that sit inside component bounding boxes.
+        for &(px, py) in pin_pos_to_nets.keys() {
+            let gx = px / GRID_RES;
+            let gy = py / GRID_RES;
+            for &(dx, dy) in &[(0,0), (0,-1), (0,1), (-1,0), (1,0)] {
+                obstacles.unset(gx + dx, gy + dy);
+            }
+        }
+
         for (net_i, strategy) in strategies.iter().enumerate() {
             let net = &subckt.nets[net_i];
             let is_port_net = port_net_names.contains(net.name.as_str());
-            if net.pins.is_empty() || (net.pins.len() < 2 && !is_port_net) {
+            if net.pins.is_empty() {
                 continue;
             }
 
@@ -247,6 +257,16 @@ impl BitGrid {
         let idx = ly * self.width + lx;
         (self.data[idx / 64] >> (idx % 64)) & 1 == 1
     }
+
+    fn unset(&mut self, gx: i32, gy: i32) {
+        if !self.in_bounds(gx, gy) {
+            return;
+        }
+        let lx = (gx - self.min_x) as usize;
+        let ly = (gy - self.min_y) as usize;
+        let idx = ly * self.width + lx;
+        self.data[idx / 64] &= !(1u64 << (idx % 64));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -382,8 +402,8 @@ fn route_multi_pin_net(
         } else if let Some(path) = astar_path(from, to, obstacles, foreign_pins, &all_wires, budget_multiplier, workspace) {
             path_to_wires(net_idx, &path, router.grid_snap)
         } else {
-            // Fallback: L-shape with foreign-pin avoidance.
-            l_shape_wires_safe(net_idx, from, to, pin_pos_to_nets, current_net)
+            // Fallback: L-shape with foreign-pin and body avoidance.
+            l_shape_wires_safe(net_idx, from, to, pin_pos_to_nets, current_net, obstacles)
         };
 
         if segment_wires.is_empty() && from != to {
@@ -767,15 +787,20 @@ fn l_shape_wires(net_idx: u32, from: (i32, i32), to: (i32, i32)) -> Vec<Wire> {
     wires
 }
 
-/// L-shape with foreign-pin avoidance. Try horizontal-first, then vertical-first.
-/// If both hit foreign pins, fall back to label strategy (return empty).
+/// L-shape with foreign-pin and component-body avoidance.
+/// Try horizontal-first, then vertical-first.
+/// If both hit foreign pins or obstacles, fall back to label strategy (return empty).
 fn l_shape_wires_safe(
     net_idx: u32,
     from: (i32, i32),
     to: (i32, i32),
     pin_pos_to_nets: &HashMap<(i32, i32), Vec<usize>>,
     current_net: usize,
+    obstacles: &BitGrid,
 ) -> Vec<Wire> {
+    let from_grid = (from.0 / GRID_RES, from.1 / GRID_RES);
+    let to_grid = (to.0 / GRID_RES, to.1 / GRID_RES);
+
     // Check if a point hits a foreign pin.
     let is_foreign = |pt: (i32, i32)| -> bool {
         if let Some(nets) = pin_pos_to_nets.get(&pt) {
@@ -785,10 +810,9 @@ fn l_shape_wires_safe(
         }
     };
 
-    // Check if any wire segment passes through a foreign pin.
-    let wire_hits_foreign = |w: &Wire| -> bool {
+    // Check if any wire segment passes through a foreign pin or component body.
+    let wire_hits = |w: &Wire| -> bool {
         if w.y1 == w.y2 {
-            // Horizontal: check each grid point along the segment (excluding endpoints).
             let (lo, hi) = minmax(w.x1, w.x2);
             let step = GRID_RES;
             let mut x = lo + step;
@@ -796,15 +820,23 @@ fn l_shape_wires_safe(
                 if is_foreign((x, w.y1)) {
                     return true;
                 }
+                // Check obstacle grid (component body), exempting start/end pins.
+                let gp = (x / GRID_RES, w.y1 / GRID_RES);
+                if gp != from_grid && gp != to_grid && obstacles.get(gp.0, gp.1) {
+                    return true;
+                }
                 x += step;
             }
         } else if w.x1 == w.x2 {
-            // Vertical: check each grid point along the segment (excluding endpoints).
             let (lo, hi) = minmax(w.y1, w.y2);
             let step = GRID_RES;
             let mut y = lo + step;
             while y < hi {
                 if is_foreign((w.x1, y)) {
+                    return true;
+                }
+                let gp = (w.x1 / GRID_RES, y / GRID_RES);
+                if gp != from_grid && gp != to_grid && obstacles.get(gp.0, gp.1) {
                     return true;
                 }
                 y += step;
@@ -817,20 +849,20 @@ fn l_shape_wires_safe(
     let corner_a = (to.0, from.1);
     let wires_a = l_shape_wires(net_idx, from, to);
     let a_hits_corner = is_foreign(corner_a) && corner_a != from && corner_a != to;
-    let a_hits_segment = wires_a.iter().any(|w| wire_hits_foreign(w));
+    let a_hits_segment = wires_a.iter().any(|w| wire_hits(w));
 
     // Option B: vertical then horizontal (corner at (from.x, to.y)).
     let corner_b = (from.0, to.1);
     let wires_b = l_shape_wires_vfirst(net_idx, from, to);
     let b_hits_corner = is_foreign(corner_b) && corner_b != from && corner_b != to;
-    let b_hits_segment = wires_b.iter().any(|w| wire_hits_foreign(w));
+    let b_hits_segment = wires_b.iter().any(|w| wire_hits(w));
 
     if !a_hits_corner && !a_hits_segment {
         wires_a
     } else if !b_hits_corner && !b_hits_segment {
         wires_b
     } else {
-        // Both L-shapes hit foreign pins → fall back to labels (return empty).
+        // Both L-shapes hit obstacles → fall back to labels (return empty).
         Vec::new()
     }
 }
@@ -1423,7 +1455,7 @@ mod tests {
     }
 
     #[test]
-    fn single_pin_net_no_wires_or_labels() {
+    fn single_pin_net_gets_label_no_wires() {
         let mut subckt = Subcircuit::new("test");
         subckt.instances.push(make_instance("I0", 0, 0, 2));
 
@@ -1438,7 +1470,7 @@ mod tests {
         router.route(&mut subckt, &test_backend());
 
         assert!(subckt.wires.is_empty());
-        assert!(subckt.labels.is_empty());
+        assert_eq!(subckt.labels.len(), 1, "single-pin net should get a label");
     }
 
     #[test]

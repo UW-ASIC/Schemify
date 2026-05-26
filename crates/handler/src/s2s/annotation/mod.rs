@@ -114,7 +114,7 @@ fn classify_power_name(name: &str) -> Option<NetClass> {
     let lower = name.to_ascii_lowercase();
 
     // Ground patterns (checked first so "0" matches ground).
-    const GROUND_PATTERNS: &[&str] = &["vss", "gnd", "avss", "gnd!", "vss!"];
+    const GROUND_PATTERNS: &[&str] = &["vss", "gnd", "avss", "dvss", "gnd!", "vss!"];
     if lower == "0" {
         return Some(NetClass::Ground);
     }
@@ -123,9 +123,13 @@ fn classify_power_name(name: &str) -> Option<NetClass> {
             return Some(NetClass::Ground);
         }
     }
+    // PDK-prefixed ground (e.g. sky130_gnd).
+    if lower.ends_with("_gnd") || lower.ends_with("_vss") {
+        return Some(NetClass::Ground);
+    }
 
     // Power patterns.
-    const POWER_PATTERNS: &[&str] = &["vdd", "vcc", "vbat", "avdd", "vdda", "vdd!", "vssa"];
+    const POWER_PATTERNS: &[&str] = &["vdd", "vcc", "vbat", "avdd", "dvdd", "vdda", "vdd!", "vssa"];
     for pat in POWER_PATTERNS {
         if lower == *pat {
             // Special case: vssa sounds like ground but spec says it's in
@@ -138,6 +142,10 @@ fn classify_power_name(name: &str) -> Option<NetClass> {
             }
             return Some(NetClass::Power);
         }
+    }
+    // PDK-prefixed power (e.g. sky130_vdd).
+    if lower.ends_with("_vdd") || lower.ends_with("_vcc") {
+        return Some(NetClass::Power);
     }
 
     None

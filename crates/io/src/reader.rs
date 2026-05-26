@@ -1,6 +1,7 @@
 use lasso::Rodeo;
 
 use schemify_core::schematic::*;
+use schemify_core::simulation::{SpiceBackend, StimulusLang};
 use schemify_core::types::*;
 
 /// Parse a CHN file into a Schematic.
@@ -180,6 +181,18 @@ fn parse(s: &mut Schematic, data: &str, int: &mut Rodeo) {
                     key: int.get_or_intern("type"),
                     value: int.get_or_intern(trimmed[6..].trim()),
                 });
+                continue;
+            }
+            if trimmed.starts_with("stimulus_lang: ") {
+                if let Some(lang) = StimulusLang::from_name(trimmed[15..].trim()) {
+                    s.stimulus_lang = lang;
+                }
+                continue;
+            }
+            if trimmed.starts_with("sim_backend: ") {
+                if let Some(be) = SpiceBackend::from_name(trimmed[13..].trim()) {
+                    s.sim_backend = be;
+                }
                 continue;
             }
 

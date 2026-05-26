@@ -1,5 +1,6 @@
 use soa_derive::StructOfArray;
 
+use crate::simulation::{SpiceBackend, StimulusLang};
 use crate::types::*;
 
 // ====================================================
@@ -44,6 +45,10 @@ pub struct Schematic {
     pub measurements_decl: String,
 
     pub skip_toplevel_code: bool,
+
+    // Testbench stimulus config (zero-cost defaults for non-testbench)
+    pub stimulus_lang: StimulusLang,
+    pub sim_backend: SpiceBackend,
 }
 
 // ====================================================

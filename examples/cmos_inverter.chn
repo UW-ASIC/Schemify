@@ -1,0 +1,27 @@
+chn_testbench 1
+
+TESTBENCH CMOS Inverter
+  instances:
+    Vdd  vsource  x=-170  y=0  sym=vsource  value=1.8
+    Vin  vsource  x=-60  y=0  sym=vsource  value=900m
+    Mp  pmos  x=50  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mn  nmos  x=170  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    vout  lab_pin  x=30  y=-150  sym=lab_pin
+    vin  lab_pin  x=-60  y=-30  sym=lab_pin
+    gnd0  gnd  x=-170  y=40  sym=gnd
+    gnd1  gnd  x=-60  y=40  sym=gnd
+    gnd2  gnd  x=190  y=160  sym=gnd
+    gnd3  gnd  x=190  y=130  sym=gnd
+    vdd4  vdd  x=-170  y=-40  sym=vdd
+    vdd5  vdd  x=30  y=-100  sym=vdd
+    vdd6  vdd  x=30  y=-130  sym=vdd
+
+  wires:
+    30 -150 190 -150
+    190 -150 190 90
+    -60 -30 70 -30
+    70 -30 70 -120
+    70 -120 150 -120
+    150 -120 150 120

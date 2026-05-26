@@ -1,3 +1,5 @@
+mod plugin_cli;
+
 use std::path::PathBuf;
 use std::process;
 
@@ -233,6 +235,18 @@ enum CliCommand {
 
     // ── Simulation ──
     RunSim,
+    SetStimulusLang {
+        /// ngspice|xyce|vacask|ltspice|spectre|pyspice
+        lang: String,
+    },
+    SetSimBackend {
+        /// ngspice|xyce|ltspice|spectre
+        backend: String,
+    },
+    /// Generate/update companion stimulus file for a testbench
+    GenStimulus,
+    /// Show companion stimulus file path
+    ShowStimulus,
 
     // ── Layout ──
     AutoLayout,
@@ -244,6 +258,12 @@ enum CliCommand {
 
     // ── Plugins ──
     PluginsRefresh,
+
+    /// Plugin management (install, uninstall, list)
+    Plugin {
+        #[command(subcommand)]
+        action: plugin_cli::PluginCommand,
+    },
 }
 
 fn parse_tool(s: &str) -> Result<Tool, String> {
@@ -405,20 +425,29 @@ fn to_command(cli_cmd: CliCommand) -> Command {
             Command::SetWireColor { idx, color: c }
         }
         CliCommand::RunSim => Command::RunSim,
+        CliCommand::SetStimulusLang { lang } => Command::SetStimulusLang(lang),
+        CliCommand::SetSimBackend { backend } => Command::SetSimBackend(backend),
+        CliCommand::GenStimulus | CliCommand::ShowStimulus => {
+            unreachable!("handled before run_cli")
+        }
         CliCommand::AutoLayout => Command::AutoLayout,
         CliCommand::ImportSpice { path } => Command::ImportSpice { path },
         CliCommand::PluginsRefresh => Command::PluginsRefresh,
+        CliCommand::Plugin { .. } => unreachable!("handled before run_cli"),
     }
 }
 
 fn run_cli(cli: Cli, cli_cmd: CliCommand) {
     let mut app = App::new();
 
-    // Load file if provided
+    // Load file if provided — skip for import-spice (file is the save target)
+    let is_import = matches!(cli_cmd, CliCommand::ImportSpice { .. });
     if let Some(ref path) = cli.file {
-        if let Err(e) = app.open_file(path) {
-            eprintln!("error opening {}: {e}", path.display());
-            process::exit(1);
+        if !is_import || path.exists() {
+            if let Err(e) = app.open_file(path) {
+                eprintln!("error opening {}: {e}", path.display());
+                process::exit(1);
+            }
         }
     }
 
@@ -442,10 +471,72 @@ fn run_cli(cli: Cli, cli_cmd: CliCommand) {
     }
 }
 
-fn main() {
-    let cli = Cli::parse();
+fn require_file(cli: &Cli) -> &std::path::Path {
+    match &cli.file {
+        Some(p) => p,
+        None => {
+            eprintln!("error: this command requires --file <testbench.chn_tb>");
+            process::exit(1);
+        }
+    }
+}
 
-    match cli.command {
+fn run_gen_stimulus(cli: &Cli) {
+    let path = require_file(cli);
+    let mut app = App::new();
+    if let Err(e) = app.open_file(path) {
+        eprintln!("error opening {}: {e}", path.display());
+        process::exit(1);
+    }
+    let sch = app.schematic();
+    let stim_path = schemify_io::stimulus::stimulus_path(path, sch.stimulus_lang);
+
+    let existing = std::fs::read_to_string(&stim_path).ok();
+
+    let netlist = if sch.spice_body.is_empty() {
+        format!("* No netlist generated yet for: {}", sch.name)
+    } else {
+        sch.spice_body.clone()
+    };
+
+    let output = schemify_io::stimulus::generate_stimulus(
+        &sch.name,
+        sch.stimulus_lang,
+        sch.sim_backend,
+        &netlist,
+        existing.as_deref(),
+    );
+
+    std::fs::write(&stim_path, &output).unwrap_or_else(|e| {
+        eprintln!("error writing {}: {e}", stim_path.display());
+        process::exit(1);
+    });
+    println!("Wrote stimulus: {}", stim_path.display());
+}
+
+fn run_show_stimulus(cli: &Cli) {
+    let path = require_file(cli);
+    let mut app = App::new();
+    if let Err(e) = app.open_file(path) {
+        eprintln!("error opening {}: {e}", path.display());
+        process::exit(1);
+    }
+    let sch = app.schematic();
+    let stim_path = schemify_io::stimulus::stimulus_path(path, sch.stimulus_lang);
+    let exists = stim_path.exists();
+
+    println!("Testbench:      {}", sch.name);
+    println!("Stimulus lang:  {}", sch.stimulus_lang.as_str());
+    println!("Sim backend:    {}", sch.sim_backend.as_str());
+    println!("Stimulus file:  {}", stim_path.display());
+    println!("File exists:    {exists}");
+}
+
+fn main() {
+    let mut cli = Cli::parse();
+    let command = cli.command.take();
+
+    match command {
         None => {
             // No subcommand → launch GUI
             if let Err(e) = schemify_display::run_gui() {
@@ -453,6 +544,12 @@ fn main() {
                 process::exit(1);
             }
         }
+        Some(CliCommand::Plugin { action }) => {
+            let project_dir = cli.file.as_deref().and_then(|f| f.parent());
+            plugin_cli::run_plugin_command(action, project_dir);
+        }
+        Some(CliCommand::GenStimulus) => run_gen_stimulus(&cli),
+        Some(CliCommand::ShowStimulus) => run_show_stimulus(&cli),
         Some(cmd) => run_cli(cli, cmd),
     }
 }

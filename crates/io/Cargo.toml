@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 schemify-core = { path = "../core" }
 lasso = "0.7"
+dirs = "5"
+serde = { workspace = true }
+toml = "0.8"

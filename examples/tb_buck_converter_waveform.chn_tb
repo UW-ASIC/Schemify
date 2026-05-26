@@ -1,0 +1,40 @@
+chn_testbench 1
+
+TESTBENCH TB Buck Converter Waveforms
+  instances:
+    Vin  vsource  x=-390  y=0  sym=vsource  value=3.3
+    Vpwm  vsource  x=-280  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.000000005 0.000000005 0.0000005454545454545455 0.000001)
+    Rhs_on  resistor  x=-170  y=0  sym=res  value=50m  device=resistor
+    Rls_on  resistor  x=-80  y=120  sym=res  value=50m  device=resistor
+    L1  inductor  x=20  y=0  sym=ind  value=2.2u
+    Rdcr  resistor  x=110  y=0  sym=res  value=20m  device=resistor
+    Cout  capacitor  x=200  y=120  sym=capa  value=22u  device=capacitor
+    Rsense  resistor  x=300  y=0  sym=res  value=10m  device=resistor
+    Rload  resistor  x=390  y=120  sym=res  value=1.8  device=resistor
+    vout  lab_pin  x=-10  y=0  sym=lab_pin
+    vload  lab_pin  x=270  y=0  sym=lab_pin
+    vin  lab_pin  x=-390  y=-30  sym=lab_pin
+    vout_sense  lab_pin  x=80  y=0  sym=lab_pin
+    vout_sense  lab_pin  x=330  y=90  sym=lab_pin
+    sw  lab_pin  x=-200  y=0  sym=lab_pin
+    sw  lab_pin  x=50  y=90  sym=lab_pin
+    gnd0  gnd  x=-390  y=40  sym=gnd
+    gnd1  gnd  x=-280  y=40  sym=gnd
+    gnd2  gnd  x=-80  y=160  sym=gnd
+    gnd3  gnd  x=200  y=160  sym=gnd
+    gnd4  gnd  x=390  y=160  sym=gnd
+
+  wires:
+    -10 0 140 0
+    270 0 390 0
+    390 0 390 90
+    -390 -30 -140 -30
+    -140 -30 -140 0
+    80 0 80 90
+    80 90 200 90
+    200 90 330 90
+    330 90 330 0
+    -200 0 -80 0
+    -80 0 -80 90
+    -80 90 50 90
+    50 90 50 0

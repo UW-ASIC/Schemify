@@ -1,0 +1,9 @@
+.title Inverting Amplifier
+Vcc vcc 0 15
+Vee vee 0 -15
+Vin vin 0 100m
+Rin vin vminus 1k
+Rf vminus vout 10k
+Rgnd 0 vplus 1k
+Eamp vout 0 vplus vminus 1000000
+.end

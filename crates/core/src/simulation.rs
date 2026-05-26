@@ -82,3 +82,78 @@ pub enum SpiceBackend {
     LtSpice,
     Spectre,
 }
+
+impl SpiceBackend {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NgSpice => "ngspice",
+            Self::Xyce => "xyce",
+            Self::LtSpice => "ltspice",
+            Self::Spectre => "spectre",
+        }
+    }
+
+    pub fn from_name(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "ngspice" => Some(Self::NgSpice),
+            "xyce" => Some(Self::Xyce),
+            "ltspice" => Some(Self::LtSpice),
+            "spectre" => Some(Self::Spectre),
+            _ => None,
+        }
+    }
+}
+
+// ====================================================
+// Stimulus Language (dialect of companion file)
+// ====================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
+pub enum StimulusLang {
+    #[default]
+    NgSpice = 0,
+    Xyce,
+    Vacask,
+    LtSpice,
+    Spectre,
+    PySpice,
+}
+
+impl StimulusLang {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NgSpice => "ngspice",
+            Self::Xyce => "xyce",
+            Self::Vacask => "vacask",
+            Self::LtSpice => "ltspice",
+            Self::Spectre => "spectre",
+            Self::PySpice => "pyspice",
+        }
+    }
+
+    pub fn from_name(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "ngspice" => Some(Self::NgSpice),
+            "xyce" => Some(Self::Xyce),
+            "vacask" => Some(Self::Vacask),
+            "ltspice" => Some(Self::LtSpice),
+            "spectre" => Some(Self::Spectre),
+            "pyspice" => Some(Self::PySpice),
+            _ => None,
+        }
+    }
+
+    /// File extension for the companion stimulus file.
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::PySpice => "py",
+            _ => "spice",
+        }
+    }
+
+    /// Whether this is a Python-based stimulus (PySpice).
+    pub fn is_python(self) -> bool {
+        matches!(self, Self::PySpice)
+    }
+}

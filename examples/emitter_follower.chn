@@ -1,0 +1,43 @@
+chn_testbench 1
+
+TESTBENCH Emitter Follower
+  instances:
+    Vcc  vsource  x=-410  y=0  sym=vsource  value=12
+    Vin  vsource  x=-300  y=0  sym=vsource  value=6
+    R1  resistor  x=-190  y=-120  sym=res  value=100k  device=resistor
+    R2  resistor  x=-100  y=120  sym=res  value=100k  device=resistor
+    Cin  capacitor  x=0  y=0  sym=capa  value=1u  device=capacitor
+    Q1  npn  x=100  y=-120  sym=npn  model=2N2222
+    Re  resistor  x=220  y=120  sym=res  value=1k  device=resistor
+    Cout  capacitor  x=310  y=0  sym=capa  value=10u  device=capacitor
+    Rload  resistor  x=410  y=120  sym=res  value=100  device=resistor
+    output  lab_pin  x=280  y=0  sym=lab_pin
+    vin  lab_pin  x=-300  y=-30  sym=lab_pin
+    vin  lab_pin  x=30  y=-30  sym=lab_pin
+    vout  lab_pin  x=120  y=-90  sym=lab_pin
+    vout  lab_pin  x=340  y=90  sym=lab_pin
+    base  lab_pin  x=-30  y=0  sym=lab_pin
+    gnd0  gnd  x=-410  y=40  sym=gnd
+    gnd1  gnd  x=-300  y=40  sym=gnd
+    gnd2  gnd  x=-100  y=160  sym=gnd
+    gnd3  gnd  x=220  y=160  sym=gnd
+    gnd4  gnd  x=410  y=160  sym=gnd
+    vdd5  vdd  x=-410  y=-40  sym=vdd
+    vdd6  vdd  x=-190  y=-160  sym=vdd
+    vdd7  vdd  x=120  y=-160  sym=vdd
+
+  wires:
+    280 0 410 0
+    410 0 410 90
+    -300 -30 30 -30
+    30 -30 30 0
+    120 -90 220 -90
+    220 -90 220 90
+    220 90 340 90
+    340 90 340 0
+    -30 0 -100 0
+    -100 0 -100 90
+    -190 -90 -30 -90
+    -30 -90 -30 0
+    -30 0 80 0
+    80 0 80 -120

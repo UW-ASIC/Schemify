@@ -1,0 +1,33 @@
+chn_testbench 1
+
+TESTBENCH Op-Amp Differentiator
+  instances:
+    Vcc  vsource  x=-360  y=0  sym=vsource  value=15
+    Vee  vsource  x=-250  y=0  sym=vsource  value=-15
+    Vin  vsource  x=-140  y=0  sym=vsource  value=0 SIN(0 1 1000 0 0 0)
+    Cin  capacitor  x=-30  y=0  sym=capa  value=10n  device=capacitor
+    Rs  resistor  x=70  y=0  sym=res  value=100  device=resistor
+    Rf  resistor  x=170  y=0  sym=res  value=10k  device=resistor
+    Cf  capacitor  x=260  y=0  sym=capa  value=100p  device=capacitor
+    Eamp  vcvs  x=360  y=120  sym=vcvs  value=1000000
+    vin  lab_pin  x=-140  y=-30  sym=lab_pin
+    vout  lab_pin  x=140  y=0  sym=lab_pin
+    vminus  lab_pin  x=-60  y=0  sym=lab_pin
+    vminus  lab_pin  x=290  y=0  sym=lab_pin
+    gnd0  gnd  x=-360  y=40  sym=gnd
+    gnd1  gnd  x=-250  y=40  sym=gnd
+    gnd2  gnd  x=-140  y=40  sym=gnd
+    gnd3  gnd  x=360  y=160  sym=gnd
+    gnd4  gnd  x=330  y=100  sym=gnd
+
+  wires:
+    -140 -30 0 -30
+    0 -30 0 0
+    0 0 100 0
+    140 0 230 0
+    230 0 360 0
+    360 0 360 90
+    -60 0 200 0
+    200 0 290 0
+    290 0 290 150
+    290 150 330 150

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::capability::{self, Capability, HostCapabilities, NegotiatedCapabilities};
+use crate::capability::{self, HostCapabilities, NegotiatedCapabilities};
 use crate::host::HostAction;
 use crate::jsonrpc::{self, IncomingMessage};
 use crate::manifest::{ManifestError, PluginManifest};
@@ -54,8 +54,7 @@ pub(crate) struct PluginSlot {
     pub(crate) manifest: PluginManifest,
     pub(crate) dir: PathBuf,
     pub(crate) state: PluginState,
-    pub(crate) capability: Capability,
-    pub(crate) negotiated: Option<NegotiatedCapabilities>,
+    pub(crate) capability: NegotiatedCapabilities,
     pub(crate) transport: Option<Box<dyn PluginTransport>>,
     pub(crate) error_msg: Option<String>,
 }
@@ -120,12 +119,10 @@ impl PluginManager {
                     if self.plugins.contains_key(&name) {
                         continue;
                     }
-                    let capability =
-                        Capability::from_manifest(&manifest.capabilities);
-                    let negotiated = Some(capability::negotiate(
+                    let capability = capability::negotiate(
                         &self.host_caps,
                         &manifest.capabilities,
-                    ));
+                    );
                     self.plugins.insert(
                         name,
                         PluginSlot {
@@ -133,7 +130,6 @@ impl PluginManager {
                             dir: path,
                             state: PluginState::Discovered,
                             capability,
-                            negotiated,
                             transport: None,
                             error_msg: None,
                         },
@@ -174,7 +170,7 @@ impl PluginManager {
 
     /// Get negotiated capabilities for a plugin.
     pub fn negotiated_caps(&self, name: &str) -> Option<&NegotiatedCapabilities> {
-        self.plugins.get(name).and_then(|s| s.negotiated.as_ref())
+        self.plugins.get(name).map(|s| &s.capability)
     }
 
     /// Start a discovered plugin: create transport, spawn, send initialize.
@@ -392,9 +388,10 @@ impl PluginManager {
         self.broadcast("state/selection_changed", None);
     }
 
-    /// Notify all plugins of theme change.
-    pub fn notify_theme_changed(&mut self) {
-        self.broadcast("state/theme_changed", None);
+    /// Notify all plugins of theme change, including resolved tokens.
+    pub fn notify_theme_changed(&mut self, tokens: &schemify_core::theme::ThemeTokens) {
+        let payload = serde_json::to_value(tokens).ok();
+        self.broadcast("state/theme_changed", payload);
     }
 
     /// Send a response back to a plugin.
@@ -549,8 +546,7 @@ entry = "nonexistent_binary_xyz"
                 manifest,
                 dir: std::env::temp_dir(),
                 state: PluginState::Discovered,
-                capability: Capability::default(),
-                negotiated: None,
+                capability: NegotiatedCapabilities::default(),
                 transport: None,
                 error_msg: None,
             },
@@ -649,8 +645,7 @@ entry = "echo"
                 manifest,
                 dir: std::env::temp_dir(),
                 state: PluginState::Discovered,
-                capability: Capability::default(),
-                negotiated: None,
+                capability: NegotiatedCapabilities::default(),
                 transport: None,
                 error_msg: None,
             },
@@ -688,8 +683,7 @@ entry = "echo"
                 manifest,
                 dir: std::env::temp_dir(),
                 state: PluginState::Discovered,
-                capability: Capability::default(),
-                negotiated: None,
+                capability: NegotiatedCapabilities::default(),
                 transport: None,
                 error_msg: None,
             },

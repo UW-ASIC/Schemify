@@ -48,6 +48,8 @@ pub enum Command {
     OpenNewPrimDialog,
     OpenMarketplace,
     OpenImportDialog,
+    OpenLibraryBrowser,
+    OpenFileExplorer,
 
     // === Undo/Redo ===
     Undo,
@@ -98,6 +100,7 @@ pub enum Command {
     AddCircle { cx: i32, cy: i32, radius: i32 },
     AddArc { cx: i32, cy: i32, radius: i32, start: f32, sweep: f32 },
     AddText { x: i32, y: i32, content: String },
+    AddPolygon { points: Vec<[i32; 2]> },
 
     // === Movement ===
     MoveInstance { idx: usize, dx: i32, dy: i32 },
@@ -114,9 +117,15 @@ pub enum Command {
 
     // === Simulation ===
     RunSim,
+    ExportNetlist,
+    SetStimulusLang(String),
+    SetSimBackend(String),
 
     // === Layout ===
     AutoLayout,
+
+    // === Symbol ===
+    GenerateSymbolFromSchematic,
 
     // === Import ===
     ImportSpice { path: String },

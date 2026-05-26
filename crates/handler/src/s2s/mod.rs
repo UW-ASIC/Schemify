@@ -1,5 +1,4 @@
 pub mod annotation;
-pub mod config;
 pub mod ir;
 pub mod output;
 pub mod parser;

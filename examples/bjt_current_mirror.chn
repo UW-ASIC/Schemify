@@ -1,0 +1,28 @@
+chn_testbench 1
+
+TESTBENCH BJT Current Mirror
+  instances:
+    Vcc  vsource  x=-220  y=0  sym=vsource  value=5
+    Rref  resistor  x=-110  y=-120  sym=res  value=47k  device=resistor
+    Q1  npn  x=-20  y=120  sym=npn  model=2N2222
+    Q2  npn  x=100  y=120  sym=npn  model=2N2222
+    Rload  resistor  x=220  y=-120  sym=res  value=10k  device=resistor
+    iout  lab_pin  x=120  y=90  sym=lab_pin
+    iref  lab_pin  x=-40  y=120  sym=lab_pin
+    vdd0  vdd  x=-220  y=-40  sym=vdd
+    vdd1  vdd  x=-110  y=-160  sym=vdd
+    vdd2  vdd  x=220  y=-160  sym=vdd
+    gnd3  gnd  x=-220  y=40  sym=gnd
+    gnd4  gnd  x=0  y=160  sym=gnd
+    gnd5  gnd  x=120  y=160  sym=gnd
+
+  wires:
+    120 90 220 90
+    220 90 220 -90
+    -40 120 0 120
+    0 120 0 90
+    -110 -90 -40 -90
+    -40 -90 -40 120
+    0 90 40 90
+    40 90 40 120
+    40 120 80 120

@@ -71,8 +71,11 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
             let mut contested = false;
 
             for wi in 0..wires.len() {
-                let touches = (abs.0 == wires.x0[wi] && abs.1 == wires.y0[wi])
-                    || (abs.0 == wires.x1[wi] && abs.1 == wires.y1[wi]);
+                let w0 = (wires.x0[wi], wires.y0[wi]);
+                let w1 = (wires.x1[wi], wires.y1[wi]);
+                let touches = abs == w0
+                    || abs == w1
+                    || on_wire_interior(abs, w0, w1);
                 if touches {
                     let wn = interner.resolve(&wires.net_name[wi]);
                     if first_wire.is_none() {
@@ -112,8 +115,20 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
         let kind = instances.kind[i];
         let name_str: String = if kind.is_label() {
             interner.resolve(&instances.name[i]).to_owned()
-        } else if let Some(net) = kind.injected_net() {
-            net.to_owned()
+        } else if kind.is_power() {
+            // Check for explicit "net" property (set by SPICE import to preserve
+            // the original net name). Fall back to injected_net() for manually
+            // placed power symbols.
+            let ps = instances.prop_start[i] as usize;
+            let pc = instances.prop_count[i] as usize;
+            let net_prop = sch.properties[ps..ps + pc].iter().find(|p| {
+                interner.resolve(&p.key) == "net"
+            });
+            if let Some(prop) = net_prop {
+                interner.resolve(&prop.value).to_owned()
+            } else {
+                kind.injected_net().unwrap_or("0").to_owned()
+            }
         } else {
             continue;
         };

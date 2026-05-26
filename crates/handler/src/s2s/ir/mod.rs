@@ -24,6 +24,10 @@ pub enum Primitive {
     Diode,
     Vsource,
     Isource,
+    Vcvs,
+    Vccs,
+    Ccvs,
+    Cccs,
     Subcircuit,
 }
 
@@ -165,12 +169,84 @@ pub struct Model {
     pub params: HashMap<String, String>,
 }
 
+/// Categorized analysis/stimulus commands from a SPICE netlist.
+///
+/// Separates netlist-adjacent directives (includes, options) from pure
+/// simulation commands (analyses, measurements, output requests).
+#[derive(Debug, Clone, Default)]
+pub struct AnalysisBlock {
+    /// Analysis commands: `.tran`, `.ac`, `.dc`, `.op`, `.noise`, `.pz`, `.sens`, `.tf`
+    pub analyses: Vec<String>,
+    /// Output requests: `.save`, `.print`, `.plot`, `.probe`
+    pub outputs: Vec<String>,
+    /// Measurement definitions: `.meas`, `.measure`
+    pub measurements: Vec<String>,
+    /// Initial conditions: `.ic`, `.nodeset`
+    pub initial_conds: Vec<String>,
+    /// Simulation options: `.options`, `.option`, `.temp`
+    pub options: Vec<String>,
+    /// Control blocks: `.control` ... `.endc` (each block joined with newlines)
+    pub control_blocks: Vec<String>,
+    /// Library/file includes: `.include`, `.lib`
+    pub includes: Vec<String>,
+    /// Sweep/misc: `.step`, `.four`, `.func`, `.csparam`
+    pub other: Vec<String>,
+}
+
+impl AnalysisBlock {
+    pub fn is_empty(&self) -> bool {
+        self.analyses.is_empty()
+            && self.outputs.is_empty()
+            && self.measurements.is_empty()
+            && self.initial_conds.is_empty()
+            && self.options.is_empty()
+            && self.control_blocks.is_empty()
+            && self.includes.is_empty()
+            && self.other.is_empty()
+    }
+
+    /// Flatten all non-include lines into a single string (analysis + stimulus).
+    /// Used to populate `Schematic.spice_body`.
+    pub fn to_stimulus_string(&self) -> String {
+        let mut lines: Vec<&str> = Vec::new();
+        for l in &self.options {
+            lines.push(l);
+        }
+        for l in &self.initial_conds {
+            lines.push(l);
+        }
+        for l in &self.analyses {
+            lines.push(l);
+        }
+        for l in &self.outputs {
+            lines.push(l);
+        }
+        for l in &self.measurements {
+            lines.push(l);
+        }
+        for l in &self.other {
+            lines.push(l);
+        }
+        for l in &self.control_blocks {
+            lines.push(l);
+        }
+        lines.join("\n")
+    }
+
+    /// Flatten include directives into a single string.
+    pub fn to_includes_string(&self) -> String {
+        self.includes.join("\n")
+    }
+}
+
 /// Top-level circuit representation (hypergraph IR).
 #[derive(Debug, Clone)]
 pub struct Circuit {
     pub top: Subcircuit,
     pub subcircuits: HashMap<String, Subcircuit>,
     pub models: HashMap<String, Model>,
+    /// Structured analysis/stimulus commands parsed from the source SPICE.
+    pub analysis: AnalysisBlock,
 }
 
 impl Circuit {
@@ -179,6 +255,7 @@ impl Circuit {
             top: Subcircuit::new(name),
             subcircuits: HashMap::new(),
             models: HashMap::new(),
+            analysis: AnalysisBlock::default(),
         }
     }
 

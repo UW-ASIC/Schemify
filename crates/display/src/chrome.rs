@@ -31,6 +31,8 @@ pub fn menu_bar(ctx: &egui::Context, app: &mut App) {
         .collect();
 
     let view_flags = app.view().view_flags.clone();
+    let bus_mode = app.tool_state().bus_mode;
+    let sim_backend = app.schematic().sim_backend;
 
     let mut cmds: Vec<Command> = Vec::new();
     #[cfg(not(target_arch = "wasm32"))]
@@ -44,11 +46,14 @@ pub fn menu_bar(ctx: &egui::Context, app: &mut App) {
     let mut toggle_crosshair = false;
     let mut toggle_netlist = false;
     let mut toggle_fill_rects = false;
+    let mut toggle_bus = false;
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut save_all = false;
 
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
         egui::menu::bar(ui, |ui| {
             #[cfg(not(target_arch = "wasm32"))]
-            file_menu(ui, &mut cmds, &mut open_file, &mut save_file, &mut save_as, active_idx);
+            file_menu(ui, &mut cmds, &mut open_file, &mut save_file, &mut save_as, &mut save_all, active_idx);
             #[cfg(target_arch = "wasm32")]
             file_menu_web(ui, &mut cmds);
             edit_menu(ui, &mut cmds, can_undo, can_redo);
@@ -63,9 +68,9 @@ pub fn menu_bar(ctx: &egui::Context, app: &mut App) {
                 &mut toggle_netlist,
                 &mut toggle_fill_rects,
             );
-            place_menu(ui, &mut cmds);
+            place_menu(ui, &mut cmds, bus_mode, &mut toggle_bus);
             hierarchy_menu(ui, &mut cmds);
-            simulate_menu(ui, &mut cmds);
+            simulate_menu(ui, &mut cmds, sim_backend);
             plugins_menu(ui, &mut cmds, &plugin_info, &plugin_cmds, &mut toggle_panel);
             help_menu(ui, &mut cmds);
         });
@@ -125,6 +130,19 @@ pub fn menu_bar(ctx: &egui::Context, app: &mut App) {
             p.visible = !p.visible;
         }
     }
+    if toggle_bus {
+        app.toggle_bus_mode();
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if save_all {
+        let paths: Vec<std::path::PathBuf> = app.documents().iter().filter_map(|d| {
+            if let schemify_handler::state::Origin::File(p) = &d.origin { Some(p.clone()) } else { None }
+        }).collect();
+        for path in paths {
+            let _ = app.save_to_path(&path);
+        }
+    }
 
     for cmd in cmds {
         app.dispatch(cmd);
@@ -140,6 +158,7 @@ fn file_menu(
     open_file: &mut bool,
     save_file: &mut bool,
     save_as: &mut bool,
+    save_all: &mut bool,
     active_idx: usize,
 ) {
     ui.menu_button("File", |ui| {
@@ -173,7 +192,7 @@ fn file_menu(
             ui.close_menu();
         }
         if sc(ui, "Save All", "") {
-            // Save All: save every document that has a file path
+            *save_all = true;
             ui.close_menu();
         }
         ui.separator();
@@ -361,9 +380,11 @@ fn view_menu(
         }
         ui.separator();
         if sc(ui, "Library Browser", "Ins") {
+            cmds.push(Command::OpenLibraryBrowser);
             ui.close_menu();
         }
         if sc(ui, "File Explorer", "") {
+            cmds.push(Command::OpenFileExplorer);
             ui.close_menu();
         }
     });
@@ -371,13 +392,15 @@ fn view_menu(
 
 // ── Place ────────────────────────────────────────────────────────────────────
 
-fn place_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>) {
+fn place_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>, bus_mode: bool, toggle_bus: &mut bool) {
     ui.menu_button("Place", |ui| {
         if sc(ui, "Wire", "W") {
             cmds.push(Command::SetTool(Tool::Wire));
             ui.close_menu();
         }
-        if en(ui, "Bus Mode", "B", false) {
+        let bus_label = if bus_mode { "\u{2713} Bus Mode" } else { "  Bus Mode" };
+        if sc(ui, bus_label, "B") {
+            *toggle_bus = true;
             ui.close_menu();
         }
         ui.separator();
@@ -407,6 +430,7 @@ fn place_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>) {
         }
         ui.separator();
         if sc(ui, "Insert from Library...", "Ins") {
+            cmds.push(Command::OpenMarketplace);
             ui.close_menu();
         }
     });
@@ -435,25 +459,26 @@ fn hierarchy_menu(ui: &mut egui::Ui, _cmds: &mut Vec<Command>) {
 
 // ── Simulate ─────────────────────────────────────────────────────────────────
 
-fn simulate_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>) {
+fn simulate_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>, sim_backend: schemify_core::simulation::SpiceBackend) {
     ui.menu_button("Simulate", |ui| {
         if sc(ui, "Run Simulation", "F5") {
             cmds.push(Command::RunSim);
             ui.close_menu();
         }
         ui.menu_button("Backend", |ui| {
-            // Backend selector — placeholder until handler exposes sim backend state
-            if en(ui, "\u{2713} ngspice", "", false) {
-                ui.close_menu();
-            }
-            if en(ui, "  Xyce", "", false) {
-                ui.close_menu();
-            }
-            if en(ui, "  LTSpice", "", false) {
-                ui.close_menu();
-            }
-            if en(ui, "  Spectre", "", false) {
-                ui.close_menu();
+            use schemify_core::simulation::SpiceBackend;
+            let backends = [
+                (SpiceBackend::NgSpice, "ngspice"),
+                (SpiceBackend::Xyce, "Xyce"),
+                (SpiceBackend::LtSpice, "LTSpice"),
+                (SpiceBackend::Spectre, "Spectre"),
+            ];
+            for (variant, label) in &backends {
+                let prefix = if sim_backend == *variant { "\u{2713} " } else { "  " };
+                if sc(ui, &format!("{prefix}{label}"), "") {
+                    cmds.push(Command::SetSimBackend(variant.as_str().to_string()));
+                    ui.close_menu();
+                }
             }
         });
         ui.separator();
@@ -529,6 +554,7 @@ fn plugins_menu(
 fn help_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>) {
     ui.menu_button("Help", |ui| {
         if sc(ui, "Keyboard Shortcuts...", "") {
+            cmds.push(Command::OpenSettings);
             ui.close_menu();
         }
         if en(ui, "Reload Config", "", false) {
@@ -601,7 +627,6 @@ pub fn tab_bar(ctx: &egui::Context, app: &mut App) {
                 let is_active = i == active;
                 let display = if name.is_empty() { "Untitled" } else { name.as_str() };
 
-                // Extract just the filename (basename)
                 let basename = display
                     .rsplit(&['/', '\\'][..])
                     .next()
@@ -613,21 +638,83 @@ pub fn tab_bar(ctx: &egui::Context, app: &mut App) {
                     basename.to_string()
                 };
 
-                // Tab button (width-constrained)
-                let resp = ui.add_sized(
-                    [max_tab_w, ui.spacing().interact_size.y],
-                    egui::SelectableLabel::new(is_active, &label),
+                // Tab with embedded close button
+                let tab_h = ui.spacing().interact_size.y;
+                let (rect, response) = ui.allocate_exact_size(
+                    egui::vec2(max_tab_w, tab_h),
+                    egui::Sense::click(),
                 );
-                if resp.clicked() && !is_active {
-                    cmd = Some(Command::SwitchTab(i));
+
+                // Background
+                let bg = if is_active {
+                    ui.visuals().selection.bg_fill
+                } else if response.hovered() {
+                    ui.visuals().widgets.hovered.bg_fill
+                } else {
+                    egui::Color32::TRANSPARENT
+                };
+                ui.painter().rect_filled(rect, 3.0, bg);
+
+                // Text (left-aligned, leave room for close btn)
+                let close_w = if tab_count > 1 { 18.0 } else { 0.0 };
+                let text_rect = rect.shrink2(egui::vec2(4.0, 0.0));
+                let text_rect = egui::Rect::from_min_max(
+                    text_rect.min,
+                    egui::pos2(text_rect.max.x - close_w, text_rect.max.y),
+                );
+                let text_color = if is_active {
+                    ui.visuals().strong_text_color()
+                } else {
+                    ui.visuals().text_color()
+                };
+                ui.painter().text(
+                    text_rect.left_center(),
+                    egui::Align2::LEFT_CENTER,
+                    &label,
+                    egui::FontId::proportional(13.0),
+                    text_color,
+                );
+
+                // Close button (embedded, right side of tab)
+                let mut close_clicked = false;
+                if tab_count > 1 {
+                    let close_size = 14.0;
+                    let close_center = egui::pos2(
+                        rect.max.x - close_size * 0.5 - 3.0,
+                        rect.center().y,
+                    );
+                    let close_rect = egui::Rect::from_center_size(
+                        close_center,
+                        egui::vec2(close_size, close_size),
+                    );
+                    let close_id = response.id.with("close");
+                    let close_resp = ui.interact(close_rect, close_id, egui::Sense::click());
+
+                    // Only show on tab hover or close hover
+                    if response.hovered() || close_resp.hovered() {
+                        let close_color = if close_resp.hovered() {
+                            ui.visuals().strong_text_color()
+                        } else {
+                            ui.visuals().weak_text_color()
+                        };
+                        ui.painter().text(
+                            close_center,
+                            egui::Align2::CENTER_CENTER,
+                            "\u{2715}",
+                            egui::FontId::proportional(10.0),
+                            close_color,
+                        );
+                    }
+
+                    if close_resp.clicked() {
+                        close_clicked = true;
+                    }
                 }
 
-                // Close button (only when multiple tabs)
-                if tab_count > 1 {
-                    let close = ui.small_button("\u{2715}");
-                    if close.clicked() {
-                        cmd = Some(Command::CloseTab(i));
-                    }
+                if close_clicked {
+                    cmd = Some(Command::CloseTab(i));
+                } else if response.clicked() && !is_active {
+                    cmd = Some(Command::SwitchTab(i));
                 }
 
                 if i + 1 < tab_count {
@@ -858,6 +945,9 @@ fn parse_vim_command(input: &str) -> VimResult {
 
         // Auto-layout
         "autolayout" | "layout" => VimResult::Dispatch(Command::AutoLayout),
+
+        // Symbol generation
+        "gensym" | "gensymbol" | "makesymbol" => VimResult::Dispatch(Command::GenerateSymbolFromSchematic),
 
         // View mode (GUI-only, not dispatch)
         "schematic" | "sch" => VimResult::SetView(ViewMode::Schematic),

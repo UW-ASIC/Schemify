@@ -1,0 +1,6 @@
+* Simple common-source amplifier
+M1 out in gnd gnd NMOS w=10u l=1u
+R1 vdd out 1k
+V1 vdd gnd 3.3
+V2 in gnd 1.5
+.end

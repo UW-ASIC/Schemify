@@ -1,0 +1,28 @@
+chn_testbench 1
+
+TESTBENCH TB Two-Stage Op-Amp Closed Loop
+  instances:
+    Xdut  subckt  x=-290  y=-120  sym=two_stage_opamp
+    Vdd  vsource  x=-150  y=0  sym=vsource  value=1.8
+    Vfb  vsource  x=-40  y=0  sym=vsource  value=0
+    Vin  vsource  x=80  y=0  sym=vsource  value=0 PULSE(0.7 1.1 0 0.0000000001 0.0000000001 0.0000005 0.000001)
+    Cload  capacitor  x=190  y=120  sym=capa  value=5p  device=capacitor
+    Rload  resistor  x=290  y=120  sym=res  value=100k  device=resistor
+    inn  lab_pin  x=-290  y=-90  sym=lab_pin
+    vout  lab_pin  x=-40  y=30  sym=lab_pin
+    inp  lab_pin  x=-290  y=-150  sym=lab_pin
+    inp  lab_pin  x=80  y=-150  sym=lab_pin
+    gnd0  gnd  x=-150  y=40  sym=gnd
+    gnd1  gnd  x=80  y=40  sym=gnd
+    gnd2  gnd  x=190  y=160  sym=gnd
+    gnd3  gnd  x=290  y=160  sym=gnd
+    vdd4  vdd  x=-150  y=-40  sym=vdd
+
+  wires:
+    -290 -90 -40 -90
+    -40 -90 -40 -30
+    -40 30 -40 90
+    -40 90 190 90
+    190 90 290 90
+    -290 -150 80 -150
+    80 -150 80 -30

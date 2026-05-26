@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""3-stage CMOS ring oscillator — self-oscillating with no clock input."""
+from pyspice_rs import Circuit
+
+circuit = Circuit('Ring Oscillator')
+
+circuit.model('nmos_1v8', 'nmos', level=1, kp=120e-6, vto=0.5)
+circuit.model('pmos_1v8', 'pmos', level=1, kp=60e-6, vto=-0.5)
+
+circuit.V(name='dd', positive='vdd', negative=circuit.gnd, value=1.8)
+
+# Stage 1
+circuit.M(name='p1', drain='n1', gate='n3', source='vdd', bulk='vdd', model='pmos_1v8', W='2u', L='180n')
+circuit.M(name='n1', drain='n1', gate='n3', source='0', bulk='0', model='nmos_1v8', W='1u', L='180n')
+
+# Stage 2
+circuit.M(name='p2', drain='n2', gate='n1', source='vdd', bulk='vdd', model='pmos_1v8', W='2u', L='180n')
+circuit.M(name='n2', drain='n2', gate='n1', source='0', bulk='0', model='nmos_1v8', W='1u', L='180n')
+
+# Stage 3 (feeds back to stage 1)
+circuit.M(name='p3', drain='n3', gate='n2', source='vdd', bulk='vdd', model='pmos_1v8', W='2u', L='180n')
+circuit.M(name='n3', drain='n3', gate='n2', source='0', bulk='0', model='nmos_1v8', W='1u', L='180n')
+
+# Parasitic load caps
+circuit.C(name='1', positive='n1', negative=circuit.gnd, value=10e-15)
+circuit.C(name='2', positive='n2', negative=circuit.gnd, value=10e-15)
+circuit.C(name='3', positive='n3', negative=circuit.gnd, value=10e-15)
+
+print(circuit)
+
+simulator = circuit.simulator()
+analysis = simulator.transient(step_time=1e-12, end_time=10e-9)

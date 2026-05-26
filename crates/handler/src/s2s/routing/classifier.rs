@@ -2,7 +2,7 @@
 //! or represented by net labels only, based on post-placement geometry.
 
 use crate::s2s::ir::{Net, Subcircuit};
-use crate::s2s::output::{pin_position, Backend};
+use crate::s2s::output::{pin_position, PinGeometry};
 
 /// Strategy for drawing a net on the schematic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,7 +48,7 @@ fn adaptive_threshold(subckt: &Subcircuit) -> i32 {
 }
 
 /// Classify all nets in a subcircuit based on post-placement pin positions.
-pub fn classify_nets(subckt: &Subcircuit, backend: &dyn Backend) -> Vec<NetStrategy> {
+pub fn classify_nets(subckt: &Subcircuit, backend: &dyn PinGeometry) -> Vec<NetStrategy> {
     let threshold = adaptive_threshold(subckt);
     subckt
         .nets
@@ -58,7 +58,7 @@ pub fn classify_nets(subckt: &Subcircuit, backend: &dyn Backend) -> Vec<NetStrat
 }
 
 /// Classify a single net.
-fn classify_net(net: &Net, subckt: &Subcircuit, wire_threshold: i32, backend: &dyn Backend) -> NetStrategy {
+fn classify_net(net: &Net, subckt: &Subcircuit, wire_threshold: i32, backend: &dyn PinGeometry) -> NetStrategy {
     // Nets with 0 or 1 pins have nothing to route.
     if net.pins.len() < 2 {
         return NetStrategy::Label;

@@ -1,0 +1,5 @@
+.title RC Low-Pass Filter
+Vin vin 0 1
+R1 vin vout 1k
+C1 vout 0 100n
+.end

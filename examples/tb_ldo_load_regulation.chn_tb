@@ -1,0 +1,46 @@
+chn_testbench 1
+
+TESTBENCH TB LDO Load Regulation
+  instances:
+    Xdut  subckt  x=-440  y=-120  sym=ldo_regulator
+    Vin  vsource  x=-300  y=0  sym=vsource  value=3.3
+    Vref  vsource  x=-190  y=0  sym=vsource  value=1.2
+    Resr  resistor  x=-80  y=0  sym=res  value=30m  device=resistor
+    Cout  capacitor  x=20  y=120  sym=capa  value=4.7u  device=capacitor
+    Vctrl  vsource  x=120  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.0000001 0.0000001 0.00005 0.0001)
+    Mload  nmos  x=230  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500u  L=180n  M=1 }
+    Rsense  resistor  x=350  y=120  sym=res  value=1  device=resistor
+    Rlight  resistor  x=440  y=120  sym=res  value=1.8k  device=resistor
+    rsense  lab_pin  x=250  y=150  sym=lab_pin
+    cap_node  lab_pin  x=-110  y=0  sym=lab_pin
+    vctrl  lab_pin  x=120  y=-30  sym=lab_pin
+    vin  lab_pin  x=-440  y=-150  sym=lab_pin
+    vout  lab_pin  x=-440  y=-90  sym=lab_pin
+    vout  lab_pin  x=-50  y=-90  sym=lab_pin
+    vout  lab_pin  x=250  y=50  sym=lab_pin
+    vdd0  vdd  x=-190  y=-40  sym=vdd
+    gnd1  gnd  x=-300  y=40  sym=gnd
+    gnd2  gnd  x=-190  y=40  sym=gnd
+    gnd3  gnd  x=20  y=160  sym=gnd
+    gnd4  gnd  x=120  y=40  sym=gnd
+    gnd5  gnd  x=250  y=130  sym=gnd
+    gnd6  gnd  x=350  y=160  sym=gnd
+    gnd7  gnd  x=440  y=160  sym=gnd
+
+  wires:
+    250 150 300 150
+    300 150 300 90
+    300 90 350 90
+    -110 0 20 0
+    20 0 20 90
+    120 -30 210 -30
+    210 -30 210 120
+    -440 -150 -300 -150
+    -300 -150 -300 -30
+    -440 -90 -50 -90
+    -50 -90 -50 0
+    -50 0 -50 50
+    -50 50 250 50
+    250 50 250 90
+    250 90 440 90

@@ -1,0 +1,52 @@
+chn_testbench 1
+
+TESTBENCH Cascode Current Mirror
+  instances:
+    Vdd  vsource  x=-120  y=0  sym=vsource  value=1.8
+    Vbias  vsource  x=60  y=0  sym=vsource  value=800m
+    Iref  isource  x=-10  y=0  sym=isource  value=50u
+    M1  nmos  x=-180  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=500n  M=1 }
+    M3  nmos  x=-60  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=500n  M=1 }
+    M2  nmos  x=60  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=500n  M=1 }
+    M4  nmos  x=180  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=500n  M=1 }
+    Vout  vsource  x=180  y=0  sym=vsource  value=0
+    iout  lab_pin  x=80  y=90  sym=lab_pin
+    src1  lab_pin  x=-160  y=150  sym=lab_pin
+    src2  lab_pin  x=80  y=150  sym=lab_pin
+    iref  lab_pin  x=-10  y=30  sym=lab_pin
+    vcasc  lab_pin  x=160  y=120  sym=lab_pin
+    gnd0  gnd  x=-120  y=40  sym=gnd
+    gnd1  gnd  x=60  y=40  sym=gnd
+    gnd2  gnd  x=-160  y=130  sym=gnd
+    gnd3  gnd  x=-40  y=160  sym=gnd
+    gnd4  gnd  x=-40  y=130  sym=gnd
+    gnd5  gnd  x=80  y=130  sym=gnd
+    gnd6  gnd  x=200  y=160  sym=gnd
+    gnd7  gnd  x=200  y=130  sym=gnd
+    vdd8  vdd  x=-120  y=-40  sym=vdd
+    vdd9  vdd  x=-10  y=-40  sym=vdd
+    vdd10  vdd  x=180  y=-40  sym=vdd
+
+  wires:
+    80 90 80 30
+    80 30 180 30
+    -160 150 -100 150
+    -100 150 -100 90
+    -100 90 -40 90
+    80 150 140 150
+    140 150 140 90
+    140 90 200 90
+    -10 30 -10 60
+    -10 60 -160 60
+    -160 60 -160 90
+    -160 90 -200 90
+    -200 90 -200 120
+    -10 30 40 30
+    40 30 40 120
+    160 120 -80 120
+    60 -30 160 -30
+    160 -30 160 120

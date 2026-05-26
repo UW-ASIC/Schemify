@@ -1,0 +1,50 @@
+chn_testbench 1
+
+TESTBENCH Common Emitter Amplifier
+  instances:
+    Vcc  vsource  x=-510  y=0  sym=vsource  value=5
+    Vin  vsource  x=-400  y=0  sym=vsource  value=0
+    R1  resistor  x=-290  y=-120  sym=res  value=56k  device=resistor
+    R2  resistor  x=-200  y=120  sym=res  value=10k  device=resistor
+    Cin  capacitor  x=-100  y=0  sym=capa  value=10u  device=capacitor
+    Cout  capacitor  x=0  y=0  sym=capa  value=10u  device=capacitor
+    Q1  npn  x=110  y=0  sym=npn  model=2N2222
+    Rc  resistor  x=220  y=-120  sym=res  value=2.2k  device=resistor
+    Re  resistor  x=320  y=120  sym=res  value=1k  device=resistor
+    Ce  capacitor  x=410  y=120  sym=capa  value=100u  device=capacitor
+    Rload  resistor  x=510  y=120  sym=res  value=10k  device=resistor
+    vout  lab_pin  x=30  y=0  sym=lab_pin
+    emitter  lab_pin  x=130  y=30  sym=lab_pin
+    vin  lab_pin  x=-400  y=-30  sym=lab_pin
+    vin  lab_pin  x=-70  y=-30  sym=lab_pin
+    base  lab_pin  x=-130  y=0  sym=lab_pin
+    output  lab_pin  x=-30  y=0  sym=lab_pin
+    output  lab_pin  x=510  y=50  sym=lab_pin
+    gnd0  gnd  x=-510  y=40  sym=gnd
+    gnd1  gnd  x=-400  y=40  sym=gnd
+    gnd2  gnd  x=-200  y=160  sym=gnd
+    gnd3  gnd  x=320  y=160  sym=gnd
+    gnd4  gnd  x=410  y=160  sym=gnd
+    gnd5  gnd  x=510  y=160  sym=gnd
+    vdd6  vdd  x=-510  y=-40  sym=vdd
+    vdd7  vdd  x=-290  y=-160  sym=vdd
+    vdd8  vdd  x=220  y=-160  sym=vdd
+
+  wires:
+    30 0 30 -30
+    30 -30 130 -30
+    130 -30 220 -30
+    220 -30 220 -90
+    130 30 320 30
+    320 30 320 90
+    320 90 410 90
+    -400 -30 -70 -30
+    -70 -30 -70 0
+    -130 0 -200 0
+    -200 0 -200 90
+    -290 -90 -130 -90
+    -130 -90 -130 0
+    -130 0 90 0
+    -30 0 -30 50
+    -30 50 510 50
+    510 50 510 90

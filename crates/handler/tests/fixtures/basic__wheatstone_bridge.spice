@@ -1,0 +1,8 @@
+.title Wheatstone Bridge
+Vin vin 0 10
+R1 vin va 1k
+R2 va 0 2k
+R3 vin vb 1k
+R4 vb 0 2.2k
+Rg va vb 10k
+.end
