@@ -1,0 +1,24 @@
+* Simple differential pair with tail current source and load resistors
+* Textbook topology (Razavi Fig 4.2)
+
+* Diff pair
+M1 out_n inp tail gnd NMOS w=10u l=1u
+M2 out_p inn tail gnd NMOS w=10u l=1u
+
+* Tail current source
+M3 tail bias gnd gnd NMOS w=20u l=2u
+
+* Current mirror bias (diode-connected reference)
+M4 bias bias vdd vdd PMOS w=5u l=2u
+M5 mirror_out bias vdd vdd PMOS w=5u l=2u
+
+* Load resistors
+R1 vdd out_n 1k
+R2 vdd out_p 1k
+
+* Supplies
+V1 vdd gnd 3.3
+V2 inp gnd 1.65
+V3 inn gnd 1.65
+
+.end

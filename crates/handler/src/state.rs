@@ -5,6 +5,8 @@ use lasso::Rodeo;
 
 use schemify_core::commands::{Command, Tool};
 use schemify_core::devices::Pdk;
+use schemify_core::plugin_types::WidgetNode;
+use schemify_core::theme::ThemeOverride;
 use schemify_core::schematic::{
     Arc, Circle, Instance, Line, Polygon, Rect, Schematic, Text, Wire,
 };
@@ -85,11 +87,17 @@ pub struct AppState {
     pub settings: PersistentSettings,
     /// Opaque plugin blob storage, keyed by plugin ID
     pub plugin_data: HashMap<String, Vec<u8>>,
+    /// Active theme overrides from plugins (sorted by priority at apply time).
+    pub theme_overrides: Vec<ThemeOverride>,
 
     // --- Flags ---
     pub quit_requested: bool,
     pub plugin_refresh_requested: bool,
     pub settings_reload_requested: bool,
+
+    /// Pending widget actions from plugin panels: (tag, payload_json_bytes).
+    /// Integration layer drains these and sends to PluginManager.
+    pub pending_plugin_commands: Vec<(String, Vec<u8>)>,
 }
 
 impl AppState {
@@ -122,10 +130,12 @@ impl AppState {
             backend_avail: BackendAvailability::default(),
             settings: PersistentSettings::default(),
             plugin_data: HashMap::new(),
+            theme_overrides: Vec::new(),
 
             quit_requested: false,
             plugin_refresh_requested: false,
             settings_reload_requested: false,
+            pending_plugin_commands: Vec::new(),
         }
     }
 
@@ -179,11 +189,11 @@ impl Viewport {
     pub const MAX_ZOOM: f32 = 50.0;
 
     pub fn zoom_in(&mut self) {
-        self.zoom = (self.zoom * 1.2).min(Self::MAX_ZOOM);
+        self.zoom = (self.zoom * 1.08).min(Self::MAX_ZOOM);
     }
 
     pub fn zoom_out(&mut self) {
-        self.zoom = (self.zoom / 1.2).max(Self::MIN_ZOOM);
+        self.zoom = (self.zoom / 1.08).max(Self::MIN_ZOOM);
     }
 
     pub fn zoom_reset(&mut self) {
@@ -378,6 +388,8 @@ impl Default for ViewState {
 #[derive(Debug, Clone, Default)]
 pub struct PanelState {
     pub left_panel_tab: LeftPanelTab,
+    pub left_panel_open: bool,
+    pub library_open: bool,
     pub file_explorer: FileExplorerState,
     pub library_browser: LibraryBrowserState,
     pub plugins_ui: PluginUiState,
@@ -435,6 +447,8 @@ pub struct CanvasState {
     pub pan_mode: PanMode,
     pub move_active: bool,
     pub rubber_band_active: bool,
+    /// Accumulated delta during a drag-move (coalesced into one undo entry on release).
+    pub move_accum: [i32; 2],
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -504,6 +518,7 @@ pub struct MultiPropsDialogState {
 pub struct SpiceCodeDialogState {
     pub is_open: bool,
     pub buf: String,
+    pub show_netlist: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -699,8 +714,21 @@ pub struct DiscoveredMeasurement {
 pub struct ContextMenu {
     pub open: bool,
     pub pixel_pos: [f32; 2],
-    pub inst_idx: Option<usize>,
-    pub wire_idx: Option<usize>,
+    pub hit: ContextHit,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum ContextHit {
+    #[default]
+    None,
+    Instance(usize),
+    Wire(usize),
+    Line(usize),
+    Rect(usize),
+    Circle(usize),
+    Arc(usize),
+    Text(usize),
+    Polygon(usize),
 }
 
 // ====================================================
@@ -719,11 +747,13 @@ pub struct PluginUiState {
 #[derive(Debug, Clone)]
 pub struct PluginPanel {
     pub id: u16,
+    pub plugin_id: String,
     pub name: String,
     pub layout: PanelLayout,
     pub keybind: Option<u8>,
     pub load_state: PluginLoadState,
     pub visible: bool,
+    pub widgets: Vec<WidgetNode>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

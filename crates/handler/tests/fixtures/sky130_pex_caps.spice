@@ -1,0 +1,17 @@
+* NGSPICE file created from strongarm_flat.ext - technology: sky130A
+
+.subckt strongarm_flat CLK GND VINP VINN OUTN OUTP VDD
+X0 VDD OUTP OUTN VDD sky130_fd_pr__pfet_01v8 ad=3.375 pd=10.5 as=0.7425 ps=4.83 w=4.5 l=0.15
+X1 OUTP OUTN VDD VDD sky130_fd_pr__pfet_01v8 ad=0.7425 pd=4.83 as=1.215 ps=9.54 w=4.5 l=0.15
+X2 a_1092_58# VINP VDD GND sky130_fd_pr__nfet_01v8 ad=1.155 pd=7.33 as=1.89 ps=14.54 w=7 l=0.15
+X3 OUTP OUTN a_1092_58# GND sky130_fd_pr__nfet_01v8 ad=0.165 pd=1.33 as=0.27 ps=2.54 w=1 l=0.15
+X4 VDD CLK OUTN VDD sky130_fd_pr__pfet_01v8 ad=0.75 pd=3.5 as=0.165 ps=1.33 w=1 l=0.15
+X5 VDD CLK GND GND sky130_fd_pr__nfet_01v8 ad=0.315 pd=2.34 as=0.1134 ps=1.38 w=0.42 l=0.15
+X6 VDD CLK OUTP VDD sky130_fd_pr__pfet_01v8 ad=0.75 pd=3.5 as=0.165 ps=1.33 w=1 l=0.15
+C0 OUTP a_1092_58# 0.22526f
+C1 OUTN VINP 0.00237f
+C2 VDD GND 8.8035f
+C3 OUTN GND 0.46836f
+C4 OUTP GND 2.29611f $ **FLOATING
+C5 a_1092_58# GND 0.58651f $ **FLOATING
+.ends

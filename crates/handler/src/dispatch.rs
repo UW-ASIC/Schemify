@@ -1,6 +1,6 @@
-use schemify_core::commands::Command;
+use schemify_core::commands::{Command, Tool};
 use schemify_core::schematic::{
-    Arc, Circle, Instance, InstanceVec, Line, Rect, Schematic, Text, Wire, WireVec,
+    Arc, Circle, Instance, InstanceVec, Line, Polygon, Rect, Schematic, Text, Wire, WireVec,
 };
 use schemify_core::types::{Color, DeviceKind, InstanceFlags};
 
@@ -61,6 +61,8 @@ impl App {
             SwitchTab(idx) => {
                 if idx < self.state.documents.len() {
                     self.state.active_doc = idx;
+                    // Reset doc editor so it reloads from new tab's schematic
+                    self.state.editor.doc_editor.loaded = false;
                 }
             }
             ReloadFromDisk => self.handle_reload(),
@@ -109,6 +111,20 @@ impl App {
 
             // ── Tool (immediate) ──
             SetTool(t) => {
+                // Commit any in-progress polygon before switching.
+                if self.state.tool.active == Tool::Polygon
+                    && self.state.tool.draw.polygon_points.len() >= 3
+                {
+                    let pts = std::mem::take(&mut self.state.tool.draw.polygon_points);
+                    self.push_undo_snapshot();
+                    let doc = self.state.active_document_mut();
+                    doc.schematic.polygons.push(Polygon {
+                        points: pts,
+                        fill: Color::NONE,
+                        stroke: Color::NONE,
+                        thickness: 1,
+                    });
+                }
                 self.state.tool.active = t;
                 self.state.tool.wire_start = None;
                 self.state.tool.placement = None;
@@ -127,6 +143,13 @@ impl App {
             OpenNewPrimDialog => self.state.dialogs.new_prim.is_open = true,
             OpenMarketplace => self.state.dialogs.marketplace.is_open = true,
             OpenImportDialog => self.state.dialogs.import.is_open = true,
+            OpenLibraryBrowser => {
+                self.state.panels.library_open = !self.state.panels.library_open;
+            }
+            OpenFileExplorer => {
+                self.state.panels.left_panel_tab = LeftPanelTab::FileExplorer;
+                self.state.panels.left_panel_open = true;
+            }
 
             // ── Movement (invertible, push inverse) ──
             MoveInstance { idx, dx, dy } => {
@@ -158,34 +181,49 @@ impl App {
                 self.invalidate_connectivity();
             }
             MoveSelected { dx, dy } => {
-                self.push_undo(UndoEntry::Inverse(MoveSelected { dx: -dx, dy: -dy }));
+                if self.state.canvas.move_active {
+                    // During drag: accumulate, defer undo until release.
+                    self.state.canvas.move_accum[0] += dx;
+                    self.state.canvas.move_accum[1] += dy;
+                } else {
+                    self.push_undo(UndoEntry::Inverse(MoveSelected { dx: -dx, dy: -dy }));
+                }
                 self.move_selected(dx, dy);
                 self.invalidate_connectivity();
             }
 
-            // ── Nudge (invertible via opposite direction) ──
-            NudgeUp => {
-                self.push_undo(UndoEntry::Inverse(NudgeDown));
+            // ── Nudge (coalesced — merges consecutive nudges into one MoveSelected undo) ──
+            NudgeUp | NudgeDown | NudgeLeft | NudgeRight => {
                 let s = self.state.tool.snap_size as i32;
-                self.move_selected(0, -s);
-                self.invalidate_connectivity();
-            }
-            NudgeDown => {
-                self.push_undo(UndoEntry::Inverse(NudgeUp));
-                let s = self.state.tool.snap_size as i32;
-                self.move_selected(0, s);
-                self.invalidate_connectivity();
-            }
-            NudgeLeft => {
-                self.push_undo(UndoEntry::Inverse(NudgeRight));
-                let s = self.state.tool.snap_size as i32;
-                self.move_selected(-s, 0);
-                self.invalidate_connectivity();
-            }
-            NudgeRight => {
-                self.push_undo(UndoEntry::Inverse(NudgeLeft));
-                let s = self.state.tool.snap_size as i32;
-                self.move_selected(s, 0);
+                let (dx, dy) = match &cmd {
+                    NudgeUp => (0, -s),
+                    NudgeDown => (0, s),
+                    NudgeLeft => (-s, 0),
+                    NudgeRight => (s, 0),
+                    _ => unreachable!(),
+                };
+
+                // Coalesce: if last undo entry is an inverse MoveSelected, merge deltas.
+                let doc = self.state.active_document_mut();
+                let merged = if let Some(UndoEntry::Inverse(MoveSelected {
+                    dx: ref mut udx,
+                    dy: ref mut udy,
+                })) = doc.undo_history.back_mut()
+                {
+                    *udx -= dx;
+                    *udy -= dy;
+                    true
+                } else {
+                    false
+                };
+                if !merged {
+                    self.push_undo(UndoEntry::Inverse(MoveSelected { dx: -dx, dy: -dy }));
+                } else {
+                    // Still clear redo on mutation
+                    self.state.active_document_mut().redo_history.clear();
+                }
+
+                self.move_selected(dx, dy);
                 self.invalidate_connectivity();
             }
 
@@ -380,6 +418,19 @@ impl App {
                 });
             }
 
+            AddPolygon { points } => {
+                if points.len() >= 3 {
+                    self.push_undo_snapshot();
+                    let doc = self.state.active_document_mut();
+                    doc.schematic.polygons.push(Polygon {
+                        points,
+                        fill: Color::NONE,
+                        stroke: Color::NONE,
+                        thickness: 1,
+                    });
+                }
+            }
+
             // ── Properties (snapshot) ──
             SetInstanceProp { idx, key, value } => {
                 self.push_undo_snapshot();
@@ -432,8 +483,30 @@ impl App {
             }
 
             // ── Simulation (placeholder — sim crate not implemented) ──
+            ExportNetlist => {
+                self.generate_netlist();
+                self.state.status_msg = "Netlist generated".into();
+            }
             RunSim => {
-                self.state.status_msg = "Simulation not yet implemented".into();
+                self.run_simulation();
+            }
+            SetStimulusLang(lang_str) => {
+                if let Some(lang) = schemify_core::simulation::StimulusLang::from_name(&lang_str) {
+                    self.push_undo_snapshot();
+                    self.state.active_document_mut().schematic.stimulus_lang = lang;
+                    self.state.status_msg = format!("Stimulus language: {}", lang.as_str());
+                } else {
+                    self.state.status_msg = format!("Unknown stimulus language: {lang_str}");
+                }
+            }
+            SetSimBackend(backend_str) => {
+                if let Some(be) = schemify_core::simulation::SpiceBackend::from_name(&backend_str) {
+                    self.push_undo_snapshot();
+                    self.state.active_document_mut().schematic.sim_backend = be;
+                    self.state.status_msg = format!("Sim backend: {}", be.as_str());
+                } else {
+                    self.state.status_msg = format!("Unknown sim backend: {backend_str}");
+                }
             }
 
             // ── Layout (placeholder) ──
@@ -441,20 +514,43 @@ impl App {
                 self.state.status_msg = "Auto-layout not yet implemented".into();
             }
 
+            // ── Symbol generation ──
+            GenerateSymbolFromSchematic => {
+                self.generate_symbol_from_schematic();
+            }
+
             // ── Import ──
             ImportSpice { path } => {
                 match std::fs::read_to_string(&path) {
                     Ok(source) => {
-                        match crate::spice_import::import_spice(
-                            &source,
-                            &mut self.state.interner,
-                        ) {
+                        let name = std::path::Path::new(&path)
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned();
+
+                        let result = if crate::spice_import::is_pyspice_source(&source) {
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                crate::spice_import::import_pyspice(
+                                    &source,
+                                    &name,
+                                    &mut self.state.interner,
+                                )
+                            }
+                            #[cfg(target_arch = "wasm32")]
+                            {
+                                Err("PySpice import not available in WASM".to_string())
+                            }
+                        } else {
+                            crate::spice_import::import_spice(
+                                &source,
+                                &mut self.state.interner,
+                            )
+                        };
+
+                        match result {
                             Ok(schematic) => {
-                                let name = std::path::Path::new(&path)
-                                    .file_stem()
-                                    .unwrap_or_default()
-                                    .to_string_lossy()
-                                    .into_owned();
                                 let doc = Document {
                                     schematic,
                                     name,
@@ -463,11 +559,11 @@ impl App {
                                 };
                                 self.state.documents.push(doc);
                                 self.state.active_doc = self.state.documents.len() - 1;
-                                self.state.status_msg = "SPICE import complete".into();
+                                self.state.status_msg = "Import complete".into();
                                 self.state.dialogs.import.is_open = false;
                             }
                             Err(e) => {
-                                self.state.status_msg = format!("SPICE import failed: {e}");
+                                self.state.status_msg = format!("Import failed: {e}");
                                 self.state.dialogs.import.status_msg =
                                     format!("Error: {e}");
                             }
@@ -484,8 +580,11 @@ impl App {
             PluginsRefresh => {
                 self.state.plugin_refresh_requested = true;
             }
-            PluginCommand { .. } | PluginMutation { .. } => {
-                // Plugin system not yet implemented
+            PluginCommand { tag, payload } => {
+                self.state.pending_plugin_commands.push((tag, payload));
+            }
+            PluginMutation { .. } => {
+                // Plugin mutations not yet implemented
             }
         }
     }
@@ -600,6 +699,106 @@ impl App {
     fn invalidate_connectivity(&mut self) {
         self.state.active_document_mut().connectivity = None;
     }
+
+    /// Generate symbol pins + bounding rect from label instances in the schematic.
+    fn generate_symbol_from_schematic(&mut self) {
+        use schemify_core::schematic::Pin;
+        use schemify_core::types::PinDirection;
+
+        // Collect label data (name sym, position, direction) from schematic.
+        let label_data: Vec<(schemify_core::types::Sym, i32, i32, PinDirection)> = {
+            let sch = &self.state.active_document().schematic;
+            (0..sch.instances.len())
+                .filter_map(|i| {
+                    let kind = sch.instances.kind[i];
+                    if !kind.is_label() {
+                        return None;
+                    }
+                    let dir = match kind {
+                        schemify_core::types::DeviceKind::InputPin => PinDirection::Input,
+                        schemify_core::types::DeviceKind::OutputPin => PinDirection::Output,
+                        _ => PinDirection::InOut,
+                    };
+                    Some((sch.instances.name[i], sch.instances.x[i], sch.instances.y[i], dir))
+                })
+                .collect()
+        };
+
+        // Resolve names via interner (separate borrow).
+        let pin_data: Vec<(String, i32, i32, PinDirection)> = label_data
+            .iter()
+            .map(|(sym, x, y, dir)| {
+                (self.state.interner.resolve(sym).to_string(), *x, *y, *dir)
+            })
+            .collect();
+
+        if pin_data.is_empty() {
+            self.state.status_msg = "No I/O pins found in schematic".into();
+            return;
+        }
+
+        self.push_undo_snapshot();
+
+        // Compute bounding box from label positions with 40px padding.
+        let mut lo_x = i32::MAX;
+        let mut lo_y = i32::MAX;
+        let mut hi_x = i32::MIN;
+        let mut hi_y = i32::MIN;
+        for (_, x, y, _) in &pin_data {
+            lo_x = lo_x.min(*x);
+            lo_y = lo_y.min(*y);
+            hi_x = hi_x.max(*x);
+            hi_y = hi_y.max(*y);
+        }
+        lo_x -= 40;
+        lo_y -= 40;
+        hi_x += 40;
+        hi_y += 40;
+
+        // Intern all names before borrowing doc mutably.
+        let pin_syms: Vec<_> = pin_data
+            .iter()
+            .map(|(name, _, _, _)| self.state.interner.get_or_intern(name))
+            .collect();
+
+        let doc = self.state.active_document_mut();
+
+        // Clear existing symbol data (pins + geometry used for symbol).
+        doc.schematic.pins.clear();
+
+        // Populate pins.
+        for (i, ((_name, x, y, dir), sym)) in pin_data.iter().zip(pin_syms.iter()).enumerate() {
+            doc.schematic.pins.push(Pin {
+                name: *sym,
+                x: *x,
+                y: *y,
+                number: i as u32,
+                width: 1,
+                direction: *dir,
+            });
+        }
+
+        // Add bounding rectangle (only if no existing geometry).
+        let has_geometry = !doc.schematic.lines.is_empty()
+            || !doc.schematic.rects.is_empty()
+            || !doc.schematic.circles.is_empty()
+            || !doc.schematic.arcs.is_empty();
+
+        if !has_geometry {
+            doc.schematic.rects.push(schemify_core::schematic::Rect {
+                x: lo_x,
+                y: lo_y,
+                width: hi_x - lo_x,
+                height: hi_y - lo_y,
+                fill: schemify_core::types::Color::NONE,
+                stroke: schemify_core::types::Color::NONE,
+                thickness: 15, // 1.5 in tenths
+            });
+        }
+
+        doc.dirty = true;
+        self.state.status_msg = format!("Symbol generated: {} pins", doc.schematic.pins.len());
+    }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -659,32 +858,223 @@ impl App {
 
     fn rotate_selected(&mut self, clockwise: bool) {
         let doc = self.state.active_document_mut();
+        let sel = &doc.selection;
+
+        // Compute centroid of all selected objects.
+        let (mut sum_x, mut sum_y, mut count) = (0i64, 0i64, 0i64);
+        for &i in &sel.instances {
+            sum_x += doc.schematic.instances.x[i] as i64;
+            sum_y += doc.schematic.instances.y[i] as i64;
+            count += 1;
+        }
+        for &i in &sel.wires {
+            sum_x += (doc.schematic.wires.x0[i] as i64 + doc.schematic.wires.x1[i] as i64) / 2;
+            sum_y += (doc.schematic.wires.y0[i] as i64 + doc.schematic.wires.y1[i] as i64) / 2;
+            count += 1;
+        }
+        for &i in &sel.lines { sum_x += (doc.schematic.lines[i].x0 as i64 + doc.schematic.lines[i].x1 as i64) / 2; sum_y += (doc.schematic.lines[i].y0 as i64 + doc.schematic.lines[i].y1 as i64) / 2; count += 1; }
+        for &i in &sel.rects { sum_x += doc.schematic.rects[i].x as i64 + doc.schematic.rects[i].width as i64 / 2; sum_y += doc.schematic.rects[i].y as i64 + doc.schematic.rects[i].height as i64 / 2; count += 1; }
+        for &i in &sel.circles { sum_x += doc.schematic.circles[i].cx as i64; sum_y += doc.schematic.circles[i].cy as i64; count += 1; }
+        for &i in &sel.arcs { sum_x += doc.schematic.arcs[i].cx as i64; sum_y += doc.schematic.arcs[i].cy as i64; count += 1; }
+        for &i in &sel.texts { sum_x += doc.schematic.texts[i].x as i64; sum_y += doc.schematic.texts[i].y as i64; count += 1; }
+        for &i in &sel.polygons {
+            if let Some(first) = doc.schematic.polygons[i].points.first() {
+                sum_x += first[0] as i64; sum_y += first[1] as i64; count += 1;
+            }
+        }
+
+        if count == 0 { return; }
+        let cx = (sum_x / count) as i32;
+        let cy = (sum_y / count) as i32;
+
+        // Rotate point around centroid: CW: (x',y') = (cy-y+cx, x-cx+cy), CCW: (x',y') = (y-cy+cx, cx-x+cy)
+        let rot = |x: i32, y: i32| -> (i32, i32) {
+            if clockwise {
+                (cy - y + cx, x - cx + cy)
+            } else {
+                (y - cy + cx, cx - x + cy)
+            }
+        };
+
+        // Instances: rotate flags + position.
         let indices: Vec<usize> = doc.selection.instances.iter().copied().collect();
         for idx in indices {
             let flags = doc.schematic.instances.flags[idx];
-            let rot = if clockwise {
-                (flags.rotation() + 1) & 0x03
-            } else {
-                (flags.rotation() + 3) & 0x03
-            };
-            doc.schematic.instances.flags[idx] =
-                InstanceFlags::new(rot, flags.flip(), flags.bus());
+            let r = if clockwise { (flags.rotation() + 1) & 0x03 } else { (flags.rotation() + 3) & 0x03 };
+            doc.schematic.instances.flags[idx] = InstanceFlags::new(r, flags.flip(), flags.bus());
+            let (nx, ny) = rot(doc.schematic.instances.x[idx], doc.schematic.instances.y[idx]);
+            doc.schematic.instances.x[idx] = nx;
+            doc.schematic.instances.y[idx] = ny;
+        }
+        // Wires: rotate both endpoints.
+        let indices: Vec<usize> = doc.selection.wires.iter().copied().collect();
+        for idx in indices {
+            let (nx0, ny0) = rot(doc.schematic.wires.x0[idx], doc.schematic.wires.y0[idx]);
+            let (nx1, ny1) = rot(doc.schematic.wires.x1[idx], doc.schematic.wires.y1[idx]);
+            doc.schematic.wires.x0[idx] = nx0; doc.schematic.wires.y0[idx] = ny0;
+            doc.schematic.wires.x1[idx] = nx1; doc.schematic.wires.y1[idx] = ny1;
+        }
+        // Lines
+        let indices: Vec<usize> = doc.selection.lines.iter().copied().collect();
+        for idx in indices {
+            let (nx0, ny0) = rot(doc.schematic.lines[idx].x0, doc.schematic.lines[idx].y0);
+            let (nx1, ny1) = rot(doc.schematic.lines[idx].x1, doc.schematic.lines[idx].y1);
+            doc.schematic.lines[idx].x0 = nx0; doc.schematic.lines[idx].y0 = ny0;
+            doc.schematic.lines[idx].x1 = nx1; doc.schematic.lines[idx].y1 = ny1;
+        }
+        // Rects: rotate corners, recompute.
+        let indices: Vec<usize> = doc.selection.rects.iter().copied().collect();
+        for idx in indices {
+            let r = &doc.schematic.rects[idx];
+            let (x0, y0) = rot(r.x, r.y);
+            let (x1, y1) = rot(r.x + r.width, r.y + r.height);
+            doc.schematic.rects[idx].x = x0.min(x1);
+            doc.schematic.rects[idx].y = y0.min(y1);
+            doc.schematic.rects[idx].width = (x1 - x0).abs();
+            doc.schematic.rects[idx].height = (y1 - y0).abs();
+        }
+        // Circles: rotate center.
+        let indices: Vec<usize> = doc.selection.circles.iter().copied().collect();
+        for idx in indices {
+            let (nx, ny) = rot(doc.schematic.circles[idx].cx, doc.schematic.circles[idx].cy);
+            doc.schematic.circles[idx].cx = nx; doc.schematic.circles[idx].cy = ny;
+        }
+        // Arcs: rotate center, adjust start_angle.
+        let indices: Vec<usize> = doc.selection.arcs.iter().copied().collect();
+        for idx in indices {
+            let (nx, ny) = rot(doc.schematic.arcs[idx].cx, doc.schematic.arcs[idx].cy);
+            doc.schematic.arcs[idx].cx = nx; doc.schematic.arcs[idx].cy = ny;
+            let delta = if clockwise { -std::f32::consts::FRAC_PI_2 } else { std::f32::consts::FRAC_PI_2 };
+            doc.schematic.arcs[idx].start_angle += delta;
+        }
+        // Texts: rotate position.
+        let indices: Vec<usize> = doc.selection.texts.iter().copied().collect();
+        for idx in indices {
+            let (nx, ny) = rot(doc.schematic.texts[idx].x, doc.schematic.texts[idx].y);
+            doc.schematic.texts[idx].x = nx; doc.schematic.texts[idx].y = ny;
+            let delta: u8 = if clockwise { 1 } else { 3 };
+            doc.schematic.texts[idx].rotation = (doc.schematic.texts[idx].rotation + delta) & 0x03;
+        }
+        // Polygons: rotate all points.
+        let indices: Vec<usize> = doc.selection.polygons.iter().copied().collect();
+        for idx in indices {
+            for pt in &mut doc.schematic.polygons[idx].points {
+                let (nx, ny) = rot(pt[0], pt[1]);
+                pt[0] = nx; pt[1] = ny;
+            }
         }
     }
 
     fn flip_selected(&mut self, horizontal: bool) {
         let doc = self.state.active_document_mut();
+        let sel = &doc.selection;
+
+        // Compute centroid.
+        let (mut sum_x, mut sum_y, mut count) = (0i64, 0i64, 0i64);
+        for &i in &sel.instances {
+            sum_x += doc.schematic.instances.x[i] as i64;
+            sum_y += doc.schematic.instances.y[i] as i64;
+            count += 1;
+        }
+        for &i in &sel.wires {
+            sum_x += (doc.schematic.wires.x0[i] as i64 + doc.schematic.wires.x1[i] as i64) / 2;
+            sum_y += (doc.schematic.wires.y0[i] as i64 + doc.schematic.wires.y1[i] as i64) / 2;
+            count += 1;
+        }
+        for &i in &sel.lines { sum_x += (doc.schematic.lines[i].x0 as i64 + doc.schematic.lines[i].x1 as i64) / 2; sum_y += (doc.schematic.lines[i].y0 as i64 + doc.schematic.lines[i].y1 as i64) / 2; count += 1; }
+        for &i in &sel.rects { sum_x += doc.schematic.rects[i].x as i64 + doc.schematic.rects[i].width as i64 / 2; sum_y += doc.schematic.rects[i].y as i64 + doc.schematic.rects[i].height as i64 / 2; count += 1; }
+        for &i in &sel.circles { sum_x += doc.schematic.circles[i].cx as i64; sum_y += doc.schematic.circles[i].cy as i64; count += 1; }
+        for &i in &sel.arcs { sum_x += doc.schematic.arcs[i].cx as i64; sum_y += doc.schematic.arcs[i].cy as i64; count += 1; }
+        for &i in &sel.texts { sum_x += doc.schematic.texts[i].x as i64; sum_y += doc.schematic.texts[i].y as i64; count += 1; }
+        for &i in &sel.polygons {
+            if let Some(first) = doc.schematic.polygons[i].points.first() {
+                sum_x += first[0] as i64; sum_y += first[1] as i64; count += 1;
+            }
+        }
+
+        if count == 0 { return; }
+        let cx = (sum_x / count) as i32;
+        let cy = (sum_y / count) as i32;
+
+        // Mirror: horizontal flips x around cx, vertical flips y around cy.
+        let mirror = |x: i32, y: i32| -> (i32, i32) {
+            if horizontal { (2 * cx - x, y) } else { (x, 2 * cy - y) }
+        };
+
+        // Instances: flip flags + position.
         let indices: Vec<usize> = doc.selection.instances.iter().copied().collect();
         for idx in indices {
             let flags = doc.schematic.instances.flags[idx];
-            if horizontal {
-                doc.schematic.instances.flags[idx] =
-                    InstanceFlags::new(flags.rotation(), !flags.flip(), flags.bus());
+            let new_flags = if horizontal {
+                InstanceFlags::new(flags.rotation(), !flags.flip(), flags.bus())
             } else {
-                // Vertical flip = flip + rotate 180
                 let rot = (flags.rotation() + 2) & 0x03;
-                doc.schematic.instances.flags[idx] =
-                    InstanceFlags::new(rot, !flags.flip(), flags.bus());
+                InstanceFlags::new(rot, !flags.flip(), flags.bus())
+            };
+            doc.schematic.instances.flags[idx] = new_flags;
+            let (nx, ny) = mirror(doc.schematic.instances.x[idx], doc.schematic.instances.y[idx]);
+            doc.schematic.instances.x[idx] = nx; doc.schematic.instances.y[idx] = ny;
+        }
+        // Wires
+        let indices: Vec<usize> = doc.selection.wires.iter().copied().collect();
+        for idx in indices {
+            let (nx0, ny0) = mirror(doc.schematic.wires.x0[idx], doc.schematic.wires.y0[idx]);
+            let (nx1, ny1) = mirror(doc.schematic.wires.x1[idx], doc.schematic.wires.y1[idx]);
+            doc.schematic.wires.x0[idx] = nx0; doc.schematic.wires.y0[idx] = ny0;
+            doc.schematic.wires.x1[idx] = nx1; doc.schematic.wires.y1[idx] = ny1;
+        }
+        // Lines
+        let indices: Vec<usize> = doc.selection.lines.iter().copied().collect();
+        for idx in indices {
+            let (nx0, ny0) = mirror(doc.schematic.lines[idx].x0, doc.schematic.lines[idx].y0);
+            let (nx1, ny1) = mirror(doc.schematic.lines[idx].x1, doc.schematic.lines[idx].y1);
+            doc.schematic.lines[idx].x0 = nx0; doc.schematic.lines[idx].y0 = ny0;
+            doc.schematic.lines[idx].x1 = nx1; doc.schematic.lines[idx].y1 = ny1;
+        }
+        // Rects
+        let indices: Vec<usize> = doc.selection.rects.iter().copied().collect();
+        for idx in indices {
+            let r = &doc.schematic.rects[idx];
+            let (x0, y0) = mirror(r.x, r.y);
+            let (x1, y1) = mirror(r.x + r.width, r.y + r.height);
+            doc.schematic.rects[idx].x = x0.min(x1);
+            doc.schematic.rects[idx].y = y0.min(y1);
+            doc.schematic.rects[idx].width = (x1 - x0).abs();
+            doc.schematic.rects[idx].height = (y1 - y0).abs();
+        }
+        // Circles
+        let indices: Vec<usize> = doc.selection.circles.iter().copied().collect();
+        for idx in indices {
+            let (nx, ny) = mirror(doc.schematic.circles[idx].cx, doc.schematic.circles[idx].cy);
+            doc.schematic.circles[idx].cx = nx; doc.schematic.circles[idx].cy = ny;
+        }
+        // Arcs: mirror center + invert sweep direction.
+        let indices: Vec<usize> = doc.selection.arcs.iter().copied().collect();
+        for idx in indices {
+            let (nx, ny) = mirror(doc.schematic.arcs[idx].cx, doc.schematic.arcs[idx].cy);
+            doc.schematic.arcs[idx].cx = nx; doc.schematic.arcs[idx].cy = ny;
+            if horizontal {
+                // Reflect angle across y-axis: start = PI - start - sweep
+                let a = &mut doc.schematic.arcs[idx];
+                a.start_angle = std::f32::consts::PI - a.start_angle - a.sweep_angle;
+            } else {
+                // Reflect angle across x-axis: start = -start - sweep
+                let a = &mut doc.schematic.arcs[idx];
+                a.start_angle = -a.start_angle - a.sweep_angle;
+            }
+        }
+        // Texts
+        let indices: Vec<usize> = doc.selection.texts.iter().copied().collect();
+        for idx in indices {
+            let (nx, ny) = mirror(doc.schematic.texts[idx].x, doc.schematic.texts[idx].y);
+            doc.schematic.texts[idx].x = nx; doc.schematic.texts[idx].y = ny;
+        }
+        // Polygons
+        let indices: Vec<usize> = doc.selection.polygons.iter().copied().collect();
+        for idx in indices {
+            for pt in &mut doc.schematic.polygons[idx].points {
+                let (nx, ny) = mirror(pt[0], pt[1]);
+                pt[0] = nx; pt[1] = ny;
             }
         }
     }

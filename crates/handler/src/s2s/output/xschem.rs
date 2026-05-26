@@ -11,9 +11,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::s2s::config::SymbolConfig;
 use crate::s2s::ir::{Circuit, PinDir, Primitive, Subcircuit};
-use super::{Backend, classify_ports, compute_instance_bbox, distribute_x, distribute_y, GROUND_NAMES, POWER_NAMES};
+use super::{Backend, PinGeometry, classify_ports, compute_instance_bbox, distribute_x, distribute_y, GROUND_NAMES, POWER_NAMES};
 use crate::s2s::validation::{self, Severity};
 
 /// XSchem nmos4 pin offsets (from xschem_library/devices/nmos4.sym).
@@ -38,6 +37,9 @@ const TWO_TERM_OFFSETS: [(i32, i32); 2] = [
     (0, 30),    // n/-/K: bottom
 ];
 
+/// Voltage-controlled sources (VCVS/VCCS): p=(0,-30) n=(0,30) cp=(-30,-10) cn=(-30,10)
+const VCXS_OFFSETS: [(i32, i32); 4] = [(0, -30), (0, 30), (-30, -10), (-30, 10)];
+
 /// XSchem schematic/symbol output backend.
 pub struct XschemBackend {
     pub output_dir: String,
@@ -45,8 +47,6 @@ pub struct XschemBackend {
     pub file_version: String,
     /// SPICE primitive name -> XSchem symbol path.
     pub symbol_map: HashMap<String, String>,
-    /// Optional PDK-aware symbol config (overrides symbol_map when present).
-    pub symbol_config: Option<SymbolConfig>,
 }
 
 impl XschemBackend {
@@ -57,20 +57,6 @@ impl XschemBackend {
             xschem_version: "3.4.7".to_string(),
             file_version: "1.3".to_string(),
             symbol_map: HashMap::new(),
-            symbol_config: None,
-        };
-        backend.init_default_symbols();
-        backend
-    }
-
-    /// Create a new XSchem backend with a PDK-aware symbol config.
-    pub fn with_config(output_dir: &str, config: SymbolConfig) -> Self {
-        let mut backend = Self {
-            output_dir: output_dir.to_string(),
-            xschem_version: "3.4.7".to_string(),
-            file_version: "1.3".to_string(),
-            symbol_map: HashMap::new(),
-            symbol_config: Some(config),
         };
         backend.init_default_symbols();
         backend
@@ -110,14 +96,10 @@ impl XschemBackend {
             return symbol.to_string();
         }
         let key = primitive_name(primitive);
-        if let Some(ref config) = self.symbol_config {
-            config.resolve(key, model)
-        } else {
-            self.symbol_map
-                .get(key)
-                .cloned()
-                .unwrap_or_else(|| format!("devices/{}.sym", key))
-        }
+        self.symbol_map
+            .get(key)
+            .cloned()
+            .unwrap_or_else(|| format!("devices/{}.sym", key))
     }
 
     /// Build the `.sch` file content for a subcircuit.
@@ -533,10 +515,12 @@ impl XschemBackend {
     }
 }
 
-impl Backend for XschemBackend {
+impl PinGeometry for XschemBackend {
     fn pin_offsets(&self, primitive: Primitive) -> &[(i32, i32)] {
         match primitive {
             Primitive::Pmos => &PMOS_PIN_OFFSETS,
+            Primitive::Vcvs | Primitive::Vccs => &VCXS_OFFSETS,
+            Primitive::Ccvs | Primitive::Cccs => &TWO_TERM_OFFSETS,
             _ if primitive.is_mosfet() => &NMOS_PIN_OFFSETS,
             _ => &TWO_TERM_OFFSETS,
         }
@@ -552,7 +536,9 @@ impl Backend for XschemBackend {
             _ => (dx, dy),
         }
     }
+}
 
+impl Backend for XschemBackend {
     fn resolve_symbol(&self, primitive: Primitive, symbol_hint: &str) -> String {
         self.resolve_symbol_str(symbol_hint, primitive, None)
     }
@@ -607,6 +593,10 @@ fn primitive_name(p: Primitive) -> &'static str {
         Primitive::Diode => "diode",
         Primitive::Vsource => "vsource",
         Primitive::Isource => "isource",
+        Primitive::Vcvs => "vcvs",
+        Primitive::Vccs => "vccs",
+        Primitive::Ccvs => "ccvs",
+        Primitive::Cccs => "cccs",
         Primitive::Subcircuit => "subcircuit",
     }
 }

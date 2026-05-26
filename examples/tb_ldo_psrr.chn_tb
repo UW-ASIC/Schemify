@@ -1,0 +1,25 @@
+chn_testbench 1
+
+TESTBENCH TB LDO PSRR
+  instances:
+    Xdut  subckt  x=-220  y=-120  sym=ldo_regulator
+    Vref  vsource  x=-80  y=0  sym=vsource  value=1.2
+    Cout  capacitor  x=30  y=120  sym=capa  value=4.7u  device=capacitor
+    Rload  resistor  x=130  y=120  sym=res  value=36  device=resistor
+    Vin  vsource  x=220  y=0  sym=vsource  value=DC 3.3 AC 1
+    vout  lab_pin  x=-220  y=-90  sym=lab_pin
+    vout  lab_pin  x=30  y=90  sym=lab_pin
+    vin  lab_pin  x=-220  y=-150  sym=lab_pin
+    vin  lab_pin  x=220  y=-150  sym=lab_pin
+    vdd0  vdd  x=-80  y=-40  sym=vdd
+    gnd1  gnd  x=-80  y=40  sym=gnd
+    gnd2  gnd  x=30  y=160  sym=gnd
+    gnd3  gnd  x=130  y=160  sym=gnd
+    gnd4  gnd  x=220  y=40  sym=gnd
+
+  wires:
+    -220 -90 30 -90
+    30 -90 30 90
+    30 90 130 90
+    -220 -150 220 -150
+    220 -150 220 -30

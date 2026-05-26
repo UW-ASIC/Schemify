@@ -1,0 +1,9 @@
+.title Op-Amp Integrator
+Vcc vcc 0 15
+Vee vee 0 -15
+Vin vin 0 0 PULSE(-0.5 0.5 0 0.000001 0.000001 0.0005 0.001)
+Rin vin vminus 10k
+Cf vminus vout 10n
+Rf vminus vout 1meg
+Eamp vout 0 0 vminus 1000000
+.end

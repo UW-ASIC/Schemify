@@ -1,0 +1,7 @@
+.title RLC Band-Pass Filter
+Vin vin 0 1
+R1 vin n1 50
+L1 n1 n2 1m
+C1 n2 vout 10n
+Rload vout 0 1k
+.end

@@ -1,4 +1,5 @@
 use egui::{Color32, Visuals};
+use schemify_core::plugin_types::ThemeColor;
 use schemify_core::theme::{ThemeTokens, ThemeValue};
 
 // ── Token extraction helpers ────────────────────────────────────────────────
@@ -110,6 +111,70 @@ impl CanvasPalette {
             selection_rect: token_color(tokens, "selection_fill").unwrap_or(base.selection_rect),
             text:           token_color(tokens, "label_color").unwrap_or(base.text),
         }
+    }
+}
+
+// ── Widget Palette ─────────────────────────────────────────────────────────
+//
+// Colors for plugin widget rendering, resolved from theme tokens.
+
+/// Colors for plugin widget rendering, resolved from theme tokens.
+#[derive(Debug, Clone)]
+pub struct WidgetPalette {
+    pub alert_info: Color32,
+    pub alert_warn: Color32,
+    pub alert_error: Color32,
+    pub alert_success: Color32,
+    pub badge_default: Color32,
+    pub text_primary: Color32,
+    pub accent: Color32,
+}
+
+impl WidgetPalette {
+    pub fn dark() -> Self {
+        Self {
+            alert_info: Color32::from_rgb(100, 160, 255),
+            alert_warn: Color32::from_rgb(240, 200, 60),
+            alert_error: Color32::from_rgb(232, 100, 100),
+            alert_success: Color32::from_rgb(100, 220, 120),
+            badge_default: Color32::from_rgb(120, 120, 200),
+            text_primary: Color32::from_rgb(230, 230, 230),
+            accent: Color32::from_rgb(88, 166, 255),
+        }
+    }
+
+    pub fn light() -> Self {
+        Self {
+            alert_info: Color32::from_rgb(30, 100, 200),
+            alert_warn: Color32::from_rgb(180, 140, 20),
+            alert_error: Color32::from_rgb(200, 40, 40),
+            alert_success: Color32::from_rgb(30, 160, 60),
+            badge_default: Color32::from_rgb(80, 80, 160),
+            text_primary: Color32::from_rgb(30, 30, 30),
+            accent: Color32::from_rgb(30, 100, 200),
+        }
+    }
+
+    pub fn from_tokens(tokens: &ThemeTokens) -> Self {
+        let dark = token_bool(tokens, "dark_mode").unwrap_or(true);
+        let base = if dark { Self::dark() } else { Self::light() };
+        Self {
+            alert_info: token_color(tokens, "accent").unwrap_or(base.alert_info),
+            alert_warn: token_color(tokens, "warning").unwrap_or(base.alert_warn),
+            alert_error: token_color(tokens, "error").unwrap_or(base.alert_error),
+            alert_success: token_color(tokens, "success").unwrap_or(base.alert_success),
+            badge_default: token_color(tokens, "accent").unwrap_or(base.badge_default),
+            text_primary: token_color(tokens, "text_primary").unwrap_or(base.text_primary),
+            accent: token_color(tokens, "accent").unwrap_or(base.accent),
+        }
+    }
+}
+
+/// Resolve a ThemeColor to a concrete Color32.
+pub fn resolve_theme_color(tc: &ThemeColor, tokens: &ThemeTokens, fallback: Color32) -> Color32 {
+    match tc {
+        ThemeColor::Literal([r, g, b, a]) => Color32::from_rgba_unmultiplied(*r, *g, *b, *a),
+        ThemeColor::Token(key) => token_color(tokens, key).unwrap_or(fallback),
     }
 }
 

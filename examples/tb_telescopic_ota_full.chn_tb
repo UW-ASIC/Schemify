@@ -1,0 +1,40 @@
+chn_testbench 1
+
+TESTBENCH TB Telescopic OTA Full
+  instances:
+    Xdut  subckt  x=-500  y=-120  sym=telescopic_ota
+    Vdd  vsource  x=-360  y=0  sym=vsource  value=1.8
+    Vbn  vsource  x=-250  y=0  sym=vsource  value=600m
+    Vbp  vsource  x=-140  y=0  sym=vsource  value=1.2
+    Vbpt  vsource  x=-30  y=0  sym=vsource  value=1
+    Vcm  vsource  x=80  y=0  sym=vsource  value=900m
+    Clp  capacitor  x=190  y=120  sym=capa  value=2p  device=capacitor
+    Cln  capacitor  x=290  y=120  sym=capa  value=2p  device=capacitor
+    Vdp  vsource  x=390  y=0  sym=vsource  value=DC 0 AC 0.5
+    Vdn  vsource  x=500  y=0  sym=vsource  value=DC 0 AC -0.5
+    vcm  lab_pin  x=80  y=-30  sym=lab_pin
+    vcm  lab_pin  x=390  y=30  sym=lab_pin
+    inp  lab_pin  x=-500  y=-150  sym=lab_pin
+    inp  lab_pin  x=390  y=-150  sym=lab_pin
+    inn  lab_pin  x=-500  y=-90  sym=lab_pin
+    inn  lab_pin  x=500  y=-90  sym=lab_pin
+    vdd0  vdd  x=-360  y=-40  sym=vdd
+    gnd1  gnd  x=-360  y=40  sym=gnd
+    gnd2  gnd  x=-250  y=40  sym=gnd
+    gnd3  gnd  x=-140  y=40  sym=gnd
+    gnd4  gnd  x=-30  y=40  sym=gnd
+    gnd5  gnd  x=80  y=40  sym=gnd
+    gnd6  gnd  x=190  y=160  sym=gnd
+    gnd7  gnd  x=290  y=160  sym=gnd
+
+  wires:
+    80 -30 240 -30
+    240 -30 240 30
+    240 30 390 30
+    390 30 450 30
+    450 30 450 -30
+    450 -30 500 -30
+    -500 -150 390 -150
+    390 -150 390 -30
+    -500 -90 500 -90
+    500 -90 500 30

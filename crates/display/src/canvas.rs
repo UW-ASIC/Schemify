@@ -328,13 +328,43 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let response = ui.allocate_rect(rect, egui::Sense::click_and_drag());
     let painter = ui.painter_at(rect);
 
-    // Render layers (bottom to top).
+    // Render layers (bottom to top) — schematic vs symbol mode.
+    let is_symbol_mode = app.view().view_mode == schemify_handler::state::ViewMode::Symbol;
+
     render_grid(&painter, &viewport, &palette, app.show_grid());
-    render_wires(&painter, app, &viewport, &palette);
-    render_instances(&painter, app, &viewport, &palette);
-    render_geometry(&painter, app, &viewport, &palette);
-    render_selection(&painter, app, &viewport, &palette);
-    render_overlays(&painter, app, &viewport, &palette);
+
+    if is_symbol_mode {
+        // Symbol mode: geometry + pins only (no instances/wires).
+        let sch = app.schematic();
+        let has_symbol_data = !sch.pins.is_empty()
+            || !sch.lines.is_empty()
+            || !sch.rects.is_empty()
+            || !sch.circles.is_empty()
+            || !sch.arcs.is_empty()
+            || sch.instances.len() > 0; // labels count for auto-gen
+
+        if has_symbol_data {
+            render_geometry(&painter, app, &viewport, &palette);
+            render_symbol_pins(&painter, app, &viewport, &palette);
+        } else {
+            // Placeholder when no symbol data exists
+            let center = viewport.w2p(0, 0);
+            painter.text(
+                center,
+                egui::Align2::CENTER_CENTER,
+                "No symbol defined\n\nUse \"Generate Symbol\" in SCH mode\nor draw geometry here",
+                egui::FontId::proportional(16.0),
+                palette.text_label,
+            );
+        }
+    } else {
+        // Schematic mode: full rendering.
+        render_wires(&painter, app, &viewport, &palette);
+        render_instances(&painter, app, &viewport, &palette);
+        render_geometry(&painter, app, &viewport, &palette);
+        render_selection(&painter, app, &viewport, &palette);
+        render_overlays(&painter, app, &viewport, &palette);
+    }
 
     // Handle interaction.
     handle(&response, app, &viewport, ui.ctx());
@@ -775,6 +805,250 @@ fn render_geometry(
     }
 }
 
+// ── Symbol pin rendering (symbol view mode) ─────────────────────────────────
+
+fn render_symbol_pins(
+    painter: &Painter,
+    app: &App,
+    viewport: &CanvasViewport,
+    palette: &CanvasPalette,
+) {
+    use schemify_core::types::PinDirection;
+
+    let sch = app.schematic();
+    let pin_col = palette.inst_pin;
+    let label_col = palette.text_label;
+    let pin_arm = 6.0 * viewport.zoom;
+
+    // If no geometry and no pins, show auto-generated box from label instances.
+    let has_geometry = !sch.lines.is_empty()
+        || !sch.rects.is_empty()
+        || !sch.circles.is_empty()
+        || !sch.arcs.is_empty();
+
+    if !has_geometry && sch.pins.is_empty() {
+        // Auto-generate from label instances.
+        render_auto_symbol_box(painter, app, viewport, palette);
+        return;
+    }
+
+    // Draw explicit pins with crosshair + direction indicator + label.
+    for pin in &sch.pins {
+        let p = viewport.w2p(pin.x, pin.y);
+
+        // Pin crosshair
+        painter.line_segment(
+            [Pos2::new(p.x - pin_arm, p.y), Pos2::new(p.x + pin_arm, p.y)],
+            Stroke::new(1.0, pin_col),
+        );
+        painter.line_segment(
+            [Pos2::new(p.x, p.y - pin_arm), Pos2::new(p.x, p.y + pin_arm)],
+            Stroke::new(1.0, pin_col),
+        );
+
+        // Direction indicator
+        let sz = pin_arm * 0.75;
+        match pin.direction {
+            PinDirection::Input => {
+                // Arrow pointing right
+                painter.line_segment(
+                    [Pos2::new(p.x, p.y), Pos2::new(p.x - sz, p.y - sz * 0.6)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+                painter.line_segment(
+                    [Pos2::new(p.x, p.y), Pos2::new(p.x - sz, p.y + sz * 0.6)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+            }
+            PinDirection::Output => {
+                // Arrow pointing left
+                painter.line_segment(
+                    [Pos2::new(p.x, p.y), Pos2::new(p.x + sz, p.y - sz * 0.6)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+                painter.line_segment(
+                    [Pos2::new(p.x, p.y), Pos2::new(p.x + sz, p.y + sz * 0.6)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+            }
+            PinDirection::InOut => {
+                // Diamond
+                painter.line_segment(
+                    [Pos2::new(p.x - sz, p.y), Pos2::new(p.x, p.y - sz * 0.6)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+                painter.line_segment(
+                    [Pos2::new(p.x, p.y - sz * 0.6), Pos2::new(p.x + sz, p.y)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+                painter.line_segment(
+                    [Pos2::new(p.x + sz, p.y), Pos2::new(p.x, p.y + sz * 0.6)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+                painter.line_segment(
+                    [Pos2::new(p.x, p.y + sz * 0.6), Pos2::new(p.x - sz, p.y)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+            }
+            PinDirection::Power | PinDirection::Ground => {
+                // Cross
+                let s = sz * 0.7;
+                painter.line_segment(
+                    [Pos2::new(p.x - s, p.y), Pos2::new(p.x + s, p.y)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+                painter.line_segment(
+                    [Pos2::new(p.x, p.y - s), Pos2::new(p.x, p.y + s)],
+                    Stroke::new(0.9, palette.wire_endpoint),
+                );
+            }
+        }
+
+        // Pin name label
+        if viewport.zoom >= 0.3 {
+            let name = app.resolve(pin.name);
+            if !name.is_empty() {
+                let font = FontId::proportional((12.0 * viewport.zoom).max(8.0));
+                painter.text(
+                    Pos2::new(p.x + pin_arm + 2.0, p.y - 6.0 * viewport.zoom),
+                    egui::Align2::LEFT_TOP,
+                    name,
+                    font,
+                    label_col,
+                );
+            }
+        }
+    }
+}
+
+/// Auto-generate a symbol box from label instances when no explicit
+/// symbol geometry or pins exist.
+fn render_auto_symbol_box(
+    painter: &Painter,
+    app: &App,
+    viewport: &CanvasViewport,
+    palette: &CanvasPalette,
+) {
+    use schemify_core::types::DeviceKind;
+
+    let sch = app.schematic();
+
+    // Collect label instances.
+    struct LabelInfo {
+        name: String,
+        is_output: bool,
+    }
+
+    let mut labels: Vec<LabelInfo> = Vec::new();
+    for i in 0..sch.instances.len() {
+        let kind = sch.instances.kind[i];
+        if !kind.is_label() {
+            continue;
+        }
+        let name = app.resolve(sch.instances.name[i]).to_string();
+        labels.push(LabelInfo {
+            name,
+            is_output: kind == DeviceKind::OutputPin,
+        });
+    }
+
+    if labels.is_empty() {
+        // Nothing to auto-generate — show hint text.
+        let center = viewport.world_to_pixel(0.0, 0.0);
+        let font = FontId::proportional(14.0);
+        painter.text(
+            center,
+            egui::Align2::CENTER_CENTER,
+            "No symbol data. Add pins or click \"Generate Symbol\".",
+            font,
+            palette.text_label,
+        );
+        return;
+    }
+
+    // Partition into left (input/inout) and right (output) pins.
+    let mut left: Vec<&LabelInfo> = Vec::new();
+    let mut right: Vec<&LabelInfo> = Vec::new();
+    for l in &labels {
+        if l.is_output {
+            right.push(l);
+        } else {
+            left.push(l);
+        }
+    }
+    // Balance inout pins.
+    if left.is_empty() && !right.is_empty() {
+        let half = right.len() / 2;
+        let moved: Vec<&LabelInfo> = right.drain(..half).collect();
+        left.extend(moved);
+    }
+
+    let max_pins = left.len().max(right.len()).max(1);
+    let pin_spacing: i32 = 20;
+    let stub_len: i32 = 10;
+    let max_name_len = labels.iter().map(|l| l.name.len()).max().unwrap_or(3);
+    let box_w: i32 = (120_i32).max(max_name_len as i32 * 8 + 40);
+    let box_h: i32 = (max_pins as i32 + 1) * pin_spacing;
+
+    // Draw rectangle body.
+    let tl = viewport.w2p(0, 0);
+    let br = viewport.w2p(box_w, box_h);
+    let body = egui::Rect::from_two_pos(tl, br);
+    painter.rect_stroke(body, 0.0, Stroke::new(1.5, palette.symbol_line), StrokeKind::Outside);
+
+    // Draw left pins (input side).
+    for (slot, lbl) in left.iter().enumerate() {
+        let py = (slot as i32 + 1) * pin_spacing;
+        let stub_start = viewport.w2p(-stub_len, py);
+        let stub_end = viewport.w2p(0, py);
+        painter.line_segment([stub_start, stub_end], Stroke::new(1.0, palette.inst_pin));
+        // Pin circle at stub start
+        painter.circle_filled(stub_start, 3.0, palette.inst_pin);
+        // Label
+        if viewport.zoom >= 0.3 {
+            let label_pos = viewport.w2p(4, py);
+            let font = FontId::proportional((11.0 * viewport.zoom).max(8.0));
+            painter.text(
+                Pos2::new(label_pos.x, label_pos.y - 6.0 * viewport.zoom),
+                egui::Align2::LEFT_TOP,
+                &lbl.name,
+                font,
+                palette.text_label,
+            );
+        }
+    }
+
+    // Draw right pins (output side).
+    for (slot, lbl) in right.iter().enumerate() {
+        let py = (slot as i32 + 1) * pin_spacing;
+        let stub_start = viewport.w2p(box_w, py);
+        let stub_end = viewport.w2p(box_w + stub_len, py);
+        painter.line_segment([stub_start, stub_end], Stroke::new(1.0, palette.inst_pin));
+        // Pin circle at stub end
+        painter.circle_filled(stub_end, 3.0, palette.inst_pin);
+        // Label
+        if viewport.zoom >= 0.3 {
+            let label_pos = viewport.w2p(box_w - 4, py);
+            let font = FontId::proportional((11.0 * viewport.zoom).max(8.0));
+            painter.text(
+                Pos2::new(label_pos.x, label_pos.y - 6.0 * viewport.zoom),
+                egui::Align2::RIGHT_TOP,
+                &lbl.name,
+                font,
+                palette.text_label,
+            );
+        }
+    }
+
+    // Schematic name centered in box.
+    let name = &sch.name;
+    if !name.is_empty() {
+        let center = viewport.w2p(box_w / 2, box_h / 2);
+        let font = FontId::proportional((13.0 * viewport.zoom).max(8.0));
+        painter.text(center, egui::Align2::CENTER_CENTER, name, font, palette.symbol_line);
+    }
+}
+
 // ── Selection highlight overlays ─────────────────────────────────────────────
 
 fn render_selection(
@@ -873,6 +1147,65 @@ fn render_selection(
         let center = viewport.w2p(c.cx, c.cy);
         let radius_px = c.radius as f32 * viewport.zoom;
         painter.circle_stroke(center, radius_px, highlight_stroke);
+    }
+
+    // Arc selection highlights.
+    for &idx in &sel.arcs {
+        if idx >= sch.arcs.len() {
+            continue;
+        }
+        let a = &sch.arcs[idx];
+        let center = viewport.w2p(a.cx, a.cy);
+        let radius_px = a.radius as f32 * viewport.zoom;
+        // Approximate arc with line segments for highlight.
+        let steps = 32;
+        let start = a.start_angle as f64;
+        let sweep = a.sweep_angle as f64;
+        for s in 0..steps {
+            let t0 = start + sweep * (s as f64 / steps as f64);
+            let t1 = start + sweep * ((s + 1) as f64 / steps as f64);
+            let p0 = egui::pos2(
+                center.x + radius_px * t0.cos() as f32,
+                center.y + radius_px * t0.sin() as f32,
+            );
+            let p1 = egui::pos2(
+                center.x + radius_px * t1.cos() as f32,
+                center.y + radius_px * t1.sin() as f32,
+            );
+            painter.line_segment([p0, p1], highlight_stroke);
+        }
+    }
+
+    // Text selection highlights.
+    for &idx in &sel.texts {
+        if idx >= sch.texts.len() {
+            continue;
+        }
+        let t = &sch.texts[idx];
+        let p = viewport.w2p(t.x, t.y);
+        let content = app.resolve(t.content);
+        let approx_w = (content.len() as f32 * t.font_size * 0.6 * viewport.zoom).max(12.0);
+        let approx_h = (t.font_size * viewport.zoom).max(12.0);
+        let rect = egui::Rect::from_min_size(p, egui::Vec2::new(approx_w, approx_h));
+        painter.rect_stroke(rect, 2.0, highlight_stroke, StrokeKind::Outside);
+    }
+
+    // Polygon selection highlights.
+    for &idx in &sel.polygons {
+        if idx >= sch.polygons.len() {
+            continue;
+        }
+        let poly = &sch.polygons[idx];
+        if poly.points.len() < 2 {
+            continue;
+        }
+        let pts: Vec<Pos2> = poly.points.iter().map(|p| viewport.w2p(p[0], p[1])).collect();
+        for win in pts.windows(2) {
+            painter.line_segment([win[0], win[1]], highlight_stroke);
+        }
+        if pts.len() >= 3 {
+            painter.line_segment([*pts.last().unwrap(), pts[0]], highlight_stroke);
+        }
     }
 }
 
@@ -1270,7 +1603,6 @@ fn draw_crosshair(
 // ── Interaction ──────────────────────────────────────────────────────────────
 
 const MOVE_DRAG_THRESHOLD_PX: f32 = 4.0;
-const SELECT_HIT_RADIUS_SQ: f64 = 400.0;
 
 /// Handle all mouse/keyboard interaction on the canvas response area.
 fn handle(
@@ -1327,18 +1659,15 @@ fn handle_scroll_zoom(response: &Response, app: &mut App, viewport: &CanvasViewp
     };
 
     let world_before = viewport.pixel_to_world(hover_pos.x, hover_pos.y);
-
     let old_zoom = app.zoom();
 
-    // Apply zoom.
-    if scroll_delta > 0.0 {
-        app.dispatch(Command::ZoomIn);
-    } else {
-        app.dispatch(Command::ZoomOut);
-    }
+    // Proportional zoom: scale factor from scroll delta magnitude.
+    // ~0.001 per pixel of scroll → smooth on touchpads, reasonable on mice.
+    let factor = (scroll_delta * 0.001).exp();
+    let new_zoom = old_zoom * factor;
+    app.set_zoom(new_zoom);
 
     // Adjust pan so the world point under the cursor stays stationary.
-    // After zoom change, compute where world_before now maps and correct pan.
     let actual_zoom = app.zoom();
     if (actual_zoom - old_zoom).abs() > f32::EPSILON {
         let new_vp = CanvasViewport {
@@ -1394,9 +1723,15 @@ fn handle_mouse_press(
             let tool = app.active_tool();
 
             match tool {
-                Tool::Select => handle_select_click(app, viewport, pos, wx, wy),
+                Tool::Select => {
+                    let shift = response.ctx.input(|i| i.modifiers.shift);
+                    handle_select_click(app, viewport, pos, wx, wy, shift);
+                }
                 Tool::Wire => handle_wire_click(app, wx, wy),
-                Tool::Line | Tool::Rect | Tool::Circle | Tool::Arc | Tool::Polygon => {
+                Tool::Polygon => {
+                    app.push_polygon_point([wx, wy]);
+                }
+                Tool::Line | Tool::Rect | Tool::Circle | Tool::Arc => {
                     handle_draw_click(app, tool, wx, wy);
                 }
                 _ => {}
@@ -1413,20 +1748,32 @@ fn handle_mouse_press(
     if response.clicked_by(PointerButton::Secondary) {
         if let Some(pos) = response.interact_pointer_pos() {
             let [wx, wy] = snap_world(viewport, pos, snap);
-
-            let inst_hit = hit_test_instance(app, wx, wy);
-            let wire_hit = hit_test_wire(app, wx, wy);
-
+            use schemify_handler::geometry::HitResult;
+            let hit = app.hit_test(wx, wy);
+            let ctx_hit = match hit {
+                HitResult::Instance(i) => schemify_handler::state::ContextHit::Instance(i),
+                HitResult::Wire(i) => schemify_handler::state::ContextHit::Wire(i),
+                HitResult::Line(i) => schemify_handler::state::ContextHit::Line(i),
+                HitResult::Rect(i) => schemify_handler::state::ContextHit::Rect(i),
+                HitResult::Circle(i) => schemify_handler::state::ContextHit::Circle(i),
+                HitResult::Arc(i) => schemify_handler::state::ContextHit::Arc(i),
+                HitResult::Text(i) => schemify_handler::state::ContextHit::Text(i),
+                HitResult::Polygon(i) => schemify_handler::state::ContextHit::Polygon(i),
+                HitResult::Nothing => schemify_handler::state::ContextHit::None,
+            };
             app.ctx_menu_mut().open = true;
             app.ctx_menu_mut().pixel_pos = [pos.x, pos.y];
-            app.ctx_menu_mut().inst_idx = inst_hit;
-            app.ctx_menu_mut().wire_idx = wire_hit;
+            app.ctx_menu_mut().hit = ctx_hit;
         }
     }
 
-    // Double click -> open properties.
+    // Double click -> commit polygon or open properties.
     if response.double_clicked_by(PointerButton::Primary) {
-        app.dispatch(Command::OpenPropsDialog);
+        if app.active_tool() == Tool::Polygon {
+            app.commit_polygon();
+        } else {
+            app.dispatch(Command::OpenPropsDialog);
+        }
     }
 }
 
@@ -1472,6 +1819,7 @@ fn handle_mouse_drag(
             let dy_px = pos.y - cs.move_press_pixel[1];
             if dx_px * dx_px + dy_px * dy_px >= MOVE_DRAG_THRESHOLD_PX * MOVE_DRAG_THRESHOLD_PX {
                 app.canvas_mut().move_active = true;
+                app.canvas_mut().move_accum = [0, 0];
                 app.canvas_mut().drag_last = [pos.x, pos.y];
             }
         }
@@ -1515,27 +1863,52 @@ fn handle_mouse_drag(
 fn handle_mouse_release(
     response: &Response,
     app: &mut App,
-    _viewport: &CanvasViewport,
-    _snap: f32,
+    viewport: &CanvasViewport,
+    snap: f32,
 ) {
     // We detect release indirectly: if the button was being dragged and is no longer.
     // egui doesn't have a direct "released" event, but drag_stopped works.
     if response.drag_stopped_by(PointerButton::Primary) {
-        let cs = &app.canvas();
+        // Snapshot state before mutating to avoid borrow conflicts.
+        let move_active = app.canvas().move_active;
+        let rubber_band_active = app.canvas().rubber_band_active;
+        let drag_is_pan = app.canvas().drag_is_pan;
+        let rb_start = app.canvas().rubber_band_start;
+        let rb_end = app.canvas().rubber_band_end;
+
+        // Wire/draw tools: treat drag-release as a click too (fast mouse movement
+        // causes egui to interpret clicks as drags, breaking wire placement).
+        if !move_active && !rubber_band_active && !drag_is_pan {
+            let tool = app.active_tool();
+            if matches!(tool, Tool::Wire | Tool::Line | Tool::Rect | Tool::Circle | Tool::Arc) {
+                if let Some(pos) = response.interact_pointer_pos() {
+                    let [wx, wy] = snap_world(viewport, pos, snap);
+                    match tool {
+                        Tool::Wire => handle_wire_click(app, wx, wy),
+                        Tool::Line | Tool::Rect | Tool::Circle | Tool::Arc => {
+                            handle_draw_click(app, tool, wx, wy);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
 
         // Complete rubber-band selection.
-        if cs.rubber_band_active {
-            let start = cs.rubber_band_start;
-            let end = cs.rubber_band_end;
-            let min_x = start[0].min(end[0]);
-            let min_y = start[1].min(end[1]);
-            let max_x = start[0].max(end[0]);
-            let max_y = start[1].max(end[1]);
+        if rubber_band_active {
+            let min_x = rb_start[0].min(rb_end[0]);
+            let min_y = rb_start[1].min(rb_end[1]);
+            let max_x = rb_start[0].max(rb_end[0]);
+            let max_y = rb_start[1].max(rb_end[1]);
 
-            select_in_rect(app, min_x, min_y, max_x, max_y);
+            app.select_in_rect(min_x, min_y, max_x, max_y);
         }
 
         app.canvas_mut().rubber_band_active = false;
+        // Commit coalesced move undo before clearing move_active.
+        if move_active {
+            app.commit_move_drag();
+        }
         app.canvas_mut().move_active = false;
         app.canvas_mut().move_hit_idx = None;
         app.canvas_mut().dragging = false;
@@ -1550,54 +1923,58 @@ fn handle_mouse_release(
 
 // ── Select click handler ─────────────────────────────────────────────────────
 
-fn handle_select_click(app: &mut App, _viewport: &CanvasViewport, pos: Pos2, wx: i32, wy: i32) {
+fn handle_select_click(app: &mut App, _viewport: &CanvasViewport, pos: Pos2, wx: i32, wy: i32, shift: bool) {
+    use schemify_handler::geometry::HitResult;
 
-    // Hit test.
-    let inst_hit = hit_test_instance(app, wx, wy);
-    let wire_hit = hit_test_wire(app, wx, wy);
+    let hit = app.hit_test(wx, wy);
 
-    if inst_hit.is_some() || wire_hit.is_some() {
-        // Prime move: record which object was hit in case of drag.
+    if hit != HitResult::Nothing {
         app.canvas_mut().move_press_pixel = [pos.x, pos.y];
         app.canvas_mut().move_start_world = [wx, wy];
         app.canvas_mut().drag_last = [pos.x, pos.y];
     }
 
     // Check if we clicked on an already-selected object (for move).
-    if let Some(idx) = inst_hit {
-        if app.is_instance_selected(idx) {
-            app.canvas_mut().move_hit_idx = Some(idx);
-            return;
-        }
-    }
-    if let Some(idx) = wire_hit {
-        if app.is_wire_selected(idx) {
-            app.canvas_mut().move_hit_idx = Some(idx);
-            return;
-        }
-    }
+    let already_selected = match hit {
+        HitResult::Instance(i) => app.is_instance_selected(i),
+        HitResult::Wire(i) => app.is_wire_selected(i),
+        HitResult::Line(i) => app.is_line_selected(i),
+        HitResult::Rect(i) => app.is_rect_selected(i),
+        HitResult::Circle(i) => app.is_circle_selected(i),
+        HitResult::Arc(i) => app.is_arc_selected(i),
+        HitResult::Text(i) => app.is_text_selected(i),
+        HitResult::Polygon(i) => app.is_polygon_selected(i),
+        HitResult::Nothing => false,
+    };
 
-    // Not on a selected object, so do selection.
-    app.dispatch(Command::SelectNone);
-
-    if let Some(idx) = inst_hit {
-        app.canvas_mut().move_hit_idx = Some(idx);
-        app.select_instance(idx);
+    if already_selected {
+        // Use a sentinel index — the actual move uses the full selection set.
+        app.canvas_mut().move_hit_idx = Some(0);
         return;
     }
 
-    if let Some(idx) = wire_hit {
-        app.canvas_mut().move_hit_idx = Some(idx);
-        app.select_wire(idx);
-        return;
+    // New selection.
+    if !shift {
+        app.dispatch(Command::SelectNone);
     }
 
-    // Clicked on empty space — prepare for rubber band.
-    app.canvas_mut().rubber_band_start = [wx, wy];
-    app.canvas_mut().rubber_band_end = [wx, wy];
-    app.canvas_mut().rubber_band_active = false;
-    app.canvas_mut().move_press_pixel = [pos.x, pos.y];
-    app.canvas_mut().move_hit_idx = None;
+    match hit {
+        HitResult::Instance(i) => { app.canvas_mut().move_hit_idx = Some(i); app.select_instance(i); }
+        HitResult::Wire(i) => { app.canvas_mut().move_hit_idx = Some(i); app.select_wire(i); }
+        HitResult::Line(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_line(i); }
+        HitResult::Rect(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_rect(i); }
+        HitResult::Circle(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_circle(i); }
+        HitResult::Arc(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_arc(i); }
+        HitResult::Text(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_text(i); }
+        HitResult::Polygon(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_polygon(i); }
+        HitResult::Nothing => {
+            app.canvas_mut().rubber_band_start = [wx, wy];
+            app.canvas_mut().rubber_band_end = [wx, wy];
+            app.canvas_mut().rubber_band_active = false;
+            app.canvas_mut().move_press_pixel = [pos.x, pos.y];
+            app.canvas_mut().move_hit_idx = None;
+        }
+    }
 }
 
 // ── Wire tool click ──────────────────────────────────────────────────────────
@@ -1624,8 +2001,11 @@ fn handle_wire_click(app: &mut App, wx: i32, wy: i32) {
                 net_name: None,
                 bus,
             });
+            // Chain from the committed wire's endpoint (not cursor position).
+            app.set_wire_start(Some(end));
+            return;
         }
-        // Chain from endpoint for continuous wire drawing.
+        // Zero-length click: stay at same point.
         app.set_wire_start(Some([wx, wy]));
     } else {
         // First click: set wire start.
@@ -1672,7 +2052,7 @@ fn handle_draw_click(app: &mut App, tool: Tool, wx: i32, wy: i32) {
                     start: start_angle, sweep: std::f32::consts::PI,
                 });
             }
-            _ => {}
+            _ => unreachable!(),
         }
         app.set_draw_first_point(None);
     }
@@ -1716,119 +2096,6 @@ fn pan_by_pixel_delta(app: &mut App, viewport: &CanvasViewport, delta: egui::Vec
     app.set_pan(new_pan[0], new_pan[1]);
 }
 
-// ── Hit testing ──────────────────────────────────────────────────────────────
-
-fn hit_test_instance(app: &App, wx: i32, wy: i32) -> Option<usize> {
-    let insts = app.instances();
-    let n = insts.len();
-    for i in 0..n {
-        let dx = wx as f64 - insts.x[i] as f64;
-        let dy = wy as f64 - insts.y[i] as f64;
-
-        // For instances with primitives, check against the bounding extent.
-        let kind = insts.kind[i];
-        let prim = primitives::find_by_name(kind.symbol_name());
-        let tol_sq = if let Some(entry) = prim {
-            let mut max_ext: f64 = 14.0;
-            for seg in &entry.segments {
-                max_ext = max_ext
-                    .max(seg.x0.unsigned_abs() as f64)
-                    .max(seg.y0.unsigned_abs() as f64)
-                    .max(seg.x1.unsigned_abs() as f64)
-                    .max(seg.y1.unsigned_abs() as f64);
-            }
-            for pp in &entry.pin_positions {
-                max_ext = max_ext
-                    .max(pp.x.unsigned_abs() as f64)
-                    .max(pp.y.unsigned_abs() as f64);
-            }
-            (max_ext + 5.0) * (max_ext + 5.0)
-        } else {
-            (25.0_f64) * 25.0
-        };
-
-        if dx * dx + dy * dy < tol_sq {
-            return Some(i);
-        }
-    }
-    None
-}
-
-fn hit_test_wire(app: &App, wx: i32, wy: i32) -> Option<usize> {
-    let wires = app.wires();
-    let n = wires.len();
-    let wpx = wx as f64;
-    let wpy = wy as f64;
-
-    for i in 0..n {
-        let ax = wires.x0[i] as f64;
-        let ay = wires.y0[i] as f64;
-        let bx = wires.x1[i] as f64;
-        let by = wires.y1[i] as f64;
-
-        let abx = bx - ax;
-        let aby = by - ay;
-        let len2 = abx * abx + aby * aby;
-
-        let d2 = if len2 <= 0.0 {
-            let ddx = wpx - ax;
-            let ddy = wpy - ay;
-            ddx * ddx + ddy * ddy
-        } else {
-            let mut t = ((wpx - ax) * abx + (wpy - ay) * aby) / len2;
-            t = t.clamp(0.0, 1.0);
-            let cx = ax + t * abx;
-            let cy = ay + t * aby;
-            let ddx = wpx - cx;
-            let ddy = wpy - cy;
-            ddx * ddx + ddy * ddy
-        };
-
-        if d2 < SELECT_HIT_RADIUS_SQ {
-            return Some(i);
-        }
-    }
-    None
-}
-
-// ── Rubber-band selection ────────────────────────────────────────────────────
-
-fn select_in_rect(app: &mut App, min_x: i32, min_y: i32, max_x: i32, max_y: i32) {
-    app.dispatch(Command::SelectNone);
-
-    let insts = app.instances();
-    let n = insts.len();
-    let mut inst_hits = Vec::new();
-    for i in 0..n {
-        let x = insts.x[i];
-        let y = insts.y[i];
-        if x >= min_x && x <= max_x && y >= min_y && y <= max_y {
-            inst_hits.push(i);
-        }
-    }
-
-    let wires = app.wires();
-    let wn = wires.len();
-    let mut wire_hits = Vec::new();
-    for i in 0..wn {
-        let x0 = wires.x0[i];
-        let y0 = wires.y0[i];
-        let x1 = wires.x1[i];
-        let y1 = wires.y1[i];
-        if x0 >= min_x && x0 <= max_x && y0 >= min_y && y0 <= max_y
-            && x1 >= min_x && x1 <= max_x && y1 >= min_y && y1 <= max_y
-        {
-            wire_hits.push(i);
-        }
-    }
-
-    for idx in inst_hits {
-        app.select_instance(idx);
-    }
-    for idx in wire_hits {
-        app.select_wire(idx);
-    }
-}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,17 @@
+[plugin]
+id = "python-hello"
+name = "Python Hello"
+version = "0.1.0"
+description = "Simple Python plugin — lifecycle, logging, status bar"
+entry = "python3 plugin.py"
+runtime = "subprocess"
+api_version = 1
+
+[capabilities]
+panels = false
+commands = true
+overlays = false
+theme = false
+
+[events]
+listen = ["schematic_changed"]

@@ -14,8 +14,8 @@ use crate::s2s::ir::{Circuit, NetClass, PinDir, Primitive, Subcircuit};
 use crate::s2s::validation::{self, Severity};
 
 use super::{
-    classify_ports, compute_instance_bbox, distribute_x, distribute_y, Backend, GROUND_NAMES,
-    POWER_NAMES,
+    classify_ports, compute_instance_bbox, distribute_x, distribute_y, Backend, PinGeometry,
+    GROUND_NAMES, POWER_NAMES,
 };
 
 // ---------------------------------------------------------------------------
@@ -36,6 +36,9 @@ const PNP_PIN_OFFSETS: [(i32, i32); 3] = [(20, 30), (-20, 0), (20, -30)];
 
 /// Two-terminal devices (R/C/L/V/I/D): p=(0,-30) n=(0,30)
 const TWO_TERM_OFFSETS: [(i32, i32); 2] = [(0, -30), (0, 30)];
+
+/// Voltage-controlled sources (VCVS/VCCS): p=(0,-30) n=(0,30) cp=(-30,-10) cn=(-30,10)
+const VCXS_OFFSETS: [(i32, i32); 4] = [(0, -30), (0, 30), (-30, -10), (-30, 10)];
 
 // ---------------------------------------------------------------------------
 // Backend
@@ -89,12 +92,14 @@ impl SchemifyBackend {
     }
 }
 
-impl Backend for SchemifyBackend {
+impl PinGeometry for SchemifyBackend {
     fn pin_offsets(&self, primitive: Primitive) -> &[(i32, i32)] {
         match primitive {
             Primitive::Pmos => &PMOS_PIN_OFFSETS,
             Primitive::Npn => &NPN_PIN_OFFSETS,
             Primitive::Pnp => &PNP_PIN_OFFSETS,
+            Primitive::Vcvs | Primitive::Vccs => &VCXS_OFFSETS,
+            Primitive::Ccvs | Primitive::Cccs => &TWO_TERM_OFFSETS,
             _ if primitive.is_mosfet() => &NMOS_PIN_OFFSETS,
             _ => &TWO_TERM_OFFSETS,
         }
@@ -110,7 +115,9 @@ impl Backend for SchemifyBackend {
             _ => (dx, dy),
         }
     }
+}
 
+impl Backend for SchemifyBackend {
     fn resolve_symbol(&self, primitive: Primitive, _symbol_hint: &str) -> String {
         primitive_sym(primitive).to_string()
     }
@@ -446,6 +453,10 @@ fn primitive_kind(p: Primitive) -> &'static str {
         Primitive::Diode => "diode",
         Primitive::Vsource => "vsource",
         Primitive::Isource => "isource",
+        Primitive::Vcvs => "vcvs",
+        Primitive::Vccs => "vccs",
+        Primitive::Ccvs => "ccvs",
+        Primitive::Cccs => "cccs",
         Primitive::Subcircuit => "subckt",
     }
 }
@@ -462,6 +473,10 @@ fn primitive_sym(p: Primitive) -> &'static str {
         Primitive::Diode => "diode",
         Primitive::Vsource => "vsource",
         Primitive::Isource => "isource",
+        Primitive::Vcvs => "vcvs",
+        Primitive::Vccs => "vccs",
+        Primitive::Ccvs => "ccvs",
+        Primitive::Cccs => "cccs",
         Primitive::Subcircuit => "subckt",
     }
 }

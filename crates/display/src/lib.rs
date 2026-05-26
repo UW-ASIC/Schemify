@@ -1,13 +1,15 @@
 mod canvas;
 mod chrome;
 mod dialogs;
+mod highlight;
 mod keybinds;
+mod math_render;
 mod panels;
 mod theme;
 
 use eframe::egui;
 use schemify_core::theme::ThemeTokens;
-use schemify_handler::state::{LeftPanelTab, PanelLayout, ViewMode};
+use schemify_handler::state::ViewMode;
 use schemify_handler::App;
 
 use keybinds::KeyCommand;
@@ -45,43 +47,7 @@ impl eframe::App for SchemifyApp {
         chrome::tab_bar(ctx, &mut self.app);
         chrome::status_bar(ctx, &mut self.app);
 
-        let left_tab = self.app.panels().left_panel_tab;
-        let mut new_tab = left_tab;
-
-        egui::SidePanel::left("left_panel")
-            .default_width(220.0)
-            .resizable(true)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    if ui
-                        .selectable_label(left_tab == LeftPanelTab::FileExplorer, "Files")
-                        .clicked()
-                    {
-                        new_tab = LeftPanelTab::FileExplorer;
-                    }
-                    if ui
-                        .selectable_label(left_tab == LeftPanelTab::Library, "Library")
-                        .clicked()
-                    {
-                        new_tab = LeftPanelTab::Library;
-                    }
-                });
-                ui.separator();
-
-                match left_tab {
-                    LeftPanelTab::FileExplorer => panels::file_explorer(ui, &mut self.app),
-                    LeftPanelTab::Library => panels::library_browser(ui, &mut self.app),
-                }
-
-                ui.add_space(8.0);
-                panels::plugin_sidebar(ui, &self.app, PanelLayout::LeftSidebar);
-            });
-
-        if new_tab != left_tab {
-            self.app.panels_mut().left_panel_tab = new_tab;
-        }
-
-        panels::plugin_right_panel(ctx, &self.app);
+        panels::plugin_right_panel(ctx, &self.app, &self.theme);
 
         egui::CentralPanel::default().show(ctx, |ui| {
             if self.should_show_welcome() {
@@ -96,15 +62,52 @@ impl eframe::App for SchemifyApp {
                         let rect = ui.available_rect_before_wrap();
                         self.app.set_canvas_size(rect.width(), rect.height());
                         canvas::show(ui, &mut self.app);
-                        panels::plugin_bottom(ui, &self.app);
+                        panels::plugin_bottom(ui, &self.app, &self.theme);
                     }
                 }
             }
         });
 
+        // Hamburger button (top-left canvas overlay) — toggles file explorer window
+        if !self.should_show_welcome() {
+            egui::Area::new(egui::Id::new("hamburger_btn"))
+                .fixed_pos(egui::pos2(8.0, 60.0))
+                .order(egui::Order::Foreground)
+                .show(ctx, |ui| {
+                    let btn = egui::Button::new(
+                        egui::RichText::new("\u{2630}").size(18.0),
+                    )
+                    .min_size(egui::vec2(28.0, 28.0));
+                    if ui.add(btn).on_hover_text("File Explorer").clicked() {
+                        let open = &mut self.app.panels_mut().left_panel_open;
+                        *open = !*open;
+                    }
+                });
+        }
+
+        // Floating file explorer window
+        panels::file_explorer_window(ctx, &mut self.app, &self.theme);
+
+        // Floating library browser window
+        panels::library_window(ctx, &mut self.app);
+
+        // "Generate Symbol" button (top-right overlay, schematic mode, saved files only)
+        if self.app.view().view_mode == ViewMode::Schematic && !self.should_show_welcome() {
+            let screen = ctx.screen_rect();
+            let btn_w = 130.0;
+            egui::Area::new(egui::Id::new("gen_symbol_btn"))
+                .fixed_pos(egui::pos2(screen.right() - btn_w - 16.0, 64.0))
+                .order(egui::Order::Foreground)
+                .show(ctx, |ui| {
+                    if ui.button("Generate Symbol").clicked() {
+                        self.app.dispatch(schemify_core::commands::Command::GenerateSymbolFromSchematic);
+                    }
+                });
+        }
+
         dialogs::show_all(ctx, &mut self.app);
         panels::context_menu(ctx, &mut self.app);
-        panels::plugin_overlays(ctx, &mut self.app);
+        panels::plugin_overlays(ctx, &mut self.app, &self.theme);
 
         handle_shortcuts(ctx, &mut self.app);
     }

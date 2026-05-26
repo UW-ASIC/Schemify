@@ -1,0 +1,20 @@
+chn_testbench 1
+
+TESTBENCH TB Common Source DC
+  instances:
+    Xdut  subckt  x=-180  y=-120  sym=common_source
+    Vdd  vsource  x=-40  y=0  sym=vsource  value=1.8
+    Vin  vsource  x=70  y=0  sym=vsource  value=700m
+    Rprobe  resistor  x=180  y=0  sym=res  value=1  device=resistor
+    vin  lab_pin  x=-180  y=-150  sym=lab_pin
+    vout  lab_pin  x=-180  y=-90  sym=lab_pin
+    vout  lab_pin  x=210  y=-90  sym=lab_pin
+    gnd0  gnd  x=-40  y=40  sym=gnd
+    gnd1  gnd  x=70  y=40  sym=gnd
+    vdd2  vdd  x=-40  y=-40  sym=vdd
+
+  wires:
+    -180 -150 70 -150
+    70 -150 70 -30
+    -180 -90 210 -90
+    210 -90 210 0

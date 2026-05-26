@@ -1,0 +1,17 @@
+chn_testbench 1
+
+TESTBENCH RC Integrator
+  instances:
+    Vin  vsource  x=-100  y=0  sym=vsource  value=0 PULSE(0 1 0 0.000001 0.000001 0.000005 0.00002)
+    R1  resistor  x=10  y=0  sym=res  value=10k  device=resistor
+    C1  capacitor  x=100  y=120  sym=capa  value=1n  device=capacitor
+    vin  lab_pin  x=-100  y=-30  sym=lab_pin
+    vout  lab_pin  x=-20  y=0  sym=lab_pin
+    gnd0  gnd  x=-100  y=40  sym=gnd
+    gnd1  gnd  x=100  y=160  sym=gnd
+
+  wires:
+    -100 -30 40 -30
+    40 -30 40 0
+    -20 0 100 0
+    100 0 100 90

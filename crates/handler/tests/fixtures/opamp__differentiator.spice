@@ -1,0 +1,10 @@
+.title Op-Amp Differentiator
+Vcc vcc 0 15
+Vee vee 0 -15
+Vin vin 0 0 SIN(0 1 1000 0 0 0)
+Cin vin vminus 10n
+Rs vin n1 100
+Rf vminus vout 10k
+Cf vminus vout 100p
+Eamp vout 0 0 vminus 1000000
+.end

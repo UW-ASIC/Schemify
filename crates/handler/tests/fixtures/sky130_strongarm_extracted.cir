@@ -1,0 +1,22 @@
+* Extracted by KLayout with SKY130 LVS runset on : 17/05/2026 03:03
+
+.SUBCKT strongarm GND OUTP OUTN VINN VINP VDD CLK sky130_gnd
+M$1 VDD OUTN OUTP VDD sky130_fd_pr__pfet_01v8 L=0.15 W=27 AS=4.9275 AD=7.0875
++ PS=33.69 PD=34.65
+M$7 VDD CLK OUTP VDD sky130_fd_pr__pfet_01v8 L=0.15 W=2 AS=0.435 AD=0.915
++ PS=3.87 PD=4.83
+M$9 VDD OUTP OUTN VDD sky130_fd_pr__pfet_01v8 L=0.15 W=27 AS=4.9275 AD=7.0875
++ PS=33.69 PD=34.65
+M$15 VDD CLK OUTN VDD sky130_fd_pr__pfet_01v8 L=0.15 W=2 AS=0.435 AD=0.915
++ PS=3.87 PD=4.83
+M$17 \$13 VINN \$21 sky130_gnd sky130_fd_pr__nfet_01v8 L=0.15 W=56 AS=9.975
++ AD=13.335 PS=65.85 PD=66.81
+M$25 \$2 OUTP OUTN sky130_gnd sky130_fd_pr__nfet_01v8 L=0.15 W=2 AS=0.435
++ AD=0.915 PS=3.87 PD=4.83
+M$27 \$22 OUTN OUTP sky130_gnd sky130_fd_pr__nfet_01v8 L=0.15 W=2 AS=0.435
++ AD=0.915 PS=3.87 PD=4.83
+M$29 GND CLK VDD sky130_gnd sky130_fd_pr__nfet_01v8 L=0.15 W=0.42 AS=0.1134
++ AD=0.315 PS=1.38 PD=2.34
+M$30 VDD VINP \$22 sky130_gnd sky130_fd_pr__nfet_01v8 L=0.15 W=56 AS=9.975
++ AD=13.335 PS=65.85 PD=66.81
+.ENDS strongarm

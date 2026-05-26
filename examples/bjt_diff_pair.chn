@@ -1,0 +1,39 @@
+chn_testbench 1
+
+TESTBENCH BJT Differential Pair
+  instances:
+    Vcc  vsource  x=-380  y=0  sym=vsource  value=5
+    Vinp  vsource  x=-270  y=0  sym=vsource  value=2.5
+    Vinn  vsource  x=-160  y=0  sym=vsource  value=2.5
+    Rc1  resistor  x=-50  y=-120  sym=res  value=5k  device=resistor
+    Rc2  resistor  x=50  y=-120  sym=res  value=5k  device=resistor
+    Q1  npn  x=140  y=0  sym=npn  model=2N2222
+    Q2  npn  x=260  y=0  sym=npn  model=2N2222
+    Itail  isource  x=380  y=0  sym=isource  value=500u
+    outp  lab_pin  x=-50  y=-90  sym=lab_pin
+    tail  lab_pin  x=160  y=30  sym=lab_pin
+    outn  lab_pin  x=50  y=-90  sym=lab_pin
+    inp  lab_pin  x=-270  y=-30  sym=lab_pin
+    inn  lab_pin  x=-160  y=-30  sym=lab_pin
+    gnd0  gnd  x=-380  y=40  sym=gnd
+    gnd1  gnd  x=-270  y=40  sym=gnd
+    gnd2  gnd  x=-160  y=40  sym=gnd
+    gnd3  gnd  x=380  y=40  sym=gnd
+    vdd4  vdd  x=-380  y=-40  sym=vdd
+    vdd5  vdd  x=-50  y=-160  sym=vdd
+    vdd6  vdd  x=50  y=-160  sym=vdd
+
+  wires:
+    -50 -90 -50 -30
+    -50 -30 160 -30
+    160 30 280 30
+    280 30 330 30
+    330 30 330 -30
+    330 -30 380 -30
+    50 -90 280 -90
+    280 -90 280 -30
+    -270 -30 -80 -30
+    -80 -30 -80 0
+    -80 0 120 0
+    -160 -30 -160 0
+    -160 0 240 0

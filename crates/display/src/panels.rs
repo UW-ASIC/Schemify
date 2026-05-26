@@ -1,9 +1,12 @@
 use eframe::egui;
 use schemify_core::commands::Command;
 use schemify_core::primitives::PRIMITIVES;
+use schemify_core::theme::ThemeTokens;
 use schemify_core::types::Color;
 use schemify_handler::state::{DocEditorMode, PanelLayout, PluginLoadState};
 use schemify_handler::App;
+
+use crate::theme::WidgetPalette;
 
 // ── File Explorer ────────────────────────────────────────────────────────────
 
@@ -279,10 +282,18 @@ pub fn doc_view(ui: &mut egui::Ui, app: &mut App) {
 
     match app.editor().doc_editor.mode {
         DocEditorMode::Edit => {
+            let dark = ui.ctx().style().visuals.dark_mode;
+            let mut latex_layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                let font = egui::FontId::monospace(14.0);
+                let mut job = crate::highlight::highlight_latex(text, font, dark);
+                job.wrap.max_width = wrap_width;
+                ui.fonts(|f| f.layout_job(job))
+            };
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.add(
                     egui::TextEdit::multiline(&mut app.editor_mut().doc_editor.buf)
-                        .code_editor()
+                        .font(egui::FontId::monospace(14.0))
+                        .layouter(&mut latex_layouter)
                         .desired_width(f32::INFINITY)
                         .desired_rows(30),
                 );
@@ -302,21 +313,48 @@ pub fn doc_view(ui: &mut egui::Ui, app: &mut App) {
     }
 }
 
-/// Very simple markdown renderer (headers, bold, lists, code block markers).
+/// Markdown renderer with LaTeX math support ($...$ inline, $$...$$ display).
 fn render_simple_markdown(ui: &mut egui::Ui, text: &str) {
     let mut in_code_block = false;
+    let mut in_math_block = false;
+    let mut math_buf = String::new();
 
     for line in text.lines() {
         let trimmed = line.trim();
 
+        // Display math block: $$...$$
+        if trimmed.starts_with("$$") {
+            if in_math_block {
+                // Closing $$ — render accumulated math.
+                crate::math_render::render_display(ui, &math_buf);
+                math_buf.clear();
+                in_math_block = false;
+            } else if trimmed.ends_with("$$") && trimmed.len() > 2 {
+                // Single-line $$content$$
+                let content = &trimmed[2..trimmed.len() - 2];
+                crate::math_render::render_display(ui, content);
+            } else {
+                // Opening $$
+                in_math_block = true;
+                let after = &trimmed[2..];
+                if !after.is_empty() {
+                    math_buf.push_str(after);
+                }
+            }
+            continue;
+        }
+        if in_math_block {
+            if !math_buf.is_empty() {
+                math_buf.push(' ');
+            }
+            math_buf.push_str(trimmed);
+            continue;
+        }
+
         // Toggle code block state on fences
         if trimmed.starts_with("```") {
             in_code_block = !in_code_block;
-            if in_code_block {
-                ui.add_space(4.0);
-            } else {
-                ui.add_space(4.0);
-            }
+            ui.add_space(4.0);
             continue;
         }
 
@@ -334,18 +372,83 @@ fn render_simple_markdown(ui: &mut egui::Ui, text: &str) {
         } else if let Some(heading) = trimmed.strip_prefix("# ") {
             ui.heading(heading);
         } else if let Some(item) = trimmed.strip_prefix("- ") {
-            ui.horizontal(|ui| {
-                ui.label("  \u{2022}");
-                ui.label(item);
-            });
+            render_text_line(ui, item, true);
         } else if let Some(item) = trimmed.strip_prefix("* ") {
+            render_text_line(ui, item, true);
+        } else {
+            render_text_line(ui, line, false);
+        }
+    }
+}
+
+/// Render a text line, detecting inline $math$ spans.
+fn render_text_line(ui: &mut egui::Ui, line: &str, is_list_item: bool) {
+    if is_list_item {
+        if line.contains('$') {
             ui.horizontal(|ui| {
                 ui.label("  \u{2022}");
-                ui.label(item);
+                if !crate::math_render::render_text_with_math(ui, line) {
+                    ui.label(line);
+                }
             });
         } else {
+            ui.horizontal(|ui| {
+                ui.label("  \u{2022}");
+                ui.label(line);
+            });
+        }
+    } else if line.contains('$') {
+        if !crate::math_render::render_text_with_math(ui, line) {
             ui.label(line);
         }
+    } else {
+        ui.label(line);
+    }
+}
+
+// ── Floating File Explorer Window ────────────────────────────────────────────
+
+pub fn file_explorer_window(ctx: &egui::Context, app: &mut App, theme: &ThemeTokens) {
+    let mut open = app.panels().left_panel_open;
+    if !open {
+        return;
+    }
+
+    egui::Window::new("File Explorer")
+        .open(&mut open)
+        .default_size([240.0, 400.0])
+        .resizable(true)
+        .collapsible(true)
+        .show(ctx, |ui| {
+            file_explorer(ui, app);
+            ui.add_space(8.0);
+            plugin_sidebar(ui, app, schemify_handler::state::PanelLayout::LeftSidebar, theme);
+        });
+
+    if !open {
+        app.panels_mut().left_panel_open = false;
+    }
+}
+
+// ── Floating Library Browser Window ─────────────────────────────────────────
+
+pub fn library_window(ctx: &egui::Context, app: &mut App) {
+    let mut open = app.panels().library_open;
+    if !open {
+        return;
+    }
+
+    egui::Window::new("Library Browser")
+        .open(&mut open)
+        .default_size([260.0, 450.0])
+        .resizable(true)
+        .collapsible(true)
+        .show(ctx, |ui| {
+            library_browser(ui, app);
+        });
+
+    if !open {
+        app.panels_mut().library_open = false;
     }
 }
 
@@ -362,10 +465,11 @@ pub fn context_menu(ctx: &egui::Context, app: &mut App) {
     let mut close = false;
     let sel_count = app.selection().count();
     let has_selection = sel_count > 0;
-    let has_instance = cm.inst_idx.is_some();
-    let has_wire = cm.wire_idx.is_some();
+    let has_instance = matches!(cm.hit, schemify_handler::state::ContextHit::Instance(_));
+    let has_wire = matches!(cm.hit, schemify_handler::state::ContextHit::Wire(_));
+    let has_hit = !matches!(cm.hit, schemify_handler::state::ContextHit::None);
     let is_group = sel_count > 1;
-    let is_canvas = !has_selection && !has_instance && !has_wire;
+    let is_canvas = !has_selection && !has_hit;
 
     egui::Area::new(egui::Id::new("context_menu"))
         .fixed_pos(egui::pos2(cm.pixel_pos[0], cm.pixel_pos[1]))
@@ -480,7 +584,7 @@ pub fn context_menu(ctx: &egui::Context, app: &mut App) {
                 }
 
                 // ── Wire context (always shown when wire is hit) ────────────
-                if let Some(wire_idx) = cm.wire_idx {
+                if let schemify_handler::state::ContextHit::Wire(wire_idx) = cm.hit {
                     ui.separator();
                     ui.label(egui::RichText::new("Wire").strong().small());
                     if ui.button("Delete Wire").clicked() {
@@ -691,20 +795,21 @@ pub fn render_widget_list(ui: &mut egui::Ui, widgets: &[ParsedWidget]) -> Vec<Co
 // ── Left / Right Sidebar ─────────────────────────────────────────────────────
 
 /// Render plugin panels assigned to the given sidebar layout.
-pub fn plugin_sidebar(ui: &mut egui::Ui, app: &App, layout: PanelLayout) {
+pub fn plugin_sidebar(ui: &mut egui::Ui, app: &App, layout: PanelLayout, tokens: &ThemeTokens) {
+    let palette = WidgetPalette::from_tokens(tokens);
     let panels = &app.panels().plugins_ui.panels;
     for panel in panels {
         if panel.layout != layout || !panel.visible {
             continue;
         }
         ui.collapsing(&panel.name, |ui| {
-            draw_panel_body(ui, panel.load_state);
+            draw_panel_body(ui, panel.load_state, &palette);
         });
     }
 }
 
 /// Show a right side panel if any right-sidebar plugin panels are visible.
-pub fn plugin_right_panel(ctx: &egui::Context, app: &App) {
+pub fn plugin_right_panel(ctx: &egui::Context, app: &App, tokens: &ThemeTokens) {
     let has_right = app
         .panels()
         .plugins_ui
@@ -720,14 +825,15 @@ pub fn plugin_right_panel(ctx: &egui::Context, app: &App) {
         .default_width(220.0)
         .resizable(true)
         .show(ctx, |ui| {
-            plugin_sidebar(ui, app, PanelLayout::RightSidebar);
+            plugin_sidebar(ui, app, PanelLayout::RightSidebar, tokens);
         });
 }
 
 // ── Bottom Bar ───────────────────────────────────────────────────────────────
 
 /// Render plugin panels in the bottom bar area (below canvas).
-pub fn plugin_bottom(ui: &mut egui::Ui, app: &App) {
+pub fn plugin_bottom(ui: &mut egui::Ui, app: &App, tokens: &ThemeTokens) {
+    let palette = WidgetPalette::from_tokens(tokens);
     let panels = &app.panels().plugins_ui.panels;
     let has_bottom = panels
         .iter()
@@ -748,7 +854,7 @@ pub fn plugin_bottom(ui: &mut egui::Ui, app: &App) {
                 }
                 ui.group(|ui| {
                     ui.label(egui::RichText::new(&panel.name).strong());
-                    draw_panel_body(ui, panel.load_state);
+                    draw_panel_body(ui, panel.load_state, &palette);
                 });
             }
         },
@@ -758,7 +864,8 @@ pub fn plugin_bottom(ui: &mut egui::Ui, app: &App) {
 // ── Overlays ─────────────────────────────────────────────────────────────────
 
 /// Render plugin panels as floating overlay windows.
-pub fn plugin_overlays(ctx: &egui::Context, app: &mut App) {
+pub fn plugin_overlays(ctx: &egui::Context, app: &mut App, tokens: &ThemeTokens) {
+    let palette = WidgetPalette::from_tokens(tokens);
     // Collect overlay panel info to avoid borrow conflicts
     let overlay_info: Vec<(usize, String, PluginLoadState)> = app
         .panels()
@@ -778,7 +885,7 @@ pub fn plugin_overlays(ctx: &egui::Context, app: &mut App) {
             .resizable(true)
             .default_size([360.0, 220.0])
             .show(ctx, |ui| {
-                draw_panel_body(ui, *load_state);
+                draw_panel_body(ui, *load_state, &palette);
             });
 
         if !open {
@@ -791,7 +898,7 @@ pub fn plugin_overlays(ctx: &egui::Context, app: &mut App) {
 
 // ── Panel body renderer ──────────────────────────────────────────────────────
 
-fn draw_panel_body(ui: &mut egui::Ui, load_state: PluginLoadState) {
+fn draw_panel_body(ui: &mut egui::Ui, load_state: PluginLoadState, palette: &WidgetPalette) {
     match load_state {
         PluginLoadState::LazyPending | PluginLoadState::Loading => {
             ui.spinner();
@@ -799,7 +906,7 @@ fn draw_panel_body(ui: &mut egui::Ui, load_state: PluginLoadState) {
         }
         PluginLoadState::Failed => {
             ui.colored_label(
-                egui::Color32::from_rgb(232, 120, 136),
+                palette.alert_error,
                 "Plugin failed to load.",
             );
         }

@@ -1,0 +1,86 @@
+chn_testbench 1
+
+TESTBENCH Two-Stage Op-Amp
+  instances:
+    Vdd  vsource  x=-280  y=0  sym=vsource  value=1.8
+    Vinp  vsource  x=-170  y=0  sym=vsource  value=900m
+    Vinn  vsource  x=340  y=0  sym=vsource  value=900m
+    M1  nmos  x=-340  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=10u  L=500n  M=1 }
+    M2  nmos  x=-220  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=10u  L=500n  M=1 }
+    M3  pmos  x=-340  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=5u  L=500n  M=1 }
+    M4  pmos  x=-220  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=5u  L=500n  M=1 }
+    Itail  isource  x=-60  y=0  sym=isource  value=100u
+    M5  nmos  x=-100  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=40u  L=180n  M=1 }
+    Iload  isource  x=240  y=0  sym=isource  value=500u
+    Cc  capacitor  x=140  y=120  sym=capa  value=2p  device=capacitor
+    Rz  resistor  x=40  y=0  sym=res  value=500  device=resistor
+    Cc2  capacitor  x=240  y=60  sym=capa  value=2p  device=capacitor
+    Cload  capacitor  x=10  y=60  sym=capa  value=5p  device=capacitor
+    cc_node  lab_pin  x=10  y=0  sym=lab_pin
+    inp  lab_pin  x=-170  y=-30  sym=lab_pin
+    tail  lab_pin  x=-320  y=150  sym=lab_pin
+    tail  lab_pin  x=-130  y=30  sym=lab_pin
+    n1  lab_pin  x=-320  y=-120  sym=lab_pin
+    vout  lab_pin  x=210  y=60  sym=lab_pin
+    vout  lab_pin  x=-80  y=90  sym=lab_pin
+    n2  lab_pin  x=-200  y=90  sym=lab_pin
+    n2  lab_pin  x=170  y=120  sym=lab_pin
+    inn  lab_pin  x=340  y=-30  sym=lab_pin
+    inn  lab_pin  x=-240  y=50  sym=lab_pin
+    gnd0  gnd  x=-280  y=40  sym=gnd
+    gnd1  gnd  x=-170  y=40  sym=gnd
+    gnd2  gnd  x=340  y=40  sym=gnd
+    gnd3  gnd  x=-320  y=130  sym=gnd
+    gnd4  gnd  x=-200  y=130  sym=gnd
+    gnd5  gnd  x=-60  y=-20  sym=gnd
+    gnd6  gnd  x=-80  y=160  sym=gnd
+    gnd7  gnd  x=-80  y=130  sym=gnd
+    gnd8  gnd  x=10  y=100  sym=gnd
+    vdd9  vdd  x=-280  y=-40  sym=vdd
+    vdd10  vdd  x=-360  y=-100  sym=vdd
+    vdd11  vdd  x=-360  y=-130  sym=vdd
+    vdd12  vdd  x=-240  y=-100  sym=vdd
+    vdd13  vdd  x=-240  y=-130  sym=vdd
+    vdd14  vdd  x=240  y=-40  sym=vdd
+
+  wires:
+    10 0 140 0
+    140 0 140 60
+    140 60 270 60
+    -170 -30 -170 50
+    -170 50 -360 50
+    -360 50 -360 120
+    -320 150 -200 150
+    -200 150 -130 150
+    -130 150 -130 30
+    -130 30 -60 30
+    -320 -120 -360 -120
+    -360 -120 -360 -150
+    -320 90 -320 -120
+    -320 -120 -200 -120
+    210 60 210 30
+    210 30 240 30
+    10 30 110 30
+    110 30 110 120
+    110 120 210 120
+    210 120 210 60
+    -80 90 -40 90
+    -40 90 -40 30
+    -40 30 10 30
+    -200 90 -200 -30
+    -200 -30 -240 -30
+    -240 -30 -240 -150
+    -200 90 -160 90
+    -160 90 -160 120
+    -160 120 -120 120
+    -120 120 170 120
+    170 120 70 120
+    70 120 70 0
+    340 -30 340 50
+    340 50 -240 50
+    -240 50 -240 120

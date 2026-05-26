@@ -58,9 +58,34 @@ pub struct ManifestCommand {
     pub keybind: Option<String>,
 }
 
+/// Sandbox path permission entry.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SandboxPath {
+    pub path: String,
+    pub access: String,
+}
+
+/// [sandbox] section — plugin-declared permissions.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ManifestSandbox {
+    #[serde(default)]
+    pub network: bool,
+    #[serde(default)]
+    pub paths: Vec<SandboxPath>,
+}
+
+/// [events] section — lifecycle event subscriptions.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ManifestEvents {
+    #[serde(default)]
+    pub listen: Vec<String>,
+}
+
 /// Top-level [plugin] section.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ManifestPlugin {
+    #[serde(default)]
+    pub id: Option<String>,
     pub name: String,
     pub version: String,
     #[serde(default)]
@@ -68,6 +93,8 @@ pub struct ManifestPlugin {
     pub entry: String,
     #[serde(default)]
     pub runtime: PluginRuntime,
+    #[serde(default)]
+    pub api_version: Option<u32>,
 }
 
 /// Full plugin.toml manifest.
@@ -80,6 +107,10 @@ pub struct PluginManifest {
     pub panels: ManifestPanels,
     #[serde(default)]
     pub commands: ManifestCommands,
+    #[serde(default)]
+    pub sandbox: ManifestSandbox,
+    #[serde(default)]
+    pub events: ManifestEvents,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -94,6 +125,31 @@ pub struct ManifestCommands {
     pub command: Vec<ManifestCommand>,
 }
 
+/// Validate a plugin id: `[a-z0-9][a-z0-9-]*[a-z0-9]`, 3-64 chars.
+pub fn validate_plugin_id(id: &str) -> Result<(), String> {
+    let len = id.len();
+    if len < 3 || len > 64 {
+        return Err(format!("plugin id must be 3-64 chars, got {len}"));
+    }
+    let bytes = id.as_bytes();
+    if !bytes[0].is_ascii_lowercase() && !bytes[0].is_ascii_digit() {
+        return Err("plugin id must start with [a-z0-9]".into());
+    }
+    let last = bytes[len - 1];
+    if !last.is_ascii_lowercase() && !last.is_ascii_digit() {
+        return Err("plugin id must end with [a-z0-9]".into());
+    }
+    for &b in bytes {
+        if !b.is_ascii_lowercase() && !b.is_ascii_digit() && b != b'-' {
+            return Err(format!(
+                "plugin id contains invalid char '{}'",
+                b as char
+            ));
+        }
+    }
+    Ok(())
+}
+
 impl PluginManifest {
     /// Parse a plugin.toml from string content.
     pub fn parse(content: &str) -> Result<Self, toml::de::Error> {
@@ -105,6 +161,14 @@ impl PluginManifest {
         let content = std::fs::read_to_string(path)
             .map_err(|e| ManifestError::Io(path.to_owned(), e))?;
         Self::parse(&content).map_err(|e| ManifestError::Parse(path.to_owned(), e))
+    }
+
+    /// Validate manifest fields (id format, api_version range).
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(ref id) = self.plugin.id {
+            validate_plugin_id(id)?;
+        }
+        Ok(())
     }
 }
 
@@ -131,17 +195,28 @@ mod tests {
 
     const SAMPLE: &str = r#"
 [plugin]
+id = "pdk-switcher"
 name = "PDKSwitcher"
 version = "1.0.0"
 description = "Switch between PDK configurations"
 entry = "plugin.py"
 runtime = "subprocess"
+api_version = 1
 
 [capabilities]
 panels = true
 commands = true
 overlays = false
 theme = true
+
+[sandbox]
+network = false
+paths = [
+    { path = "$PLUGIN_DIR", access = "read" },
+]
+
+[events]
+listen = ["project_opened", "pre_save"]
 
 [[panels.panel]]
 name = "PDK Config"
@@ -157,13 +232,19 @@ keybind = "Ctrl+Shift+P"
     #[test]
     fn parse_manifest() {
         let m = PluginManifest::parse(SAMPLE).unwrap();
+        assert_eq!(m.plugin.id.as_deref(), Some("pdk-switcher"));
         assert_eq!(m.plugin.name, "PDKSwitcher");
         assert_eq!(m.plugin.version, "1.0.0");
         assert_eq!(m.plugin.runtime, PluginRuntime::Subprocess);
+        assert_eq!(m.plugin.api_version, Some(1));
         assert!(m.capabilities.panels);
         assert!(m.capabilities.commands);
         assert!(!m.capabilities.overlays);
         assert!(m.capabilities.theme);
+        assert!(!m.sandbox.network);
+        assert_eq!(m.sandbox.paths.len(), 1);
+        assert_eq!(m.sandbox.paths[0].path, "$PLUGIN_DIR");
+        assert_eq!(m.events.listen, vec!["project_opened", "pre_save"]);
     }
 
     #[test]
@@ -319,5 +400,74 @@ version = "1.0.0"
 "#;
         let result = PluginManifest::parse(toml);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_id_valid() {
+        assert!(validate_plugin_id("abc").is_ok());
+        assert!(validate_plugin_id("pdk-switcher").is_ok());
+        assert!(validate_plugin_id("my-plugin-123").is_ok());
+        assert!(validate_plugin_id("a0b").is_ok());
+        assert!(validate_plugin_id("x".repeat(64).as_str()).is_ok());
+    }
+
+    #[test]
+    fn validate_id_too_short() {
+        assert!(validate_plugin_id("ab").is_err());
+        assert!(validate_plugin_id("a").is_err());
+        assert!(validate_plugin_id("").is_err());
+    }
+
+    #[test]
+    fn validate_id_too_long() {
+        assert!(validate_plugin_id(&"x".repeat(65)).is_err());
+    }
+
+    #[test]
+    fn validate_id_bad_chars() {
+        assert!(validate_plugin_id("has_underscore").is_err());
+        assert!(validate_plugin_id("HAS-CAPS").is_err());
+        assert!(validate_plugin_id("has space").is_err());
+        assert!(validate_plugin_id("has.dot").is_err());
+    }
+
+    #[test]
+    fn validate_id_bad_edges() {
+        assert!(validate_plugin_id("-leading").is_err());
+        assert!(validate_plugin_id("trailing-").is_err());
+        assert!(validate_plugin_id("-both-").is_err());
+    }
+
+    #[test]
+    fn validate_manifest_with_valid_id() {
+        let m = PluginManifest::parse(SAMPLE).unwrap();
+        assert!(m.validate().is_ok());
+    }
+
+    #[test]
+    fn validate_manifest_with_invalid_id() {
+        let toml = r#"
+[plugin]
+id = "BAD_ID"
+name = "Bad"
+version = "1.0.0"
+entry = "run.sh"
+"#;
+        let m = PluginManifest::parse(toml).unwrap();
+        assert!(m.validate().is_err());
+    }
+
+    #[test]
+    fn id_and_api_version_optional() {
+        let toml = r#"
+[plugin]
+name = "NoId"
+version = "1.0.0"
+entry = "run.sh"
+"#;
+        let m = PluginManifest::parse(toml).unwrap();
+        assert!(m.plugin.id.is_none());
+        assert!(m.plugin.api_version.is_none());
+        assert!(m.validate().is_ok());
     }
 }

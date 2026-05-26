@@ -1,0 +1,16 @@
+chn_testbench 1
+
+TESTBENCH TB RC Parametric Step
+  instances:
+    Vin  vsource  x=-100  y=0  sym=vsource  value=0 PULSE(0 1 0 1n 1n 500u 1m)
+    R1  resistor  x=10  y=0  sym=res  value=1k  device=resistor
+    C1  capacitor  x=100  y=120  sym=capa  value=100n  device=capacitor
+    vin  lab_pin  x=-100  y=-30  sym=lab_pin
+    vout  lab_pin  x=100  y=30  sym=lab_pin
+    gnd0  gnd  x=-100  y=40  sym=gnd
+    gnd1  gnd  x=100  y=160  sym=gnd
+
+  wires:
+    -100 -30 40 -30
+    40 -30 40 0
+    100 0 100 90

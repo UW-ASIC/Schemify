@@ -1,0 +1,23 @@
+chn_testbench 1
+
+TESTBENCH TB Current Mirror Compliance
+  instances:
+    Xdut  subckt  x=-180  y=-120  sym=current_mirror
+    Vdd  vsource  x=-40  y=0  sym=vsource  value=1.8
+    Iref  isource  x=70  y=0  sym=isource  value=50u
+    Vout  vsource  x=180  y=0  sym=vsource  value=900m
+    iout  lab_pin  x=-180  y=-90  sym=lab_pin
+    iout  lab_pin  x=180  y=-90  sym=lab_pin
+    iref  lab_pin  x=-180  y=-150  sym=lab_pin
+    iref  lab_pin  x=70  y=-60  sym=lab_pin
+    gnd0  gnd  x=-40  y=40  sym=gnd
+    gnd1  gnd  x=180  y=40  sym=gnd
+    vdd2  vdd  x=-40  y=-40  sym=vdd
+    vdd3  vdd  x=70  y=-40  sym=vdd
+
+  wires:
+    -180 -90 180 -90
+    180 -90 180 -30
+    -180 -150 -180 -60
+    -180 -60 70 -60
+    70 -60 70 30

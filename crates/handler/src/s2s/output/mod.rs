@@ -3,14 +3,22 @@ pub mod xschem;
 
 use crate::s2s::ir::{Circuit, Instance, PinDir, Primitive, Subcircuit};
 
-/// Generic schematic output backend trait.
-pub trait Backend {
+/// Pin geometry provider — knows pin offsets and coordinate transforms.
+///
+/// Used by placement and routing to compute absolute pin positions.
+/// Separate from output concerns (symbol resolution, file writing).
+pub trait PinGeometry {
     /// Pin offsets (dx, dy) for the given primitive type, relative to instance origin.
     fn pin_offsets(&self, primitive: Primitive) -> &[(i32, i32)];
 
     /// Apply flip and rotation to a pin offset, returning the transformed (dx, dy).
     fn transform_pin(&self, dx: i32, dy: i32, rotation: u8, flip: bool) -> (i32, i32);
+}
 
+/// Schematic file output backend.
+///
+/// Implementations handle symbol resolution and file writing for a specific format.
+pub trait Backend: PinGeometry {
     /// Resolve the symbol path for a primitive, given an optional hint from the instance.
     fn resolve_symbol(&self, primitive: Primitive, symbol_hint: &str) -> String;
 
@@ -19,15 +27,13 @@ pub trait Backend {
 }
 
 /// Get pin position in schematic coordinates for a placed instance.
-///
-/// Delegates to the backend for pin offsets and transformation.
-pub fn pin_position(backend: &dyn Backend, inst: &Instance, pin_idx: usize) -> (i32, i32) {
-    let offsets = backend.pin_offsets(inst.primitive);
+pub fn pin_position(geo: &dyn PinGeometry, inst: &Instance, pin_idx: usize) -> (i32, i32) {
+    let offsets = geo.pin_offsets(inst.primitive);
     if pin_idx >= offsets.len() {
         return (inst.x, inst.y);
     }
     let (dx, dy) = offsets[pin_idx];
-    let (rx, ry) = backend.transform_pin(dx, dy, inst.rotation, inst.flip);
+    let (rx, ry) = geo.transform_pin(dx, dy, inst.rotation, inst.flip);
     (inst.x + rx, inst.y + ry)
 }
 

@@ -1,0 +1,379 @@
+chn_testbench 1
+
+TESTBENCH 4-bit Shift Register
+  instances:
+    Vdd  vsource  x=-1240  y=0  sym=vsource  value=1.8
+    Vclk  vsource  x=-1130  y=0  sym=vsource  value=0 PULSE(0 1.8 0 0.00000000005 0.00000000005 0.000000005 0.00000001)
+    Mp_clkb  pmos  x=-1300  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mn_clkb  nmos  x=-1300  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Vdin  vsource  x=-710  y=0  sym=vsource  value=0 PULSE(1.8 0 0 0.00000000005 0.00000000005 0.00000001 0.00000004)
+    Mn_m0  nmos  x=-820  y=80  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mp_m0  pmos  x=-820  y=-160  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp_mi0  pmos  x=140  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mn_mi0  nmos  x=940  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Ccm0  capacitor  x=-710  y=-40  sym=capa  value=2f  device=capacitor
+    Mn_s0  nmos  x=-600  y=160  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mp_s0  pmos  x=-700  y=-80  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp_si0  pmos  x=-1180  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mn_si0  nmos  x=-1180  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Ccs0  capacitor  x=-490  y=40  sym=capa  value=2f  device=capacitor
+    Mn_m1  nmos  x=-380  y=80  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mp_m1  pmos  x=-580  y=-160  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp_mi1  pmos  x=260  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mn_mi1  nmos  x=1060  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Ccm1  capacitor  x=-270  y=-40  sym=capa  value=2f  device=capacitor
+    Mn_s1  nmos  x=-160  y=160  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mp_s1  pmos  x=-460  y=-80  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp_si1  pmos  x=-1060  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mn_si1  nmos  x=-1060  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Ccs1  capacitor  x=-50  y=40  sym=capa  value=2f  device=capacitor
+    Mn_m2  nmos  x=60  y=80  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mp_m2  pmos  x=-340  y=-160  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp_mi2  pmos  x=380  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mn_mi2  nmos  x=1180  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Ccm2  capacitor  x=170  y=-40  sym=capa  value=2f  device=capacitor
+    Mn_s2  nmos  x=280  y=160  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mp_s2  pmos  x=-220  y=-80  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp_si2  pmos  x=-940  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mn_si2  nmos  x=-940  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Ccs2  capacitor  x=390  y=40  sym=capa  value=2f  device=capacitor
+    Mn_m3  nmos  x=500  y=80  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mp_m3  pmos  x=-100  y=-160  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp_mi3  pmos  x=620  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mn_mi3  nmos  x=1300  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Ccm3  capacitor  x=610  y=-40  sym=capa  value=2f  device=capacitor
+    Mn_s3  nmos  x=720  y=160  sym=nmos4
+      .parameters{   model=nmos_1v8  W=1u  L=180n  M=1 }
+    Mp_s3  pmos  x=20  y=-80  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp_si3  pmos  x=740  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=1u  L=180n  M=1 }
+    Mn_si3  nmos  x=860  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=500n  L=180n  M=1 }
+    Ccs3  capacitor  x=830  y=40  sym=capa  value=2f  device=capacitor
+    sb0  lab_pin  x=-1200  y=-150  sym=lab_pin
+    sb1  lab_pin  x=-1080  y=-150  sym=lab_pin
+    sb2  lab_pin  x=-960  y=-150  sym=lab_pin
+    din  lab_pin  x=-710  y=-30  sym=lab_pin
+    sb3  lab_pin  x=720  y=-150  sym=lab_pin
+    mb3  lab_pin  x=600  y=-150  sym=lab_pin
+    mb3  lab_pin  x=1320  y=-150  sym=lab_pin
+    mb0  lab_pin  x=120  y=-150  sym=lab_pin
+    mb1  lab_pin  x=240  y=-150  sym=lab_pin
+    mb1  lab_pin  x=1080  y=-30  sym=lab_pin
+    mb2  lab_pin  x=360  y=-150  sym=lab_pin
+    mb2  lab_pin  x=1200  y=-30  sym=lab_pin
+    q[3]  lab_pin  x=760  y=-120  sym=lab_pin
+    q[3]  lab_pin  x=740  y=190  sym=lab_pin
+    q[0]  lab_pin  x=-490  y=10  sym=lab_pin
+    q[0]  lab_pin  x=-1160  y=-50  sym=lab_pin
+    q[0]  lab_pin  x=-580  y=190  sym=lab_pin
+    q[0]  lab_pin  x=-360  y=10  sym=lab_pin
+    q[0]  lab_pin  x=-720  y=-50  sym=lab_pin
+    q[1]  lab_pin  x=-50  y=10  sym=lab_pin
+    q[1]  lab_pin  x=-480  y=-20  sym=lab_pin
+    q[1]  lab_pin  x=-1040  y=-120  sym=lab_pin
+    q[1]  lab_pin  x=-140  y=190  sym=lab_pin
+    q[1]  lab_pin  x=80  y=10  sym=lab_pin
+    q[1]  lab_pin  x=-480  y=-50  sym=lab_pin
+    master3  lab_pin  x=0  y=-110  sym=lab_pin
+    master3  lab_pin  x=610  y=-70  sym=lab_pin
+    master3  lab_pin  x=740  y=130  sym=lab_pin
+    master3  lab_pin  x=610  y=-70  sym=lab_pin
+    master3  lab_pin  x=0  y=-70  sym=lab_pin
+    master2  lab_pin  x=-240  y=-110  sym=lab_pin
+    master2  lab_pin  x=170  y=-70  sym=lab_pin
+    master2  lab_pin  x=300  y=130  sym=lab_pin
+    master2  lab_pin  x=170  y=-70  sym=lab_pin
+    q[2]  lab_pin  x=390  y=10  sym=lab_pin
+    q[2]  lab_pin  x=80  y=10  sym=lab_pin
+    q[2]  lab_pin  x=-240  y=-50  sym=lab_pin
+    q[2]  lab_pin  x=-920  y=-120  sym=lab_pin
+    q[2]  lab_pin  x=300  y=190  sym=lab_pin
+    q[2]  lab_pin  x=520  y=10  sym=lab_pin
+    q[2]  lab_pin  x=-240  y=-50  sym=lab_pin
+    master1  lab_pin  x=-480  y=-110  sym=lab_pin
+    master1  lab_pin  x=280  y=-120  sym=lab_pin
+    master1  lab_pin  x=1040  y=0  sym=lab_pin
+    master1  lab_pin  x=-360  y=110  sym=lab_pin
+    master1  lab_pin  x=-270  y=-110  sym=lab_pin
+    master0  lab_pin  x=-720  y=-110  sym=lab_pin
+    master0  lab_pin  x=160  y=-120  sym=lab_pin
+    master0  lab_pin  x=920  y=0  sym=lab_pin
+    master0  lab_pin  x=-800  y=110  sym=lab_pin
+    master0  lab_pin  x=-710  y=-110  sym=lab_pin
+    clkb  lab_pin  x=-1320  y=-150  sym=lab_pin
+    clkb  lab_pin  x=-840  y=80  sym=lab_pin
+    clkb  lab_pin  x=-440  y=-80  sym=lab_pin
+    clkb  lab_pin  x=40  y=-80  sym=lab_pin
+    clkb  lab_pin  x=-440  y=-80  sym=lab_pin
+    clkb  lab_pin  x=40  y=80  sym=lab_pin
+    clkb  lab_pin  x=-200  y=-80  sym=lab_pin
+    clk  lab_pin  x=-1130  y=-30  sym=lab_pin
+    clk  lab_pin  x=-560  y=-160  sym=lab_pin
+    clk  lab_pin  x=-560  y=160  sym=lab_pin
+    clk  lab_pin  x=-800  y=-160  sym=lab_pin
+    clk  lab_pin  x=-80  y=-160  sym=lab_pin
+    clk  lab_pin  x=-130  y=160  sym=lab_pin
+    clk  lab_pin  x=-560  y=-160  sym=lab_pin
+    clk  lab_pin  x=-180  y=160  sym=lab_pin
+    clk  lab_pin  x=-320  y=-160  sym=lab_pin
+    clk  lab_pin  x=260  y=160  sym=lab_pin
+    gnd0  gnd  x=-1240  y=40  sym=gnd
+    gnd1  gnd  x=-1130  y=40  sym=gnd
+    gnd2  gnd  x=-1280  y=160  sym=gnd
+    gnd3  gnd  x=-1280  y=130  sym=gnd
+    gnd4  gnd  x=-710  y=40  sym=gnd
+    gnd5  gnd  x=-800  y=90  sym=gnd
+    gnd6  gnd  x=960  y=160  sym=gnd
+    gnd7  gnd  x=960  y=130  sym=gnd
+    gnd8  gnd  x=-710  y=0  sym=gnd
+    gnd9  gnd  x=-580  y=170  sym=gnd
+    gnd10  gnd  x=-1160  y=160  sym=gnd
+    gnd11  gnd  x=-1160  y=130  sym=gnd
+    gnd12  gnd  x=-490  y=80  sym=gnd
+    gnd13  gnd  x=-360  y=90  sym=gnd
+    gnd14  gnd  x=1080  y=160  sym=gnd
+    gnd15  gnd  x=1080  y=130  sym=gnd
+    gnd16  gnd  x=-270  y=0  sym=gnd
+    gnd17  gnd  x=-140  y=170  sym=gnd
+    gnd18  gnd  x=-1040  y=160  sym=gnd
+    gnd19  gnd  x=-1040  y=130  sym=gnd
+    gnd20  gnd  x=-50  y=80  sym=gnd
+    gnd21  gnd  x=80  y=90  sym=gnd
+    gnd22  gnd  x=1200  y=160  sym=gnd
+    gnd23  gnd  x=1200  y=130  sym=gnd
+    gnd24  gnd  x=170  y=0  sym=gnd
+    gnd25  gnd  x=300  y=170  sym=gnd
+    gnd26  gnd  x=-920  y=160  sym=gnd
+    gnd27  gnd  x=-920  y=130  sym=gnd
+    gnd28  gnd  x=390  y=80  sym=gnd
+    gnd29  gnd  x=520  y=90  sym=gnd
+    gnd30  gnd  x=1320  y=160  sym=gnd
+    gnd31  gnd  x=1320  y=130  sym=gnd
+    gnd32  gnd  x=610  y=0  sym=gnd
+    gnd33  gnd  x=740  y=170  sym=gnd
+    gnd34  gnd  x=880  y=160  sym=gnd
+    gnd35  gnd  x=880  y=130  sym=gnd
+    gnd36  gnd  x=830  y=80  sym=gnd
+    vdd37  vdd  x=-1240  y=-40  sym=vdd
+    vdd38  vdd  x=-1320  y=-100  sym=vdd
+    vdd39  vdd  x=-1320  y=-130  sym=vdd
+    vdd40  vdd  x=-840  y=-170  sym=vdd
+    vdd41  vdd  x=120  y=-100  sym=vdd
+    vdd42  vdd  x=120  y=-130  sym=vdd
+    vdd43  vdd  x=-720  y=-90  sym=vdd
+    vdd44  vdd  x=-1200  y=-100  sym=vdd
+    vdd45  vdd  x=-1200  y=-130  sym=vdd
+    vdd46  vdd  x=-600  y=-170  sym=vdd
+    vdd47  vdd  x=240  y=-100  sym=vdd
+    vdd48  vdd  x=240  y=-130  sym=vdd
+    vdd49  vdd  x=-480  y=-90  sym=vdd
+    vdd50  vdd  x=-1080  y=-100  sym=vdd
+    vdd51  vdd  x=-1080  y=-130  sym=vdd
+    vdd52  vdd  x=-360  y=-170  sym=vdd
+    vdd53  vdd  x=360  y=-100  sym=vdd
+    vdd54  vdd  x=360  y=-130  sym=vdd
+    vdd55  vdd  x=-240  y=-90  sym=vdd
+    vdd56  vdd  x=-960  y=-100  sym=vdd
+    vdd57  vdd  x=-960  y=-130  sym=vdd
+    vdd58  vdd  x=-120  y=-170  sym=vdd
+    vdd59  vdd  x=600  y=-100  sym=vdd
+    vdd60  vdd  x=600  y=-130  sym=vdd
+    vdd61  vdd  x=0  y=-90  sym=vdd
+    vdd62  vdd  x=720  y=-100  sym=vdd
+    vdd63  vdd  x=720  y=-130  sym=vdd
+
+  wires:
+    -1200 -150 -1200 -30
+    -1200 -30 -1160 -30
+    -1160 -30 -1160 90
+    -1080 -150 -1080 -30
+    -1080 -30 -1040 -30
+    -1040 -30 -1040 90
+    -960 -150 -960 -30
+    -960 -30 -920 -30
+    -920 -30 -920 90
+    -710 -30 -800 -30
+    -800 -30 -800 50
+    -800 50 -800 -70
+    -800 -70 -840 -70
+    -840 -70 -840 -190
+    720 -150 880 -150
+    880 -150 880 90
+    600 -150 1320 -150
+    1320 -150 1320 90
+    120 -150 120 90
+    120 90 960 90
+    240 -150 240 -30
+    240 -30 1080 -30
+    1080 -30 1080 90
+    360 -150 360 -30
+    360 -30 1200 -30
+    1200 -30 1200 90
+    760 -120 760 -50 bus=1
+    760 -50 0 -50 bus=1
+    830 10 760 10 bus=1
+    760 10 760 -120 bus=1
+    740 190 840 190 bus=1
+    840 190 840 120 bus=1
+    840 120 830 120 bus=1
+    830 120 830 10 bus=1
+    -490 10 -490 -50 bus=1
+    -490 -50 -720 -50 bus=1
+    -720 -50 -1160 -50 bus=1
+    -1160 -50 -1160 -120 bus=1
+    -1160 -120 -1160 0 bus=1
+    -1160 0 -1200 0 bus=1
+    -1200 0 -1200 120 bus=1
+    -580 190 -490 190 bus=1
+    -490 190 -490 10 bus=1
+    -490 10 -360 10 bus=1
+    -360 10 -360 50 bus=1
+    -720 -50 -600 -50 bus=1
+    -600 -50 -600 -190 bus=1
+    -50 10 -50 -20 bus=1
+    -50 -20 -480 -20 bus=1
+    -480 -20 -480 -50 bus=1
+    -480 -50 -480 -120 bus=1
+    -480 -120 -1040 -120 bus=1
+    -1040 -120 -1040 0 bus=1
+    -1040 0 -1080 0 bus=1
+    -1080 0 -1080 120 bus=1
+    -140 190 -50 190 bus=1
+    -50 190 -50 10 bus=1
+    -50 10 80 10 bus=1
+    80 10 80 50 bus=1
+    -480 -50 -360 -50 bus=1
+    -360 -50 -360 -190 bus=1
+    0 -110 -120 -110
+    -120 -110 -120 -130
+    610 -70 640 -70
+    640 -70 640 -120
+    740 130 1010 130
+    1010 130 1010 120
+    1010 120 1280 120
+    520 110 610 110
+    610 110 610 -70
+    520 110 740 110
+    740 110 740 130
+    610 -70 0 -70
+    0 -70 0 -110
+    -240 -110 -240 -130
+    -240 -130 -360 -130
+    170 -70 400 -70
+    400 -70 400 -120
+    300 130 300 120
+    300 120 1160 120
+    80 110 170 110
+    170 110 170 -70
+    80 110 300 110
+    300 110 300 130
+    170 -70 -40 -70
+    -40 -70 -40 -110
+    -40 -110 -240 -110
+    390 10 80 10 bus=1
+    80 10 80 -50 bus=1
+    80 -50 -240 -50 bus=1
+    -240 -50 -240 -120 bus=1
+    -240 -120 -920 -120 bus=1
+    -920 -120 -920 0 bus=1
+    -920 0 -960 0 bus=1
+    -960 0 -960 120 bus=1
+    300 190 390 190 bus=1
+    390 190 390 10 bus=1
+    390 10 520 10 bus=1
+    520 10 520 50 bus=1
+    -240 -50 -180 -50 bus=1
+    -180 -50 -180 -190 bus=1
+    -180 -190 -120 -190 bus=1
+    -480 -110 -540 -110
+    -540 -110 -540 -130
+    -540 -130 -600 -130
+    -270 -70 -270 -120
+    -270 -120 280 -120
+    280 -120 280 0
+    280 0 1040 0
+    1040 0 1040 120
+    -360 110 -270 110
+    -270 110 -270 -70
+    -360 110 -140 110
+    -140 110 -140 130
+    -270 -70 -270 -110
+    -270 -110 -480 -110
+    -720 -110 -720 -130
+    -720 -130 -840 -130
+    -720 -110 -720 -120
+    -720 -120 160 -120
+    160 -120 160 0
+    160 0 920 0
+    920 0 920 120
+    -800 110 -760 110
+    -760 110 -760 -70
+    -760 -70 -710 -70
+    -800 110 -580 110
+    -580 110 -580 130
+    -710 -70 -710 -110
+    -710 -110 -720 -110
+    -1320 -150 -1320 -30
+    -1320 -30 -1280 -30
+    -1280 -30 -1280 90
+    -1280 90 -1280 80
+    -1280 80 -840 80
+    -840 80 -680 80
+    -680 80 -680 -80
+    -440 -80 -400 -80
+    -400 -80 -400 80
+    -680 -80 -440 -80
+    40 -80 40 80
+    -440 -80 -200 -80
+    40 80 480 80
+    -200 -80 40 -80
+    -1130 -30 -1130 -80
+    -1130 -80 -1280 -80
+    -1280 -80 -1280 -120
+    -1280 -120 -1280 0
+    -1280 0 -1320 0
+    -1320 0 -1320 120
+    -1130 -30 -1130 -160
+    -1130 -160 -800 -160
+    -560 -160 -560 160
+    -560 160 -620 160
+    -800 -160 -560 -160
+    -80 -160 -130 -160
+    -130 -160 -130 160
+    -130 160 -180 160
+    -560 -160 -320 -160
+    -180 160 260 160
+    -320 -160 -80 -160
+    260 160 700 160

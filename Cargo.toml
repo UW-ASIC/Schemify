@@ -27,4 +27,6 @@ edition.workspace = true
 schemify-display = { path = "crates/display" }
 schemify-handler = { path = "crates/handler" }
 schemify-core = { path = "crates/core" }
+schemify-io = { path = "crates/io" }
 clap = { version = "4", features = ["derive"] }
+toml = "0.8"

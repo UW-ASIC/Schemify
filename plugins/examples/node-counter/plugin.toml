@@ -1,0 +1,21 @@
+[plugin]
+id = "node-counter"
+name = "Edit Counter"
+version = "0.1.0"
+description = "Counts schematic edits and shows the count in the status bar"
+entry = "node plugin.js"
+runtime = "subprocess"
+api_version = 1
+
+[capabilities]
+panels = false
+commands = true
+overlays = false
+theme = false
+
+[events]
+listen = ["schematic_changed"]
+
+[[commands.command]]
+name = "counter_reset"
+description = "Reset the edit counter"

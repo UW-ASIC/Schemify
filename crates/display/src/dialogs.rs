@@ -688,6 +688,8 @@ fn spice_code(ctx: &egui::Context, app: &mut App) {
     }
 
     let current_body = app.schematic().spice_body.clone();
+    let netlist = app.last_netlist().to_string();
+    let dark = ctx.style().visuals.dark_mode;
     let mut cmds: Vec<Command> = Vec::new();
 
     {
@@ -701,19 +703,97 @@ fn spice_code(ctx: &egui::Context, app: &mut App) {
         egui::Window::new("SPICE Code")
             .open(&mut state.is_open)
             .resizable(true)
-            .default_size([500.0, 400.0])
+            .default_size([900.0, 550.0])
             .show(ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add(
-                        egui::TextEdit::multiline(&mut state.buf)
-                            .code_editor()
-                            .desired_width(f32::INFINITY),
-                    );
+                // Toolbar
+                ui.horizontal(|ui| {
+                    if ui.button("Apply").clicked() {
+                        cmds.push(Command::SetSpiceCode(state.buf.clone()));
+                    }
+                    if ui.button("Generate Netlist").clicked() {
+                        cmds.push(Command::ExportNetlist);
+                    }
+                    ui.separator();
+                    ui.selectable_value(&mut state.show_netlist, false, "Editor Only");
+                    ui.selectable_value(&mut state.show_netlist, true, "Side-by-Side");
                 });
-
                 ui.separator();
-                if ui.button("Apply").clicked() {
-                    cmds.push(Command::SetSpiceCode(state.buf.clone()));
+
+                // SPICE syntax highlighter for TextEdit
+                let mut spice_layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                    let font = egui::FontId::monospace(13.0);
+                    let mut job = crate::highlight::highlight_spice(text, font, dark);
+                    job.wrap.max_width = wrap_width;
+                    ui.fonts(|f| f.layout_job(job))
+                };
+
+                // SPICE highlighter for read-only netlist view
+                let mut netlist_layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                    let font = egui::FontId::monospace(13.0);
+                    let mut job = crate::highlight::highlight_spice(text, font, dark);
+                    job.wrap.max_width = wrap_width;
+                    ui.fonts(|f| f.layout_job(job))
+                };
+
+                if state.show_netlist {
+                    // Side-by-side: editor left, netlist right
+                    let avail = ui.available_size();
+                    let half_w = (avail.x - 8.0) * 0.5;
+
+                    ui.horizontal_top(|ui| {
+                        // Left: SPICE code editor
+                        ui.vertical(|ui| {
+                            ui.set_width(half_w);
+                            ui.label(egui::RichText::new("Analysis Code").strong().small());
+                            egui::ScrollArea::vertical()
+                                .id_salt("spice_editor_scroll")
+                                .show(ui, |ui| {
+                                    ui.add(
+                                        egui::TextEdit::multiline(&mut state.buf)
+                                            .font(egui::FontId::monospace(13.0))
+                                            .layouter(&mut spice_layouter)
+                                            .desired_width(f32::INFINITY)
+                                            .desired_rows(20),
+                                    );
+                                });
+                        });
+
+                        ui.separator();
+
+                        // Right: netlist (read-only, highlighted)
+                        ui.vertical(|ui| {
+                            ui.set_width(half_w);
+                            ui.label(egui::RichText::new("Netlist (read-only)").strong().small());
+                            if netlist.is_empty() {
+                                ui.weak("No netlist generated yet.\nClick \"Generate Netlist\" above.");
+                            } else {
+                                egui::ScrollArea::vertical()
+                                    .id_salt("netlist_scroll")
+                                    .show(ui, |ui| {
+                                        let mut display = netlist.clone();
+                                        ui.add(
+                                            egui::TextEdit::multiline(&mut display)
+                                                .font(egui::FontId::monospace(13.0))
+                                                .layouter(&mut netlist_layouter)
+                                                .desired_width(f32::INFINITY)
+                                                .desired_rows(20)
+                                                .interactive(false),
+                                        );
+                                    });
+                            }
+                        });
+                    });
+                } else {
+                    // Editor only (full width)
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.add(
+                            egui::TextEdit::multiline(&mut state.buf)
+                                .font(egui::FontId::monospace(13.0))
+                                .layouter(&mut spice_layouter)
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(25),
+                        );
+                    });
                 }
             });
     }

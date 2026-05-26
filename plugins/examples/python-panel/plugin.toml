@@ -1,0 +1,34 @@
+[plugin]
+id = "python-panel"
+name = "Instance Inspector"
+version = "0.1.0"
+description = "Panel plugin that queries instances and draws overlay markers"
+entry = "python3 plugin.py"
+runtime = "subprocess"
+api_version = 1
+
+[capabilities]
+panels = true
+commands = true
+overlays = true
+theme = true
+
+[sandbox]
+network = false
+paths = [
+    { path = "$PLUGIN_DIR", access = "read" },
+    { path = "$PROJECT_DIR", access = "read" },
+]
+
+[events]
+listen = ["schematic_changed", "selection_changed", "theme_changed"]
+
+[[panels.panel]]
+name = "Instance Inspector"
+slot = "RightSidebar"
+priority = 10
+
+[[commands.command]]
+name = "inspect_refresh"
+description = "Refresh instance inspection"
+keybind = "Ctrl+Shift+I"

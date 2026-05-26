@@ -1,0 +1,51 @@
+chn_testbench 1
+
+TESTBENCH CMOS NAND Gate
+  instances:
+    Vdd  vsource  x=-90  y=0  sym=vsource  value=1.8
+    Va  vsource  x=20  y=0  sym=vsource  value=1.8
+    Vb  vsource  x=150  y=0  sym=vsource  value=1.8
+    Mp1  pmos  x=-150  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mp2  pmos  x=-30  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=2u  L=180n  M=1 }
+    Mn1  nmos  x=-90  y=80  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=180n  M=1 }
+    Mn2  nmos  x=30  y=160  sym=nmos4
+      .parameters{   model=nmos_1v8  W=2u  L=180n  M=1 }
+    Cload  capacitor  x=140  y=-120  sym=capa  value=10f  device=capacitor
+    mid  lab_pin  x=-70  y=110  sym=lab_pin
+    va  lab_pin  x=20  y=-30  sym=lab_pin
+    vb  lab_pin  x=150  y=-30  sym=lab_pin
+    vb  lab_pin  x=-10  y=160  sym=lab_pin
+    vout  lab_pin  x=-170  y=-150  sym=lab_pin
+    gnd0  gnd  x=-90  y=40  sym=gnd
+    gnd1  gnd  x=20  y=40  sym=gnd
+    gnd2  gnd  x=150  y=40  sym=gnd
+    gnd3  gnd  x=-70  y=90  sym=gnd
+    gnd4  gnd  x=50  y=200  sym=gnd
+    gnd5  gnd  x=50  y=170  sym=gnd
+    gnd6  gnd  x=140  y=-80  sym=gnd
+    vdd7  vdd  x=-90  y=-40  sym=vdd
+    vdd8  vdd  x=-170  y=-100  sym=vdd
+    vdd9  vdd  x=-170  y=-130  sym=vdd
+    vdd10  vdd  x=-50  y=-100  sym=vdd
+    vdd11  vdd  x=-50  y=-130  sym=vdd
+
+  wires:
+    -70 110 50 110
+    50 110 50 130
+    20 -30 -60 -30
+    -60 -30 -60 -120
+    -60 -120 -130 -120
+    -130 -120 -110 -120
+    -110 -120 -110 80
+    150 -30 70 -30
+    70 -30 70 -120
+    70 -120 -10 -120
+    -10 -120 -10 160
+    -10 160 10 160
+    -170 -150 -50 -150
+    -50 -150 -70 -150
+    -70 -150 -70 50
+    -50 -150 140 -150

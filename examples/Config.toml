@@ -1,0 +1,13 @@
+name = "Schemify Examples"
+pdk = "sky130A"
+
+[paths]
+chn = ["*.chn"]
+chn_tb = ["*.chn_tb"]
+chn_prim = ["*.chn_prim"]
+
+[simulation]
+spice_include_paths = []
+
+[plugins]
+enabled = ["PDKSwitcher"]

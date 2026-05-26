@@ -1,0 +1,48 @@
+chn_testbench 1
+
+TESTBENCH TB OpAmp Model Library
+  instances:
+    Vdd  vsource  x=-280  y=0  sym=vsource  value=1.8
+    Vinp  vsource  x=-170  y=0  sym=vsource  value=DC 0.9 AC 0.5
+    Vinn  vsource  x=-60  y=0  sym=vsource  value=0.9
+    M1  nmos  x=-340  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=10u  L=500n  M=1 }
+    M2  nmos  x=-220  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=10u  L=500n  M=1 }
+    M3  pmos  x=-340  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=20u  L=500n  M=1 }
+    M4  pmos  x=-220  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=20u  L=500n  M=1 }
+    Itail  isource  x=50  y=0  sym=isource  value=100u
+    M5  nmos  x=110  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=40u  L=180n  M=1 }
+    Cc  capacitor  x=210  y=120  sym=capa  value=2p  device=capacitor
+    Cload  capacitor  x=320  y=60  sym=capa  value=5p  device=capacitor
+    vout  lab_pin  x=320  y=30  sym=lab_pin
+    inp  lab_pin  x=-170  y=-30  sym=lab_pin
+    inn  lab_pin  x=-60  y=-30  sym=lab_pin
+    gnd0  gnd  x=-280  y=40  sym=gnd
+    gnd1  gnd  x=-170  y=40  sym=gnd
+    gnd2  gnd  x=-60  y=40  sym=gnd
+    gnd3  gnd  x=50  y=-20  sym=gnd
+    gnd4  gnd  x=130  y=160  sym=gnd
+    gnd5  gnd  x=320  y=100  sym=gnd
+    vdd6  vdd  x=-280  y=-40  sym=vdd
+    vdd7  vdd  x=-360  y=-100  sym=vdd
+    vdd8  vdd  x=-240  y=-100  sym=vdd
+
+  wires:
+    -170 -30 -360 -30
+    -360 -30 -360 120
+    -60 -30 -240 -30
+    -240 -30 -240 120
+    -320 150 -200 150
+    -200 150 50 150
+    50 150 50 30
+    320 30 130 30
+    130 30 130 90
+    -320 -120 -360 -120
+    -320 90 -200 90
+    -200 90 -200 -120
+    210 90 320 90
+    320 90 320 30

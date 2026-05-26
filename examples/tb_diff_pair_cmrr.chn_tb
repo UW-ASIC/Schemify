@@ -1,0 +1,34 @@
+chn_testbench 1
+
+TESTBENCH TB Diff Pair CMRR
+  instances:
+    Xdut  subckt  x=-330  y=-120  sym=diff_pair
+    Vdd  vsource  x=-190  y=0  sym=vsource  value=1.8
+    Vcm  vsource  x=-80  y=0  sym=vsource  value=900m
+    Rprobe_p  resistor  x=30  y=120  sym=res  value=1meg  device=resistor
+    Rprobe_n  resistor  x=130  y=120  sym=res  value=1meg  device=resistor
+    Vdp  vsource  x=220  y=0  sym=vsource  value=DC 0 AC 0.5
+    Vdn  vsource  x=330  y=0  sym=vsource  value=DC 0 AC 0.5
+    vcm  lab_pin  x=-80  y=-30  sym=lab_pin
+    vcm  lab_pin  x=220  y=30  sym=lab_pin
+    inp  lab_pin  x=-330  y=-150  sym=lab_pin
+    inp  lab_pin  x=220  y=-150  sym=lab_pin
+    inn  lab_pin  x=-330  y=-90  sym=lab_pin
+    inn  lab_pin  x=330  y=-90  sym=lab_pin
+    vdd0  vdd  x=-190  y=-40  sym=vdd
+    gnd1  gnd  x=-190  y=40  sym=gnd
+    gnd2  gnd  x=-80  y=40  sym=gnd
+    gnd3  gnd  x=30  y=160  sym=gnd
+    gnd4  gnd  x=130  y=160  sym=gnd
+
+  wires:
+    -80 -30 70 -30
+    70 -30 70 30
+    70 30 220 30
+    220 30 280 30
+    280 30 280 -30
+    280 -30 330 -30
+    -330 -150 220 -150
+    220 -150 220 -30
+    -330 -90 330 -90
+    330 -90 330 30

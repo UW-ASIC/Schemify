@@ -1,0 +1,5 @@
+.title RL High-Pass Filter
+Vin vin 0 1
+L1 vin vout 10m
+R1 vout 0 1k
+.end

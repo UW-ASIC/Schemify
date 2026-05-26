@@ -1,11 +1,93 @@
 use schemify_core::plugin_types::{
-    CommandRegistration, OverlayLayer, OverlayShape, PanelRegistration, SlotId,
+    CommandRegistration, OverlayLayer, OverlayShape, PanelRegistration, SlotId, WidgetNode,
 };
-use schemify_core::theme::ThemeOverride;
+use schemify_core::theme::{ThemeOverride, ThemeValue};
+use serde::Deserialize;
 use serde_json::Value;
+use std::collections::HashMap;
 
-use crate::capability::Capability;
+use crate::capability::NegotiatedCapabilities;
 use crate::jsonrpc;
+
+// ── Param-only structs for typed deserialization ──────────────────────────────
+// These match the JSON shape (without `plugin_id`, which comes from the function
+// parameter). We deserialize into these, then construct the final types.
+
+#[derive(Deserialize)]
+struct PanelRegisterParams {
+    name: String,
+    slot: SlotId,
+    #[serde(default)]
+    priority: i32,
+    #[serde(default = "default_true")]
+    default_visible: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Deserialize)]
+struct UpdateWidgetsParams {
+    panel: String,
+    #[serde(default)]
+    widgets: Vec<WidgetNode>,
+}
+
+#[derive(Deserialize)]
+struct CommandRegisterParams {
+    name: String,
+    #[serde(default)]
+    description: String,
+    keybind: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct OverlayUpdateParams {
+    name: String,
+    #[serde(default)]
+    z_order: i32,
+    #[serde(default = "default_true")]
+    visible: bool,
+    #[serde(default)]
+    shapes: Vec<OverlayShape>,
+}
+
+#[derive(Deserialize)]
+struct ThemeOverrideParams {
+    #[serde(default)]
+    priority: i32,
+    #[serde(default)]
+    overrides: HashMap<String, ThemeValue>,
+}
+
+#[derive(Deserialize)]
+struct SetStatusParams {
+    message: String,
+}
+
+#[derive(Deserialize)]
+struct LogParams {
+    #[serde(default = "default_info")]
+    level: String,
+    message: String,
+}
+
+fn default_info() -> String {
+    "info".into()
+}
+
+/// Deserialize JSON params into a typed struct, logging on failure.
+fn try_parse<T: serde::de::DeserializeOwned>(params: Option<Value>, method: &str) -> Option<T> {
+    let p = params?;
+    match serde_json::from_value(p) {
+        Ok(v) => Some(v),
+        Err(e) => {
+            eprintln!("malformed params for {method}: {e}");
+            None
+        }
+    }
+}
 
 /// Actions the host should take in response to plugin messages.
 /// The handler/display layer processes these.
@@ -15,6 +97,12 @@ pub enum HostAction {
     RegisterPanel(PanelRegistration),
     /// Plugin registered a command.
     RegisterCommand(CommandRegistration),
+    /// Plugin pushed widget tree for a panel.
+    UpdateWidgets {
+        plugin_id: String,
+        panel_name: String,
+        widgets: Vec<WidgetNode>,
+    },
     /// Plugin updated an overlay layer.
     UpdateOverlay(OverlayLayer),
     /// Plugin pushed theme overrides.
@@ -45,6 +133,11 @@ pub enum HostAction {
         plugin_id: String,
         request_id: u32,
     },
+    /// Plugin wants to query current resolved theme tokens — needs response.
+    QueryTheme {
+        plugin_id: String,
+        request_id: u32,
+    },
     /// Unknown method — send error response.
     ErrorResponse {
         plugin_id: String,
@@ -57,7 +150,7 @@ pub enum HostAction {
 /// Handle an incoming JSON-RPC request from a plugin (expects response).
 pub fn handle_request(
     plugin_id: &str,
-    _capability: &Capability,
+    _capability: &NegotiatedCapabilities,
     id: u32,
     method: &str,
     _params: Option<Value>,
@@ -68,6 +161,10 @@ pub fn handle_request(
             request_id: id,
         },
         "state/query_nets" => HostAction::QueryNets {
+            plugin_id: plugin_id.to_owned(),
+            request_id: id,
+        },
+        "state/query_theme" => HostAction::QueryTheme {
             plugin_id: plugin_id.to_owned(),
             request_id: id,
         },
@@ -84,76 +181,54 @@ pub fn handle_request(
 /// Returns None if the notification should be silently ignored.
 pub fn handle_notification(
     plugin_id: &str,
-    capability: &Capability,
+    capability: &NegotiatedCapabilities,
     method: &str,
     params: Option<Value>,
 ) -> Option<HostAction> {
     match method {
         "panels/register" if capability.panels => {
-            let p = params?;
-            let name = p.get("name")?.as_str()?.to_owned();
-            let slot_str = p.get("slot")?.as_str()?;
-            let slot = parse_slot_id(slot_str)?;
-            let priority = p.get("priority").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-            let default_visible = p
-                .get("default_visible")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(true);
+            let p: PanelRegisterParams = try_parse(params, method)?;
             Some(HostAction::RegisterPanel(PanelRegistration {
                 plugin_id: plugin_id.to_owned(),
-                name,
-                slot,
-                priority,
-                default_visible,
+                name: p.name,
+                slot: p.slot,
+                priority: p.priority,
+                default_visible: p.default_visible,
             }))
         }
+        "panels/update_widgets" if capability.panels => {
+            let p: UpdateWidgetsParams = try_parse(params, method)?;
+            Some(HostAction::UpdateWidgets {
+                plugin_id: plugin_id.to_owned(),
+                panel_name: p.panel,
+                widgets: p.widgets,
+            })
+        }
         "commands/register" if capability.commands => {
-            let p = params?;
-            let name = p.get("name")?.as_str()?.to_owned();
-            let description = p
-                .get("description")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned();
-            let keybind = p
-                .get("keybind")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_owned());
+            let p: CommandRegisterParams = try_parse(params, method)?;
             Some(HostAction::RegisterCommand(CommandRegistration {
                 plugin_id: plugin_id.to_owned(),
-                name,
-                description,
-                keybind,
+                name: p.name,
+                description: p.description,
+                keybind: p.keybind,
             }))
         }
         "overlay/update" if capability.overlays => {
-            let p = params?;
-            let name = p.get("name")?.as_str()?.to_owned();
-            let z_order = p.get("z_order").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-            let visible = p.get("visible").and_then(|v| v.as_bool()).unwrap_or(true);
-            let shapes: Vec<OverlayShape> = p
-                .get("shapes")
-                .and_then(|v| serde_json::from_value(v.clone()).ok())
-                .unwrap_or_default();
+            let p: OverlayUpdateParams = try_parse(params, method)?;
             Some(HostAction::UpdateOverlay(OverlayLayer {
                 plugin_id: plugin_id.to_owned(),
-                name,
-                z_order,
-                visible,
-                shapes,
+                name: p.name,
+                z_order: p.z_order,
+                visible: p.visible,
+                shapes: p.shapes,
             }))
         }
         "theme/override" if capability.theme => {
-            let p = params?;
-            let priority = p.get("priority").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-            let overrides = p
-                .get("overrides")
-                .and_then(|v| serde_json::from_value(v.clone()).ok())
-                .unwrap_or_default();
+            let p: ThemeOverrideParams = try_parse(params, method)?;
             Some(HostAction::ThemeOverride(ThemeOverride {
                 plugin_id: plugin_id.to_owned(),
-                priority,
-                overrides,
+                priority: p.priority,
+                overrides: p.overrides,
             }))
         }
         "commands/dispatch" => {
@@ -164,40 +239,20 @@ pub fn handle_notification(
             })
         }
         "host/set_status" => {
-            let p = params?;
-            let message = p.get("message")?.as_str()?.to_owned();
+            let p: SetStatusParams = try_parse(params, method)?;
             Some(HostAction::SetStatus {
                 plugin_id: plugin_id.to_owned(),
-                message,
+                message: p.message,
             })
         }
         "host/log" => {
-            let p = params?;
-            let level = p
-                .get("level")
-                .and_then(|v| v.as_str())
-                .unwrap_or("info")
-                .to_owned();
-            let message = p.get("message")?.as_str()?.to_owned();
+            let p: LogParams = try_parse(params, method)?;
             Some(HostAction::Log {
                 plugin_id: plugin_id.to_owned(),
-                level,
-                message,
+                level: p.level,
+                message: p.message,
             })
         }
-        _ => None,
-    }
-}
-
-fn parse_slot_id(s: &str) -> Option<SlotId> {
-    match s {
-        "LeftSidebar" => Some(SlotId::LeftSidebar),
-        "RightSidebar" => Some(SlotId::RightSidebar),
-        "BottomBar" => Some(SlotId::BottomBar),
-        "Toolbar" => Some(SlotId::Toolbar),
-        "MenuBar" => Some(SlotId::MenuBar),
-        "CanvasOverlay" => Some(SlotId::CanvasOverlay),
-        "StatusBar" => Some(SlotId::StatusBar),
         _ => None,
     }
 }
@@ -207,8 +262,8 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn full_cap() -> Capability {
-        Capability {
+    fn full_cap() -> NegotiatedCapabilities {
+        NegotiatedCapabilities {
             panels: true,
             commands: true,
             overlays: true,
@@ -263,7 +318,7 @@ mod tests {
 
     #[test]
     fn capability_gate_blocks() {
-        let no_panels = Capability {
+        let no_panels = NegotiatedCapabilities {
             panels: false,
             ..Default::default()
         };
@@ -458,7 +513,7 @@ mod tests {
 
     #[test]
     fn overlay_without_capability_blocked() {
-        let no_overlay = Capability {
+        let no_overlay = NegotiatedCapabilities {
             panels: true,
             commands: true,
             overlays: false,
@@ -476,7 +531,7 @@ mod tests {
 
     #[test]
     fn theme_without_capability_blocked() {
-        let no_theme = Capability {
+        let no_theme = NegotiatedCapabilities {
             panels: true,
             commands: true,
             overlays: true,
@@ -492,15 +547,4 @@ mod tests {
         assert!(action.is_none());
     }
 
-    #[test]
-    fn parse_all_slot_ids() {
-        assert_eq!(parse_slot_id("LeftSidebar"), Some(SlotId::LeftSidebar));
-        assert_eq!(parse_slot_id("RightSidebar"), Some(SlotId::RightSidebar));
-        assert_eq!(parse_slot_id("BottomBar"), Some(SlotId::BottomBar));
-        assert_eq!(parse_slot_id("Toolbar"), Some(SlotId::Toolbar));
-        assert_eq!(parse_slot_id("MenuBar"), Some(SlotId::MenuBar));
-        assert_eq!(parse_slot_id("CanvasOverlay"), Some(SlotId::CanvasOverlay));
-        assert_eq!(parse_slot_id("StatusBar"), Some(SlotId::StatusBar));
-        assert_eq!(parse_slot_id("InvalidSlot"), None);
-    }
 }

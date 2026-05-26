@@ -1,0 +1,95 @@
+chn_testbench 1
+
+TESTBENCH Folded Cascode OTA
+  instances:
+    Vdd  vsource  x=-300  y=0  sym=vsource  value=1.8
+    Vinp  vsource  x=-190  y=0  sym=vsource  value=900m
+    Vinn  vsource  x=30  y=0  sym=vsource  value=900m
+    Vbn  vsource  x=140  y=0  sym=vsource  value=500m
+    Vbp  vsource  x=250  y=0  sym=vsource  value=1.3
+    Mp1  pmos  x=-360  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=20u  L=500n  M=1 }
+    Mp2  pmos  x=-240  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=20u  L=500n  M=1 }
+    Mn1  nmos  x=-240  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=5u  L=500n  M=1 }
+    Mn2  nmos  x=-120  y=120  sym=nmos4
+      .parameters{   model=nmos_1v8  W=5u  L=500n  M=1 }
+    Ib1  isource  x=360  y=0  sym=isource  value=100u
+    Ib2  isource  x=-10  y=0  sym=isource  value=100u
+    Mp3  pmos  x=-120  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=10u  L=500n  M=1 }
+    Mp4  pmos  x=120  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=10u  L=500n  M=1 }
+    Mp5  pmos  x=-240  y=20  sym=pmos4
+      .parameters{   model=pmos_1v8  W=10u  L=500n  M=1 }
+    Mp6  pmos  x=0  y=-120  sym=pmos4
+      .parameters{   model=pmos_1v8  W=10u  L=500n  M=1 }
+    Itail  isource  x=-80  y=0  sym=isource  value=200u
+    n6  lab_pin  x=20  y=-120  sym=lab_pin
+    n4  lab_pin  x=-100  y=150  sym=lab_pin
+    n5  lab_pin  x=-220  y=20  sym=lab_pin
+    inp  lab_pin  x=-190  y=-30  sym=lab_pin
+    inn  lab_pin  x=30  y=-30  sym=lab_pin
+    n1  lab_pin  x=-380  y=-150  sym=lab_pin
+    n2  lab_pin  x=-260  y=-150  sym=lab_pin
+    n2  lab_pin  x=-180  y=90  sym=lab_pin
+    vbp  lab_pin  x=140  y=-120  sym=lab_pin
+    vbn  lab_pin  x=-140  y=120  sym=lab_pin
+    vbn  lab_pin  x=140  y=-30  sym=lab_pin
+    n3  lab_pin  x=-220  y=150  sym=lab_pin
+    n3  lab_pin  x=360  y=150  sym=lab_pin
+    gnd0  gnd  x=-300  y=40  sym=gnd
+    gnd1  gnd  x=-190  y=40  sym=gnd
+    gnd2  gnd  x=30  y=40  sym=gnd
+    gnd3  gnd  x=140  y=40  sym=gnd
+    gnd4  gnd  x=250  y=40  sym=gnd
+    gnd5  gnd  x=-220  y=130  sym=gnd
+    gnd6  gnd  x=-100  y=130  sym=gnd
+    gnd7  gnd  x=360  y=-20  sym=gnd
+    gnd8  gnd  x=-10  y=-20  sym=gnd
+    vdd9  vdd  x=-300  y=-40  sym=vdd
+    vdd10  vdd  x=-380  y=-100  sym=vdd
+    vdd11  vdd  x=-380  y=-130  sym=vdd
+    vdd12  vdd  x=-260  y=-100  sym=vdd
+    vdd13  vdd  x=-260  y=-130  sym=vdd
+    vdd14  vdd  x=-140  y=-130  sym=vdd
+    vdd15  vdd  x=100  y=-130  sym=vdd
+    vdd16  vdd  x=-260  y=40  sym=vdd
+    vdd17  vdd  x=-260  y=10  sym=vdd
+    vdd18  vdd  x=-20  y=-100  sym=vdd
+    vdd19  vdd  x=-20  y=-130  sym=vdd
+    vdd20  vdd  x=-80  y=-40  sym=vdd
+
+  wires:
+    20 -120 -20 -120
+    -20 -120 -20 -150
+    100 -90 60 -90
+    60 -90 60 -120
+    60 -120 20 -120
+    -100 150 -10 150
+    -10 150 -10 30
+    -220 20 -260 20
+    -260 20 -260 -10
+    -140 -90 -140 -40
+    -140 -40 -220 -40
+    -220 -40 -220 20
+    -190 -30 -270 -30
+    -270 -30 -270 -120
+    -270 -120 -340 -120
+    30 -30 30 -80
+    30 -80 -220 -80
+    -220 -80 -220 -120
+    -380 -150 -380 90
+    -380 90 -220 90
+    -260 -150 -180 -150
+    -180 -150 -180 90
+    -180 90 -100 90
+    140 -120 -100 -120
+    250 -30 250 -120
+    250 -120 140 -120
+    -140 120 -260 120
+    140 -30 140 120
+    140 120 -140 120
+    -220 150 360 150
+    360 150 360 30

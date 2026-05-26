@@ -1,0 +1,45 @@
+.title 4-bit Flash ADC
+Vdd vdd 0 1.8
+Vref vref 0 1.8
+Vin vin 0 1
+Rlad0 0 tap[0] 1k
+Rlad1 tap[0] tap[1] 1k
+Rlad2 tap[1] tap[2] 1k
+Rlad3 tap[2] tap[3] 1k
+Rlad4 tap[3] tap[4] 1k
+Rlad5 tap[4] tap[5] 1k
+Rlad6 tap[5] tap[6] 1k
+Rlad7 tap[6] tap[7] 1k
+Rlad8 tap[7] tap[8] 1k
+Rlad9 tap[8] tap[9] 1k
+Rlad10 tap[9] tap[10] 1k
+Rlad11 tap[10] tap[11] 1k
+Rlad12 tap[11] tap[12] 1k
+Rlad13 tap[12] tap[13] 1k
+Rlad14 tap[13] tap[14] 1k
+Rlad15 tap[14] tap[15] 1k
+Rlad_top tap[15] vref 1k
+Ecmp0 comp[0] 0 vin tap[0] 10000
+Ecmp1 comp[1] 0 vin tap[1] 10000
+Ecmp2 comp[2] 0 vin tap[2] 10000
+Ecmp3 comp[3] 0 vin tap[3] 10000
+Ecmp4 comp[4] 0 vin tap[4] 10000
+Ecmp5 comp[5] 0 vin tap[5] 10000
+Ecmp6 comp[6] 0 vin tap[6] 10000
+Ecmp7 comp[7] 0 vin tap[7] 10000
+Ecmp8 comp[8] 0 vin tap[8] 10000
+Ecmp9 comp[9] 0 vin tap[9] 10000
+Ecmp10 comp[10] 0 vin tap[10] 10000
+Ecmp11 comp[11] 0 vin tap[11] 10000
+Ecmp12 comp[12] 0 vin tap[12] 10000
+Ecmp13 comp[13] 0 vin tap[13] 10000
+Ecmp14 comp[14] 0 vin tap[14] 10000
+Rd0 comp[0] dout[0] 10k
+Rd1 comp[1] dout[1] 10k
+Rd2 comp[3] dout[2] 10k
+Rd3 comp[7] dout[3] 10k
+Rpd0 dout[0] 0 100k
+Rpd1 dout[1] 0 100k
+Rpd2 dout[2] 0 100k
+Rpd3 dout[3] 0 100k
+.end
