@@ -588,7 +588,14 @@ circuit = pyspice_rs.load_circuit(circuit_json)
         }
 
         let python = schemify_sim::pyspice::python_bin();
-        let pypath = schemify_sim::pyspice::python_path();
+        let pypath = match schemify_sim::pyspice::python_path() {
+            Some(p) => p,
+            None => {
+                self.state.status_msg =
+                    "PySpice not available (not bundled at build time)".into();
+                return;
+            }
+        };
 
         self.state.status_msg = "Running simulation...".into();
 
