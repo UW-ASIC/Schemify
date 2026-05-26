@@ -77,11 +77,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1779000509,
-        "narHash": "sha256-/YlwDhtIs6TPbYYhxhMLZXLBdA6NU81x5An8OH7HJsE=",
+        "lastModified": 1779806063,
+        "narHash": "sha256-r/B6XtpjU7wO3Vn/c/hqoxgTXXM0rYgqJO3rPq9EzKE=",
         "owner": "OmarSiwy",
         "repo": "PySpice",
-        "rev": "8b883ca403f9c958310aa928ebfb24fc806a8605",
+        "rev": "7662369c44887c4b09052885930611b71d951353",
         "type": "github"
       },
       "original": {
