@@ -1,112 +1,38 @@
 use std::env;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-
-const PYSPICE_REPO: &str = "https://github.com/OmarSiwy/PySpice.git";
 
 fn main() {
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let pyspice_dir = out_dir.join("PySpice");
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=PYSPICE_MODULE_DIR");
 
-    // Clone or update repo
-    if !pyspice_dir.join(".git").exists() {
-        let status = Command::new("git")
-            .args(["clone", "--depth", "1", PYSPICE_REPO, pyspice_dir.to_str().unwrap()])
-            .status()
-            .unwrap_or_else(|e| panic!("Failed to clone PySpice: {e}"));
-        assert!(status.success(), "git clone failed");
-    } else {
-        let status = Command::new("git")
-            .args(["pull", "--ff-only"])
-            .current_dir(&pyspice_dir)
-            .status()
-            .unwrap_or_else(|e| panic!("Failed to update PySpice: {e}"));
-        if !status.success() {
-            eprintln!("Warning: git pull failed, using existing checkout");
+    // If PYSPICE_MODULE_DIR is set and contains pyspice_rs, bundle it.
+    let module_dir = env::var("PYSPICE_MODULE_DIR").ok().and_then(|dir| {
+        let p = PathBuf::from(&dir);
+        if p.join("pyspice_rs").exists() {
+            Some(p)
+        } else {
+            eprintln!("Warning: PYSPICE_MODULE_DIR set but pyspice_rs not found in {dir}");
+            None
         }
-    }
+    });
 
-    // Try to find an already-built result (nix build output or manual)
-    let site_packages = find_existing_build(&pyspice_dir)
-        .unwrap_or_else(|| build_with_nix(&pyspice_dir));
+    let Some(module_src) = module_dir else {
+        // PySpice not available — compile without it.
+        println!("cargo:rustc-cfg=no_pyspice");
+        return;
+    };
 
-    let module_src = site_packages.join("pyspice_rs");
-    assert!(
-        module_src.exists(),
-        "pyspice_rs module not found in {}",
-        site_packages.display()
-    );
-
-    // Copy the module next to the binary
+    let module_src = module_src.join("pyspice_rs");
     let target_dir = resolve_target_dir();
     let bundle_dir = target_dir.join("pyspice_rs");
 
-    // Clean and recreate
     let _ = std::fs::remove_dir_all(&bundle_dir);
     std::fs::create_dir_all(&bundle_dir).unwrap();
     copy_dir_recursive(&module_src, &bundle_dir);
 
-    println!("cargo:rerun-if-changed=build.rs");
     println!(
-        "cargo:rustc-env=PYSPICE_MODULE_DIR={}",
+        "cargo:rustc-env=PYSPICE_BUNDLE_DIR={}",
         bundle_dir.display()
-    );
-}
-
-/// Check for an existing `result` symlink from a previous `nix build`.
-fn find_existing_build(pyspice_dir: &Path) -> Option<PathBuf> {
-    let result_link = pyspice_dir.join("result");
-    if !result_link.exists() {
-        return None;
-    }
-
-    // Walk lib/python*/site-packages/
-    let lib = result_link.join("lib");
-    if let Ok(entries) = std::fs::read_dir(&lib) {
-        for entry in entries.flatten() {
-            let sp = entry.path().join("site-packages");
-            if sp.join("pyspice_rs").exists() {
-                return Some(sp);
-            }
-        }
-    }
-    None
-}
-
-/// Build PySpice via `nix build` and return the site-packages path.
-fn build_with_nix(pyspice_dir: &Path) -> PathBuf {
-    eprintln!("Building PySpice via `nix build`...");
-
-    let status = Command::new("nix")
-        .args(["build", "--no-link", "--print-out-paths"])
-        .current_dir(pyspice_dir)
-        .output()
-        .unwrap_or_else(|e| panic!("Failed to run `nix build` in {}: {e}", pyspice_dir.display()));
-
-    if !status.status.success() {
-        let stderr = String::from_utf8_lossy(&status.stderr);
-        panic!("nix build failed:\n{stderr}");
-    }
-
-    let store_path = String::from_utf8(status.stdout)
-        .unwrap()
-        .trim()
-        .to_string();
-
-    let store = PathBuf::from(&store_path);
-    let lib = store.join("lib");
-    if let Ok(entries) = std::fs::read_dir(&lib) {
-        for entry in entries.flatten() {
-            let sp = entry.path().join("site-packages");
-            if sp.join("pyspice_rs").exists() {
-                return sp;
-            }
-        }
-    }
-
-    panic!(
-        "Could not find pyspice_rs in nix build output: {}",
-        store_path
     );
 }
 

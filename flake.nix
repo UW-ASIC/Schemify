@@ -8,6 +8,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
+    pyspice = {
+      url = "github:OmarSiwy/PySpice";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -16,6 +20,7 @@
       nixpkgs,
       rust-overlay,
       flake-utils,
+      pyspice,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
@@ -35,6 +40,9 @@
           targets = [ "wasm32-unknown-unknown" ];
         };
 
+        pyspicePkg = pyspice.packages.${system}.default;
+        pyspiceSitePackages = "${pyspicePkg}/${pyspicePkg.passthru.pythonModule.sitePackages}";
+
         # Native libraries egui/eframe (glow backend) needs at runtime/link time.
         nativeBuildInputs = with pkgs; [
           pkg-config
@@ -45,7 +53,6 @@
         buildInputs = with pkgs; [
           # Windowing / input
           libxkbcommon
-          wayland
           libGL
 
           # X11 stack (for XWayland / non-Wayland sessions)
@@ -54,8 +61,7 @@
           xorg.libXrandr
           xorg.libXi
 
-          # Audio (some eframe features pull this in)
-          alsa-lib
+          # alsa-lib # BROKEN ON MAC
 
           # Misc
           openssl
@@ -73,6 +79,8 @@
             wasm-bindgen-cli
             binaryen # wasm-opt
             cargo-watch
+
+            # broken on mac (NEED TO FIX)
             xschem # for roundtrip netlist tests
           ];
 
@@ -87,6 +95,9 @@
           # Runtime library path so dynamically-linked deps (libGL, wayland, etc.)
           # are findable when you `cargo run` from the shell.
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
+
+          # PySpice module dir for sim crate build.rs (optional bundling).
+          PYSPICE_MODULE_DIR = pyspiceSitePackages;
 
           shellHook = ''
             echo "Rust $(rustc --version)"
