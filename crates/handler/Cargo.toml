@@ -12,6 +12,3 @@ thiserror = "2"
 lasso = "0.7"
 serde = { workspace = true }
 serde_json = { workspace = true }
-
-[dev-dependencies]
-pyspice-rs = { git = "ssh://git@github.com/OmarSiwy/PySpice.git", default-features = false }
