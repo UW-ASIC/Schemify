@@ -719,3 +719,182 @@ fn highlight_latex_math(text: &str, colors: &LatexColors, font: &FontId, job: &m
         job.append(&text[plain_start..], 0.0, fmt(colors.math_body));
     }
 }
+
+// ── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── is_spice_number_char ────────────────────────────────────────────────
+
+    #[test]
+    fn spice_number_chars() {
+        assert!(is_spice_number_char('0'));
+        assert!(is_spice_number_char('9'));
+        assert!(is_spice_number_char('.'));
+        assert!(is_spice_number_char('-'));
+        assert!(is_spice_number_char('+'));
+        assert!(is_spice_number_char('e'));
+        assert!(is_spice_number_char('E'));
+    }
+
+    #[test]
+    fn non_spice_number_chars() {
+        assert!(!is_spice_number_char('a'));
+        assert!(!is_spice_number_char('R'));
+        assert!(!is_spice_number_char(' '));
+        assert!(!is_spice_number_char('_'));
+    }
+
+    // ── is_si_suffix ────────────────────────────────────────────────────────
+
+    #[test]
+    fn valid_si_suffixes() {
+        assert!(is_si_suffix("k"));
+        assert!(is_si_suffix("K"));
+        assert!(is_si_suffix("meg"));
+        assert!(is_si_suffix("MEG"));
+        assert!(is_si_suffix("u"));
+        assert!(is_si_suffix("n"));
+        assert!(is_si_suffix("p"));
+        assert!(is_si_suffix("f"));
+        assert!(is_si_suffix("GHz"));
+        assert!(is_si_suffix("MHz"));
+    }
+
+    #[test]
+    fn invalid_si_suffixes() {
+        assert!(!is_si_suffix("xyz"));
+        assert!(!is_si_suffix("ohm"));
+        assert!(!is_si_suffix(""));
+        assert!(!is_si_suffix("volts"));
+    }
+
+    // ── is_component_prefix ─────────────────────────────────────────────────
+
+    #[test]
+    fn valid_component_prefixes() {
+        for c in ['R', 'C', 'L', 'V', 'I', 'M', 'Q', 'D', 'J', 'X'] {
+            assert!(
+                is_component_prefix(c),
+                "Expected '{c}' to be a component prefix"
+            );
+        }
+        // Lowercase variants.
+        assert!(is_component_prefix('r'));
+        assert!(is_component_prefix('c'));
+        assert!(is_component_prefix('m'));
+    }
+
+    #[test]
+    fn invalid_component_prefixes() {
+        assert!(!is_component_prefix('Z'));
+        assert!(!is_component_prefix('0'));
+        assert!(!is_component_prefix('.'));
+        assert!(!is_component_prefix('Y'));
+    }
+
+    // ── highlight_spice (integration-level) ─────────────────────────────────
+
+    #[test]
+    fn highlight_spice_comment_line() {
+        let font = FontId::proportional(14.0);
+        let job = highlight_spice("* this is a comment\n", font, true);
+        // The entire line should be a single section (the comment).
+        assert!(!job.sections.is_empty());
+    }
+
+    #[test]
+    fn highlight_spice_directive_recognized() {
+        let font = FontId::proportional(14.0);
+        let job = highlight_spice(".tran 1n 100n\n", font, true);
+        assert!(!job.sections.is_empty());
+        // The text should be present in the job.
+        assert_eq!(job.text, ".tran 1n 100n\n");
+    }
+
+    #[test]
+    fn highlight_spice_empty_string() {
+        let font = FontId::proportional(14.0);
+        let job = highlight_spice("", font, true);
+        assert!(job.sections.is_empty());
+    }
+
+    #[test]
+    fn highlight_spice_preserves_text() {
+        let input = "R1 in out 10k\n.dc V1 0 5 0.1\n";
+        let font = FontId::proportional(14.0);
+        let job = highlight_spice(input, font, false);
+        assert_eq!(job.text, input);
+    }
+
+    // ── highlight_latex ─────────────────────────────────────────────────────
+
+    #[test]
+    fn highlight_latex_preserves_text() {
+        let input = "Hello $x^2$ world";
+        let font = FontId::proportional(14.0);
+        let job = highlight_latex(input, font, true);
+        assert_eq!(job.text, input);
+    }
+
+    #[test]
+    fn highlight_latex_empty_string() {
+        let font = FontId::proportional(14.0);
+        let job = highlight_latex("", font, true);
+        assert!(job.sections.is_empty());
+    }
+
+    #[test]
+    fn highlight_latex_comment() {
+        let font = FontId::proportional(14.0);
+        let job = highlight_latex("text % comment\n", font, true);
+        assert_eq!(job.text, "text % comment\n");
+        // Should have at least 2 sections (text before %, comment).
+        assert!(job.sections.len() >= 2);
+    }
+
+    // ── classify_latex_cmd ───────────────────────────────────────────────────
+
+    #[test]
+    fn classify_latex_cmd_section() {
+        let colors = LatexColors::dark();
+        assert_eq!(classify_latex_cmd("section", &colors), colors.section);
+        assert_eq!(classify_latex_cmd("title", &colors), colors.section);
+    }
+
+    #[test]
+    fn classify_latex_cmd_environment() {
+        let colors = LatexColors::dark();
+        assert_eq!(classify_latex_cmd("begin", &colors), colors.environment);
+        assert_eq!(classify_latex_cmd("end", &colors), colors.environment);
+    }
+
+    #[test]
+    fn classify_latex_cmd_greek() {
+        let colors = LatexColors::dark();
+        assert_eq!(classify_latex_cmd("alpha", &colors), colors.greek);
+        assert_eq!(classify_latex_cmd("Omega", &colors), colors.greek);
+    }
+
+    #[test]
+    fn classify_latex_cmd_math() {
+        let colors = LatexColors::dark();
+        assert_eq!(classify_latex_cmd("frac", &colors), colors.math_body);
+        assert_eq!(classify_latex_cmd("sqrt", &colors), colors.math_body);
+    }
+
+    #[test]
+    fn classify_latex_cmd_operator() {
+        let colors = LatexColors::dark();
+        assert_eq!(classify_latex_cmd("times", &colors), colors.operator);
+        assert_eq!(classify_latex_cmd("infty", &colors), colors.operator);
+    }
+
+    #[test]
+    fn classify_latex_cmd_unknown_falls_back_to_command() {
+        let colors = LatexColors::dark();
+        assert_eq!(classify_latex_cmd("unknowncmd", &colors), colors.command);
+    }
+}

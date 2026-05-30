@@ -2209,3 +2209,243 @@ fn pan_by_pixel_delta(app: &mut App, viewport: &CanvasViewport, delta: egui::Vec
 fn snap_world(viewport: &CanvasViewport, pos: Pos2, snap_size: f32) -> [i32; 2] {
     viewport.snap_to_grid(pos.x, pos.y, snap_size)
 }
+
+// ── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper: build a viewport centered at (400, 300) with given zoom and pan.
+    fn vp(zoom: f32, pan: [f32; 2]) -> CanvasViewport {
+        CanvasViewport {
+            center: Pos2::new(400.0, 300.0),
+            zoom,
+            pan,
+        }
+    }
+
+    // ── world_to_pixel / pixel_to_world roundtrip ───────────────────────────
+
+    #[test]
+    fn world_to_pixel_origin_no_pan() {
+        let v = vp(1.0, [0.0, 0.0]);
+        let p = v.world_to_pixel(0.0, 0.0);
+        assert!((p.x - 400.0).abs() < 1e-4);
+        assert!((p.y - 300.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn world_to_pixel_with_pan() {
+        let v = vp(1.0, [10.0, 20.0]);
+        // pixel = center + (world - pan) * zoom
+        // pixel = (400, 300) + (10 - 10, 20 - 20) * 1 = (400, 300)
+        let p = v.world_to_pixel(10.0, 20.0);
+        assert!((p.x - 400.0).abs() < 1e-4);
+        assert!((p.y - 300.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn world_to_pixel_with_zoom() {
+        let v = vp(2.0, [0.0, 0.0]);
+        // pixel = (400, 300) + (50, 0) * 2 = (500, 300)
+        let p = v.world_to_pixel(50.0, 0.0);
+        assert!((p.x - 500.0).abs() < 1e-4);
+        assert!((p.y - 300.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn roundtrip_world_pixel_world() {
+        let v = vp(1.5, [30.0, -20.0]);
+        let wx = 42.0_f32;
+        let wy = -17.0_f32;
+        let p = v.world_to_pixel(wx, wy);
+        let [rx, ry] = v.pixel_to_world(p.x, p.y);
+        assert!((rx - wx).abs() < 1e-3, "x mismatch: {rx} vs {wx}");
+        assert!((ry - wy).abs() < 1e-3, "y mismatch: {ry} vs {wy}");
+    }
+
+    #[test]
+    fn roundtrip_pixel_world_pixel() {
+        let v = vp(0.75, [100.0, 200.0]);
+        let px = 550.0_f32;
+        let py = 350.0_f32;
+        let [wx, wy] = v.pixel_to_world(px, py);
+        let p = v.world_to_pixel(wx, wy);
+        assert!((p.x - px).abs() < 1e-3, "px mismatch: {} vs {px}", p.x);
+        assert!((p.y - py).abs() < 1e-3, "py mismatch: {} vs {py}", p.y);
+    }
+
+    #[test]
+    fn roundtrip_negative_coords() {
+        let v = vp(2.0, [-50.0, -100.0]);
+        let wx = -200.0_f32;
+        let wy = -300.0_f32;
+        let p = v.world_to_pixel(wx, wy);
+        let [rx, ry] = v.pixel_to_world(p.x, p.y);
+        assert!((rx - wx).abs() < 1e-3);
+        assert!((ry - wy).abs() < 1e-3);
+    }
+
+    // ── w2p (integer convenience) ───────────────────────────────────────────
+
+    #[test]
+    fn w2p_matches_world_to_pixel_for_integers() {
+        let v = vp(1.5, [10.0, 20.0]);
+        let p1 = v.w2p(100, -50);
+        let p2 = v.world_to_pixel(100.0, -50.0);
+        assert!((p1.x - p2.x).abs() < 1e-4);
+        assert!((p1.y - p2.y).abs() < 1e-4);
+    }
+
+    // ── snap_to_grid ────────────────────────────────────────────────────────
+
+    #[test]
+    fn snap_to_grid_basic() {
+        let v = vp(1.0, [0.0, 0.0]);
+        // Pixel (400, 300) is world (0, 0). Snap to grid=10 -> (0, 0).
+        let [sx, sy] = v.snap_to_grid(400.0, 300.0, 10.0);
+        assert_eq!(sx, 0);
+        assert_eq!(sy, 0);
+    }
+
+    #[test]
+    fn snap_to_grid_rounds_to_nearest() {
+        let v = vp(1.0, [0.0, 0.0]);
+        // Pixel (404, 300) is world (4, 0). With grid=10, rounds to (0, 0).
+        let [sx, sy] = v.snap_to_grid(404.0, 300.0, 10.0);
+        assert_eq!(sx, 0);
+        assert_eq!(sy, 0);
+
+        // Pixel (406, 300) is world (6, 0). With grid=10, rounds to (10, 0).
+        let [sx, sy] = v.snap_to_grid(406.0, 300.0, 10.0);
+        assert_eq!(sx, 10);
+        assert_eq!(sy, 0);
+    }
+
+    #[test]
+    fn snap_to_grid_negative_coords() {
+        let v = vp(1.0, [0.0, 0.0]);
+        // Pixel (396, 300) is world (-4, 0). With grid=10, rounds to (0, 0).
+        let [sx, sy] = v.snap_to_grid(396.0, 300.0, 10.0);
+        assert_eq!(sx, 0);
+        assert_eq!(sy, 0);
+
+        // Pixel (394, 300) is world (-6, 0). With grid=10, rounds to (-10, 0).
+        let [sx, sy] = v.snap_to_grid(394.0, 300.0, 10.0);
+        assert_eq!(sx, -10);
+        assert_eq!(sy, 0);
+    }
+
+    #[test]
+    fn snap_to_grid_zero_grid_size_uses_one() {
+        let v = vp(1.0, [0.0, 0.0]);
+        // Grid size 0 -> fallback to 1.0, so snaps to nearest integer.
+        let [sx, sy] = v.snap_to_grid(403.0, 302.0, 0.0);
+        assert_eq!(sx, 3);
+        assert_eq!(sy, 2);
+    }
+
+    #[test]
+    fn snap_to_grid_negative_grid_size_uses_one() {
+        let v = vp(1.0, [0.0, 0.0]);
+        // Negative grid size -> fallback to 1.0.
+        let [sx, sy] = v.snap_to_grid(403.0, 302.0, -5.0);
+        assert_eq!(sx, 3);
+        assert_eq!(sy, 2);
+    }
+
+    #[test]
+    fn snap_to_grid_with_zoom() {
+        let v = vp(2.0, [0.0, 0.0]);
+        // Pixel (410, 300) = world ((410-400)/2, 0) = (5, 0).
+        // Grid=10 -> rounds to (10, 0).
+        let [sx, sy] = v.snap_to_grid(410.0, 300.0, 10.0);
+        assert_eq!(sx, 10);
+        assert_eq!(sy, 0);
+    }
+
+    #[test]
+    fn snap_to_grid_small_grid() {
+        let v = vp(1.0, [0.0, 0.0]);
+        // World (3, 3) with grid=5 -> rounds to (5, 5).
+        let [sx, sy] = v.snap_to_grid(403.0, 303.0, 5.0);
+        assert_eq!(sx, 5);
+        assert_eq!(sy, 5);
+    }
+
+    // ── pixel_to_world edge cases ───────────────────────────────────────────
+
+    #[test]
+    fn pixel_to_world_at_center_is_pan() {
+        let v = vp(1.0, [50.0, 60.0]);
+        let [wx, wy] = v.pixel_to_world(400.0, 300.0);
+        assert!((wx - 50.0).abs() < 1e-4);
+        assert!((wy - 60.0).abs() < 1e-4);
+    }
+
+    // ── thickness_width ─────────────────────────────────────────────────────
+
+    #[test]
+    fn thickness_width_zero_returns_default() {
+        assert!((thickness_width(0) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn thickness_width_converts_tenths() {
+        assert!((thickness_width(10) - 1.0).abs() < f32::EPSILON);
+        assert!((thickness_width(20) - 2.0).abs() < f32::EPSILON);
+        assert!((thickness_width(5) - 0.5).abs() < f32::EPSILON);
+    }
+
+    // ── color_or ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn color_or_none_returns_default() {
+        let default = Color32::from_rgb(100, 200, 50);
+        let result = color_or(Color::NONE, default);
+        assert_eq!(result, default);
+    }
+
+    #[test]
+    fn color_or_explicit_returns_explicit() {
+        let c = Color {
+            r: 10,
+            g: 20,
+            b: 30,
+            a: 255,
+        };
+        let default = Color32::from_rgb(0, 0, 0);
+        let result = color_or(c, default);
+        assert_eq!(result, Color32::from_rgba_premultiplied(10, 20, 30, 255));
+    }
+
+    // ── CanvasPalette construction ──────────────────────────────────────────
+
+    #[test]
+    fn dark_palette_has_dark_background() {
+        let p = CanvasPalette::dark();
+        // Dark background should have low RGB values.
+        assert!(p.canvas_bg.r() < 100);
+        assert!(p.canvas_bg.g() < 100);
+        assert!(p.canvas_bg.b() < 100);
+    }
+
+    #[test]
+    fn light_palette_has_light_background() {
+        let p = CanvasPalette::light();
+        // Light background should have high RGB values.
+        assert!(p.canvas_bg.r() > 200);
+        assert!(p.canvas_bg.g() > 200);
+        assert!(p.canvas_bg.b() > 200);
+    }
+
+    #[test]
+    fn dark_and_light_palettes_differ() {
+        let dark = CanvasPalette::dark();
+        let light = CanvasPalette::light();
+        assert_ne!(dark.canvas_bg, light.canvas_bg);
+        assert_ne!(dark.wire, light.wire);
+        assert_ne!(dark.symbol_line, light.symbol_line);
+    }
+}
