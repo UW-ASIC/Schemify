@@ -1,3 +1,4 @@
+use crate::s2s::adapter::schematic_from_subcircuit;
 use crate::s2s::ir::{self, NetClass};
 use crate::s2s::output::schemify::SchemifyBackend;
 use crate::s2s::parser::SpiceParser;
@@ -10,6 +11,54 @@ use schemify_core::types::{Color, DeviceKind, InstanceFlags, SchematicType};
 
 const POWER_NAMES: &[&str] = &["vdd", "vcc", "avdd", "dvdd"];
 const GROUND_NAMES: &[&str] = &["vss", "gnd", "0", "avss", "dvss"];
+
+/// Result of a hierarchical SPICE import.
+#[derive(Debug, Clone)]
+pub struct ImportResult {
+    pub top: Schematic,
+    pub children: Vec<Schematic>,
+}
+
+/// Import SPICE producing a hierarchy of schematics (parent + child per subckt).
+pub fn import_spice_hierarchical(
+    source: &str,
+    interner: &mut Rodeo,
+) -> Result<ImportResult, String> {
+    let mut parser = SpiceParser::new();
+    let mut circuit = parser.parse(source).map_err(|e| format!("{e:#}"))?;
+
+    annotation::annotate(&mut circuit);
+
+    let backend = SchemifyBackend::new("");
+
+    let subckt_names: Vec<String> = circuit.subcircuits.keys().cloned().collect();
+    for name in &subckt_names {
+        if let Some(subckt) = circuit.subcircuits.get(name) {
+            let blocks = recognition::recognize_subcircuit(subckt);
+            let subckt_mut = circuit.subcircuits.get_mut(name).unwrap();
+            placement::place(subckt_mut, &blocks, &backend);
+            Router::new().route(subckt_mut, &backend);
+        }
+    }
+
+    let blocks = recognition::recognize(&circuit);
+    placement::place(&mut circuit.top, &blocks, &backend);
+    Router::new().route(&mut circuit.top, &backend);
+
+    let mut top = convert_subcircuit(&circuit.top, &circuit, interner);
+
+    if !circuit.analysis.is_empty() {
+        top.spice_body = circuit.analysis.to_stimulus_string();
+    }
+
+    let children: Vec<Schematic> = subckt_names
+        .iter()
+        .filter_map(|name| circuit.subcircuits.get(name))
+        .map(|sub| schematic_from_subcircuit(sub, interner))
+        .collect();
+
+    Ok(ImportResult { top, children })
+}
 
 /// Run the full S2S pipeline and convert the result to a SchemifyRS Schematic.
 pub fn import_spice(source: &str, interner: &mut Rodeo) -> Result<Schematic, String> {
@@ -85,9 +134,15 @@ fn convert_subcircuit(
 
         let prop_count = (schematic.properties.len() as u32 - prop_start) as u16;
 
+        let sym = if inst.primitive == ir::Primitive::Subcircuit {
+            interner.get_or_intern(&inst.symbol)
+        } else {
+            interner.get_or_intern(primitive_sym(inst.primitive))
+        };
+
         schematic.instances.push(Instance {
             name: interner.get_or_intern(&inst.name),
-            symbol: interner.get_or_intern(primitive_sym(inst.primitive)),
+            symbol: sym,
             spice_line: empty,
             x: inst.x,
             y: inst.y,

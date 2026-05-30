@@ -24,6 +24,19 @@ pub fn emit_netlist(ir: &CircuitIR, title: &str) -> String {
     writeln!(buf, "* {title}").unwrap();
     writeln!(buf).unwrap();
 
+    for sub in &ir.subcircuit_defs {
+        let ports: String = sub
+            .ports
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        writeln!(buf, ".subckt {} {}", sub.name, ports).unwrap();
+        emit_subcircuit_body(&mut buf, sub);
+        writeln!(buf, ".ends {}", sub.name).unwrap();
+        writeln!(buf).unwrap();
+    }
+
     emit_subcircuit_body(&mut buf, &ir.top);
 
     writeln!(buf, ".end").unwrap();
@@ -610,5 +623,83 @@ mod tests {
         let out = emit_netlist(&ir, "test");
         assert!(out.contains("S1 out 0 ctrl_p ctrl_m SW1"));
         assert!(out.contains("W1 out 0 Vsense CSW1"));
+    }
+
+    #[test]
+    fn emit_subcircuit_def() {
+        let ir = CircuitIR {
+            top: Subcircuit {
+                name: "test".into(),
+                instances: vec![Instance {
+                    name: "1".into(),
+                    subcircuit: "inv".into(),
+                    port_mapping: vec!["in".into(), "out".into(), "vdd".into(), "vss".into()],
+                    parameters: vec![],
+                }],
+                ..Subcircuit::default()
+            },
+            testbench: None,
+            subcircuit_defs: vec![Subcircuit {
+                name: "inv".into(),
+                ports: vec![
+                    Port {
+                        name: "in".into(),
+                        direction: PortDirection::Input,
+                    },
+                    Port {
+                        name: "out".into(),
+                        direction: PortDirection::Output,
+                    },
+                    Port {
+                        name: "vdd".into(),
+                        direction: PortDirection::InOut,
+                    },
+                    Port {
+                        name: "vss".into(),
+                        direction: PortDirection::InOut,
+                    },
+                ],
+                components: vec![
+                    Component::Mosfet {
+                        name: "p1".into(),
+                        nd: "out".into(),
+                        ng: "in".into(),
+                        ns: "vdd".into(),
+                        nb: "vdd".into(),
+                        model: "pmos".into(),
+                        params: vec![("W".into(), "2u".into()), ("L".into(), "180n".into())],
+                    },
+                    Component::Mosfet {
+                        name: "n1".into(),
+                        nd: "out".into(),
+                        ng: "in".into(),
+                        ns: "vss".into(),
+                        nb: "vss".into(),
+                        model: "nmos".into(),
+                        params: vec![("W".into(), "1u".into()), ("L".into(), "180n".into())],
+                    },
+                ],
+                ..Subcircuit::default()
+            }],
+            model_libraries: Vec::new(),
+        };
+        let out = emit_netlist(&ir, "test");
+        assert!(
+            out.contains(".subckt inv in out vdd vss"),
+            "missing .subckt header: {out}"
+        );
+        assert!(
+            out.contains("Mp1 out in vdd vdd pmos W=2u L=180n"),
+            "missing pmos: {out}"
+        );
+        assert!(
+            out.contains("Mn1 out in vss vss nmos W=1u L=180n"),
+            "missing nmos: {out}"
+        );
+        assert!(out.contains(".ends inv"), "missing .ends: {out}");
+        assert!(
+            out.contains("X1 in out vdd vss inv"),
+            "missing X-instance: {out}"
+        );
     }
 }

@@ -145,9 +145,15 @@ pub fn schematic_from_subcircuit(sub: &ir::Subcircuit, int: &mut Rodeo) -> Schem
 
         let prop_count = (schematic.properties.len() as u32 - prop_start) as u16;
 
+        let sym = if inst.primitive == Primitive::Subcircuit {
+            int.get_or_intern(&inst.symbol)
+        } else {
+            int.get_or_intern(primitive_sym(inst.primitive))
+        };
+
         schematic.instances.push(Instance {
             name: int.get_or_intern(&inst.name),
-            symbol: int.get_or_intern(primitive_sym(inst.primitive)),
+            symbol: sym,
             spice_line: empty,
             x: inst.x,
             y: inst.y,

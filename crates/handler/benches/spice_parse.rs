@@ -84,9 +84,7 @@ fn build_medium_netlist() -> String {
 
     // 5 subcircuit instances
     for i in 0..5 {
-        lines.push(format!(
-            "X{i} in{i} out{i} vdd vss inv m=1"
-        ));
+        lines.push(format!("X{i} in{i} out{i} vdd vss inv m=1"));
     }
 
     // Analysis commands

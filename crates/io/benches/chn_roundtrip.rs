@@ -156,5 +156,10 @@ fn bench_chn_roundtrip(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_chn_write, bench_chn_read, bench_chn_roundtrip);
+criterion_group!(
+    benches,
+    bench_chn_write,
+    bench_chn_read,
+    bench_chn_roundtrip
+);
 criterion_main!(benches);
