@@ -1,7 +1,7 @@
 ---
 id: gui/04
 title: Add UI for SetStimulusLang command
-status: ready-for-agent
+status: done
 priority: medium
 labels: [gui-linking, display, sim]
 ---

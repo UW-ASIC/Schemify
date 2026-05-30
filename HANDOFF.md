@@ -1,6 +1,6 @@
 # HANDOFF — SchemifyRS Implementation Gaps
 
-Updated: 2026-05-30 | Branch: `dev` (HEAD `15af9ba`)
+Updated: 2026-05-30 | Branch: `dev` (HEAD `6b346a2`)
 
 Issues live as markdown under `.scratch/` (see `docs/agents/issue-tracker.md`).
 
@@ -44,7 +44,7 @@ S2S importer exists (~13.5k LOC in `handler/src/s2s/`). These are gaps, not gree
 | s2s/02 | Hierarchical subcircuit import (multi-sheet) | ready-for-agent | high | ~~s2s/03~~ ✅ |
 | s2s/03 | Relayout adapter (Schematic ↔ s2s-IR) | **done** | high | — |
 | s2s/04 | Surface validation diagnostics to user | ready-for-agent | medium | — |
-| s2s/05 | Ignored card diagnostics (parser warnings) | ready-for-agent | medium | ~~s2s/01~~ ✅ |
+| s2s/05 | Ignored card diagnostics (parser warnings) | **done** | medium | ~~s2s/01~~ ✅ |
 | s2s/06 | WASM import smoke test + PySpice UX | ready-for-agent | low | — |
 | s2s/07 | Document S2S + fix CONTEXT-MAP drift | ready-for-agent | low | — |
 | s2s/08 | Simulation result back-annotation | needs-info | high | gen/02 |
@@ -54,12 +54,12 @@ S2S importer exists (~13.5k LOC in `handler/src/s2s/`). These are gaps, not gree
 
 | ID | Title | Status | Pri | Deps |
 |----|-------|--------|-----|------|
-| gui/01 | Text tool → canvas handlers (tool exists, no interaction) | ready-for-agent | high | — |
-| gui/02 | AutoLayout stub (returns error msg) | ready-for-agent | medium | s2s/03 |
-| gui/03 | Audit control wiring (full inventory) | ready-for-agent | medium | — |
-| gui/04 | SetStimulusLang — no UI dispatches it | ready-for-agent | medium | — |
+| gui/01 | Text tool → canvas handlers (click + input overlay) | **done** | high | — |
+| gui/02 | AutoLayout stub (returns error msg) | ready-for-agent | medium | ~~s2s/03~~ ✅ |
+| gui/03 | Audit control wiring (full inventory) | **done** | medium | ~~gui/01~~ ✅ |
+| gui/04 | SetStimulusLang — stimulus language selector | **done** | medium | — |
 | gui/05 | Hierarchy navigation (disabled stubs) | needs-info | medium | s2s/02 |
-| gui/06 | Bus mode flag — verify propagates to AddWire | ready-for-agent | medium | — |
+| gui/06 | Bus mode flag — verified correct, tests added | **done** | medium | — |
 | gui/07 | Disabled menu items (SVG, highlight nets) | ready-for-agent | low | — |
 | gui/08 | PluginMutation handler (no-op) | ready-for-agent | low | — |
 
@@ -127,11 +127,11 @@ S2S importer exists (~13.5k LOC in `handler/src/s2s/`). These are gaps, not gree
 
 ## Totals
 
-**25 issues across 4 tracks — 4 done, 1 wontfix, 20 remaining**
+**25 issues across 4 tracks — 9 done, 1 wontfix, 15 remaining**
 
-- **Done:** 4 (gen/01, gen/02, s2s/01, s2s/03)
+- **Done:** 9 (gen/01, gen/02, s2s/01, s2s/03, s2s/05, gui/01, gui/03, gui/04, gui/06)
 - **Wontfix:** 1 (s2s/09 — Spectre/HSPICE irrelevant, PySpice emits ngspice)
-- **High:** 4 (text tool, back-annotation, display tests, plugin hardening)
-- **Medium:** 11 (various GUI, infra, IO)
+- **High:** 2 (back-annotation, display tests, plugin hardening)
+- **Medium:** 8 (various GUI, infra, IO)
 - **Low:** 5 (docs, WASM, polish)
 - **Needs-info:** 4 (require triage/clarification before agent work)

@@ -1,7 +1,7 @@
 ---
 id: gui/01
 title: Wire Text tool to canvas handlers
-status: ready-for-agent
+status: done
 priority: high
 labels: [gui-linking, display]
 ---
