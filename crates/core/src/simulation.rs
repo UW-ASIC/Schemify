@@ -121,6 +121,16 @@ pub enum StimulusLang {
 }
 
 impl StimulusLang {
+    /// All variants in declaration order, for UI iteration.
+    pub const ALL: &[StimulusLang] = &[
+        StimulusLang::NgSpice,
+        StimulusLang::Xyce,
+        StimulusLang::Vacask,
+        StimulusLang::LtSpice,
+        StimulusLang::Spectre,
+        StimulusLang::PySpice,
+    ];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::NgSpice => "ngspice",

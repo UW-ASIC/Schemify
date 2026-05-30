@@ -33,6 +33,7 @@ pub fn menu_bar(ctx: &egui::Context, app: &mut App) {
     let view_flags = app.view().view_flags.clone();
     let bus_mode = app.tool_state().bus_mode;
     let sim_backend = app.schematic().sim_backend;
+    let stimulus_lang = app.stimulus_lang();
 
     let mut cmds: Vec<Command> = Vec::new();
     #[cfg(not(target_arch = "wasm32"))]
@@ -78,7 +79,7 @@ pub fn menu_bar(ctx: &egui::Context, app: &mut App) {
             );
             place_menu(ui, &mut cmds, bus_mode, &mut toggle_bus);
             hierarchy_menu(ui, &mut cmds);
-            simulate_menu(ui, &mut cmds, sim_backend);
+            simulate_menu(ui, &mut cmds, sim_backend, stimulus_lang);
             plugins_menu(ui, &mut cmds, &plugin_info, &plugin_cmds, &mut toggle_panel);
             help_menu(ui, &mut cmds);
         });
@@ -489,6 +490,7 @@ fn simulate_menu(
     ui: &mut egui::Ui,
     cmds: &mut Vec<Command>,
     sim_backend: schemify_core::simulation::SpiceBackend,
+    stimulus_lang: schemify_core::simulation::StimulusLang,
 ) {
     ui.menu_button("Simulate", |ui| {
         if sc(ui, "Run Simulation", "F5") {
@@ -511,6 +513,28 @@ fn simulate_menu(
                 };
                 if sc(ui, &format!("{prefix}{label}"), "") {
                     cmds.push(Command::SetSimBackend(variant.as_str().to_string()));
+                    ui.close_menu();
+                }
+            }
+        });
+        ui.menu_button("Stimulus Language", |ui| {
+            use schemify_core::simulation::StimulusLang;
+            let labels: &[(&str, StimulusLang)] = &[
+                ("ngspice", StimulusLang::NgSpice),
+                ("Xyce", StimulusLang::Xyce),
+                ("Vacask", StimulusLang::Vacask),
+                ("LTSpice", StimulusLang::LtSpice),
+                ("Spectre", StimulusLang::Spectre),
+                ("PySpice", StimulusLang::PySpice),
+            ];
+            for (label, variant) in labels {
+                let prefix = if stimulus_lang == *variant {
+                    "\u{2713} "
+                } else {
+                    "  "
+                };
+                if sc(ui, &format!("{prefix}{label}"), "") {
+                    cmds.push(Command::SetStimulusLang(variant.as_str().to_string()));
                     ui.close_menu();
                 }
             }
