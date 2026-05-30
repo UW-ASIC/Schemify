@@ -4,9 +4,13 @@ use std::path::{Path, PathBuf};
 /// or `None` if PySpice was not available at build time.
 pub fn module_dir() -> Option<&'static Path> {
     #[cfg(no_pyspice)]
-    { None }
+    {
+        None
+    }
     #[cfg(not(no_pyspice))]
-    { Some(Path::new(env!("PYSPICE_BUNDLE_DIR"))) }
+    {
+        Some(Path::new(env!("PYSPICE_BUNDLE_DIR")))
+    }
 }
 
 /// Returns whether PySpice support was compiled in.

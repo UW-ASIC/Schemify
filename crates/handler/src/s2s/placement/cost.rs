@@ -4,9 +4,9 @@
 
 use std::collections::HashMap;
 
-use crate::s2s::ir::Subcircuit;
 use super::constraints::{Axis, Constraint, Side};
 use super::PlacementItem;
+use crate::s2s::ir::Subcircuit;
 
 /// Weights for the SA cost function.
 const W_HARD: f64 = 1e6;
@@ -48,7 +48,7 @@ pub fn snap(v: i32) -> i32 {
 }
 
 /// Compute total cost of a placement state.
-pub fn compute_cost(
+pub(crate) fn compute_cost(
     state: &PlacementState,
     items: &[PlacementItem],
     subckt: &Subcircuit,
@@ -73,12 +73,15 @@ fn count_hard_violations(
 
     for constraint in constraints {
         match constraint {
-            Constraint::Symmetry { axis, group_a, group_b } => {
+            Constraint::Symmetry {
+                axis,
+                group_a,
+                group_b,
+            } => {
                 if let (Some(&a), Some(&b)) = (group_a.first(), group_b.first()) {
-                    if let (Some(&item_a), Some(&item_b)) = (
-                        inst_to_item.get(&a),
-                        inst_to_item.get(&b),
-                    ) {
+                    if let (Some(&item_a), Some(&item_b)) =
+                        (inst_to_item.get(&a), inst_to_item.get(&b))
+                    {
                         let (xa, ya) = state.positions[item_a];
                         let (xb, yb) = state.positions[item_b];
                         match axis {
@@ -121,10 +124,7 @@ fn count_hard_violations(
                 }
             }
             Constraint::Adjacency { a, b, side } => {
-                if let (Some(&item_a), Some(&item_b)) = (
-                    inst_to_item.get(a),
-                    inst_to_item.get(b),
-                ) {
+                if let (Some(&item_a), Some(&item_b)) = (inst_to_item.get(a), inst_to_item.get(b)) {
                     let (xa, ya) = state.positions[item_a];
                     let (xb, yb) = state.positions[item_b];
                     let ok = match side {
@@ -138,7 +138,11 @@ fn count_hard_violations(
                     }
                 }
             }
-            Constraint::Orientation { instance, rotation, flip } => {
+            Constraint::Orientation {
+                instance,
+                rotation,
+                flip,
+            } => {
                 if let Some(&item_idx) = inst_to_item.get(instance) {
                     let (r, f) = state.orientations[item_idx];
                     if r != *rotation || f != *flip {
@@ -177,11 +181,7 @@ fn count_overlaps(state: &PlacementState) -> usize {
 }
 
 /// Compute total half-perimeter wirelength (HPWL) for all nets.
-fn compute_hpwl(
-    state: &PlacementState,
-    items: &[PlacementItem],
-    subckt: &Subcircuit,
-) -> f64 {
+fn compute_hpwl(state: &PlacementState, items: &[PlacementItem], subckt: &Subcircuit) -> f64 {
     let inst_to_item = build_inst_to_item(items);
     let mut total_hpwl: f64 = 0.0;
 
@@ -227,10 +227,9 @@ fn compute_signal_flow_cost(
 
     for constraint in constraints {
         if let Constraint::SignalFlow { from, to, weight } = constraint {
-            if let (Some(&item_from), Some(&item_to)) = (
-                inst_to_item.get(from),
-                inst_to_item.get(to),
-            ) {
+            if let (Some(&item_from), Some(&item_to)) =
+                (inst_to_item.get(from), inst_to_item.get(to))
+            {
                 let x_from = state.positions[item_from].0;
                 let x_to = state.positions[item_to].0;
                 if x_to < x_from {
@@ -268,7 +267,7 @@ fn compute_aspect_ratio_penalty(state: &PlacementState) -> f64 {
 }
 
 /// Build a map from instance index to item index.
-pub fn build_inst_to_item(items: &[PlacementItem]) -> HashMap<u32, usize> {
+pub(crate) fn build_inst_to_item(items: &[PlacementItem]) -> HashMap<u32, usize> {
     let mut map = HashMap::new();
     for (item_idx, item) in items.iter().enumerate() {
         for &inst_idx in &item.instance_indices {

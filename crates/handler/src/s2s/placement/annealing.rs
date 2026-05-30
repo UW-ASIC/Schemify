@@ -1,9 +1,9 @@
 //! Simulated annealing engine for placement optimization.
 
-use crate::s2s::ir::Subcircuit;
 use super::constraints::Constraint;
 use super::cost::{compute_cost, PlacementState};
 use super::{PlacementItem, GRID_SIZE};
+use crate::s2s::ir::Subcircuit;
 
 /// XorShift64 PRNG (deterministic, no external deps).
 pub struct Xorshift64 {
@@ -12,7 +12,9 @@ pub struct Xorshift64 {
 
 impl Xorshift64 {
     pub fn new(seed: u64) -> Self {
-        Self { state: if seed == 0 { 1 } else { seed } }
+        Self {
+            state: if seed == 0 { 1 } else { seed },
+        }
     }
 
     pub fn next_u64(&mut self) -> u64 {
@@ -55,7 +57,7 @@ enum SavedState {
 }
 
 /// Run simulated annealing on the placement state.
-pub fn simulated_annealing(
+pub(crate) fn simulated_annealing(
     state: &mut PlacementState,
     items: &[PlacementItem],
     subckt: &Subcircuit,

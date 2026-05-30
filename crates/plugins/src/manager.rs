@@ -119,10 +119,7 @@ impl PluginManager {
                     if self.plugins.contains_key(&name) {
                         continue;
                     }
-                    let capability = capability::negotiate(
-                        &self.host_caps,
-                        &manifest.capabilities,
-                    );
+                    let capability = capability::negotiate(&self.host_caps, &manifest.capabilities);
                     self.plugins.insert(
                         name,
                         PluginSlot {
@@ -163,9 +160,7 @@ impl PluginManager {
 
     /// Get error message for a plugin in Error state.
     pub fn error_msg(&self, name: &str) -> Option<&str> {
-        self.plugins
-            .get(name)
-            .and_then(|s| s.error_msg.as_deref())
+        self.plugins.get(name).and_then(|s| s.error_msg.as_deref())
     }
 
     /// Get negotiated capabilities for a plugin.
@@ -202,10 +197,8 @@ impl PluginManager {
                     "host_capabilities": self.host_caps,
                     "plugin_name": name,
                 });
-                let init_msg = jsonrpc::encode_notification(
-                    "lifecycle/initialize",
-                    Some(init_params),
-                );
+                let init_msg =
+                    jsonrpc::encode_notification("lifecycle/initialize", Some(init_params));
                 if let Err(e) = new_transport.send(&init_msg) {
                     slot.state = PluginState::Error;
                     slot.error_msg = Some(format!("send initialize failed: {e}"));
@@ -410,7 +403,8 @@ impl PluginManager {
             .as_mut()
             .ok_or_else(|| format!("{plugin_name} not running"))?;
         let msg = jsonrpc::encode_response(id, result);
-        t.send(&msg).map_err(|e| format!("send response failed: {e}"))
+        t.send(&msg)
+            .map_err(|e| format!("send response failed: {e}"))
     }
 
     /// Send an error response back to a plugin.
@@ -456,7 +450,8 @@ impl PluginManager {
             .as_mut()
             .ok_or_else(|| format!("{plugin_name} not running"))?;
         let msg = jsonrpc::encode_request(id, method, params);
-        t.send(&msg).map_err(|e| format!("send request failed: {e}"))?;
+        t.send(&msg)
+            .map_err(|e| format!("send request failed: {e}"))?;
         Ok(id)
     }
 }
@@ -691,10 +686,7 @@ entry = "echo"
 
         mgr.shutdown_all();
         // Discovered plugins stay discovered (no transport to clean)
-        assert_eq!(
-            mgr.plugin_state("ShutTest"),
-            Some(PluginState::Discovered)
-        );
+        assert_eq!(mgr.plugin_state("ShutTest"), Some(PluginState::Discovered));
     }
 
     #[test]

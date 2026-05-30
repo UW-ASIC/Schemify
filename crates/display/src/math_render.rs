@@ -187,13 +187,14 @@ fn subscript_char(c: char) -> Option<char> {
 
 /// Try to convert a simple string to Unicode super/subscript.
 fn to_unicode_script(s: &str, sup: bool) -> Option<String> {
-    let mapper = if sup { superscript_char } else { subscript_char };
+    let mapper = if sup {
+        superscript_char
+    } else {
+        subscript_char
+    };
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
-        match mapper(c) {
-            Some(sc) => out.push(sc),
-            None => return None,
-        }
+        out.push(mapper(c)?);
     }
     Some(out)
 }
@@ -204,16 +205,17 @@ fn to_unicode_script(s: &str, sup: bool) -> Option<String> {
 enum MathNode {
     Text(String),
     Symbol(String),
-    Sup(Vec<MathNode>, Vec<MathNode>),  // base, exponent
-    Sub(Vec<MathNode>, Vec<MathNode>),  // base, subscript
+    Sup(Vec<MathNode>, Vec<MathNode>), // base, exponent
+    Sub(Vec<MathNode>, Vec<MathNode>), // base, subscript
     SubSup(Vec<MathNode>, Vec<MathNode>, Vec<MathNode>), // base, sub, sup
     Frac(Vec<MathNode>, Vec<MathNode>), // numerator, denominator
     Sqrt(Vec<MathNode>),
     Group(Vec<MathNode>),
     Operator(String), // sin, cos, etc. — upright
+    #[allow(dead_code)]
     Space,
-    Left(String),     // \left delimiter
-    Right(String),    // \right delimiter
+    Left(String),  // \left delimiter
+    Right(String), // \right delimiter
 }
 
 // ── Parser ───────────────────────────────────────────────────────────────────
@@ -286,14 +288,18 @@ impl<'a> MathParser<'a> {
                     self.advance();
                     self.parse_group()
                 } else {
-                    vec![MathNode::Text(self.advance().map(|c| c.to_string()).unwrap_or_default())]
+                    vec![MathNode::Text(
+                        self.advance().map(|c| c.to_string()).unwrap_or_default(),
+                    )]
                 };
                 self.skip_whitespace();
                 let den = if self.peek() == Some('{') {
                     self.advance();
                     self.parse_group()
                 } else {
-                    vec![MathNode::Text(self.advance().map(|c| c.to_string()).unwrap_or_default())]
+                    vec![MathNode::Text(
+                        self.advance().map(|c| c.to_string()).unwrap_or_default(),
+                    )]
                 };
                 Some(MathNode::Frac(num, den))
             }
@@ -303,7 +309,9 @@ impl<'a> MathParser<'a> {
                     self.advance();
                     self.parse_group()
                 } else {
-                    vec![MathNode::Text(self.advance().map(|c| c.to_string()).unwrap_or_default())]
+                    vec![MathNode::Text(
+                        self.advance().map(|c| c.to_string()).unwrap_or_default(),
+                    )]
                 };
                 Some(MathNode::Sqrt(body))
             }
@@ -315,10 +323,9 @@ impl<'a> MathParser<'a> {
                 let delim = self.advance().map(|c| c.to_string()).unwrap_or_default();
                 Some(MathNode::Right(delim))
             }
-            "sin" | "cos" | "tan" | "cot" | "sec" | "csc" | "arcsin" | "arccos"
-            | "arctan" | "sinh" | "cosh" | "tanh" | "log" | "ln" | "exp" | "lim"
-            | "max" | "min" | "sup" | "inf" | "det" | "dim" | "ker" | "gcd"
-            | "deg" | "arg" | "hom" | "mod" => {
+            "sin" | "cos" | "tan" | "cot" | "sec" | "csc" | "arcsin" | "arccos" | "arctan"
+            | "sinh" | "cosh" | "tanh" | "log" | "ln" | "exp" | "lim" | "max" | "min" | "sup"
+            | "inf" | "det" | "dim" | "ker" | "gcd" | "deg" | "arg" | "hom" | "mod" => {
                 Some(MathNode::Operator(cmd.to_string()))
             }
             "text" | "mathrm" | "textrm" => {
@@ -328,8 +335,15 @@ impl<'a> MathParser<'a> {
                     let start = self.pos;
                     let mut depth = 1;
                     while let Some(c) = self.advance() {
-                        if c == '{' { depth += 1; }
-                        if c == '}' { depth -= 1; if depth == 0 { break; } }
+                        if c == '{' {
+                            depth += 1;
+                        }
+                        if c == '}' {
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                        }
                     }
                     let end = self.pos - 1;
                     Some(MathNode::Operator(self.src[start..end].to_string()))
@@ -394,7 +408,9 @@ impl<'a> MathParser<'a> {
                         self.advance();
                         self.parse_group()
                     } else {
-                        vec![MathNode::Text(self.advance().map(|c| c.to_string()).unwrap_or_default())]
+                        vec![MathNode::Text(
+                            self.advance().map(|c| c.to_string()).unwrap_or_default(),
+                        )]
                     };
                     // Check for additional subscript.
                     self.skip_whitespace();
@@ -405,7 +421,9 @@ impl<'a> MathParser<'a> {
                             self.advance();
                             self.parse_group()
                         } else {
-                            vec![MathNode::Text(self.advance().map(|c| c.to_string()).unwrap_or_default())]
+                            vec![MathNode::Text(
+                                self.advance().map(|c| c.to_string()).unwrap_or_default(),
+                            )]
                         };
                         node = MathNode::SubSup(vec![node], sub, sup);
                     } else {
@@ -419,7 +437,9 @@ impl<'a> MathParser<'a> {
                         self.advance();
                         self.parse_group()
                     } else {
-                        vec![MathNode::Text(self.advance().map(|c| c.to_string()).unwrap_or_default())]
+                        vec![MathNode::Text(
+                            self.advance().map(|c| c.to_string()).unwrap_or_default(),
+                        )]
                     };
                     // Check for additional superscript.
                     self.skip_whitespace();
@@ -430,7 +450,9 @@ impl<'a> MathParser<'a> {
                             self.advance();
                             self.parse_group()
                         } else {
-                            vec![MathNode::Text(self.advance().map(|c| c.to_string()).unwrap_or_default())]
+                            vec![MathNode::Text(
+                                self.advance().map(|c| c.to_string()).unwrap_or_default(),
+                            )]
                         };
                         node = MathNode::SubSup(vec![node], sub, sup);
                     } else {
@@ -650,9 +672,10 @@ pub fn render_text_with_math(ui: &mut egui::Ui, text: &str) -> bool {
     }
 
     // Collect any trailing text.
-    let consumed: usize = parts.iter().map(|(is_math, s)| {
-        if *is_math { s.len() + 2 } else { s.len() }
-    }).sum();
+    let consumed: usize = parts
+        .iter()
+        .map(|(is_math, s)| if *is_math { s.len() + 2 } else { s.len() })
+        .sum();
     if consumed < text.len() {
         parts.push((false, &text[consumed..]));
     }

@@ -113,10 +113,7 @@ pub enum HostAction {
         command_json: Value,
     },
     /// Plugin set a status message.
-    SetStatus {
-        plugin_id: String,
-        message: String,
-    },
+    SetStatus { plugin_id: String, message: String },
     /// Plugin logged a message.
     Log {
         plugin_id: String,
@@ -124,20 +121,11 @@ pub enum HostAction {
         message: String,
     },
     /// Plugin wants to query instances — needs response.
-    QueryInstances {
-        plugin_id: String,
-        request_id: u32,
-    },
+    QueryInstances { plugin_id: String, request_id: u32 },
     /// Plugin wants to query nets — needs response.
-    QueryNets {
-        plugin_id: String,
-        request_id: u32,
-    },
+    QueryNets { plugin_id: String, request_id: u32 },
     /// Plugin wants to query current resolved theme tokens — needs response.
-    QueryTheme {
-        plugin_id: String,
-        request_id: u32,
-    },
+    QueryTheme { plugin_id: String, request_id: u32 },
     /// Unknown method — send error response.
     ErrorResponse {
         plugin_id: String,
@@ -335,7 +323,9 @@ mod tests {
     fn unknown_request_returns_error() {
         let action = handle_request("test", &full_cap(), 99, "bogus/method", None);
         match action {
-            HostAction::ErrorResponse { request_id, code, .. } => {
+            HostAction::ErrorResponse {
+                request_id, code, ..
+            } => {
                 assert_eq!(request_id, 99);
                 assert_eq!(code, jsonrpc::METHOD_NOT_FOUND);
             }
@@ -374,7 +364,10 @@ mod tests {
     fn query_nets_request() {
         let action = handle_request("test", &full_cap(), 7, "state/query_nets", None);
         match action {
-            HostAction::QueryNets { request_id, plugin_id } => {
+            HostAction::QueryNets {
+                request_id,
+                plugin_id,
+            } => {
                 assert_eq!(request_id, 7);
                 assert_eq!(plugin_id, "test");
             }
@@ -448,7 +441,10 @@ mod tests {
             Some(json!({"action": "zoom_in"})),
         );
         match action {
-            Some(HostAction::DispatchCommand { plugin_id, command_json }) => {
+            Some(HostAction::DispatchCommand {
+                plugin_id,
+                command_json,
+            }) => {
                 assert_eq!(plugin_id, "test");
                 assert_eq!(command_json["action"], "zoom_in");
             }
@@ -491,23 +487,13 @@ mod tests {
 
     #[test]
     fn unknown_notification_returns_none() {
-        let action = handle_notification(
-            "test",
-            &full_cap(),
-            "totally/unknown",
-            None,
-        );
+        let action = handle_notification("test", &full_cap(), "totally/unknown", None);
         assert!(action.is_none());
     }
 
     #[test]
     fn missing_params_returns_none() {
-        let action = handle_notification(
-            "test",
-            &full_cap(),
-            "panels/register",
-            None,
-        );
+        let action = handle_notification("test", &full_cap(), "panels/register", None);
         assert!(action.is_none());
     }
 
@@ -546,5 +532,4 @@ mod tests {
         );
         assert!(action.is_none());
     }
-
 }

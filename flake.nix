@@ -1,5 +1,5 @@
 {
-  description = "Nightly Rust dev shell with mold linker";
+  description = "Nightly Rust dev shell";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -46,7 +46,6 @@
         # Native libraries egui/eframe (glow backend) needs at runtime/link time.
         nativeBuildInputs = with pkgs; [
           pkg-config
-          mold
           clang
         ];
 
@@ -74,7 +73,6 @@
 
           packages = with pkgs; [
             rustToolchain
-            mold
             trunk # for `trunk serve` / wasm builds
             wasm-bindgen-cli
             binaryen # wasm-opt
@@ -84,13 +82,11 @@
             xschem # for roundtrip netlist tests
           ];
 
-          # Tell cargo to use clang + mold as the linker for native builds.
+          # Use clang as the linker for native builds.
           # Override per-target rather than globally so wasm builds aren't affected.
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "${pkgs.clang}/bin/clang";
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=${pkgs.mold}/bin/mold";
 
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "${pkgs.clang}/bin/clang";
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=${pkgs.mold}/bin/mold";
 
           # Runtime library path so dynamically-linked deps (libGL, wayland, etc.)
           # are findable when you `cargo run` from the shell.
@@ -101,7 +97,6 @@
 
           shellHook = ''
             echo "Rust $(rustc --version)"
-            echo "Linker: mold ($(mold --version | head -n1))"
             echo "Targets: $(rustc --print target-list | grep -E '^(wasm32-unknown-unknown|x86_64-unknown-linux-gnu)$' | tr '\n' ' ')"
           '';
         };

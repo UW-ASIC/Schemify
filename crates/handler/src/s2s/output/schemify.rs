@@ -350,12 +350,7 @@ fn write_port_pins(buf: &mut String, subckt: &Subcircuit) {
         } else {
             (right_x, right_ys[output_ports.len() + i])
         };
-        writeln!(
-            buf,
-            "    {}  iopin  x={}  y={}  sym=inout_pin",
-            name, x, y
-        )
-        .unwrap();
+        writeln!(buf, "    {}  iopin  x={}  y={}  sym=inout_pin", name, x, y).unwrap();
     }
 }
 
@@ -373,10 +368,10 @@ fn write_label_instances(buf: &mut String, subckt: &Subcircuit) {
         // Use gnd/vdd symbols only when BOTH classification and name match,
         // because annotation can misclassify numeric net names as ground.
         let name_lower = net.name.to_ascii_lowercase();
-        let use_gnd = net.classification == NetClass::Ground
-            && GROUND_NAMES.iter().any(|&g| name_lower == g);
-        let use_vdd = net.classification == NetClass::Power
-            && POWER_NAMES.iter().any(|&p| name_lower == p);
+        let use_gnd =
+            net.classification == NetClass::Ground && GROUND_NAMES.iter().any(|&g| name_lower == g);
+        let use_vdd =
+            net.classification == NetClass::Power && POWER_NAMES.iter().any(|&p| name_lower == p);
 
         if use_gnd {
             // gnd primitive pin at (0,-10) → place instance at (x, y+10)
@@ -535,15 +530,11 @@ mod tests {
             flip: false,
         });
 
-        subckt.nets = vec![
-            Net::new("out"),
-            Net::new("inp"),
-            {
-                let mut n = Net::new("GND");
-                n.classification = NetClass::Ground;
-                n
-            },
-        ];
+        subckt.nets = vec![Net::new("out"), Net::new("inp"), {
+            let mut n = Net::new("GND");
+            n.classification = NetClass::Ground;
+            n
+        }];
 
         subckt.wires.push(Wire {
             net_idx: 0,
@@ -707,14 +698,8 @@ mod tests {
     #[test]
     fn test_pin_offsets_two_terminal() {
         let backend = SchemifyBackend::new("/tmp");
-        assert_eq!(
-            backend.pin_offsets(Primitive::Resistor),
-            &TWO_TERM_OFFSETS
-        );
-        assert_eq!(
-            backend.pin_offsets(Primitive::Capacitor),
-            &TWO_TERM_OFFSETS
-        );
+        assert_eq!(backend.pin_offsets(Primitive::Resistor), &TWO_TERM_OFFSETS);
+        assert_eq!(backend.pin_offsets(Primitive::Capacitor), &TWO_TERM_OFFSETS);
     }
 
     #[test]

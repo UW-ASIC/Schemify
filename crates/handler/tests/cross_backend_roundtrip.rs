@@ -55,8 +55,17 @@ fn emit_spice(subckt: &Subcircuit) -> String {
             Primitive::Nmos | Primitive::Pmos => {
                 // M<name> <D> <G> <S> <B> <model> [params]
                 if nets.len() >= 4 {
-                    let model = if inst.primitive == Primitive::Nmos { "nmos" } else { "pmos" };
-                    write!(buf, "{} {} {} {} {} {}", name, nets[0], nets[1], nets[2], nets[3], model).unwrap();
+                    let model = if inst.primitive == Primitive::Nmos {
+                        "nmos"
+                    } else {
+                        "pmos"
+                    };
+                    write!(
+                        buf,
+                        "{} {} {} {} {} {}",
+                        name, nets[0], nets[1], nets[2], nets[3], model
+                    )
+                    .unwrap();
                     for (k, v) in &inst.params {
                         write!(buf, " {}={}", k, v).unwrap();
                     }
@@ -66,8 +75,17 @@ fn emit_spice(subckt: &Subcircuit) -> String {
             Primitive::Npn | Primitive::Pnp => {
                 // Q<name> <C> <B> <E> <model>
                 if nets.len() >= 3 {
-                    let model = if inst.primitive == Primitive::Npn { "npn" } else { "pnp" };
-                    writeln!(buf, "{} {} {} {} {}", name, nets[0], nets[1], nets[2], model).unwrap();
+                    let model = if inst.primitive == Primitive::Npn {
+                        "npn"
+                    } else {
+                        "pnp"
+                    };
+                    writeln!(
+                        buf,
+                        "{} {} {} {} {}",
+                        name, nets[0], nets[1], nets[2], model
+                    )
+                    .unwrap();
                 }
             }
             Primitive::Resistor => {
@@ -108,7 +126,12 @@ fn emit_spice(subckt: &Subcircuit) -> String {
             Primitive::Vcvs | Primitive::Vccs | Primitive::Ccvs | Primitive::Cccs => {
                 // E/G/F/H: name np nm ncp ncm value [params]
                 if nets.len() >= 4 {
-                    write!(buf, "{} {} {} {} {}", name, nets[0], nets[1], nets[2], nets[3]).unwrap();
+                    write!(
+                        buf,
+                        "{} {} {} {} {}",
+                        name, nets[0], nets[1], nets[2], nets[3]
+                    )
+                    .unwrap();
                     if let Some(val) = inst.params.get("value") {
                         write!(buf, " {}", val).unwrap();
                     }
@@ -164,14 +187,13 @@ fn setup_xschem_env() -> Option<XschemEnv> {
     )
     .ok()?;
 
-    Some(XschemEnv { library_path, rcfile })
+    Some(XschemEnv {
+        library_path,
+        rcfile,
+    })
 }
 
-fn xschem_netlist(
-    sch_path: &Path,
-    netlist_dir: &Path,
-    env: &XschemEnv,
-) -> Result<PathBuf, String> {
+fn xschem_netlist(sch_path: &Path, netlist_dir: &Path, env: &XschemEnv) -> Result<PathBuf, String> {
     fs::create_dir_all(netlist_dir).map_err(|e| format!("mkdir: {e}"))?;
 
     let _ = Command::new("timeout")
@@ -301,7 +323,7 @@ fn run_pipeline(input: &str) -> Result<Circuit, String> {
         Router::new().route(subckt, &XschemBackend::new("/tmp"));
     }
 
-    let blocks = recognize_subcircuit(&mut circuit.top);
+    let blocks = recognize_subcircuit(&circuit.top);
     place(&mut circuit.top, &blocks, &XschemBackend::new("/tmp"));
     Router::new().route(&mut circuit.top, &XschemBackend::new("/tmp"));
 
@@ -345,8 +367,8 @@ fn compare_backends(
     let test_dir = tmp_base.join(name);
     let sch_path = write_sch(&circuit, &test_dir.join("sch"), name)?;
     let xschem_spice_path = xschem_netlist(&sch_path, &test_dir.join("netlist"), env)?;
-    let xschem_spice = fs::read_to_string(&xschem_spice_path)
-        .map_err(|e| format!("read xschem netlist: {e}"))?;
+    let xschem_spice =
+        fs::read_to_string(&xschem_spice_path).map_err(|e| format!("read xschem netlist: {e}"))?;
     let xschem_pins = parse_netlist_pins(&xschem_spice, true);
 
     // Check both have the same instances
@@ -371,7 +393,10 @@ fn compare_backends(
         } else {
             details.join("; ")
         };
-        Err(format!("{}/{} matched, {} extra — {}", matched, total, extra, detail_str))
+        Err(format!(
+            "{}/{} matched, {} extra — {}",
+            matched, total, extra, detail_str
+        ))
     }
 }
 
@@ -390,8 +415,7 @@ fn test_simple_amp_cross_backend() {
     let tmp = std::env::temp_dir().join("schemify_cross_simple_amp");
     let _ = fs::remove_dir_all(&tmp);
 
-    compare_backends(&source, "simple_amp", &tmp, &env)
-        .expect("simple_amp cross-backend mismatch");
+    compare_backends(&source, "simple_amp", &tmp, &env).expect("simple_amp cross-backend mismatch");
     eprintln!("simple_amp: schemify == xschem");
 }
 
@@ -410,8 +434,7 @@ fn test_diff_pair_cross_backend() {
     let tmp = std::env::temp_dir().join("schemify_cross_diff_pair");
     let _ = fs::remove_dir_all(&tmp);
 
-    compare_backends(&source, "diff_pair", &tmp, &env)
-        .expect("diff_pair cross-backend mismatch");
+    compare_backends(&source, "diff_pair", &tmp, &env).expect("diff_pair cross-backend mismatch");
     eprintln!("diff_pair: schemify == xschem");
 }
 
@@ -427,8 +450,7 @@ fn test_amsnet_cross_backend() {
     };
 
     let amsnet_dir = {
-        let local = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/amsnet");
+        let local = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/amsnet");
         let sibling = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../../SpiceToSchematic/tests/amsnet");
         if local.exists() {
@@ -464,11 +486,18 @@ fn test_amsnet_cross_backend() {
     }
 
     let total = passed + failed.len();
-    let pass_rate = if total > 0 { passed as f64 / total as f64 } else { 0.0 };
+    let pass_rate = if total > 0 {
+        passed as f64 / total as f64
+    } else {
+        0.0
+    };
 
     eprintln!(
         "\nCross-backend (schemify vs xschem): {}/{} passed ({:.1}%), {} failed",
-        passed, total, pass_rate * 100.0, failed.len(),
+        passed,
+        total,
+        pass_rate * 100.0,
+        failed.len(),
     );
 
     if !failed.is_empty() {
@@ -477,10 +506,15 @@ fn test_amsnet_cross_backend() {
         let mut connectivity = 0usize;
         let mut xschem_fail = 0usize;
         for (_i, msg) in &failed {
-            if msg.starts_with("pipeline:") { pipeline_fail += 1; }
-            else if msg.starts_with("instance mismatch") { instance_mismatch += 1; }
-            else if msg.contains("xschem") { xschem_fail += 1; }
-            else { connectivity += 1; }
+            if msg.starts_with("pipeline:") {
+                pipeline_fail += 1;
+            } else if msg.starts_with("instance mismatch") {
+                instance_mismatch += 1;
+            } else if msg.contains("xschem") {
+                xschem_fail += 1;
+            } else {
+                connectivity += 1;
+            }
         }
         eprintln!("\nFailure categories:");
         eprintln!("  pipeline errors:      {}", pipeline_fail);
@@ -497,6 +531,8 @@ fn test_amsnet_cross_backend() {
     assert!(
         pass_rate >= 1.0,
         "Cross-backend pass rate {:.1}% ({}/{}) — must be 100%",
-        pass_rate * 100.0, passed, total,
+        pass_rate * 100.0,
+        passed,
+        total,
     );
 }

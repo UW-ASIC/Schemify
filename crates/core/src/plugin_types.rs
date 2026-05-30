@@ -44,33 +44,40 @@ pub struct CommandRegistration {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum OverlayShape {
     Line {
-        x0: f32, y0: f32,
-        x1: f32, y1: f32,
+        x0: f32,
+        y0: f32,
+        x1: f32,
+        y1: f32,
         color: [u8; 4],
         width: f32,
     },
     Circle {
-        cx: f32, cy: f32,
+        cx: f32,
+        cy: f32,
         radius: f32,
         stroke: [u8; 4],
         fill: Option<[u8; 4]>,
         width: f32,
     },
     Rect {
-        x: f32, y: f32,
-        w: f32, h: f32,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
         stroke: [u8; 4],
         fill: Option<[u8; 4]>,
         width: f32,
     },
     Text {
-        x: f32, y: f32,
+        x: f32,
+        y: f32,
         content: String,
         color: [u8; 4],
         size: f32,
     },
     Marker {
-        x: f32, y: f32,
+        x: f32,
+        y: f32,
         kind: MarkerKind,
         color: [u8; 4],
     },
@@ -120,7 +127,6 @@ pub enum AlertLevel {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum WidgetNode {
     // ── Text ────────────────────────────────────────────────────────────────
-
     /// Plain text label.
     Label(String),
 
@@ -144,21 +150,13 @@ pub enum WidgetNode {
     Code(String),
 
     // ── Actions ─────────────────────────────────────────────────────────────
-
     /// Standard button. Dispatches `action` on click.
-    Button {
-        label: String,
-        action: String,
-    },
+    Button { label: String, action: String },
 
     /// Clickable hyperlink-style text. Dispatches `action` on click.
-    LinkButton {
-        label: String,
-        action: String,
-    },
+    LinkButton { label: String, action: String },
 
     // ── Toggles & Selection ─────────────────────────────────────────────────
-
     /// Checkbox toggle. Sends `action` with bool payload.
     Toggle {
         label: String,
@@ -185,7 +183,6 @@ pub enum WidgetNode {
     },
 
     // ── Numeric ─────────────────────────────────────────────────────────────
-
     /// Horizontal slider. Sends `action` with f64 value.
     Slider {
         label: String,
@@ -211,7 +208,6 @@ pub enum WidgetNode {
     },
 
     // ── Text Entry ──────────────────────────────────────────────────────────
-
     /// Single-line text input. Sends `action` with string payload on change.
     TextInput {
         label: String,
@@ -223,7 +219,6 @@ pub enum WidgetNode {
     },
 
     // ── Color ───────────────────────────────────────────────────────────────
-
     /// RGBA color picker. Sends `action` with [r,g,b,a] payload.
     ColorPicker {
         label: String,
@@ -232,7 +227,6 @@ pub enum WidgetNode {
     },
 
     // ── Display ─────────────────────────────────────────────────────────────
-
     /// Progress bar (0.0 – 1.0).
     ProgressBar {
         #[serde(default)]
@@ -243,9 +237,7 @@ pub enum WidgetNode {
     },
 
     /// Key-value pairs rendered as a two-column grid.
-    KeyValue {
-        entries: Vec<[String; 2]>,
-    },
+    KeyValue { entries: Vec<[String; 2]> },
 
     /// Tabular data with headers.  Optional `action` sends row index on click.
     Table {
@@ -256,10 +248,7 @@ pub enum WidgetNode {
     },
 
     /// Colored alert box (info / warn / error / success).
-    Alert {
-        level: AlertLevel,
-        message: String,
-    },
+    Alert { level: AlertLevel, message: String },
 
     /// Small inline badge / tag.
     Badge {
@@ -269,7 +258,6 @@ pub enum WidgetNode {
     },
 
     // ── Layout ──────────────────────────────────────────────────────────────
-
     /// Horizontal line separator.
     Separator,
 
@@ -297,9 +285,7 @@ pub enum WidgetNode {
     },
 
     /// Horizontal layout group.
-    Horizontal {
-        children: Vec<WidgetNode>,
-    },
+    Horizontal { children: Vec<WidgetNode> },
 
     /// Boxed group with optional title.
     Group {
@@ -308,4 +294,3 @@ pub enum WidgetNode {
         children: Vec<WidgetNode>,
     },
 }
-

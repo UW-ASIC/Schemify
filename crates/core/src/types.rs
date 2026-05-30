@@ -192,9 +192,16 @@ impl DeviceKind {
             Self::Capacitor => b'C',
             Self::Inductor => b'L',
             Self::Diode | Self::Zener => b'D',
-            Self::Nmos3 | Self::Nmos4 | Self::Nmos4Depl | Self::NmosSub
-            | Self::Nmoshv4 | Self::Rnmos4 | Self::Pmos3 | Self::Pmos4
-            | Self::PmosSub | Self::Pmoshv4 => b'M',
+            Self::Nmos3
+            | Self::Nmos4
+            | Self::Nmos4Depl
+            | Self::NmosSub
+            | Self::Nmoshv4
+            | Self::Rnmos4
+            | Self::Pmos3
+            | Self::Pmos4
+            | Self::PmosSub
+            | Self::Pmoshv4 => b'M',
             Self::Npn | Self::Pnp => b'Q',
             Self::Njfet | Self::Pjfet => b'J',
             Self::Mesfet => b'Z',
@@ -215,16 +222,27 @@ impl DeviceKind {
 
     pub fn default_pins(self) -> &'static [&'static str] {
         match self {
-            Self::Resistor | Self::Capacitor | Self::Inductor
-            | Self::Vsource | Self::Isource | Self::Ammeter
-            | Self::Behavioral | Self::Sqwsource
-            | Self::Vswitch | Self::Iswitch => &["p", "n"],
+            Self::Resistor
+            | Self::Capacitor
+            | Self::Inductor
+            | Self::Vsource
+            | Self::Isource
+            | Self::Ammeter
+            | Self::Behavioral
+            | Self::Sqwsource
+            | Self::Vswitch
+            | Self::Iswitch => &["p", "n"],
             Self::Resistor3 => &["p", "n", "t"],
             Self::Diode | Self::Zener => &["p", "n"],
-            Self::Nmos3 | Self::Pmos3 | Self::NmosSub | Self::PmosSub
-            | Self::Mesfet => &["d", "g", "s"],
-            Self::Nmos4 | Self::Pmos4 | Self::Nmos4Depl | Self::Nmoshv4
-            | Self::Pmoshv4 | Self::Rnmos4 => &["d", "g", "s", "b"],
+            Self::Nmos3 | Self::Pmos3 | Self::NmosSub | Self::PmosSub | Self::Mesfet => {
+                &["d", "g", "s"]
+            }
+            Self::Nmos4
+            | Self::Pmos4
+            | Self::Nmos4Depl
+            | Self::Nmoshv4
+            | Self::Pmoshv4
+            | Self::Rnmos4 => &["d", "g", "s", "b"],
             Self::Npn | Self::Pnp => &["c", "b", "e"],
             Self::Njfet | Self::Pjfet => &["d", "g", "s"],
             Self::Vcvs | Self::Vccs | Self::Ccvs | Self::Cccs => &["p", "n", "cp", "cn"],
@@ -241,8 +259,12 @@ impl DeviceKind {
 
     pub fn model_keyword(self) -> Option<&'static str> {
         match self {
-            Self::Nmos3 | Self::Nmos4 | Self::Nmos4Depl
-            | Self::NmosSub | Self::Nmoshv4 | Self::Rnmos4 => Some("nch"),
+            Self::Nmos3
+            | Self::Nmos4
+            | Self::Nmos4Depl
+            | Self::NmosSub
+            | Self::Nmoshv4
+            | Self::Rnmos4 => Some("nch"),
             Self::Pmos3 | Self::Pmos4 | Self::PmosSub | Self::Pmoshv4 => Some("pch"),
             Self::Npn => Some("npn"),
             Self::Pnp => Some("pnp"),
@@ -273,8 +295,12 @@ impl DeviceKind {
             Self::Inductor => "inductor",
             Self::Diode => "diode",
             Self::Zener => "zener",
-            Self::Nmos3 | Self::Nmos4 | Self::Nmos4Depl
-            | Self::NmosSub | Self::Nmoshv4 | Self::Rnmos4 => "nmos",
+            Self::Nmos3
+            | Self::Nmos4
+            | Self::Nmos4Depl
+            | Self::NmosSub
+            | Self::Nmoshv4
+            | Self::Rnmos4 => "nmos",
             Self::Pmos3 | Self::Pmos4 | Self::PmosSub | Self::Pmoshv4 => "pmos",
             Self::Npn => "npn",
             Self::Pnp => "pnp",
@@ -349,14 +375,24 @@ impl InstanceFlags {
 
     pub fn new(rotation: u8, flip: bool, bus: bool) -> Self {
         let mut f = rotation & 0x03;
-        if flip { f |= Self::FLIP_BIT; }
-        if bus { f |= Self::BUS_BIT; }
+        if flip {
+            f |= Self::FLIP_BIT;
+        }
+        if bus {
+            f |= Self::BUS_BIT;
+        }
         Self(f)
     }
 
-    pub fn rotation(self) -> u8 { self.0 & 0x03 }
-    pub fn flip(self) -> bool { self.0 & Self::FLIP_BIT != 0 }
-    pub fn bus(self) -> bool { self.0 & Self::BUS_BIT != 0 }
+    pub fn rotation(self) -> u8 {
+        self.0 & 0x03
+    }
+    pub fn flip(self) -> bool {
+        self.0 & Self::FLIP_BIT != 0
+    }
+    pub fn bus(self) -> bool {
+        self.0 & Self::BUS_BIT != 0
+    }
 
     /// Apply rotation + flip to a local pin offset.
     /// Flip is applied first (negate x), then rotation.
@@ -387,7 +423,12 @@ pub struct Color {
 }
 
 impl Color {
-    pub const NONE: Self = Self { r: 0, g: 0, b: 0, a: 0 };
+    pub const NONE: Self = Self {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 0,
+    };
 
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self { r, g, b, a }
@@ -439,9 +480,16 @@ pub struct NetEndpoint {
 
 #[derive(Debug, Clone)]
 pub enum NetConnKind {
-    WireEndpoint { wire_idx: usize },
-    InstancePin { instance_idx: usize, pin_name: String },
-    Label { name: String },
+    WireEndpoint {
+        wire_idx: usize,
+    },
+    InstancePin {
+        instance_idx: usize,
+        pin_name: String,
+    },
+    Label {
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone)]

@@ -94,7 +94,7 @@ fn run_top_pipeline(input: &str, test_name: &str) -> (String, Circuit) {
         Router::new().route(subckt, &test_backend());
     }
 
-    let blocks = recognize_subcircuit(&mut circuit.top);
+    let blocks = recognize_subcircuit(&circuit.top);
     place(&mut circuit.top, &blocks, &test_backend());
     Router::new().route(&mut circuit.top, &test_backend());
 
@@ -136,7 +136,9 @@ fn assert_no_overlapping_placements(circuit: &Circuit, sub_name: &str) {
         assert!(
             positions.insert(pos),
             "overlapping placement: '{}' at ({}, {})",
-            inst.name, inst.x, inst.y,
+            inst.name,
+            inst.x,
+            inst.y,
         );
     }
 }
@@ -178,14 +180,17 @@ fn assert_structural_match(chn: &str, circuit: &Circuit, name: &str) {
         chn_instances.len(),
         input_instance_count,
         "[{}] instance count mismatch: .chn has {}, IR has {}",
-        name, chn_instances.len(), input_instance_count,
+        name,
+        chn_instances.len(),
+        input_instance_count,
     );
 
     for inst in &circuit.top.instances {
         assert!(
             chn.contains(&inst.name),
             "[{}] instance '{}' not found in .chn output",
-            name, inst.name,
+            name,
+            inst.name,
         );
     }
 }
@@ -210,7 +215,10 @@ M2 out bias vss vss nmos w=1u l=180n
 
     let has_wires = chn.contains("wires:");
     let has_labels = chn.contains("lab_pin");
-    assert!(has_wires || has_labels, "expected wires or labels in output");
+    assert!(
+        has_wires || has_labels,
+        "expected wires or labels in output"
+    );
 
     let mut circuit = parse_spice(spice);
     annotate(&mut circuit);
@@ -316,7 +324,8 @@ M5 outp outm vdd vdd pmos w=2u l=180n
     assert!(
         pmos_max_y < nmos_min_y,
         "PMOS max_y ({}) should be above NMOS min_y ({})",
-        pmos_max_y, nmos_min_y,
+        pmos_max_y,
+        nmos_min_y,
     );
 }
 
@@ -344,7 +353,10 @@ M2 out2 bias vdd vdd pmos w=2u l=180n
     assert!(
         !has_diff_pair,
         "MOSFETs sharing power rail should not be diff pair, got: {:?}",
-        blocks.iter().map(|b| format!("{:?}", b.block_type)).collect::<Vec<_>>(),
+        blocks
+            .iter()
+            .map(|b| format!("{:?}", b.block_type))
+            .collect::<Vec<_>>(),
     );
 }
 
@@ -399,7 +411,10 @@ fn test_sky130_strongarm_x_prefix() {
     let input = fs::read_to_string(&path).unwrap();
     let mut circuit = parse_spice(&input);
 
-    let subckt = circuit.subcircuits.get("strongarm").expect("strongarm subcircuit");
+    let subckt = circuit
+        .subcircuits
+        .get("strongarm")
+        .expect("strongarm subcircuit");
 
     // All 9 X-instances should be reclassified from Subcircuit to Nmos/Pmos.
     let subckts: Vec<_> = subckt
@@ -413,9 +428,20 @@ fn test_sky130_strongarm_x_prefix() {
         subckts.iter().map(|i| &i.name).collect::<Vec<_>>(),
     );
 
-    let nmos_count = subckt.instances.iter().filter(|i| i.primitive == Primitive::Nmos).count();
-    let pmos_count = subckt.instances.iter().filter(|i| i.primitive == Primitive::Pmos).count();
-    assert_eq!(nmos_count, 5, "expected 5 NMOS (tail + inp + inn + xnp + xnn)");
+    let nmos_count = subckt
+        .instances
+        .iter()
+        .filter(|i| i.primitive == Primitive::Nmos)
+        .count();
+    let pmos_count = subckt
+        .instances
+        .iter()
+        .filter(|i| i.primitive == Primitive::Pmos)
+        .count();
+    assert_eq!(
+        nmos_count, 5,
+        "expected 5 NMOS (tail + inp + inn + xnp + xnn)"
+    );
     assert_eq!(pmos_count, 4, "expected 4 PMOS (xpp + xpn + rstp + rstn)");
 
     // Pins should be relabelled to D/G/S/B.
@@ -429,10 +455,7 @@ fn test_sky130_strongarm_x_prefix() {
 
     // Model param should be stored.
     let tail = subckt.instances.iter().find(|i| i.name == "xtail").unwrap();
-    assert_eq!(
-        tail.params.get("model").unwrap(),
-        "sky130_fd_pr__nfet_01v8",
-    );
+    assert_eq!(tail.params.get("model").unwrap(), "sky130_fd_pr__nfet_01v8",);
 
     // Full pipeline should succeed.
     annotate(&mut circuit);
@@ -447,7 +470,10 @@ fn test_sky130_strongarm_x_prefix() {
     assert!(
         !diff_pairs.is_empty(),
         "expected diff pair recognition for inp/inn, got blocks: {:?}",
-        blocks.iter().map(|b| format!("{:?}", b.block_type)).collect::<Vec<_>>(),
+        blocks
+            .iter()
+            .map(|b| format!("{:?}", b.block_type))
+            .collect::<Vec<_>>(),
     );
 
     place(subckt, &blocks, &test_backend());
@@ -466,11 +492,22 @@ fn test_sky130_extracted_cir() {
     let input = fs::read_to_string(&path).unwrap();
     let mut circuit = parse_spice(&input);
 
-    let subckt = circuit.subcircuits.get("strongarm").expect("strongarm subcircuit");
+    let subckt = circuit
+        .subcircuits
+        .get("strongarm")
+        .expect("strongarm subcircuit");
 
     // All M-prefix instances should be correctly classified.
-    let nmos_count = subckt.instances.iter().filter(|i| i.primitive == Primitive::Nmos).count();
-    let pmos_count = subckt.instances.iter().filter(|i| i.primitive == Primitive::Pmos).count();
+    let nmos_count = subckt
+        .instances
+        .iter()
+        .filter(|i| i.primitive == Primitive::Nmos)
+        .count();
+    let pmos_count = subckt
+        .instances
+        .iter()
+        .filter(|i| i.primitive == Primitive::Pmos)
+        .count();
     assert_eq!(nmos_count, 5, "expected 5 NMOS");
     assert_eq!(pmos_count, 4, "expected 4 PMOS");
 
@@ -496,18 +533,33 @@ fn test_sky130_pex_with_dollar_comments() {
     let input = fs::read_to_string(&path).unwrap();
     let mut circuit = parse_spice(&input);
 
-    let subckt = circuit.subcircuits.get("strongarm_flat").expect("strongarm_flat subcircuit");
+    let subckt = circuit
+        .subcircuits
+        .get("strongarm_flat")
+        .expect("strongarm_flat subcircuit");
 
     // X-prefix MOSFETs should be reclassified.
-    let nmos_count = subckt.instances.iter().filter(|i| i.primitive == Primitive::Nmos).count();
-    let pmos_count = subckt.instances.iter().filter(|i| i.primitive == Primitive::Pmos).count();
+    let nmos_count = subckt
+        .instances
+        .iter()
+        .filter(|i| i.primitive == Primitive::Nmos)
+        .count();
+    let pmos_count = subckt
+        .instances
+        .iter()
+        .filter(|i| i.primitive == Primitive::Pmos)
+        .count();
     assert!(nmos_count > 0, "expected NMOS instances");
     assert!(pmos_count > 0, "expected PMOS instances");
     assert_eq!(nmos_count, 3, "expected 3 NMOS");
     assert_eq!(pmos_count, 4, "expected 4 PMOS (incl. 2 resets, 2 latch)");
 
     // Parasitic caps (C0-C5) should parse correctly despite $ comments.
-    let cap_count = subckt.instances.iter().filter(|i| i.primitive == Primitive::Capacitor).count();
+    let cap_count = subckt
+        .instances
+        .iter()
+        .filter(|i| i.primitive == Primitive::Capacitor)
+        .count();
     assert_eq!(cap_count, 6, "expected 6 parasitic capacitors");
 
     // Cap values should NOT contain the $ comment text.
@@ -517,7 +569,8 @@ fn test_sky130_pex_with_dollar_comments() {
                 assert!(
                     !val.contains('$') && !val.contains("FLOATING"),
                     "cap {} value '{}' contains comment text",
-                    inst.name, val,
+                    inst.name,
+                    val,
                 );
             }
         }
@@ -548,10 +601,26 @@ M4 a b c d sky130_fd_pr__pfet_01v8_hvt W=1 L=0.15
 ";
     let circuit = parse_spice(spice);
     let subckt = circuit.subcircuits.get("test_models").unwrap();
-    assert_eq!(subckt.instances[0].primitive, Primitive::Nmos, "nfet_01v8 should be NMOS");
-    assert_eq!(subckt.instances[1].primitive, Primitive::Pmos, "pfet_01v8 should be PMOS");
-    assert_eq!(subckt.instances[2].primitive, Primitive::Nmos, "nfet_01v8_lvt should be NMOS");
-    assert_eq!(subckt.instances[3].primitive, Primitive::Pmos, "pfet_01v8_hvt should be PMOS");
+    assert_eq!(
+        subckt.instances[0].primitive,
+        Primitive::Nmos,
+        "nfet_01v8 should be NMOS"
+    );
+    assert_eq!(
+        subckt.instances[1].primitive,
+        Primitive::Pmos,
+        "pfet_01v8 should be PMOS"
+    );
+    assert_eq!(
+        subckt.instances[2].primitive,
+        Primitive::Nmos,
+        "nfet_01v8_lvt should be NMOS"
+    );
+    assert_eq!(
+        subckt.instances[3].primitive,
+        Primitive::Pmos,
+        "pfet_01v8_hvt should be PMOS"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -568,8 +637,16 @@ Xp out inp vdd vdd pfet_03v3 W=1.12 L=0.28
 ";
     let circuit = parse_spice(spice);
     let subckt = circuit.subcircuits.get("inv").unwrap();
-    assert_eq!(subckt.instances[0].primitive, Primitive::Nmos, "nfet_03v3 → NMOS");
-    assert_eq!(subckt.instances[1].primitive, Primitive::Pmos, "pfet_03v3 → PMOS");
+    assert_eq!(
+        subckt.instances[0].primitive,
+        Primitive::Nmos,
+        "nfet_03v3 → NMOS"
+    );
+    assert_eq!(
+        subckt.instances[1].primitive,
+        Primitive::Pmos,
+        "pfet_03v3 → PMOS"
+    );
     assert_eq!(subckt.instances[0].pins[0].name, "D");
 }
 
@@ -587,8 +664,16 @@ Xp out inp vdd vdd sg13_lv_pmos W=0.78 L=0.13
 ";
     let circuit = parse_spice(spice);
     let subckt = circuit.subcircuits.get("inv").unwrap();
-    assert_eq!(subckt.instances[0].primitive, Primitive::Nmos, "sg13_lv_nmos → NMOS");
-    assert_eq!(subckt.instances[1].primitive, Primitive::Pmos, "sg13_lv_pmos → PMOS");
+    assert_eq!(
+        subckt.instances[0].primitive,
+        Primitive::Nmos,
+        "sg13_lv_nmos → NMOS"
+    );
+    assert_eq!(
+        subckt.instances[1].primitive,
+        Primitive::Pmos,
+        "sg13_lv_pmos → PMOS"
+    );
     assert_eq!(subckt.instances[0].pins[0].name, "D");
 }
 
@@ -650,8 +735,7 @@ M4 a b quux_vcc quux_vcc sky130_fd_pr__pfet_01v8 W=1 L=0.15
 fn test_amsnet_structural_roundtrip() {
     // Look for AMSnet in sibling project or local tests/
     let amsnet_dir = {
-        let local = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/amsnet");
+        let local = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/amsnet");
         let sibling = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../../SpiceToSchematic/tests/amsnet");
         if local.exists() {
@@ -715,11 +799,18 @@ fn test_amsnet_structural_roundtrip() {
     }
 
     let total = passed + failed.len();
-    let pass_rate = if total > 0 { passed as f64 / total as f64 } else { 0.0 };
+    let pass_rate = if total > 0 {
+        passed as f64 / total as f64
+    } else {
+        0.0
+    };
 
     eprintln!(
         "\nAMSnet structural round-trip: {}/{} passed, {} failed, {} skipped",
-        passed, total, failed.len(), skipped,
+        passed,
+        total,
+        failed.len(),
+        skipped,
     );
 
     if !failed.is_empty() {
@@ -732,6 +823,8 @@ fn test_amsnet_structural_roundtrip() {
     assert!(
         pass_rate >= 0.95,
         "AMSnet pass rate {:.1}% ({}/{}) below 95% threshold",
-        pass_rate * 100.0, passed, total,
+        pass_rate * 100.0,
+        passed,
+        total,
     );
 }

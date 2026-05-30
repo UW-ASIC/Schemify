@@ -191,10 +191,26 @@ mod tests {
             primitive: Primitive::Nmos,
             symbol: String::new(),
             pins: vec![
-                Pin { name: "D".to_string(), dir: PinDir::Inout, net_idx: Some(0) },
-                Pin { name: "G".to_string(), dir: PinDir::Input, net_idx: Some(1) },
-                Pin { name: "S".to_string(), dir: PinDir::Inout, net_idx: Some(1) },
-                Pin { name: "B".to_string(), dir: PinDir::Bulk, net_idx: Some(1) },
+                Pin {
+                    name: "D".to_string(),
+                    dir: PinDir::Inout,
+                    net_idx: Some(0),
+                },
+                Pin {
+                    name: "G".to_string(),
+                    dir: PinDir::Input,
+                    net_idx: Some(1),
+                },
+                Pin {
+                    name: "S".to_string(),
+                    dir: PinDir::Inout,
+                    net_idx: Some(1),
+                },
+                Pin {
+                    name: "B".to_string(),
+                    dir: PinDir::Bulk,
+                    net_idx: Some(1),
+                },
             ],
             params: HashMap::new(),
             x: 100,
@@ -255,8 +271,9 @@ mod tests {
         subckt.instances[0].x = 105; // not a multiple of 10
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Error
-                && e.message.contains("off-grid")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Error && e.message.contains("off-grid")),
             "expected off-grid error, got: {:?}",
             errors
         );
@@ -268,8 +285,9 @@ mod tests {
         subckt.wires[0].x1 = 103;
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Error
-                && e.message.contains("wire 0 off-grid")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Error && e.message.contains("wire 0 off-grid")),
             "expected off-grid wire error, got: {:?}",
             errors
         );
@@ -281,8 +299,9 @@ mod tests {
         subckt.labels[0].x = 15;
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Error
-                && e.message.contains("label 0 off-grid")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Error && e.message.contains("label 0 off-grid")),
             "expected off-grid label error, got: {:?}",
             errors
         );
@@ -300,8 +319,9 @@ mod tests {
         };
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Error
-                && e.message.contains("diagonal")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Error && e.message.contains("diagonal")),
             "expected diagonal wire error, got: {:?}",
             errors
         );
@@ -320,8 +340,9 @@ mod tests {
         });
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Warning
-                && e.message.contains("duplicate wire")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Warning && e.message.contains("duplicate wire")),
             "expected duplicate wire warning, got: {:?}",
             errors
         );
@@ -340,8 +361,9 @@ mod tests {
         });
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Warning
-                && e.message.contains("duplicate wire")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Warning && e.message.contains("duplicate wire")),
             "expected duplicate wire warning for reversed endpoints, got: {:?}",
             errors
         );
@@ -353,8 +375,9 @@ mod tests {
         subckt.instances[0].rotation = 5;
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Error
-                && e.message.contains("invalid rotation")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Error && e.message.contains("invalid rotation")),
             "expected invalid rotation error, got: {:?}",
             errors
         );
@@ -366,8 +389,9 @@ mod tests {
         subckt.labels[0].rotation = 7;
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Error
-                && e.message.contains("invalid rotation")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Error && e.message.contains("invalid rotation")),
             "expected invalid rotation error for label, got: {:?}",
             errors
         );
@@ -379,8 +403,10 @@ mod tests {
         subckt.labels[0].net_idx = 99; // out of bounds
         let errors = validate_subcircuit(&subckt);
         assert!(
-            errors.iter().any(|e| e.severity == Severity::Error
-                && e.message.contains("references net_idx 99")),
+            errors
+                .iter()
+                .any(|e| e.severity == Severity::Error
+                    && e.message.contains("references net_idx 99")),
             "expected invalid net_idx error, got: {:?}",
             errors
         );
@@ -406,7 +432,9 @@ mod tests {
 
         let errors = validate_circuit(&circuit);
         assert!(
-            errors.iter().any(|e| e.message.contains("subcircuit 'inv':")),
+            errors
+                .iter()
+                .any(|e| e.message.contains("subcircuit 'inv':")),
             "expected error message to be prefixed with subcircuit name, got: {:?}",
             errors
         );

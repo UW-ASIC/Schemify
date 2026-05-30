@@ -117,11 +117,20 @@ fn generate_power_constraints(subckt: &Subcircuit, constraints: &mut Vec<Constra
 }
 
 fn is_power_name(name: &str) -> bool {
-    name == "vdd" || name == "vcc" || name == "vdda" || name.starts_with("vdd_") || name.starts_with("vcc_")
+    name == "vdd"
+        || name == "vcc"
+        || name == "vdda"
+        || name.starts_with("vdd_")
+        || name.starts_with("vcc_")
 }
 
 fn is_ground_name(name: &str) -> bool {
-    name == "vss" || name == "gnd" || name == "0" || name == "vssa" || name.starts_with("vss_") || name.starts_with("gnd_")
+    name == "vss"
+        || name == "gnd"
+        || name == "0"
+        || name == "vssa"
+        || name.starts_with("vss_")
+        || name.starts_with("gnd_")
 }
 
 /// Emit PortLocation constraints based on port directions.
@@ -260,7 +269,15 @@ mod tests {
         // Should produce: Symmetry, Matching, Orientation(inst0), Orientation(inst1)
         let sym_count = constraints
             .iter()
-            .filter(|c| matches!(c, Constraint::Symmetry { axis: Axis::Vertical, .. }))
+            .filter(|c| {
+                matches!(
+                    c,
+                    Constraint::Symmetry {
+                        axis: Axis::Vertical,
+                        ..
+                    }
+                )
+            })
             .count();
         assert_eq!(sym_count, 1);
 
@@ -298,7 +315,15 @@ mod tests {
 
         let align_count = constraints
             .iter()
-            .filter(|c| matches!(c, Constraint::Alignment { axis: Axis::Horizontal, .. }))
+            .filter(|c| {
+                matches!(
+                    c,
+                    Constraint::Alignment {
+                        axis: Axis::Horizontal,
+                        ..
+                    }
+                )
+            })
             .count();
         assert_eq!(align_count, 1);
 
@@ -310,7 +335,15 @@ mod tests {
 
         let adj_count = constraints
             .iter()
-            .filter(|c| matches!(c, Constraint::Adjacency { side: Side::Right, .. }))
+            .filter(|c| {
+                matches!(
+                    c,
+                    Constraint::Adjacency {
+                        side: Side::Right,
+                        ..
+                    }
+                )
+            })
             .count();
         assert_eq!(adj_count, 1);
     }

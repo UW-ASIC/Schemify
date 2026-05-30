@@ -97,9 +97,17 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ExprError> {
             _ if ch.is_ascii_digit() || ch == '.' => {
                 // Parse number, then optional engineering suffix.
                 let start = i;
-                while i < len && (chars[i].is_ascii_digit() || chars[i] == '.' || chars[i] == 'e' || chars[i] == 'E') {
+                while i < len
+                    && (chars[i].is_ascii_digit()
+                        || chars[i] == '.'
+                        || chars[i] == 'e'
+                        || chars[i] == 'E')
+                {
                     // Handle scientific notation: 1e-3, 1E+6.
-                    if (chars[i] == 'e' || chars[i] == 'E') && i + 1 < len && (chars[i + 1] == '+' || chars[i + 1] == '-') {
+                    if (chars[i] == 'e' || chars[i] == 'E')
+                        && i + 1 < len
+                        && (chars[i + 1] == '+' || chars[i + 1] == '-')
+                    {
                         i += 2;
                     } else {
                         i += 1;
@@ -185,7 +193,11 @@ struct ExprParser<'a> {
 
 impl<'a> ExprParser<'a> {
     fn new(tokens: Vec<Token>, ctx: &'a HashMap<String, f64>) -> Self {
-        Self { tokens, pos: 0, ctx }
+        Self {
+            tokens,
+            pos: 0,
+            ctx,
+        }
     }
 
     fn peek(&self) -> Option<&Token> {
@@ -306,7 +318,7 @@ impl<'a> ExprParser<'a> {
                     self.ctx
                         .get(&name)
                         .copied()
-                        .ok_or_else(|| ExprError::UndefinedVariable(name))
+                        .ok_or(ExprError::UndefinedVariable(name))
                 }
             }
             Some(other) => Err(ExprError::UnexpectedChar(

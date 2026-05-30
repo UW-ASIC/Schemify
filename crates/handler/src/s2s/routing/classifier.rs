@@ -58,7 +58,12 @@ pub fn classify_nets(subckt: &Subcircuit, backend: &dyn PinGeometry) -> Vec<NetS
 }
 
 /// Classify a single net.
-fn classify_net(net: &Net, subckt: &Subcircuit, wire_threshold: i32, backend: &dyn PinGeometry) -> NetStrategy {
+fn classify_net(
+    net: &Net,
+    subckt: &Subcircuit,
+    wire_threshold: i32,
+    backend: &dyn PinGeometry,
+) -> NetStrategy {
     // Nets with 0 or 1 pins have nothing to route.
     if net.pins.len() < 2 {
         return NetStrategy::Label;

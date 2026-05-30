@@ -1,9 +1,9 @@
-pub mod types;
-pub mod schematic;
 pub mod commands;
-pub mod simulation;
 pub mod devices;
-pub mod primitives;
-pub mod theme;
 pub mod plugin_types;
+pub mod primitives;
+pub mod schematic;
+pub mod simulation;
+pub mod theme;
 pub mod traits;
+pub mod types;

@@ -40,8 +40,12 @@ enum CliCommand {
     FileSave,
     FileSaveAs,
     NewTab,
-    CloseTab { index: usize },
-    SwitchTab { index: usize },
+    CloseTab {
+        index: usize,
+    },
+    SwitchTab {
+        index: usize,
+    },
     ReloadFromDisk,
 
     // ── Selection ──
@@ -75,8 +79,12 @@ enum CliCommand {
 
     // ── Deletion ──
     DeleteSelected,
-    DeleteInstance { idx: usize },
-    DeleteWire { idx: usize },
+    DeleteInstance {
+        idx: usize,
+    },
+    DeleteWire {
+        idx: usize,
+    },
 
     // ── Duplication ──
     DuplicateSelected,
@@ -408,13 +416,7 @@ fn to_command(cli_cmd: CliCommand) -> Command {
             Command::SetInstanceProp { idx, key, value }
         }
         CliCommand::RenameInstance { idx, new_name } => Command::RenameInstance { idx, new_name },
-        CliCommand::RenameNet {
-            old_name,
-            new_name,
-        } => Command::RenameNet {
-            old_name,
-            new_name,
-        },
+        CliCommand::RenameNet { old_name, new_name } => Command::RenameNet { old_name, new_name },
         CliCommand::SetSpiceCode { code } => Command::SetSpiceCode(code),
         CliCommand::SetDocumentation { doc } => Command::SetDocumentation(doc),
         CliCommand::SetWireColor { idx, color } => {

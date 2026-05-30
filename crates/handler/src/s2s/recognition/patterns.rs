@@ -50,16 +50,40 @@ fn node_any(id: u32) -> PatternNode {
     }
 }
 
-fn edge(from_node: u32, from_pin: u32, to_node: u32, to_pin: u32, constraint: EdgeConstraint) -> PatternEdge {
-    PatternEdge { from_node, from_pin, to_node, to_pin, constraint }
+fn edge(
+    from_node: u32,
+    from_pin: u32,
+    to_node: u32,
+    to_pin: u32,
+    constraint: EdgeConstraint,
+) -> PatternEdge {
+    PatternEdge {
+        from_node,
+        from_pin,
+        to_node,
+        to_pin,
+        constraint,
+    }
 }
 
 fn same_net(from_node: u32, from_pin: u32, to_node: u32, to_pin: u32) -> PatternEdge {
-    edge(from_node, from_pin, to_node, to_pin, EdgeConstraint::SameNet)
+    edge(
+        from_node,
+        from_pin,
+        to_node,
+        to_pin,
+        EdgeConstraint::SameNet,
+    )
 }
 
 fn diff_net(from_node: u32, from_pin: u32, to_node: u32, to_pin: u32) -> PatternEdge {
-    edge(from_node, from_pin, to_node, to_pin, EdgeConstraint::DifferentNet)
+    edge(
+        from_node,
+        from_pin,
+        to_node,
+        to_pin,
+        EdgeConstraint::DifferentNet,
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -94,7 +118,7 @@ pub fn all_patterns() -> Vec<PatternGraph> {
         resistor_divider(),
     ];
     // Sort by node count descending (most specific first).
-    patterns.sort_by(|a, b| b.node_count().cmp(&a.node_count()));
+    patterns.sort_by_key(|b| std::cmp::Reverse(b.node_count()));
     patterns
 }
 
@@ -108,14 +132,11 @@ pub fn all_patterns() -> Vec<PatternGraph> {
 pub fn diff_pair() -> PatternGraph {
     PatternGraph {
         id: PatternId::DiffPair,
-        nodes: vec![
-            node_any(0),
-            node_same_as(1, 0),
-        ],
+        nodes: vec![node_any(0), node_same_as(1, 0)],
         edges: vec![
-            same_net(0, SOURCE, 1, SOURCE),  // shared tail
-            diff_net(0, GATE, 1, GATE),      // different inputs
-            diff_net(0, DRAIN, 1, DRAIN),    // different outputs
+            same_net(0, SOURCE, 1, SOURCE), // shared tail
+            diff_net(0, GATE, 1, GATE),     // different inputs
+            diff_net(0, DRAIN, 1, DRAIN),   // different outputs
         ],
     }
 }
@@ -156,8 +177,8 @@ pub fn cascode_stack() -> PatternGraph {
             node_same_as(1, 0), // top
         ],
         edges: vec![
-            same_net(0, DRAIN, 1, SOURCE),  // stacked
-            diff_net(0, GATE, 1, GATE),     // different bias
+            same_net(0, DRAIN, 1, SOURCE), // stacked
+            diff_net(0, GATE, 1, GATE),    // different bias
         ],
     }
 }
@@ -189,10 +210,10 @@ pub fn cascode_mirror() -> PatternGraph {
             // Bottom mirror
             same_net(0, GATE, 1, GATE),
             same_net(0, SOURCE, 1, SOURCE),
-            same_net(0, GATE, 0, DRAIN),   // bottom-ref diode
+            same_net(0, GATE, 0, DRAIN), // bottom-ref diode
             // Top mirror
             same_net(2, GATE, 3, GATE),
-            same_net(2, GATE, 2, DRAIN),   // top-ref diode
+            same_net(2, GATE, 2, DRAIN), // top-ref diode
             // Stacking
             same_net(0, DRAIN, 2, SOURCE),
             same_net(1, DRAIN, 3, SOURCE),
@@ -209,10 +230,7 @@ pub fn cascode_mirror() -> PatternGraph {
 pub fn push_pull() -> PatternGraph {
     PatternGraph {
         id: PatternId::PushPull,
-        nodes: vec![
-            node_any(0),
-            node_complementary(1, 0),
-        ],
+        nodes: vec![node_any(0), node_complementary(1, 0)],
         edges: vec![
             same_net(0, GATE, 1, GATE),   // common input
             same_net(0, DRAIN, 1, DRAIN), // common output
@@ -228,10 +246,7 @@ pub fn push_pull() -> PatternGraph {
 pub fn common_source() -> PatternGraph {
     PatternGraph {
         id: PatternId::CommonSource,
-        nodes: vec![
-            node_any(0),
-            node(1, Primitive::Resistor),
-        ],
+        nodes: vec![node_any(0), node(1, Primitive::Resistor)],
         edges: vec![
             same_net(0, DRAIN, 1, PLUS), // drain tied to resistor
         ],
@@ -246,10 +261,7 @@ pub fn common_source() -> PatternGraph {
 pub fn source_follower() -> PatternGraph {
     PatternGraph {
         id: PatternId::SourceFollower,
-        nodes: vec![
-            node_any(0),
-            node(1, Primitive::Isource),
-        ],
+        nodes: vec![node_any(0), node(1, Primitive::Isource)],
         edges: vec![
             same_net(0, SOURCE, 1, PLUS), // source to isource
         ],
@@ -264,10 +276,7 @@ pub fn source_follower() -> PatternGraph {
 pub fn rc_compensation() -> PatternGraph {
     PatternGraph {
         id: PatternId::RcCompensation,
-        nodes: vec![
-            node(0, Primitive::Resistor),
-            node(1, Primitive::Capacitor),
-        ],
+        nodes: vec![node(0, Primitive::Resistor), node(1, Primitive::Capacitor)],
         edges: vec![
             same_net(0, MINUS, 1, PLUS), // series connection
         ],
@@ -317,15 +326,15 @@ pub fn widlar_mirror() -> PatternGraph {
     PatternGraph {
         id: PatternId::WidlarMirror,
         nodes: vec![
-            node_any(0),                       // M_ref
-            node_same_as(1, 0),                // M_out
-            node(2, Primitive::Resistor),       // R_deg
+            node_any(0),                  // M_ref
+            node_same_as(1, 0),           // M_out
+            node(2, Primitive::Resistor), // R_deg
         ],
         edges: vec![
-            same_net(0, GATE, 0, DRAIN),     // M_ref diode-connected
-            same_net(0, GATE, 1, GATE),      // shared gate bias
-            same_net(1, SOURCE, 2, PLUS),    // M_out source to R degeneration
-            same_net(0, SOURCE, 2, MINUS),   // R other end to shared rail
+            same_net(0, GATE, 0, DRAIN),   // M_ref diode-connected
+            same_net(0, GATE, 1, GATE),    // shared gate bias
+            same_net(1, SOURCE, 2, PLUS),  // M_out source to R degeneration
+            same_net(0, SOURCE, 2, MINUS), // R other end to shared rail
         ],
     }
 }
@@ -341,13 +350,10 @@ pub fn widlar_mirror() -> PatternGraph {
 pub fn resistor_divider() -> PatternGraph {
     PatternGraph {
         id: PatternId::ResistorDivider,
-        nodes: vec![
-            node(0, Primitive::Resistor),
-            node(1, Primitive::Resistor),
-        ],
+        nodes: vec![node(0, Primitive::Resistor), node(1, Primitive::Resistor)],
         edges: vec![
-            same_net(0, MINUS, 1, PLUS),    // series midpoint
-            diff_net(0, PLUS, 1, MINUS),    // different end nets
+            same_net(0, MINUS, 1, PLUS), // series midpoint
+            diff_net(0, PLUS, 1, MINUS), // different end nets
         ],
     }
 }
@@ -371,18 +377,41 @@ mod tests {
             primitive: prim,
             symbol: String::new(),
             pins: vec![
-                Pin { name: "D".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "G".into(), dir: PinDir::Input, net_idx: None },
-                Pin { name: "S".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "B".into(), dir: PinDir::Bulk, net_idx: None },
+                Pin {
+                    name: "D".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "G".into(),
+                    dir: PinDir::Input,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "S".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "B".into(),
+                    dir: PinDir::Bulk,
+                    net_idx: None,
+                },
             ],
             params: HashMap::new(),
-            x: 0, y: 0, rotation: 0, flip: false,
+            x: 0,
+            y: 0,
+            rotation: 0,
+            flip: false,
         }
     }
 
-    fn make_nmos(name: &str) -> Instance { make_mosfet(name, Primitive::Nmos) }
-    fn make_pmos(name: &str) -> Instance { make_mosfet(name, Primitive::Pmos) }
+    fn make_nmos(name: &str) -> Instance {
+        make_mosfet(name, Primitive::Nmos)
+    }
+    fn make_pmos(name: &str) -> Instance {
+        make_mosfet(name, Primitive::Pmos)
+    }
 
     fn make_two_terminal(name: &str, prim: Primitive) -> Instance {
         Instance {
@@ -390,17 +419,34 @@ mod tests {
             primitive: prim,
             symbol: String::new(),
             pins: vec![
-                Pin { name: "p".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "n".into(), dir: PinDir::Inout, net_idx: None },
+                Pin {
+                    name: "p".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "n".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
             ],
             params: HashMap::new(),
-            x: 0, y: 0, rotation: 0, flip: false,
+            x: 0,
+            y: 0,
+            rotation: 0,
+            flip: false,
         }
     }
 
-    fn make_resistor(name: &str) -> Instance { make_two_terminal(name, Primitive::Resistor) }
-    fn make_capacitor(name: &str) -> Instance { make_two_terminal(name, Primitive::Capacitor) }
-    fn make_isource(name: &str) -> Instance { make_two_terminal(name, Primitive::Isource) }
+    fn make_resistor(name: &str) -> Instance {
+        make_two_terminal(name, Primitive::Resistor)
+    }
+    fn make_capacitor(name: &str) -> Instance {
+        make_two_terminal(name, Primitive::Capacitor)
+    }
+    fn make_isource(name: &str) -> Instance {
+        make_two_terminal(name, Primitive::Isource)
+    }
 
     fn build_circuit(instances: Vec<Instance>, connections: &[(&str, u32, u32)]) -> Circuit {
         let mut c = Circuit::new("test");
@@ -409,7 +455,13 @@ mod tests {
         }
         for &(net_name, inst_idx, pin_idx) in connections {
             let net_idx = c.get_or_create_net(net_name);
-            c.connect(net_idx, PinRef { instance_idx: inst_idx, pin_idx });
+            c.connect(
+                net_idx,
+                PinRef {
+                    instance_idx: inst_idx,
+                    pin_idx,
+                },
+            );
         }
         c
     }
@@ -423,8 +475,12 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("outm", 0, 0), ("inp", 0, 1), ("tail", 0, 2),
-                ("outp", 1, 0), ("inn", 1, 1), ("tail", 1, 2),
+                ("outm", 0, 0),
+                ("inp", 0, 1),
+                ("tail", 0, 2),
+                ("outp", 1, 0),
+                ("inn", 1, 1),
+                ("tail", 1, 2),
             ],
         );
         let matches = find_matches(&diff_pair(), &c.top);
@@ -436,8 +492,12 @@ mod tests {
         let c = build_circuit(
             vec![make_pmos("M1"), make_pmos("M2")],
             &[
-                ("outm", 0, 0), ("inp", 0, 1), ("tail", 0, 2),
-                ("outp", 1, 0), ("inn", 1, 1), ("tail", 1, 2),
+                ("outm", 0, 0),
+                ("inp", 0, 1),
+                ("tail", 0, 2),
+                ("outp", 1, 0),
+                ("inn", 1, 1),
+                ("tail", 1, 2),
             ],
         );
         let matches = find_matches(&diff_pair(), &c.top);
@@ -449,8 +509,12 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("outm", 0, 0), ("vin", 0, 1), ("tail", 0, 2),
-                ("outp", 1, 0), ("vin", 1, 1), ("tail", 1, 2),
+                ("outm", 0, 0),
+                ("vin", 0, 1),
+                ("tail", 0, 2),
+                ("outp", 1, 0),
+                ("vin", 1, 1),
+                ("tail", 1, 2),
             ],
         );
         let matches = find_matches(&diff_pair(), &c.top);
@@ -466,8 +530,12 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("bias", 0, 0), ("bias", 0, 1), ("vss", 0, 2), // M1 diode
-                ("out",  1, 0), ("bias", 1, 1), ("vss", 1, 2),
+                ("bias", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2), // M1 diode
+                ("out", 1, 0),
+                ("bias", 1, 1),
+                ("vss", 1, 2),
             ],
         );
         let matches = find_matches(&current_mirror(), &c.top);
@@ -479,8 +547,12 @@ mod tests {
         let c = build_circuit(
             vec![make_pmos("M1"), make_pmos("M2")],
             &[
-                ("bias", 0, 0), ("bias", 0, 1), ("vdd", 0, 2),
-                ("out",  1, 0), ("bias", 1, 1), ("vdd", 1, 2),
+                ("bias", 0, 0),
+                ("bias", 0, 1),
+                ("vdd", 0, 2),
+                ("out", 1, 0),
+                ("bias", 1, 1),
+                ("vdd", 1, 2),
             ],
         );
         let matches = find_matches(&current_mirror(), &c.top);
@@ -493,12 +565,19 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("d1", 0, 0), ("bias", 0, 1), ("vss", 0, 2),
-                ("d2", 1, 0), ("bias", 1, 1), ("vss", 1, 2),
+                ("d1", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2),
+                ("d2", 1, 0),
+                ("bias", 1, 1),
+                ("vss", 1, 2),
             ],
         );
         let matches = find_matches(&current_mirror(), &c.top);
-        assert!(matches.is_empty(), "No diode should not match current mirror");
+        assert!(
+            matches.is_empty(),
+            "No diode should not match current mirror"
+        );
     }
 
     // ======================================================================
@@ -510,8 +589,12 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("mid", 0, 0), ("vb1", 0, 1), ("vss", 0, 2),
-                ("out", 1, 0), ("vb2", 1, 1), ("mid", 1, 2),
+                ("mid", 0, 0),
+                ("vb1", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("vb2", 1, 1),
+                ("mid", 1, 2),
             ],
         );
         let matches = find_matches(&cascode_stack(), &c.top);
@@ -523,8 +606,12 @@ mod tests {
         let c = build_circuit(
             vec![make_pmos("M1"), make_pmos("M2")],
             &[
-                ("mid", 0, 0), ("vb1", 0, 1), ("vdd", 0, 2),
-                ("out", 1, 0), ("vb2", 1, 1), ("mid", 1, 2),
+                ("mid", 0, 0),
+                ("vb1", 0, 1),
+                ("vdd", 0, 2),
+                ("out", 1, 0),
+                ("vb2", 1, 1),
+                ("mid", 1, 2),
             ],
         );
         let matches = find_matches(&cascode_stack(), &c.top);
@@ -537,12 +624,19 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("mid", 0, 0), ("vb", 0, 1), ("vss", 0, 2),
-                ("out", 1, 0), ("vb", 1, 1), ("mid", 1, 2),
+                ("mid", 0, 0),
+                ("vb", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("vb", 1, 1),
+                ("mid", 1, 2),
             ],
         );
         let matches = find_matches(&cascode_stack(), &c.top);
-        assert!(matches.is_empty(), "Same gate should not match cascode stack");
+        assert!(
+            matches.is_empty(),
+            "Same gate should not match cascode stack"
+        );
     }
 
     // ======================================================================
@@ -554,17 +648,27 @@ mod tests {
         // 4 NMOS: bottom pair (0=ref,1=mirror) + top pair (2=ref,3=mirror)
         let c = build_circuit(
             vec![
-                make_nmos("MB_ref"), make_nmos("MB_mir"),
-                make_nmos("MT_ref"), make_nmos("MT_mir"),
+                make_nmos("MB_ref"),
+                make_nmos("MB_mir"),
+                make_nmos("MT_ref"),
+                make_nmos("MT_mir"),
             ],
             &[
                 // Bottom ref (diode): D=mid_ref, G=vb_bot, S=vss, gate=drain not needed
                 // Actually for cascode mirror: bottom ref is diode (gate==drain)
-                ("vb_bot", 0, 0), ("vb_bot", 0, 1), ("vss", 0, 2), // bottom-ref diode
-                ("mid_mir", 1, 0), ("vb_bot", 1, 1), ("vss", 1, 2), // bottom-mirror
+                ("vb_bot", 0, 0),
+                ("vb_bot", 0, 1),
+                ("vss", 0, 2), // bottom-ref diode
+                ("mid_mir", 1, 0),
+                ("vb_bot", 1, 1),
+                ("vss", 1, 2), // bottom-mirror
                 // Top ref (diode): gate==drain
-                ("vb_top", 2, 0), ("vb_top", 2, 1), ("vb_bot", 2, 2), // top-ref, source=bottom ref drain
-                ("out",    3, 0), ("vb_top", 3, 1), ("mid_mir", 3, 2), // top-mirror, source=bottom mirror drain
+                ("vb_top", 2, 0),
+                ("vb_top", 2, 1),
+                ("vb_bot", 2, 2), // top-ref, source=bottom ref drain
+                ("out", 3, 0),
+                ("vb_top", 3, 1),
+                ("mid_mir", 3, 2), // top-mirror, source=bottom mirror drain
             ],
         );
         let matches = find_matches(&cascode_mirror(), &c.top);
@@ -575,14 +679,24 @@ mod tests {
     fn cascode_mirror_pmos_match() {
         let c = build_circuit(
             vec![
-                make_pmos("MB_ref"), make_pmos("MB_mir"),
-                make_pmos("MT_ref"), make_pmos("MT_mir"),
+                make_pmos("MB_ref"),
+                make_pmos("MB_mir"),
+                make_pmos("MT_ref"),
+                make_pmos("MT_mir"),
             ],
             &[
-                ("vb_bot", 0, 0), ("vb_bot", 0, 1), ("vdd", 0, 2),
-                ("mid_mir", 1, 0), ("vb_bot", 1, 1), ("vdd", 1, 2),
-                ("vb_top", 2, 0), ("vb_top", 2, 1), ("vb_bot", 2, 2),
-                ("out",    3, 0), ("vb_top", 3, 1), ("mid_mir", 3, 2),
+                ("vb_bot", 0, 0),
+                ("vb_bot", 0, 1),
+                ("vdd", 0, 2),
+                ("mid_mir", 1, 0),
+                ("vb_bot", 1, 1),
+                ("vdd", 1, 2),
+                ("vb_top", 2, 0),
+                ("vb_top", 2, 1),
+                ("vb_bot", 2, 2),
+                ("out", 3, 0),
+                ("vb_top", 3, 1),
+                ("mid_mir", 3, 2),
             ],
         );
         let matches = find_matches(&cascode_mirror(), &c.top);
@@ -595,12 +709,19 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("bias", 0, 0), ("bias", 0, 1), ("vss", 0, 2),
-                ("out",  1, 0), ("bias", 1, 1), ("vss", 1, 2),
+                ("bias", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("bias", 1, 1),
+                ("vss", 1, 2),
             ],
         );
         let matches = find_matches(&cascode_mirror(), &c.top);
-        assert!(matches.is_empty(), "2 devices cannot match 4-node cascode mirror");
+        assert!(
+            matches.is_empty(),
+            "2 devices cannot match 4-node cascode mirror"
+        );
     }
 
     // ======================================================================
@@ -612,8 +733,12 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("MN"), make_pmos("MP")],
             &[
-                ("out", 0, 0), ("vin", 0, 1), ("vss", 0, 2),
-                ("out", 1, 0), ("vin", 1, 1), ("vdd", 1, 2),
+                ("out", 0, 0),
+                ("vin", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("vin", 1, 1),
+                ("vdd", 1, 2),
             ],
         );
         let matches = find_matches(&push_pull(), &c.top);
@@ -626,8 +751,12 @@ mod tests {
         let c = build_circuit(
             vec![make_pmos("MP"), make_nmos("MN")],
             &[
-                ("out", 0, 0), ("vin", 0, 1), ("vdd", 0, 2),
-                ("out", 1, 0), ("vin", 1, 1), ("vss", 1, 2),
+                ("out", 0, 0),
+                ("vin", 0, 1),
+                ("vdd", 0, 2),
+                ("out", 1, 0),
+                ("vin", 1, 1),
+                ("vss", 1, 2),
             ],
         );
         let matches = find_matches(&push_pull(), &c.top);
@@ -640,8 +769,12 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("out", 0, 0), ("vin", 0, 1), ("vss", 0, 2),
-                ("out", 1, 0), ("vin", 1, 1), ("vss", 1, 2),
+                ("out", 0, 0),
+                ("vin", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("vin", 1, 1),
+                ("vss", 1, 2),
             ],
         );
         let matches = find_matches(&push_pull(), &c.top);
@@ -659,8 +792,11 @@ mod tests {
         let c2 = build_circuit(
             vec![make_nmos("M1"), make_resistor("R1")],
             &[
-                ("out", 0, 0), ("vin", 0, 1), ("vss", 0, 2),
-                ("out", 1, 0), ("vdd", 1, 1),
+                ("out", 0, 0),
+                ("vin", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("vdd", 1, 1),
             ],
         );
         let matches = find_matches(&common_source(), &c2.top);
@@ -672,8 +808,11 @@ mod tests {
         let c = build_circuit(
             vec![make_pmos("M1"), make_resistor("R1")],
             &[
-                ("out", 0, 0), ("vin", 0, 1), ("vdd", 0, 2),
-                ("out", 1, 0), ("vss", 1, 1),
+                ("out", 0, 0),
+                ("vin", 0, 1),
+                ("vdd", 0, 2),
+                ("out", 1, 0),
+                ("vss", 1, 1),
             ],
         );
         let matches = find_matches(&common_source(), &c.top);
@@ -686,12 +825,18 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_resistor("R1")],
             &[
-                ("out", 0, 0), ("vin", 0, 1), ("vss", 0, 2),
-                ("vdd", 1, 0), ("other", 1, 1),
+                ("out", 0, 0),
+                ("vin", 0, 1),
+                ("vss", 0, 2),
+                ("vdd", 1, 0),
+                ("other", 1, 1),
             ],
         );
         let matches = find_matches(&common_source(), &c.top);
-        assert!(matches.is_empty(), "No drain-resistor connection should not match");
+        assert!(
+            matches.is_empty(),
+            "No drain-resistor connection should not match"
+        );
     }
 
     // ======================================================================
@@ -703,12 +848,18 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_isource("I1")],
             &[
-                ("vdd", 0, 0), ("vin", 0, 1), ("out", 0, 2),
-                ("out", 1, 0), ("vss", 1, 1),
+                ("vdd", 0, 0),
+                ("vin", 0, 1),
+                ("out", 0, 2),
+                ("out", 1, 0),
+                ("vss", 1, 1),
             ],
         );
         let matches = find_matches(&source_follower(), &c.top);
-        assert!(!matches.is_empty(), "Source follower with NMOS should match");
+        assert!(
+            !matches.is_empty(),
+            "Source follower with NMOS should match"
+        );
     }
 
     #[test]
@@ -716,12 +867,18 @@ mod tests {
         let c = build_circuit(
             vec![make_pmos("M1"), make_isource("I1")],
             &[
-                ("vss", 0, 0), ("vin", 0, 1), ("out", 0, 2),
-                ("out", 1, 0), ("vdd", 1, 1),
+                ("vss", 0, 0),
+                ("vin", 0, 1),
+                ("out", 0, 2),
+                ("out", 1, 0),
+                ("vdd", 1, 1),
             ],
         );
         let matches = find_matches(&source_follower(), &c.top);
-        assert!(!matches.is_empty(), "Source follower with PMOS should match");
+        assert!(
+            !matches.is_empty(),
+            "Source follower with PMOS should match"
+        );
     }
 
     #[test]
@@ -730,12 +887,18 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M1"), make_resistor("R1")],
             &[
-                ("vdd", 0, 0), ("vin", 0, 1), ("out", 0, 2),
-                ("out", 1, 0), ("vss", 1, 1),
+                ("vdd", 0, 0),
+                ("vin", 0, 1),
+                ("out", 0, 2),
+                ("out", 1, 0),
+                ("vss", 1, 1),
             ],
         );
         let matches = find_matches(&source_follower(), &c.top);
-        assert!(matches.is_empty(), "Resistor should not match source follower (needs Isource)");
+        assert!(
+            matches.is_empty(),
+            "Resistor should not match source follower (needs Isource)"
+        );
     }
 
     // ======================================================================
@@ -746,10 +909,7 @@ mod tests {
     fn rc_compensation_match() {
         let c = build_circuit(
             vec![make_resistor("R1"), make_capacitor("C1")],
-            &[
-                ("a", 0, 0), ("mid", 0, 1),
-                ("mid", 1, 0), ("b", 1, 1),
-            ],
+            &[("a", 0, 0), ("mid", 0, 1), ("mid", 1, 0), ("b", 1, 1)],
         );
         let matches = find_matches(&rc_compensation(), &c.top);
         assert!(!matches.is_empty(), "RC compensation should match");
@@ -760,13 +920,13 @@ mod tests {
         // Capacitor first in instance list, resistor second — should still match
         let c = build_circuit(
             vec![make_capacitor("C1"), make_resistor("R1")],
-            &[
-                ("mid", 0, 0), ("b", 0, 1),
-                ("a", 1, 0), ("mid", 1, 1),
-            ],
+            &[("mid", 0, 0), ("b", 0, 1), ("a", 1, 0), ("mid", 1, 1)],
         );
         let matches = find_matches(&rc_compensation(), &c.top);
-        assert!(!matches.is_empty(), "RC compensation should match regardless of instance order");
+        assert!(
+            !matches.is_empty(),
+            "RC compensation should match regardless of instance order"
+        );
     }
 
     #[test]
@@ -774,10 +934,7 @@ mod tests {
         // R and C not sharing a net at the series junction
         let c = build_circuit(
             vec![make_resistor("R1"), make_capacitor("C1")],
-            &[
-                ("a", 0, 0), ("b", 0, 1),
-                ("c", 1, 0), ("d", 1, 1),
-            ],
+            &[("a", 0, 0), ("b", 0, 1), ("c", 1, 0), ("d", 1, 1)],
         );
         let matches = find_matches(&rc_compensation(), &c.top);
         assert!(matches.is_empty(), "Unconnected R and C should not match");
@@ -795,9 +952,15 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M_ref"), make_nmos("M_out"), make_nmos("M_fb")],
             &[
-                ("ref_d", 0, 0), ("bias", 0, 1), ("vss", 0, 2),   // M_ref
-                ("out_d", 1, 0), ("bias", 1, 1), ("vss", 1, 2),   // M_out
-                ("ref_d", 2, 0), ("fb_g", 2, 1), ("out_d", 2, 2), // M_fb
+                ("ref_d", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2), // M_ref
+                ("out_d", 1, 0),
+                ("bias", 1, 1),
+                ("vss", 1, 2), // M_out
+                ("ref_d", 2, 0),
+                ("fb_g", 2, 1),
+                ("out_d", 2, 2), // M_fb
             ],
         );
         let matches = find_matches(&wilson_mirror(), &c.top);
@@ -809,9 +972,15 @@ mod tests {
         let c = build_circuit(
             vec![make_pmos("M_ref"), make_pmos("M_out"), make_pmos("M_fb")],
             &[
-                ("ref_d", 0, 0), ("bias", 0, 1), ("vdd", 0, 2),
-                ("out_d", 1, 0), ("bias", 1, 1), ("vdd", 1, 2),
-                ("ref_d", 2, 0), ("fb_g", 2, 1), ("out_d", 2, 2),
+                ("ref_d", 0, 0),
+                ("bias", 0, 1),
+                ("vdd", 0, 2),
+                ("out_d", 1, 0),
+                ("bias", 1, 1),
+                ("vdd", 1, 2),
+                ("ref_d", 2, 0),
+                ("fb_g", 2, 1),
+                ("out_d", 2, 2),
             ],
         );
         let matches = find_matches(&wilson_mirror(), &c.top);
@@ -824,13 +993,22 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M_ref"), make_nmos("M_out"), make_nmos("M_fb")],
             &[
-                ("ref_d", 0, 0), ("bias", 0, 1), ("vss", 0, 2),
-                ("out_d", 1, 0), ("bias", 1, 1), ("vss", 1, 2),
-                ("ref_d", 2, 0), ("fb_g", 2, 1), ("wrong", 2, 2), // wrong source
+                ("ref_d", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2),
+                ("out_d", 1, 0),
+                ("bias", 1, 1),
+                ("vss", 1, 2),
+                ("ref_d", 2, 0),
+                ("fb_g", 2, 1),
+                ("wrong", 2, 2), // wrong source
             ],
         );
         let matches = find_matches(&wilson_mirror(), &c.top);
-        assert!(matches.is_empty(), "Missing feedback should not match Wilson mirror");
+        assert!(
+            matches.is_empty(),
+            "Missing feedback should not match Wilson mirror"
+        );
     }
 
     #[test]
@@ -839,13 +1017,22 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M_ref"), make_nmos("M_out"), make_pmos("M_fb")],
             &[
-                ("ref_d", 0, 0), ("bias", 0, 1), ("vss", 0, 2),
-                ("out_d", 1, 0), ("bias", 1, 1), ("vss", 1, 2),
-                ("ref_d", 2, 0), ("fb_g", 2, 1), ("out_d", 2, 2),
+                ("ref_d", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2),
+                ("out_d", 1, 0),
+                ("bias", 1, 1),
+                ("vss", 1, 2),
+                ("ref_d", 2, 0),
+                ("fb_g", 2, 1),
+                ("out_d", 2, 2),
             ],
         );
         let matches = find_matches(&wilson_mirror(), &c.top);
-        assert!(matches.is_empty(), "Mixed types should not match Wilson mirror");
+        assert!(
+            matches.is_empty(),
+            "Mixed types should not match Wilson mirror"
+        );
     }
 
     // ======================================================================
@@ -856,11 +1043,20 @@ mod tests {
     fn widlar_mirror_nmos_match() {
         // M_ref(0) diode-connected, M_out(1) gate shared, R_deg(2) on M_out source
         let c = build_circuit(
-            vec![make_nmos("M_ref"), make_nmos("M_out"), make_resistor("R_deg")],
+            vec![
+                make_nmos("M_ref"),
+                make_nmos("M_out"),
+                make_resistor("R_deg"),
+            ],
             &[
-                ("bias", 0, 0), ("bias", 0, 1), ("vss", 0, 2),     // M_ref diode
-                ("out",  1, 0), ("bias", 1, 1), ("mid", 1, 2),     // M_out
-                ("mid",  2, 0), ("vss",  2, 1),                     // R_deg: plus=mid, minus=vss
+                ("bias", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2), // M_ref diode
+                ("out", 1, 0),
+                ("bias", 1, 1),
+                ("mid", 1, 2), // M_out
+                ("mid", 2, 0),
+                ("vss", 2, 1), // R_deg: plus=mid, minus=vss
             ],
         );
         let matches = find_matches(&widlar_mirror(), &c.top);
@@ -870,11 +1066,20 @@ mod tests {
     #[test]
     fn widlar_mirror_pmos_match() {
         let c = build_circuit(
-            vec![make_pmos("M_ref"), make_pmos("M_out"), make_resistor("R_deg")],
+            vec![
+                make_pmos("M_ref"),
+                make_pmos("M_out"),
+                make_resistor("R_deg"),
+            ],
             &[
-                ("bias", 0, 0), ("bias", 0, 1), ("vdd", 0, 2),
-                ("out",  1, 0), ("bias", 1, 1), ("mid", 1, 2),
-                ("mid",  2, 0), ("vdd",  2, 1),
+                ("bias", 0, 0),
+                ("bias", 0, 1),
+                ("vdd", 0, 2),
+                ("out", 1, 0),
+                ("bias", 1, 1),
+                ("mid", 1, 2),
+                ("mid", 2, 0),
+                ("vdd", 2, 1),
             ],
         );
         let matches = find_matches(&widlar_mirror(), &c.top);
@@ -885,15 +1090,27 @@ mod tests {
     fn widlar_mirror_no_match_no_diode() {
         // M_ref not diode-connected (gate != drain)
         let c = build_circuit(
-            vec![make_nmos("M_ref"), make_nmos("M_out"), make_resistor("R_deg")],
+            vec![
+                make_nmos("M_ref"),
+                make_nmos("M_out"),
+                make_resistor("R_deg"),
+            ],
             &[
-                ("drain", 0, 0), ("bias", 0, 1), ("vss", 0, 2),   // NOT diode
-                ("out",   1, 0), ("bias", 1, 1), ("mid", 1, 2),
-                ("mid",   2, 0), ("vss",  2, 1),
+                ("drain", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2), // NOT diode
+                ("out", 1, 0),
+                ("bias", 1, 1),
+                ("mid", 1, 2),
+                ("mid", 2, 0),
+                ("vss", 2, 1),
             ],
         );
         let matches = find_matches(&widlar_mirror(), &c.top);
-        assert!(matches.is_empty(), "No diode should not match Widlar mirror");
+        assert!(
+            matches.is_empty(),
+            "No diode should not match Widlar mirror"
+        );
     }
 
     #[test]
@@ -902,13 +1119,21 @@ mod tests {
         let c = build_circuit(
             vec![make_nmos("M_ref"), make_nmos("M_out"), make_capacitor("C1")],
             &[
-                ("bias", 0, 0), ("bias", 0, 1), ("vss", 0, 2),
-                ("out",  1, 0), ("bias", 1, 1), ("mid", 1, 2),
-                ("mid",  2, 0), ("vss",  2, 1),
+                ("bias", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("bias", 1, 1),
+                ("mid", 1, 2),
+                ("mid", 2, 0),
+                ("vss", 2, 1),
             ],
         );
         let matches = find_matches(&widlar_mirror(), &c.top);
-        assert!(matches.is_empty(), "Capacitor should not match Widlar mirror (needs Resistor)");
+        assert!(
+            matches.is_empty(),
+            "Capacitor should not match Widlar mirror (needs Resistor)"
+        );
     }
 
     // ======================================================================
@@ -921,8 +1146,10 @@ mod tests {
         let c = build_circuit(
             vec![make_resistor("R_top"), make_resistor("R_bot")],
             &[
-                ("vdd", 0, 0), ("mid", 0, 1),  // R_top: plus=vdd, minus=mid
-                ("mid", 1, 0), ("vss", 1, 1),  // R_bot: plus=mid, minus=vss
+                ("vdd", 0, 0),
+                ("mid", 0, 1), // R_top: plus=vdd, minus=mid
+                ("mid", 1, 0),
+                ("vss", 1, 1), // R_bot: plus=mid, minus=vss
             ],
         );
         let matches = find_matches(&resistor_divider(), &c.top);
@@ -935,12 +1162,17 @@ mod tests {
         let c = build_circuit(
             vec![make_resistor("R_bot"), make_resistor("R_top")],
             &[
-                ("mid", 0, 0), ("vss", 0, 1),  // R_bot: plus=mid, minus=vss
-                ("vdd", 1, 0), ("mid", 1, 1),  // R_top: plus=vdd, minus=mid
+                ("mid", 0, 0),
+                ("vss", 0, 1), // R_bot: plus=mid, minus=vss
+                ("vdd", 1, 0),
+                ("mid", 1, 1), // R_top: plus=vdd, minus=mid
             ],
         );
         let matches = find_matches(&resistor_divider(), &c.top);
-        assert!(!matches.is_empty(), "Reversed-order resistor divider should match");
+        assert!(
+            !matches.is_empty(),
+            "Reversed-order resistor divider should match"
+        );
     }
 
     #[test]
@@ -948,13 +1180,13 @@ mod tests {
         // Two resistors not sharing a net at the series junction
         let c = build_circuit(
             vec![make_resistor("R1"), make_resistor("R2")],
-            &[
-                ("a", 0, 0), ("b", 0, 1),
-                ("c", 1, 0), ("d", 1, 1),
-            ],
+            &[("a", 0, 0), ("b", 0, 1), ("c", 1, 0), ("d", 1, 1)],
         );
         let matches = find_matches(&resistor_divider(), &c.top);
-        assert!(matches.is_empty(), "Unconnected resistors should not match divider");
+        assert!(
+            matches.is_empty(),
+            "Unconnected resistors should not match divider"
+        );
     }
 
     #[test]
@@ -963,12 +1195,17 @@ mod tests {
         let c = build_circuit(
             vec![make_resistor("R1"), make_resistor("R2")],
             &[
-                ("vdd", 0, 0), ("mid", 0, 1),
-                ("mid", 1, 0), ("vdd", 1, 1),  // minus=vdd, same as R1 plus
+                ("vdd", 0, 0),
+                ("mid", 0, 1),
+                ("mid", 1, 0),
+                ("vdd", 1, 1), // minus=vdd, same as R1 plus
             ],
         );
         let matches = find_matches(&resistor_divider(), &c.top);
-        assert!(matches.is_empty(), "Same end nets should not match divider (needs different ends)");
+        assert!(
+            matches.is_empty(),
+            "Same end nets should not match divider (needs different ends)"
+        );
     }
 
     // ======================================================================

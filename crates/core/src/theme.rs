@@ -23,7 +23,10 @@ impl ThemeTokens {
         t.insert("bg_primary".into(), ThemeValue::Color([22, 22, 28, 255]));
         t.insert("bg_secondary".into(), ThemeValue::Color([32, 32, 40, 255]));
         t.insert("bg_panel".into(), ThemeValue::Color([28, 28, 36, 255]));
-        t.insert("text_primary".into(), ThemeValue::Color([230, 230, 230, 255]));
+        t.insert(
+            "text_primary".into(),
+            ThemeValue::Color([230, 230, 230, 255]),
+        );
         t.insert("text_dim".into(), ThemeValue::Color([140, 140, 150, 255]));
         t.insert("accent".into(), ThemeValue::Color([88, 166, 255, 255]));
         t.insert("border".into(), ThemeValue::Color([60, 60, 70, 255]));
@@ -34,18 +37,42 @@ impl ThemeTokens {
         // Canvas
         t.insert("canvas_bg".into(), ThemeValue::Color([22, 22, 28, 255]));
         t.insert("grid_color".into(), ThemeValue::Color([50, 50, 60, 120]));
-        t.insert("grid_major_color".into(), ThemeValue::Color([70, 70, 80, 160]));
-        t.insert("wire_default".into(), ThemeValue::Color([88, 210, 255, 255]));
+        t.insert(
+            "grid_major_color".into(),
+            ThemeValue::Color([70, 70, 80, 160]),
+        );
+        t.insert(
+            "wire_default".into(),
+            ThemeValue::Color([88, 210, 255, 255]),
+        );
         t.insert("wire_bus".into(), ThemeValue::Color([70, 180, 170, 255]));
-        t.insert("wire_selected".into(), ThemeValue::Color([255, 165, 50, 255]));
-        t.insert("selection_fill".into(), ThemeValue::Color([88, 166, 255, 40]));
-        t.insert("selection_stroke".into(), ThemeValue::Color([88, 166, 255, 180]));
+        t.insert(
+            "wire_selected".into(),
+            ThemeValue::Color([255, 165, 50, 255]),
+        );
+        t.insert(
+            "selection_fill".into(),
+            ThemeValue::Color([88, 166, 255, 40]),
+        );
+        t.insert(
+            "selection_stroke".into(),
+            ThemeValue::Color([88, 166, 255, 180]),
+        );
         t.insert("ghost_color".into(), ThemeValue::Color([80, 255, 120, 180]));
-        t.insert("crosshair_color".into(), ThemeValue::Color([200, 200, 200, 100]));
+        t.insert(
+            "crosshair_color".into(),
+            ThemeValue::Color([200, 200, 200, 100]),
+        );
         t.insert("pin_color".into(), ThemeValue::Color([255, 220, 60, 255]));
-        t.insert("symbol_stroke".into(), ThemeValue::Color([220, 220, 220, 255]));
+        t.insert(
+            "symbol_stroke".into(),
+            ThemeValue::Color([220, 220, 220, 255]),
+        );
         t.insert("symbol_fill".into(), ThemeValue::Color([40, 40, 50, 255]));
-        t.insert("label_color".into(), ThemeValue::Color([200, 200, 210, 255]));
+        t.insert(
+            "label_color".into(),
+            ThemeValue::Color([200, 200, 210, 255]),
+        );
 
         // Spacing
         t.insert("grid_spacing".into(), ThemeValue::Float(10.0));
@@ -70,7 +97,10 @@ impl ThemeTokens {
 
         // UI
         t.insert("bg_primary".into(), ThemeValue::Color([245, 245, 248, 255]));
-        t.insert("bg_secondary".into(), ThemeValue::Color([235, 235, 240, 255]));
+        t.insert(
+            "bg_secondary".into(),
+            ThemeValue::Color([235, 235, 240, 255]),
+        );
         t.insert("bg_panel".into(), ThemeValue::Color([240, 240, 244, 255]));
         t.insert("text_primary".into(), ThemeValue::Color([30, 30, 30, 255]));
         t.insert("text_dim".into(), ThemeValue::Color([120, 120, 130, 255]));
@@ -83,17 +113,32 @@ impl ThemeTokens {
         // Canvas
         t.insert("canvas_bg".into(), ThemeValue::Color([250, 250, 252, 255]));
         t.insert("grid_color".into(), ThemeValue::Color([200, 200, 210, 160]));
-        t.insert("grid_major_color".into(), ThemeValue::Color([170, 170, 180, 200]));
+        t.insert(
+            "grid_major_color".into(),
+            ThemeValue::Color([170, 170, 180, 200]),
+        );
         t.insert("wire_default".into(), ThemeValue::Color([0, 40, 120, 255]));
         t.insert("wire_bus".into(), ThemeValue::Color([30, 120, 115, 255]));
         t.insert("wire_selected".into(), ThemeValue::Color([200, 90, 0, 255]));
-        t.insert("selection_fill".into(), ThemeValue::Color([30, 100, 200, 40]));
-        t.insert("selection_stroke".into(), ThemeValue::Color([30, 100, 200, 180]));
+        t.insert(
+            "selection_fill".into(),
+            ThemeValue::Color([30, 100, 200, 40]),
+        );
+        t.insert(
+            "selection_stroke".into(),
+            ThemeValue::Color([30, 100, 200, 180]),
+        );
         t.insert("ghost_color".into(), ThemeValue::Color([40, 180, 80, 180]));
-        t.insert("crosshair_color".into(), ThemeValue::Color([100, 100, 100, 100]));
+        t.insert(
+            "crosshair_color".into(),
+            ThemeValue::Color([100, 100, 100, 100]),
+        );
         t.insert("pin_color".into(), ThemeValue::Color([180, 150, 20, 255]));
         t.insert("symbol_stroke".into(), ThemeValue::Color([40, 40, 40, 255]));
-        t.insert("symbol_fill".into(), ThemeValue::Color([230, 230, 235, 255]));
+        t.insert(
+            "symbol_fill".into(),
+            ThemeValue::Color([230, 230, 235, 255]),
+        );
         t.insert("label_color".into(), ThemeValue::Color([50, 50, 60, 255]));
 
         // Spacing (same as dark)
@@ -141,14 +186,41 @@ mod tests {
     use super::*;
 
     const EXPECTED_TOKENS: &[&str] = &[
-        "bg_primary", "bg_secondary", "bg_panel", "text_primary", "text_dim",
-        "accent", "border", "error", "warning", "success",
-        "canvas_bg", "grid_color", "grid_major_color", "wire_default", "wire_bus",
-        "wire_selected", "selection_fill", "selection_stroke", "ghost_color",
-        "crosshair_color", "pin_color", "symbol_stroke", "symbol_fill", "label_color",
-        "grid_spacing", "snap_size", "wire_thickness", "symbol_stroke_width",
-        "selection_stroke_width", "font_size_label", "font_size_param",
-        "dark_mode", "show_grid", "show_crosshair", "fill_symbols",
+        "bg_primary",
+        "bg_secondary",
+        "bg_panel",
+        "text_primary",
+        "text_dim",
+        "accent",
+        "border",
+        "error",
+        "warning",
+        "success",
+        "canvas_bg",
+        "grid_color",
+        "grid_major_color",
+        "wire_default",
+        "wire_bus",
+        "wire_selected",
+        "selection_fill",
+        "selection_stroke",
+        "ghost_color",
+        "crosshair_color",
+        "pin_color",
+        "symbol_stroke",
+        "symbol_fill",
+        "label_color",
+        "grid_spacing",
+        "snap_size",
+        "wire_thickness",
+        "symbol_stroke_width",
+        "selection_stroke_width",
+        "font_size_label",
+        "font_size_param",
+        "dark_mode",
+        "show_grid",
+        "show_crosshair",
+        "fill_symbols",
     ];
 
     #[test]
@@ -169,8 +241,14 @@ mod tests {
 
     #[test]
     fn dark_mode_flag() {
-        assert_eq!(ThemeTokens::dark().tokens["dark_mode"], ThemeValue::Bool(true));
-        assert_eq!(ThemeTokens::light().tokens["dark_mode"], ThemeValue::Bool(false));
+        assert_eq!(
+            ThemeTokens::dark().tokens["dark_mode"],
+            ThemeValue::Bool(true)
+        );
+        assert_eq!(
+            ThemeTokens::light().tokens["dark_mode"],
+            ThemeValue::Bool(false)
+        );
     }
 
     #[test]
@@ -179,9 +257,7 @@ mod tests {
         let ov = ThemeOverride {
             plugin_id: "test".into(),
             priority: 0,
-            overrides: HashMap::from([
-                ("accent".into(), ThemeValue::Color([255, 0, 0, 255])),
-            ]),
+            overrides: HashMap::from([("accent".into(), ThemeValue::Color([255, 0, 0, 255]))]),
         };
         let result = base.with_overrides(&[ov]);
         assert_eq!(result.tokens["accent"], ThemeValue::Color([255, 0, 0, 255]));
@@ -195,16 +271,12 @@ mod tests {
         let low = ThemeOverride {
             plugin_id: "low".into(),
             priority: 1,
-            overrides: HashMap::from([
-                ("accent".into(), ThemeValue::Color([1, 1, 1, 255])),
-            ]),
+            overrides: HashMap::from([("accent".into(), ThemeValue::Color([1, 1, 1, 255]))]),
         };
         let high = ThemeOverride {
             plugin_id: "high".into(),
             priority: 10,
-            overrides: HashMap::from([
-                ("accent".into(), ThemeValue::Color([2, 2, 2, 255])),
-            ]),
+            overrides: HashMap::from([("accent".into(), ThemeValue::Color([2, 2, 2, 255]))]),
         };
         // regardless of input order, higher priority wins
         let result = base.with_overrides(&[high.clone(), low]);

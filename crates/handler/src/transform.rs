@@ -15,6 +15,12 @@ pub struct BoundsAccum {
     pub any: bool,
 }
 
+impl Default for BoundsAccum {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BoundsAccum {
     pub fn new() -> Self {
         Self {
@@ -57,6 +63,9 @@ pub fn snap(val: i32, grid: i32) -> i32 {
 pub trait SchematicCollection {
     type Item: Clone;
 
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     fn len(&self) -> usize;
     fn extract(&self, idx: usize) -> Self::Item;
     fn push(&mut self, item: Self::Item);
@@ -271,7 +280,10 @@ impl SchematicCollection for Vec<Rect> {
 
     fn extend_bounds(&self, idx: usize, bounds: &mut BoundsAccum) {
         bounds.add_point(self[idx].x, self[idx].y);
-        bounds.add_point(self[idx].x + self[idx].width, self[idx].y + self[idx].height);
+        bounds.add_point(
+            self[idx].x + self[idx].width,
+            self[idx].y + self[idx].height,
+        );
     }
 }
 
@@ -464,7 +476,12 @@ impl SchematicCollection for Vec<Polygon> {
 // ════════════════════════════════════════════════════════════
 
 /// Translate all items whose index is in `sel`.
-pub fn translate_selected<C: SchematicCollection>(c: &mut C, sel: &HashSet<usize>, dx: i32, dy: i32) {
+pub fn translate_selected<C: SchematicCollection>(
+    c: &mut C,
+    sel: &HashSet<usize>,
+    dx: i32,
+    dy: i32,
+) {
     for &idx in sel {
         if idx < c.len() {
             c.translate(idx, dx, dy);

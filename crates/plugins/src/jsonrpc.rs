@@ -189,22 +189,20 @@ pub fn encode_error(id: u32, code: i32, message: &str) -> String {
 
 /// Parse a single line of newline-delimited JSON into an IncomingMessage.
 pub fn parse_line(line: &str) -> Result<IncomingMessage, String> {
-    let v: Value = serde_json::from_str(line.trim())
-        .map_err(|e| format!("JSON parse error: {e}"))?;
+    let v: Value =
+        serde_json::from_str(line.trim()).map_err(|e| format!("JSON parse error: {e}"))?;
 
     let obj = v.as_object().ok_or("expected JSON object")?;
 
     // Response: has "id" and ("result" or "error"), no "method"
     if obj.contains_key("id") && !obj.contains_key("method") {
-        let id = obj["id"]
-            .as_u64()
-            .ok_or("id must be integer")? as u32;
+        let id = obj["id"].as_u64().ok_or("id must be integer")? as u32;
         return Ok(IncomingMessage::Response {
             id,
             result: obj.get("result").cloned(),
-            error: obj.get("error").and_then(|e| {
-                serde_json::from_value(e.clone()).ok()
-            }),
+            error: obj
+                .get("error")
+                .and_then(|e| serde_json::from_value(e.clone()).ok()),
         });
     }
 
@@ -231,10 +229,7 @@ mod tests {
 
     #[test]
     fn roundtrip_notification() {
-        let encoded = encode_notification(
-            "lifecycle/tick",
-            Some(serde_json::json!({"dt": 0.016})),
-        );
+        let encoded = encode_notification("lifecycle/tick", Some(serde_json::json!({"dt": 0.016})));
         assert!(encoded.ends_with('\n'));
         let parsed = parse_line(&encoded).unwrap();
         match parsed {
@@ -354,10 +349,14 @@ mod tests {
 
     #[test]
     fn request_with_params_roundtrip() {
-        let req = Request::new(100, "overlay/update", Some(serde_json::json!({
-            "name": "myoverlay",
-            "shapes": []
-        })));
+        let req = Request::new(
+            100,
+            "overlay/update",
+            Some(serde_json::json!({
+                "name": "myoverlay",
+                "shapes": []
+            })),
+        );
         let encoded = req.encode();
         let parsed = parse_line(&encoded).unwrap();
         match parsed {

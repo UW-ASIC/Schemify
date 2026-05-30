@@ -9,10 +9,9 @@ use crate::s2s::recognition::{Block, BlockType, PlacementHint};
 
 use std::collections::{HashMap, HashSet};
 
-use self::constraint_gen::generate_constraints;
-use self::constraints::{Axis, Constraint, Side};
-use self::cost::{PlacementState, snap};
 use self::annealing::simulated_annealing;
+use self::constraint_gen::generate_constraints;
+use self::cost::PlacementState;
 
 const GRID_SIZE: i32 = 200;
 const MAX_COLS: i32 = 4;
@@ -158,12 +157,7 @@ fn place_cascode_mirror(
     block.hint.h_spacing
 }
 
-fn place_push_pull(
-    subckt: &mut Subcircuit,
-    block: &Block,
-    origin_x: i32,
-    origin_y: i32,
-) -> i32 {
+fn place_push_pull(subckt: &mut Subcircuit, block: &Block, origin_x: i32, origin_y: i32) -> i32 {
     if block.instance_indices.len() < 2 {
         return GRID_SIZE;
     }
@@ -373,7 +367,9 @@ fn apply_template(subckt: &mut Subcircuit, block: &Block, origin_x: i32, origin_
     match block.block_type {
         BlockType::DiffPair => place_diff_pair(subckt, block, origin_x, origin_y),
         BlockType::CurrentMirror => place_current_mirror(subckt, block, origin_x, origin_y),
-        BlockType::Cascode | BlockType::CascodeStack => place_cascode(subckt, block, origin_x, origin_y),
+        BlockType::Cascode | BlockType::CascodeStack => {
+            place_cascode(subckt, block, origin_x, origin_y)
+        }
         BlockType::CascodeMirror => place_cascode_mirror(subckt, block, origin_x, origin_y),
         BlockType::PushPull => place_push_pull(subckt, block, origin_x, origin_y),
         BlockType::CommonSource => place_common_source(subckt, block, origin_x, origin_y),
@@ -410,16 +406,20 @@ fn fix_pin_overlaps(subckt: &mut Subcircuit, backend: &dyn PinGeometry) {
     let grid = 10i32;
     let max_passes = 5;
     for _ in 0..max_passes {
-        let mut pin_map: HashMap<(i32, i32), Vec<(usize, usize, Option<u32>)>> = HashMap::new();
+        type PinInfo = Vec<(usize, usize, Option<u32>)>;
+        let mut pin_map: HashMap<(i32, i32), PinInfo> = HashMap::new();
         for (i, inst) in subckt.instances.iter().enumerate() {
             for (p, pin) in inst.pins.iter().enumerate() {
                 let (px, py) = crate::s2s::output::pin_position(backend, inst, p);
-                pin_map.entry((px, py)).or_default().push((i, p, pin.net_idx));
+                pin_map
+                    .entry((px, py))
+                    .or_default()
+                    .push((i, p, pin.net_idx));
             }
         }
 
         let mut to_shift: Option<usize> = None;
-        for (_pos, pins) in &pin_map {
+        for pins in pin_map.values() {
             if pins.len() < 2 {
                 continue;
             }
@@ -432,7 +432,8 @@ fn fix_pin_overlaps(subckt: &mut Subcircuit, backend: &dyn PinGeometry) {
                 inst_set.insert(inst_i);
             }
             if nets.len() >= 2 && inst_set.len() >= 2 {
-                let second_inst = pins.iter()
+                let second_inst = pins
+                    .iter()
                     .find(|&&(i, _, _)| i != pins[0].0)
                     .map(|&(i, _, _)| i);
                 if let Some(idx) = second_inst {
@@ -554,23 +555,28 @@ fn block_y_region(block: &Block, subckt: &Subcircuit) -> i32 {
     }
 }
 
-fn place_small(subckt: &mut Subcircuit, blocks: &[Block], placed: &mut HashSet<u32>, _backend: &dyn PinGeometry) {
+fn place_small(
+    subckt: &mut Subcircuit,
+    blocks: &[Block],
+    placed: &mut HashSet<u32>,
+    _backend: &dyn PinGeometry,
+) {
     let mut occupied: Vec<PlacedBBox> = Vec::new();
 
-    let has_pmos_block = blocks
-        .iter()
-        .any(|b| block_y_region(b, subckt) < 0);
-    let has_nmos_block = blocks
-        .iter()
-        .any(|b| block_y_region(b, subckt) > 0);
+    let has_pmos_block = blocks.iter().any(|b| block_y_region(b, subckt) < 0);
+    let has_nmos_block = blocks.iter().any(|b| block_y_region(b, subckt) > 0);
     let multi_region = has_pmos_block && has_nmos_block;
 
     let loose_has_pmos = subckt.instances.iter().enumerate().any(|(i, inst)| {
-        !blocks.iter().any(|b| b.instance_indices.contains(&(i as u32)))
+        !blocks
+            .iter()
+            .any(|b| b.instance_indices.contains(&(i as u32)))
             && inst.primitive == Primitive::Pmos
     });
     let loose_has_nmos = subckt.instances.iter().enumerate().any(|(i, inst)| {
-        !blocks.iter().any(|b| b.instance_indices.contains(&(i as u32)))
+        !blocks
+            .iter()
+            .any(|b| b.instance_indices.contains(&(i as u32)))
             && inst.primitive == Primitive::Nmos
     });
     let multi_region = multi_region
@@ -702,10 +708,26 @@ mod tests {
             primitive: Primitive::Nmos,
             symbol: "nmos4".to_string(),
             pins: vec![
-                Pin { name: "D".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "G".into(), dir: PinDir::Input, net_idx: None },
-                Pin { name: "S".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "B".into(), dir: PinDir::Bulk, net_idx: None },
+                Pin {
+                    name: "D".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "G".into(),
+                    dir: PinDir::Input,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "S".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "B".into(),
+                    dir: PinDir::Bulk,
+                    net_idx: None,
+                },
             ],
             params: Default::default(),
             x: 0,
@@ -728,39 +750,72 @@ mod tests {
             primitive: Primitive::Resistor,
             symbol: "res".to_string(),
             pins: vec![
-                Pin { name: "p".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "n".into(), dir: PinDir::Inout, net_idx: None },
+                Pin {
+                    name: "p".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "n".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
             ],
             params: Default::default(),
-            x: 0, y: 0, rotation: 0, flip: false,
+            x: 0,
+            y: 0,
+            rotation: 0,
+            flip: false,
         }
     }
 
-    fn make_capacitor(name: &str) -> Instance {
+    fn _make_capacitor(name: &str) -> Instance {
         Instance {
             name: name.to_string(),
             primitive: Primitive::Capacitor,
             symbol: "cap".to_string(),
             pins: vec![
-                Pin { name: "p".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "n".into(), dir: PinDir::Inout, net_idx: None },
+                Pin {
+                    name: "p".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "n".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
             ],
             params: Default::default(),
-            x: 0, y: 0, rotation: 0, flip: false,
+            x: 0,
+            y: 0,
+            rotation: 0,
+            flip: false,
         }
     }
 
-    fn make_isource(name: &str) -> Instance {
+    fn _make_isource(name: &str) -> Instance {
         Instance {
             name: name.to_string(),
             primitive: Primitive::Isource,
             symbol: "isource".to_string(),
             pins: vec![
-                Pin { name: "p".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "n".into(), dir: PinDir::Inout, net_idx: None },
+                Pin {
+                    name: "p".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "n".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
             ],
             params: Default::default(),
-            x: 0, y: 0, rotation: 0, flip: false,
+            x: 0,
+            y: 0,
+            rotation: 0,
+            flip: false,
         }
     }
 
@@ -850,42 +905,85 @@ mod tests {
         inst.y = 200;
         inst.rotation = 0;
         inst.flip = false;
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &inst, 0), (120, 170));
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &inst, 1), (80, 200));
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &inst, 2), (120, 230));
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &inst, 0),
+            (120, 170)
+        );
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &inst, 1),
+            (80, 200)
+        );
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &inst, 2),
+            (120, 230)
+        );
 
         inst.flip = true;
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &inst, 0), (80, 170));
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &inst, 1), (120, 200));
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &inst, 0),
+            (80, 170)
+        );
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &inst, 1),
+            (120, 200)
+        );
 
         inst.flip = false;
         inst.rotation = 1;
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &inst, 0), (100 + 30, 200 - 20));
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &inst, 0),
+            (100 + 30, 200 + 20)
+        );
 
         inst.rotation = 2;
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &inst, 0), (80, 230));
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &inst, 0),
+            (80, 230)
+        );
 
         let res = Instance {
             name: "R1".to_string(),
             primitive: Primitive::Resistor,
             symbol: "res".to_string(),
             pins: vec![
-                Pin { name: "p".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "n".into(), dir: PinDir::Inout, net_idx: None },
+                Pin {
+                    name: "p".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "n".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
             ],
             params: Default::default(),
-            x: 50, y: 50, rotation: 0, flip: false,
+            x: 50,
+            y: 50,
+            rotation: 0,
+            flip: false,
         };
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &res, 0), (50, 20));
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &res, 1), (50, 80));
-        assert_eq!(crate::s2s::output::pin_position(&test_backend(), &res, 10), (50, 50));
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &res, 0),
+            (50, 20)
+        );
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &res, 1),
+            (50, 80)
+        );
+        assert_eq!(
+            crate::s2s::output::pin_position(&test_backend(), &res, 10),
+            (50, 50)
+        );
     }
 
     #[test]
     fn sa_deterministic() {
         let make = || {
             let mut subckt = Subcircuit::new("det");
-            for i in 0..15 { subckt.instances.push(make_nmos(&format!("M{i}"))); }
+            for i in 0..15 {
+                subckt.instances.push(make_nmos(&format!("M{i}")));
+            }
             subckt
         };
         let blocks = vec![Block {
@@ -911,7 +1009,9 @@ mod tests {
     fn sa_different_seeds_differ() {
         let make = || {
             let mut subckt = Subcircuit::new("det");
-            for i in 0..15 { subckt.instances.push(make_nmos(&format!("M{i}"))); }
+            for i in 0..15 {
+                subckt.instances.push(make_nmos(&format!("M{i}")));
+            }
             subckt
         };
         let blocks = vec![Block {
@@ -927,8 +1027,14 @@ mod tests {
         place_with_sa(&mut subckt1, &blocks, &mut placed1, 12345, &test_backend());
         place_with_sa(&mut subckt2, &blocks, &mut placed2, 99999, &test_backend());
 
-        let any_differ = subckt1.instances.iter().zip(subckt2.instances.iter())
+        let any_differ = subckt1
+            .instances
+            .iter()
+            .zip(subckt2.instances.iter())
             .any(|(a, b)| a.x != b.x || a.y != b.y);
-        assert!(any_differ, "different seeds should produce different placements");
+        assert!(
+            any_differ,
+            "different seeds should produce different placements"
+        );
     }
 }

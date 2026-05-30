@@ -135,14 +135,14 @@ fn parse(s: &mut Schematic, data: &str, int: &mut Rodeo) {
                 s.stype = SchematicType::Primitive;
             } else if trimmed.starts_with("chn_testbench") {
                 s.stype = SchematicType::Testbench;
-            } else if trimmed.starts_with("SYMBOL ") {
-                s.name = trimmed[7..].trim().to_string();
+            } else if let Some(rest) = trimmed.strip_prefix("SYMBOL ") {
+                s.name = rest.trim().to_string();
                 s.stype = SchematicType::Symbol;
-            } else if trimmed.starts_with("TESTBENCH ") {
-                s.name = trimmed[10..].trim().to_string();
+            } else if let Some(rest) = trimmed.strip_prefix("TESTBENCH ") {
+                s.name = rest.trim().to_string();
                 s.stype = SchematicType::Testbench;
-            } else if trimmed.starts_with("PLUGIN ") {
-                let name = trimmed[7..].trim();
+            } else if let Some(rest) = trimmed.strip_prefix("PLUGIN ") {
+                let name = rest.trim();
                 s.plugin_blocks.push(PluginBlock {
                     name: int.get_or_intern(name),
                     entries: Vec::new(),
@@ -169,28 +169,28 @@ fn parse(s: &mut Schematic, data: &str, int: &mut Rodeo) {
             }
 
             // Symbol metadata
-            if trimmed.starts_with("desc: ") {
+            if let Some(rest) = trimmed.strip_prefix("desc: ") {
                 s.sym_properties.push(Property {
                     key: int.get_or_intern("description"),
-                    value: int.get_or_intern(trimmed[6..].trim()),
+                    value: int.get_or_intern(rest.trim()),
                 });
                 continue;
             }
-            if trimmed.starts_with("type: ") {
+            if let Some(rest) = trimmed.strip_prefix("type: ") {
                 s.sym_properties.push(Property {
                     key: int.get_or_intern("type"),
-                    value: int.get_or_intern(trimmed[6..].trim()),
+                    value: int.get_or_intern(rest.trim()),
                 });
                 continue;
             }
-            if trimmed.starts_with("stimulus_lang: ") {
-                if let Some(lang) = StimulusLang::from_name(trimmed[15..].trim()) {
+            if let Some(rest) = trimmed.strip_prefix("stimulus_lang: ") {
+                if let Some(lang) = StimulusLang::from_name(rest.trim()) {
                     s.stimulus_lang = lang;
                 }
                 continue;
             }
-            if trimmed.starts_with("sim_backend: ") {
-                if let Some(be) = SpiceBackend::from_name(trimmed[13..].trim()) {
+            if let Some(rest) = trimmed.strip_prefix("sim_backend: ") {
+                if let Some(be) = SpiceBackend::from_name(rest.trim()) {
                     s.sim_backend = be;
                 }
                 continue;
@@ -343,7 +343,10 @@ fn parse_instance(s: &mut Schematic, line: &str, int: &mut Rodeo) {
     // Check for .parameters{} block
     let rest: String = tok.collect::<Vec<_>>().join(" ");
     let (attrs, params_block) = if let Some(start) = rest.find(".parameters{") {
-        let end = rest[start..].find('}').map(|e| start + e + 1).unwrap_or(rest.len());
+        let end = rest[start..]
+            .find('}')
+            .map(|e| start + e + 1)
+            .unwrap_or(rest.len());
         let block = &rest[start + 12..end.saturating_sub(1)];
         let before = rest[..start].to_string();
         (before, Some(block.to_string()))

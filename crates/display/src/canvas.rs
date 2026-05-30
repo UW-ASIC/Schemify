@@ -77,7 +77,7 @@ pub struct CanvasPalette {
     pub wire_selected: Color32,
     pub wire_endpoint: Color32,
     pub bus: Color32,
-    pub inst_body: Color32,
+    pub _inst_body: Color32,
     pub inst_selected: Color32,
     pub inst_pin: Color32,
     pub symbol_line: Color32,
@@ -99,7 +99,7 @@ impl CanvasPalette {
             wire_selected: Color32::from_rgb(255, 200, 50),
             wire_endpoint: Color32::from_rgb(130, 220, 130),
             bus: Color32::from_rgb(80, 140, 220),
-            inst_body: Color32::from_rgb(200, 200, 210),
+            _inst_body: Color32::from_rgb(200, 200, 210),
             inst_selected: Color32::from_rgb(255, 200, 50),
             inst_pin: Color32::from_rgb(200, 80, 80),
             symbol_line: Color32::from_rgb(200, 200, 210),
@@ -121,7 +121,7 @@ impl CanvasPalette {
             wire_selected: Color32::from_rgb(200, 140, 0),
             wire_endpoint: Color32::from_rgb(40, 160, 40),
             bus: Color32::from_rgb(40, 80, 180),
-            inst_body: Color32::from_rgb(50, 50, 60),
+            _inst_body: Color32::from_rgb(50, 50, 60),
             inst_selected: Color32::from_rgb(200, 140, 0),
             inst_pin: Color32::from_rgb(180, 40, 40),
             symbol_line: Color32::from_rgb(50, 50, 60),
@@ -171,13 +171,7 @@ fn stroke_arc(
 
 /// Draw a circle approximated with line segments.
 /// n_segs controls fidelity (24 for rendering, 16 for ghosts).
-fn stroke_circle(
-    painter: &Painter,
-    center: Pos2,
-    radius_px: f32,
-    n_segs: usize,
-    stroke: Stroke,
-) {
+fn stroke_circle(painter: &Painter, center: Pos2, radius_px: f32, n_segs: usize, stroke: Stroke) {
     let mut prev = Pos2::new(center.x + radius_px, center.y);
     for i in 1..=n_segs {
         let angle = (i as f32) * std::f32::consts::TAU / n_segs as f32;
@@ -234,22 +228,20 @@ fn render_grid(
     draw_dot_grid(painter, viewport, palette, clip);
 }
 
-fn draw_origin(
-    painter: &Painter,
-    vp: &CanvasViewport,
-    palette: &CanvasPalette,
-    clip: egui::Rect,
-) {
+fn draw_origin(painter: &Painter, vp: &CanvasViewport, palette: &CanvasPalette, clip: egui::Rect) {
     let origin = vp.world_to_pixel(0.0, 0.0);
     let arm = 20.0_f32;
-    let stroke = Stroke::new(1.0, palette.origin);
+    let stroke = Stroke::new(1.0_f32, palette.origin);
 
     // Horizontal arm
     let x0 = origin.x - arm;
     let x1 = origin.x + arm;
     if origin.y >= clip.min.y && origin.y <= clip.max.y {
         painter.line_segment(
-            [Pos2::new(x0.max(clip.min.x), origin.y), Pos2::new(x1.min(clip.max.x), origin.y)],
+            [
+                Pos2::new(x0.max(clip.min.x), origin.y),
+                Pos2::new(x1.min(clip.max.x), origin.y),
+            ],
             stroke,
         );
     }
@@ -259,7 +251,10 @@ fn draw_origin(
     let y1 = origin.y + arm;
     if origin.x >= clip.min.x && origin.x <= clip.max.x {
         painter.line_segment(
-            [Pos2::new(origin.x, y0.max(clip.min.y)), Pos2::new(origin.x, y1.min(clip.max.y))],
+            [
+                Pos2::new(origin.x, y0.max(clip.min.y)),
+                Pos2::new(origin.x, y1.min(clip.max.y)),
+            ],
             stroke,
         );
     }
@@ -341,7 +336,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             || !sch.rects.is_empty()
             || !sch.circles.is_empty()
             || !sch.arcs.is_empty()
-            || sch.instances.len() > 0; // labels count for auto-gen
+            || !sch.instances.is_empty(); // labels count for auto-gen
 
         if has_symbol_data {
             render_geometry(&painter, app, &viewport, &palette);
@@ -378,12 +373,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
 // ── Wire rendering ───────────────────────────────────────────────────────────
 
-fn render_wires(
-    painter: &Painter,
-    app: &App,
-    viewport: &CanvasViewport,
-    palette: &CanvasPalette,
-) {
+fn render_wires(painter: &Painter, app: &App, viewport: &CanvasViewport, palette: &CanvasPalette) {
     let wires = app.wires();
     let n = wires.len();
     if n == 0 {
@@ -400,8 +390,16 @@ fn render_wires(
     for i in 0..n {
         let p0 = (wires.x0[i], wires.y0[i]);
         let p1 = (wires.x1[i], wires.y1[i]);
-        *point_counts.entry(p0).or_insert(0) = point_counts.get(&p0).copied().unwrap_or(0).saturating_add(1);
-        *point_counts.entry(p1).or_insert(0) = point_counts.get(&p1).copied().unwrap_or(0).saturating_add(1);
+        *point_counts.entry(p0).or_insert(0) = point_counts
+            .get(&p0)
+            .copied()
+            .unwrap_or(0)
+            .saturating_add(1);
+        *point_counts.entry(p1).or_insert(0) = point_counts
+            .get(&p1)
+            .copied()
+            .unwrap_or(0)
+            .saturating_add(1);
     }
 
     // Draw wire segments.
@@ -423,7 +421,11 @@ fn render_wires(
         };
 
         let base_w = if is_bus {
-            if selected { bus_w_sel } else { bus_w }
+            if selected {
+                bus_w_sel
+            } else {
+                bus_w
+            }
         } else if selected {
             wire_w_sel
         } else {
@@ -442,7 +444,10 @@ fn render_wires(
             let slash_len = (6.0 * viewport.zoom.min(2.0)).max(4.0);
             let half = slash_len * 0.5;
             painter.line_segment(
-                [Pos2::new(mx - half, my + half), Pos2::new(mx + half, my - half)],
+                [
+                    Pos2::new(mx - half, my + half),
+                    Pos2::new(mx + half, my - half),
+                ],
                 Stroke::new(wire_w, col),
             );
         }
@@ -659,8 +664,7 @@ fn render_instances(
             if let Some(entry) = prim {
                 for dt in &entry.texts {
                     if dt.content == "@name" {
-                        let (tx, ty) =
-                            flags.transform_point(dt.x as i32, dt.y as i32);
+                        let (tx, ty) = flags.transform_point(dt.x as i32, dt.y as i32);
                         painter.text(
                             Pos2::new(
                                 origin.x + tx as f32 * viewport.zoom,
@@ -678,7 +682,10 @@ fn render_instances(
             }
             if !placed {
                 painter.text(
-                    Pos2::new(origin.x + 15.0 * viewport.zoom, origin.y - 15.0 * viewport.zoom),
+                    Pos2::new(
+                        origin.x + 15.0 * viewport.zoom,
+                        origin.y - 15.0 * viewport.zoom,
+                    ),
                     egui::Align2::LEFT_CENTER,
                     name_str,
                     font.clone(),
@@ -839,11 +846,11 @@ fn render_symbol_pins(
         // Pin crosshair
         painter.line_segment(
             [Pos2::new(p.x - pin_arm, p.y), Pos2::new(p.x + pin_arm, p.y)],
-            Stroke::new(1.0, pin_col),
+            Stroke::new(1.0_f32, pin_col),
         );
         painter.line_segment(
             [Pos2::new(p.x, p.y - pin_arm), Pos2::new(p.x, p.y + pin_arm)],
-            Stroke::new(1.0, pin_col),
+            Stroke::new(1.0_f32, pin_col),
         );
 
         // Direction indicator
@@ -853,41 +860,41 @@ fn render_symbol_pins(
                 // Arrow pointing right
                 painter.line_segment(
                     [Pos2::new(p.x, p.y), Pos2::new(p.x - sz, p.y - sz * 0.6)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
                 painter.line_segment(
                     [Pos2::new(p.x, p.y), Pos2::new(p.x - sz, p.y + sz * 0.6)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
             }
             PinDirection::Output => {
                 // Arrow pointing left
                 painter.line_segment(
                     [Pos2::new(p.x, p.y), Pos2::new(p.x + sz, p.y - sz * 0.6)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
                 painter.line_segment(
                     [Pos2::new(p.x, p.y), Pos2::new(p.x + sz, p.y + sz * 0.6)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
             }
             PinDirection::InOut => {
                 // Diamond
                 painter.line_segment(
                     [Pos2::new(p.x - sz, p.y), Pos2::new(p.x, p.y - sz * 0.6)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
                 painter.line_segment(
                     [Pos2::new(p.x, p.y - sz * 0.6), Pos2::new(p.x + sz, p.y)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
                 painter.line_segment(
                     [Pos2::new(p.x + sz, p.y), Pos2::new(p.x, p.y + sz * 0.6)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
                 painter.line_segment(
                     [Pos2::new(p.x, p.y + sz * 0.6), Pos2::new(p.x - sz, p.y)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
             }
             PinDirection::Power | PinDirection::Ground => {
@@ -895,11 +902,11 @@ fn render_symbol_pins(
                 let s = sz * 0.7;
                 painter.line_segment(
                     [Pos2::new(p.x - s, p.y), Pos2::new(p.x + s, p.y)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
                 painter.line_segment(
                     [Pos2::new(p.x, p.y - s), Pos2::new(p.x, p.y + s)],
-                    Stroke::new(0.9, palette.wire_endpoint),
+                    Stroke::new(0.9_f32, palette.wire_endpoint),
                 );
             }
         }
@@ -994,14 +1001,22 @@ fn render_auto_symbol_box(
     let tl = viewport.w2p(0, 0);
     let br = viewport.w2p(box_w, box_h);
     let body = egui::Rect::from_two_pos(tl, br);
-    painter.rect_stroke(body, 0.0, Stroke::new(1.5, palette.symbol_line), StrokeKind::Outside);
+    painter.rect_stroke(
+        body,
+        0.0,
+        Stroke::new(1.5_f32, palette.symbol_line),
+        StrokeKind::Outside,
+    );
 
     // Draw left pins (input side).
     for (slot, lbl) in left.iter().enumerate() {
         let py = (slot as i32 + 1) * pin_spacing;
         let stub_start = viewport.w2p(-stub_len, py);
         let stub_end = viewport.w2p(0, py);
-        painter.line_segment([stub_start, stub_end], Stroke::new(1.0, palette.inst_pin));
+        painter.line_segment(
+            [stub_start, stub_end],
+            Stroke::new(1.0_f32, palette.inst_pin),
+        );
         // Pin circle at stub start
         painter.circle_filled(stub_start, 3.0, palette.inst_pin);
         // Label
@@ -1023,7 +1038,10 @@ fn render_auto_symbol_box(
         let py = (slot as i32 + 1) * pin_spacing;
         let stub_start = viewport.w2p(box_w, py);
         let stub_end = viewport.w2p(box_w + stub_len, py);
-        painter.line_segment([stub_start, stub_end], Stroke::new(1.0, palette.inst_pin));
+        painter.line_segment(
+            [stub_start, stub_end],
+            Stroke::new(1.0_f32, palette.inst_pin),
+        );
         // Pin circle at stub end
         painter.circle_filled(stub_end, 3.0, palette.inst_pin);
         // Label
@@ -1045,7 +1063,13 @@ fn render_auto_symbol_box(
     if !name.is_empty() {
         let center = viewport.w2p(box_w / 2, box_h / 2);
         let font = FontId::proportional((13.0 * viewport.zoom).max(8.0));
-        painter.text(center, egui::Align2::CENTER_CENTER, name, font, palette.symbol_line);
+        painter.text(
+            center,
+            egui::Align2::CENTER_CENTER,
+            name,
+            font,
+            palette.symbol_line,
+        );
     }
 }
 
@@ -1062,10 +1086,7 @@ fn render_selection(
         return;
     }
 
-    let highlight_stroke = Stroke::new(
-        (3.0 * viewport.zoom).max(1.5),
-        palette.inst_selected,
-    );
+    let highlight_stroke = Stroke::new((3.0 * viewport.zoom).max(1.5), palette.inst_selected);
     let halo = 4.0;
 
     // Instance selection halos.
@@ -1199,7 +1220,11 @@ fn render_selection(
         if poly.points.len() < 2 {
             continue;
         }
-        let pts: Vec<Pos2> = poly.points.iter().map(|p| viewport.w2p(p[0], p[1])).collect();
+        let pts: Vec<Pos2> = poly
+            .points
+            .iter()
+            .map(|p| viewport.w2p(p[0], p[1]))
+            .collect();
         for win in pts.windows(2) {
             painter.line_segment([win[0], win[1]], highlight_stroke);
         }
@@ -1278,14 +1303,14 @@ fn draw_wire_preview(
             Pos2::new(start.x - WIRE_PREVIEW_ARM, start.y),
             Pos2::new(start.x + WIRE_PREVIEW_ARM, start.y),
         ],
-        Stroke::new(1.5, preview_col),
+        Stroke::new(1.5_f32, preview_col),
     );
     painter.line_segment(
         [
             Pos2::new(start.x, start.y - WIRE_PREVIEW_ARM),
             Pos2::new(start.x, start.y + WIRE_PREVIEW_ARM),
         ],
-        Stroke::new(1.5, preview_col),
+        Stroke::new(1.5_f32, preview_col),
     );
 
     // Manhattan-constrained preview from start to cursor.
@@ -1299,7 +1324,7 @@ fn draw_wire_preview(
         [ws[0], cur[1]]
     };
     let end = viewport.w2p(end_world[0], end_world[1]);
-    painter.line_segment([start, end], Stroke::new(1.5, preview_col));
+    painter.line_segment([start, end], Stroke::new(1.5_f32, preview_col));
     painter.circle_filled(end, WIRE_ENDPOINT_RADIUS, preview_col);
 }
 
@@ -1388,8 +1413,10 @@ fn draw_ghost_fallback_box(
     let corners: [[f32; 2]; 4] = [[-sz, -sz], [sz, -sz], [sz, sz], [-sz, sz]];
     for ci in 0..4 {
         let (ax, ay) = flags.transform_point(corners[ci][0] as i32, corners[ci][1] as i32);
-        let (bx, by) =
-            flags.transform_point(corners[(ci + 1) % 4][0] as i32, corners[(ci + 1) % 4][1] as i32);
+        let (bx, by) = flags.transform_point(
+            corners[(ci + 1) % 4][0] as i32,
+            corners[(ci + 1) % 4][1] as i32,
+        );
         let pa = Pos2::new(origin.x + ax as f32 * zoom, origin.y + ay as f32 * zoom);
         let pb = Pos2::new(origin.x + bx as f32 * zoom, origin.y + by as f32 * zoom);
         painter.line_segment([pa, pb], stroke);
@@ -1413,7 +1440,7 @@ fn draw_drawing_preview(
         palette.wire_preview.b(),
         180,
     );
-    let thickness = 1.5;
+    let thickness = 1.5_f32;
     let dot_radius = WIRE_PREVIEW_DOT_RADIUS;
 
     match tool {
@@ -1435,7 +1462,12 @@ fn draw_drawing_preview(
                 let tl = viewport.w2p(x0, y0);
                 let br = viewport.w2p(x1, y1);
                 let rect = egui::Rect::from_two_pos(tl, br);
-                painter.rect_stroke(rect, 0.0, Stroke::new(thickness, preview_col), StrokeKind::Outside);
+                painter.rect_stroke(
+                    rect,
+                    0.0,
+                    Stroke::new(thickness, preview_col),
+                    StrokeKind::Outside,
+                );
             }
         }
         Tool::Circle => {
@@ -1446,11 +1478,7 @@ fn draw_drawing_preview(
                 let radius_world = (dx * dx + dy * dy).sqrt() as f32;
                 let radius_px = radius_world * viewport.zoom;
                 if radius_px > 1.0 {
-                    painter.circle_stroke(
-                        center,
-                        radius_px,
-                        Stroke::new(thickness, preview_col),
-                    );
+                    painter.circle_stroke(center, radius_px, Stroke::new(thickness, preview_col));
                 }
                 painter.circle_filled(center, dot_radius, preview_col);
             }
@@ -1465,10 +1493,7 @@ fn draw_drawing_preview(
                     ArcStep::RadiusStart => {
                         // Line from center to cursor (radius preview).
                         let edge = viewport.w2p(cursor[0], cursor[1]);
-                        painter.line_segment(
-                            [center, edge],
-                            Stroke::new(thickness, preview_col),
-                        );
+                        painter.line_segment([center, edge], Stroke::new(thickness, preview_col));
                     }
                     ArcStep::Sweep => {
                         if let Some(start_pt) = draw.arc_second {
@@ -1476,8 +1501,8 @@ fn draw_drawing_preview(
                             let dy1 = (start_pt[1] - fp[1]) as f64;
                             let radius_world = (dx1 * dx1 + dy1 * dy1).sqrt() as f32;
                             let radius_px = radius_world * viewport.zoom;
-                            let start_angle = (-(start_pt[1] - fp[1]) as f64)
-                                .atan2((start_pt[0] - fp[0]) as f64);
+                            let start_angle =
+                                (-(start_pt[1] - fp[1]) as f64).atan2((start_pt[0] - fp[0]) as f64);
                             let start_deg = start_angle.to_degrees() as f32;
                             let dx2 = (cursor[0] - fp[0]) as f64;
                             let dy2 = (cursor[1] - fp[1]) as f64;
@@ -1523,7 +1548,7 @@ fn draw_drawing_preview(
                     painter.line_segment(
                         [b, c],
                         Stroke::new(
-                            thickness * 0.5,
+                            thickness * 0.5_f32,
                             Color32::from_rgba_premultiplied(
                                 preview_col.r(),
                                 preview_col.g(),
@@ -1568,7 +1593,12 @@ fn draw_rubber_band(
     // Fill.
     painter.rect_filled(rect, 0.0, palette.rubber_band);
     // Stroke.
-    painter.rect_stroke(rect, 0.0, Stroke::new(1.0, palette.selection_rect), StrokeKind::Outside);
+    painter.rect_stroke(
+        rect,
+        0.0,
+        Stroke::new(1.0_f32, palette.selection_rect),
+        StrokeKind::Outside,
+    );
 }
 
 // ── Crosshair ────────────────────────────────────────────────────────────────
@@ -1588,7 +1618,7 @@ fn draw_crosshair(
         palette.wire_preview.b(),
         60,
     );
-    let stroke = Stroke::new(0.5, col);
+    let stroke = Stroke::new(0.5_f32, col);
 
     painter.line_segment(
         [Pos2::new(clip.min.x, p.y), Pos2::new(clip.max.x, p.y)],
@@ -1605,12 +1635,7 @@ fn draw_crosshair(
 const MOVE_DRAG_THRESHOLD_PX: f32 = 4.0;
 
 /// Handle all mouse/keyboard interaction on the canvas response area.
-fn handle(
-    response: &Response,
-    app: &mut App,
-    viewport: &CanvasViewport,
-    ctx: &egui::Context,
-) {
+fn handle(response: &Response, app: &mut App, viewport: &CanvasViewport, ctx: &egui::Context) {
     let snap = app.tool_state().snap_size;
 
     handle_space_key(app, ctx);
@@ -1685,14 +1710,14 @@ fn handle_scroll_zoom(response: &Response, app: &mut App, viewport: &CanvasViewp
 
 // ── Mouse press ──────────────────────────────────────────────────────────────
 
-fn handle_mouse_press(
-    response: &Response,
-    app: &mut App,
-    viewport: &CanvasViewport,
-    snap: f32,
-) {
+fn handle_mouse_press(response: &Response, app: &mut App, viewport: &CanvasViewport, snap: f32) {
     // Middle button -> start pan.
-    if response.middle_clicked() || (response.clicked_by(PointerButton::Primary) && response.ctx.input(|i| i.pointer.button_pressed(PointerButton::Middle))) {
+    if response.middle_clicked()
+        || (response.clicked_by(PointerButton::Primary)
+            && response
+                .ctx
+                .input(|i| i.pointer.button_pressed(PointerButton::Middle)))
+    {
         // Handled below in drag.
     }
 
@@ -1779,12 +1804,7 @@ fn handle_mouse_press(
 
 // ── Mouse drag ───────────────────────────────────────────────────────────────
 
-fn handle_mouse_drag(
-    response: &Response,
-    app: &mut App,
-    viewport: &CanvasViewport,
-    snap: f32,
-) {
+fn handle_mouse_drag(response: &Response, app: &mut App, viewport: &CanvasViewport, snap: f32) {
     // Middle-drag -> pan.
     if response.dragged_by(PointerButton::Middle) {
         let delta = response.drag_delta();
@@ -1844,8 +1864,7 @@ fn handle_mouse_drag(
             let dx_px = pos.x - cs.move_press_pixel[0];
             let dy_px = pos.y - cs.move_press_pixel[1];
             if !cs.rubber_band_active
-                && dx_px * dx_px + dy_px * dy_px
-                    >= MOVE_DRAG_THRESHOLD_PX * MOVE_DRAG_THRESHOLD_PX
+                && dx_px * dx_px + dy_px * dy_px >= MOVE_DRAG_THRESHOLD_PX * MOVE_DRAG_THRESHOLD_PX
             {
                 app.canvas_mut().rubber_band_active = true;
             }
@@ -1860,12 +1879,7 @@ fn handle_mouse_drag(
 
 // ── Mouse release ────────────────────────────────────────────────────────────
 
-fn handle_mouse_release(
-    response: &Response,
-    app: &mut App,
-    viewport: &CanvasViewport,
-    snap: f32,
-) {
+fn handle_mouse_release(response: &Response, app: &mut App, viewport: &CanvasViewport, snap: f32) {
     // We detect release indirectly: if the button was being dragged and is no longer.
     // egui doesn't have a direct "released" event, but drag_stopped works.
     if response.drag_stopped_by(PointerButton::Primary) {
@@ -1880,7 +1894,10 @@ fn handle_mouse_release(
         // causes egui to interpret clicks as drags, breaking wire placement).
         if !move_active && !rubber_band_active && !drag_is_pan {
             let tool = app.active_tool();
-            if matches!(tool, Tool::Wire | Tool::Line | Tool::Rect | Tool::Circle | Tool::Arc) {
+            if matches!(
+                tool,
+                Tool::Wire | Tool::Line | Tool::Rect | Tool::Circle | Tool::Arc
+            ) {
                 if let Some(pos) = response.interact_pointer_pos() {
                     let [wx, wy] = snap_world(viewport, pos, snap);
                     match tool {
@@ -1923,7 +1940,14 @@ fn handle_mouse_release(
 
 // ── Select click handler ─────────────────────────────────────────────────────
 
-fn handle_select_click(app: &mut App, _viewport: &CanvasViewport, pos: Pos2, wx: i32, wy: i32, shift: bool) {
+fn handle_select_click(
+    app: &mut App,
+    _viewport: &CanvasViewport,
+    pos: Pos2,
+    wx: i32,
+    wy: i32,
+    shift: bool,
+) {
     use schemify_handler::geometry::HitResult;
 
     let hit = app.hit_test(wx, wy);
@@ -1959,14 +1983,38 @@ fn handle_select_click(app: &mut App, _viewport: &CanvasViewport, pos: Pos2, wx:
     }
 
     match hit {
-        HitResult::Instance(i) => { app.canvas_mut().move_hit_idx = Some(i); app.select_instance(i); }
-        HitResult::Wire(i) => { app.canvas_mut().move_hit_idx = Some(i); app.select_wire(i); }
-        HitResult::Line(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_line(i); }
-        HitResult::Rect(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_rect(i); }
-        HitResult::Circle(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_circle(i); }
-        HitResult::Arc(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_arc(i); }
-        HitResult::Text(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_text(i); }
-        HitResult::Polygon(i) => { app.canvas_mut().move_hit_idx = Some(0); app.select_polygon(i); }
+        HitResult::Instance(i) => {
+            app.canvas_mut().move_hit_idx = Some(i);
+            app.select_instance(i);
+        }
+        HitResult::Wire(i) => {
+            app.canvas_mut().move_hit_idx = Some(i);
+            app.select_wire(i);
+        }
+        HitResult::Line(i) => {
+            app.canvas_mut().move_hit_idx = Some(0);
+            app.select_line(i);
+        }
+        HitResult::Rect(i) => {
+            app.canvas_mut().move_hit_idx = Some(0);
+            app.select_rect(i);
+        }
+        HitResult::Circle(i) => {
+            app.canvas_mut().move_hit_idx = Some(0);
+            app.select_circle(i);
+        }
+        HitResult::Arc(i) => {
+            app.canvas_mut().move_hit_idx = Some(0);
+            app.select_arc(i);
+        }
+        HitResult::Text(i) => {
+            app.canvas_mut().move_hit_idx = Some(0);
+            app.select_text(i);
+        }
+        HitResult::Polygon(i) => {
+            app.canvas_mut().move_hit_idx = Some(0);
+            app.select_polygon(i);
+        }
         HitResult::Nothing => {
             app.canvas_mut().rubber_band_start = [wx, wy];
             app.canvas_mut().rubber_band_end = [wx, wy];
@@ -2025,13 +2073,18 @@ fn handle_draw_click(app: &mut App, tool: Tool, wx: i32, wy: i32) {
         match tool {
             Tool::Line => {
                 app.dispatch(Command::AddLine {
-                    x0: start[0], y0: start[1], x1: wx, y1: wy,
+                    x0: start[0],
+                    y0: start[1],
+                    x1: wx,
+                    y1: wy,
                 });
             }
             Tool::Rect => {
                 app.dispatch(Command::AddRect {
-                    x: start[0].min(wx), y: start[1].min(wy),
-                    w: (wx - start[0]).abs(), h: (wy - start[1]).abs(),
+                    x: start[0].min(wx),
+                    y: start[1].min(wy),
+                    w: (wx - start[0]).abs(),
+                    h: (wy - start[1]).abs(),
                 });
             }
             Tool::Circle => {
@@ -2039,7 +2092,9 @@ fn handle_draw_click(app: &mut App, tool: Tool, wx: i32, wy: i32) {
                 let dy = (wy - start[1]) as f64;
                 let radius = (dx * dx + dy * dy).sqrt() as i32;
                 app.dispatch(Command::AddCircle {
-                    cx: start[0], cy: start[1], radius,
+                    cx: start[0],
+                    cy: start[1],
+                    radius,
                 });
             }
             Tool::Arc => {
@@ -2048,8 +2103,11 @@ fn handle_draw_click(app: &mut App, tool: Tool, wx: i32, wy: i32) {
                 let radius = (dx * dx + dy * dy).sqrt() as i32;
                 let start_angle = dy.atan2(dx) as f32;
                 app.dispatch(Command::AddArc {
-                    cx: start[0], cy: start[1], radius,
-                    start: start_angle, sweep: std::f32::consts::PI,
+                    cx: start[0],
+                    cy: start[1],
+                    radius,
+                    start: start_angle,
+                    sweep: std::f32::consts::PI,
                 });
             }
             _ => unreachable!(),
@@ -2095,7 +2153,6 @@ fn pan_by_pixel_delta(app: &mut App, viewport: &CanvasViewport, delta: egui::Vec
 
     app.set_pan(new_pan[0], new_pan[1]);
 }
-
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

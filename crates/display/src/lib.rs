@@ -36,8 +36,8 @@ impl SchemifyApp {
         docs.is_empty()
             || (docs.len() == 1
                 && docs[0].name.is_empty()
-                && docs[0].schematic.instances.len() == 0
-                && docs[0].schematic.wires.len() == 0)
+                && docs[0].schematic.instances.is_empty()
+                && docs[0].schematic.wires.is_empty())
     }
 }
 
@@ -74,10 +74,8 @@ impl eframe::App for SchemifyApp {
                 .fixed_pos(egui::pos2(8.0, 60.0))
                 .order(egui::Order::Foreground)
                 .show(ctx, |ui| {
-                    let btn = egui::Button::new(
-                        egui::RichText::new("\u{2630}").size(18.0),
-                    )
-                    .min_size(egui::vec2(28.0, 28.0));
+                    let btn = egui::Button::new(egui::RichText::new("\u{2630}").size(18.0))
+                        .min_size(egui::vec2(28.0, 28.0));
                     if ui.add(btn).on_hover_text("File Explorer").clicked() {
                         let open = &mut self.app.panels_mut().left_panel_open;
                         *open = !*open;
@@ -100,7 +98,9 @@ impl eframe::App for SchemifyApp {
                 .order(egui::Order::Foreground)
                 .show(ctx, |ui| {
                     if ui.button("Generate Symbol").clicked() {
-                        self.app.dispatch(schemify_core::commands::Command::GenerateSymbolFromSchematic);
+                        self.app.dispatch(
+                            schemify_core::commands::Command::GenerateSymbolFromSchematic,
+                        );
                     }
                 });
         }
@@ -211,9 +211,9 @@ pub async fn wasm_start() -> Result<(), JsValue> {
 // ── Web helpers (WASM only) ──────────────────────────────────────────────────
 
 #[cfg(target_arch = "wasm32")]
-use std::collections::HashMap;
-#[cfg(target_arch = "wasm32")]
 use serde::Deserialize;
+#[cfg(target_arch = "wasm32")]
+use std::collections::HashMap;
 
 /// Bundled project data fetched from project.json at startup.
 #[cfg(target_arch = "wasm32")]
@@ -238,24 +238,17 @@ async fn fetch_project_bundle() -> Result<ProjectBundle, String> {
     let resp_value = JsFuture::from(window.fetch_with_str("project.json"))
         .await
         .map_err(|e| format!("fetch failed: {e:?}"))?;
-    let resp: web_sys::Response = resp_value
-        .dyn_into()
-        .map_err(|_| "response cast failed")?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|_| "response cast failed")?;
 
     if !resp.ok() {
         return Err(format!("HTTP {}", resp.status()));
     }
 
-    let text = JsFuture::from(
-        resp.text().map_err(|_| "text() failed")?,
-    )
-    .await
-    .map_err(|e| format!("text await failed: {e:?}"))?;
+    let text = JsFuture::from(resp.text().map_err(|_| "text() failed")?)
+        .await
+        .map_err(|e| format!("text await failed: {e:?}"))?;
 
-    let json_str = text
-        .as_string()
-        .ok_or("response not a string")?;
+    let json_str = text.as_string().ok_or("response not a string")?;
 
-    serde_json::from_str(&json_str)
-        .map_err(|e| format!("JSON parse error: {e}"))
+    serde_json::from_str(&json_str).map_err(|e| format!("JSON parse error: {e}"))
 }

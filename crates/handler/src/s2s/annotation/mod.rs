@@ -58,7 +58,7 @@ pub fn annotate_power_nets(circuit: &mut Circuit) {
         if inst.primitive != Primitive::Vsource {
             continue;
         }
-        let plus_net = inst.pins.get(0).and_then(|p| p.net_idx);
+        let plus_net = inst.pins.first().and_then(|p| p.net_idx);
         let minus_net = inst.pins.get(1).and_then(|p| p.net_idx);
 
         if let Some(zero_idx) = net_zero_idx {
@@ -257,12 +257,7 @@ pub fn detect_differential_nets(circuit: &mut Circuit) {
         let lower = net.name.to_ascii_lowercase();
 
         // Try each pattern for the positive side.
-        let candidates: &[(&str, &str)] = &[
-            ("_p", "_n"),
-            ("p", "n"),
-            ("+", "-"),
-            ("_ip", "_in"),
-        ];
+        let candidates: &[(&str, &str)] = &[("_p", "_n"), ("p", "n"), ("+", "-"), ("_ip", "_in")];
 
         for &(pos_suffix, neg_suffix) in candidates {
             if let Some(base) = lower.strip_suffix(pos_suffix) {
@@ -317,10 +312,26 @@ mod tests {
             primitive: prim,
             symbol: String::new(),
             pins: vec![
-                Pin { name: "D".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "G".into(), dir: PinDir::Input, net_idx: None },
-                Pin { name: "S".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "B".into(), dir: PinDir::Bulk, net_idx: None },
+                Pin {
+                    name: "D".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "G".into(),
+                    dir: PinDir::Input,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "S".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "B".into(),
+                    dir: PinDir::Bulk,
+                    net_idx: None,
+                },
             ],
             params: HashMap::new(),
             x: 0,
@@ -336,8 +347,16 @@ mod tests {
             primitive: Primitive::Vsource,
             symbol: String::new(),
             pins: vec![
-                Pin { name: "p".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "n".into(), dir: PinDir::Inout, net_idx: None },
+                Pin {
+                    name: "p".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "n".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
             ],
             params: {
                 let mut p = HashMap::new();
@@ -352,7 +371,13 @@ mod tests {
     }
 
     fn connect(circuit: &mut Circuit, net_idx: u32, instance_idx: u32, pin_idx: u32) {
-        circuit.connect(net_idx, PinRef { instance_idx, pin_idx });
+        circuit.connect(
+            net_idx,
+            PinRef {
+                instance_idx,
+                pin_idx,
+            },
+        );
     }
 
     // -- Test 1: vdd and vss detected as Power/Ground --------------------
@@ -367,9 +392,18 @@ mod tests {
 
         annotate_power_nets(&mut circuit);
 
-        assert_eq!(circuit.top.nets[vdd_idx as usize].classification, NetClass::Power);
-        assert_eq!(circuit.top.nets[vss_idx as usize].classification, NetClass::Ground);
-        assert_eq!(circuit.top.nets[sig_idx as usize].classification, NetClass::Signal);
+        assert_eq!(
+            circuit.top.nets[vdd_idx as usize].classification,
+            NetClass::Power
+        );
+        assert_eq!(
+            circuit.top.nets[vss_idx as usize].classification,
+            NetClass::Ground
+        );
+        assert_eq!(
+            circuit.top.nets[sig_idx as usize].classification,
+            NetClass::Signal
+        );
     }
 
     // -- Test 2: gnd and 0 detected as Ground ----------------------------
@@ -382,8 +416,14 @@ mod tests {
 
         annotate_power_nets(&mut circuit);
 
-        assert_eq!(circuit.top.nets[gnd_idx as usize].classification, NetClass::Ground);
-        assert_eq!(circuit.top.nets[zero_idx as usize].classification, NetClass::Ground);
+        assert_eq!(
+            circuit.top.nets[gnd_idx as usize].classification,
+            NetClass::Ground
+        );
+        assert_eq!(
+            circuit.top.nets[zero_idx as usize].classification,
+            NetClass::Ground
+        );
     }
 
     // -- Test 3: Voltage source with other terminal on "0" -> Power ------
@@ -424,8 +464,14 @@ mod tests {
 
         annotate_power_nets(&mut circuit);
 
-        assert_eq!(circuit.top.nets[vdd_idx as usize].classification, NetClass::Power);
-        assert_eq!(circuit.top.nets[vss_idx as usize].classification, NetClass::Ground);
+        assert_eq!(
+            circuit.top.nets[vdd_idx as usize].classification,
+            NetClass::Power
+        );
+        assert_eq!(
+            circuit.top.nets[vss_idx as usize].classification,
+            NetClass::Ground
+        );
     }
 
     // -- Test 5: High-fanout (>10 pins, all bulk/source) -> Power --------
@@ -466,8 +512,14 @@ mod tests {
         subckt.instances.push(m2);
 
         // Connect gate (pin 1) of each MOSFET.
-        net.pins.push(PinRef { instance_idx: 0, pin_idx: 1 });
-        net.pins.push(PinRef { instance_idx: 1, pin_idx: 1 });
+        net.pins.push(PinRef {
+            instance_idx: 0,
+            pin_idx: 1,
+        });
+        net.pins.push(PinRef {
+            instance_idx: 1,
+            pin_idx: 1,
+        });
         subckt.instances[0].pins[1].net_idx = Some(0);
         subckt.instances[1].pins[1].net_idx = Some(0);
         subckt.nets.push(net);
@@ -490,7 +542,10 @@ mod tests {
         subckt.instances.push(m1);
 
         // Connect drain (pin 0).
-        net.pins.push(PinRef { instance_idx: 0, pin_idx: 0 });
+        net.pins.push(PinRef {
+            instance_idx: 0,
+            pin_idx: 0,
+        });
         subckt.instances[0].pins[0].net_idx = Some(0);
         subckt.nets.push(net);
 

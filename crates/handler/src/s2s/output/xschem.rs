@@ -11,8 +11,11 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
+use super::{
+    classify_ports, compute_instance_bbox, distribute_x, distribute_y, Backend, PinGeometry,
+    GROUND_NAMES, POWER_NAMES,
+};
 use crate::s2s::ir::{Circuit, PinDir, Primitive, Subcircuit};
-use super::{Backend, PinGeometry, classify_ports, compute_instance_bbox, distribute_x, distribute_y, GROUND_NAMES, POWER_NAMES};
 use crate::s2s::validation::{self, Severity};
 
 /// XSchem nmos4 pin offsets (from xschem_library/devices/nmos4.sym).
@@ -33,8 +36,8 @@ const PMOS_PIN_OFFSETS: [(i32, i32); 4] = [
 
 /// Two-terminal device pin offsets (res, cap, vsource, isource, diode).
 const TWO_TERM_OFFSETS: [(i32, i32); 2] = [
-    (0, -30),   // p/+/A: top
-    (0, 30),    // n/-/K: bottom
+    (0, -30), // p/+/A: top
+    (0, 30),  // n/-/K: bottom
 ];
 
 /// Voltage-controlled sources (VCVS/VCCS): p=(0,-30) n=(0,30) cp=(-30,-10) cn=(-30,10)
@@ -90,7 +93,7 @@ impl XschemBackend {
         &self,
         symbol: &str,
         primitive: Primitive,
-        model: Option<&str>,
+        _model: Option<&str>,
     ) -> String {
         if !symbol.is_empty() {
             return symbol.to_string();
@@ -154,11 +157,10 @@ impl XschemBackend {
                 .iter()
                 .any(|n| n.name == name && n.classification == crate::s2s::ir::NetClass::Power)
                 || POWER_NAMES.iter().any(|&p| name_lower == p);
-            let is_ground = subckt
-                .nets
-                .iter()
-                .any(|n| n.name == name && n.classification == crate::s2s::ir::NetClass::Ground)
-                || GROUND_NAMES.iter().any(|&g| name_lower == g);
+            let is_ground =
+                subckt.nets.iter().any(|n| {
+                    n.name == name && n.classification == crate::s2s::ir::NetClass::Ground
+                }) || GROUND_NAMES.iter().any(|&g| name_lower == g);
 
             if is_power {
                 power_ports.push((name, dir));
@@ -351,7 +353,9 @@ impl XschemBackend {
         let general_io_count = io_ports.len() as i32 - top_count - bottom_count;
 
         // Size the box: height based on max(left, right) pins, width based on max(top, bottom).
-        let side_max = left_count.max(right_count).max(general_io_count + left_count);
+        let side_max = left_count
+            .max(right_count)
+            .max(general_io_count + left_count);
         let box_h: i32 = 60i32.max(side_max * 30 + 20);
         let tb_max = top_count.max(bottom_count);
         let box_w: i32 = 120i32.max(tb_max * 30 + 20);
@@ -461,8 +465,7 @@ impl XschemBackend {
                 .with_context(|| format!("creating output directory {:?}", parent))?;
         }
 
-        fs::write(&path, content)
-            .with_context(|| format!("writing {}", path.display()))?;
+        fs::write(&path, content).with_context(|| format!("writing {}", path.display()))?;
         Ok(())
     }
 
@@ -487,10 +490,7 @@ impl XschemBackend {
             );
             subs.insert(name.clone(), serde_json::Value::Object(entry));
         }
-        manifest.insert(
-            "subcircuits".to_string(),
-            serde_json::Value::Object(subs),
-        );
+        manifest.insert("subcircuits".to_string(), serde_json::Value::Object(subs));
 
         let json = serde_json::to_string_pretty(&serde_json::Value::Object(manifest))
             .context("serializing manifest")?;
@@ -607,9 +607,7 @@ fn primitive_name(p: Primitive) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::s2s::ir::{
-        Instance, Label, Net, Pin, PinDir, Primitive, Subcircuit, Wire,
-    };
+    use crate::s2s::ir::{Instance, Label, Net, Pin, PinDir, Primitive, Subcircuit, Wire};
 
     /// Helper: build a minimal subcircuit with one NMOS instance, one wire, and one label.
     fn sample_subckt() -> Subcircuit {
@@ -625,10 +623,26 @@ mod tests {
             primitive: Primitive::Nmos,
             symbol: String::new(),
             pins: vec![
-                Pin { name: "D".to_string(), dir: PinDir::Inout, net_idx: Some(0) },
-                Pin { name: "G".to_string(), dir: PinDir::Input, net_idx: Some(1) },
-                Pin { name: "S".to_string(), dir: PinDir::Inout, net_idx: Some(2) },
-                Pin { name: "B".to_string(), dir: PinDir::Bulk, net_idx: Some(2) },
+                Pin {
+                    name: "D".to_string(),
+                    dir: PinDir::Inout,
+                    net_idx: Some(0),
+                },
+                Pin {
+                    name: "G".to_string(),
+                    dir: PinDir::Input,
+                    net_idx: Some(1),
+                },
+                Pin {
+                    name: "S".to_string(),
+                    dir: PinDir::Inout,
+                    net_idx: Some(2),
+                },
+                Pin {
+                    name: "B".to_string(),
+                    dir: PinDir::Bulk,
+                    net_idx: Some(2),
+                },
             ],
             params,
             x: 100,
@@ -679,10 +693,7 @@ mod tests {
         let sch = backend.format_schematic(&subckt);
 
         for record in ["G {}", "K {}", "V {}", "S {}", "E {}"] {
-            assert!(
-                sch.contains(record),
-                "schematic should contain '{record}'"
-            );
+            assert!(sch.contains(record), "schematic should contain '{record}'");
         }
     }
 
@@ -772,11 +783,9 @@ mod tests {
         for (prim, expected_sym) in cases {
             let resolved = backend.resolve_symbol_str("", prim, None);
             assert_eq!(
-                resolved,
-                expected_sym,
+                resolved, expected_sym,
                 "primitive {:?} should map to {}",
-                prim,
-                expected_sym
+                prim, expected_sym
             );
         }
     }
@@ -843,12 +852,7 @@ mod tests {
             "vdd".to_string(),
             "vss".to_string(),
         ];
-        subckt.port_directions = vec![
-            PinDir::Input,
-            PinDir::Output,
-            PinDir::Power,
-            PinDir::Ground,
-        ];
+        subckt.port_directions = vec![PinDir::Input, PinDir::Output, PinDir::Power, PinDir::Ground];
         subckt.nets.push(Net::new("inp"));
         subckt.nets.push(Net::new("out"));
         subckt.nets.push(Net::new("vdd"));
@@ -945,8 +949,7 @@ mod tests {
 
         backend.write_manifest(&circuit).unwrap();
 
-        let manifest_str =
-            fs::read_to_string(Path::new(dir).join("manifest.json")).unwrap();
+        let manifest_str = fs::read_to_string(Path::new(dir).join("manifest.json")).unwrap();
         let value: serde_json::Value = serde_json::from_str(&manifest_str).unwrap();
 
         assert_eq!(value["top"], "top.sch");
@@ -1084,12 +1087,7 @@ mod tests {
             "out".to_string(),
             "vdd".to_string(),
         ];
-        subckt.port_directions = vec![
-            PinDir::Input,
-            PinDir::Input,
-            PinDir::Output,
-            PinDir::Power,
-        ];
+        subckt.port_directions = vec![PinDir::Input, PinDir::Input, PinDir::Output, PinDir::Power];
 
         // Two instances at known positions: (100, 0) and (300, 200)
         subckt.instances.push(Instance {
@@ -1190,7 +1188,8 @@ mod tests {
                 assert!(
                     ix < ox,
                     "input pin x={} should be to the left of output pin x={}",
-                    ix, ox
+                    ix,
+                    ox
                 );
             }
         }
@@ -1221,7 +1220,10 @@ mod tests {
 
         // Verify even spacing: difference between consecutive pins should be constant
         let spacing = ipin_ys[1] - ipin_ys[0];
-        assert_eq!(spacing, 60, "spacing between input pins should be 60 (snapped)");
+        assert_eq!(
+            spacing, 60,
+            "spacing between input pins should be 60 (snapped)"
+        );
     }
 
     #[test]
@@ -1244,7 +1246,10 @@ mod tests {
 
         assert!(!iopin_ys.is_empty(), "should have vdd iopin");
         for y in &iopin_ys {
-            assert_eq!(*y, -200, "power iopin should be at top edge (y_min - margin)");
+            assert_eq!(
+                *y, -200,
+                "power iopin should be at top edge (y_min - margin)"
+            );
         }
     }
 

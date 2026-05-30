@@ -96,10 +96,7 @@ fn extract_ir_pins(circuit: &Circuit, skip_mos_bulk: bool) -> HashMap<PinId, Str
             }
             if let Some(net_idx) = pin.net_idx {
                 if let Some(net) = circuit.top.nets.get(net_idx as usize) {
-                    pin_to_net.insert(
-                        (name.clone(), pin_idx),
-                        net.name.to_lowercase(),
-                    );
+                    pin_to_net.insert((name.clone(), pin_idx), net.name.to_lowercase());
                 }
             }
         }
@@ -164,20 +161,23 @@ fn run_pipeline(input: &str) -> Result<Circuit, String> {
         Router::new().route(subckt, &test_backend());
     }
 
-    let blocks = recognize_subcircuit(&mut circuit.top);
+    let blocks = recognize_subcircuit(&circuit.top);
     place(&mut circuit.top, &blocks, &test_backend());
     Router::new().route(&mut circuit.top, &test_backend());
 
     Ok(circuit)
 }
 
+#[allow(dead_code)]
 fn run_pipeline_to_chn(input: &str, chn_dir: &Path, name: &str) -> Result<PathBuf, String> {
     let mut circuit = run_pipeline(input)?;
     circuit.top.name = name.to_string();
 
     fs::create_dir_all(chn_dir).map_err(|e| format!("mkdir: {e}"))?;
     let backend = SchemifyBackend::new(chn_dir.to_str().unwrap());
-    backend.write_all(&circuit).map_err(|e| format!("write_all: {e}"))?;
+    backend
+        .write_all(&circuit)
+        .map_err(|e| format!("write_all: {e}"))?;
 
     let chn_path = chn_dir.join(format!("{}.chn", name));
     if chn_path.exists() {
@@ -244,7 +244,10 @@ fn test_simple_amp_connectivity() {
     assert!(
         matched == total && extra == 0,
         "connectivity mismatch: {}/{} matched, {} extra\n{}",
-        matched, total, extra, details.join("\n"),
+        matched,
+        total,
+        extra,
+        details.join("\n"),
     );
 }
 
@@ -265,7 +268,10 @@ fn test_diff_pair_connectivity() {
     assert!(
         matched == total && extra == 0,
         "connectivity mismatch: {}/{} matched, {} extra\n{}",
-        matched, total, extra, details.join("\n"),
+        matched,
+        total,
+        extra,
+        details.join("\n"),
     );
 }
 
@@ -286,8 +292,7 @@ fn test_chn_write_read_roundtrip() {
 #[ignore] // Run with: cargo test --test schemify_roundtrip -- --ignored --nocapture
 fn test_amsnet_schemify_roundtrip() {
     let amsnet_dir = {
-        let local = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/amsnet");
+        let local = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/amsnet");
         let sibling = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../../SpiceToSchematic/tests/amsnet");
         if local.exists() {
@@ -311,7 +316,7 @@ fn test_amsnet_schemify_roundtrip() {
     for &i in &indices {
         let cir_path = amsnet_dir.join(format!("{}/{}.cir", i, i));
         let input = fs::read_to_string(&cir_path).unwrap();
-        let name = format!("{}", i);
+        let _name = format!("{}", i);
 
         // 1. Run S2S pipeline
         let circuit = match run_pipeline(&input) {
@@ -328,16 +333,14 @@ fn test_amsnet_schemify_roundtrip() {
 
         let input_insts: HashSet<String> =
             input_pins.keys().map(|(inst, _)| inst.clone()).collect();
-        let ir_insts: HashSet<String> =
-            ir_pins.keys().map(|(inst, _)| inst.clone()).collect();
+        let ir_insts: HashSet<String> = ir_pins.keys().map(|(inst, _)| inst.clone()).collect();
         let missing: Vec<_> = input_insts.difference(&ir_insts).collect();
         if !missing.is_empty() {
             failed.push((i, format!("missing instances: {:?}", missing)));
             continue;
         }
 
-        let (matched, total, extra, details) =
-            compare_connectivity(&input_pins, &ir_pins);
+        let (matched, total, extra, details) = compare_connectivity(&input_pins, &ir_pins);
 
         if matched != total || extra != 0 {
             let detail_str = if details.len() > 3 {
@@ -345,7 +348,13 @@ fn test_amsnet_schemify_roundtrip() {
             } else {
                 details.join("; ")
             };
-            failed.push((i, format!("{}/{} nets, {} extra — {}", matched, total, extra, detail_str)));
+            failed.push((
+                i,
+                format!(
+                    "{}/{} nets, {} extra — {}",
+                    matched, total, extra, detail_str
+                ),
+            ));
             continue;
         }
 
@@ -369,11 +378,18 @@ fn test_amsnet_schemify_roundtrip() {
     }
 
     let total = passed + failed.len();
-    let pass_rate = if total > 0 { passed as f64 / total as f64 } else { 0.0 };
+    let pass_rate = if total > 0 {
+        passed as f64 / total as f64
+    } else {
+        0.0
+    };
 
     eprintln!(
         "\nSchemify round-trip: {}/{} passed ({:.1}%), {} failed",
-        passed, total, pass_rate * 100.0, failed.len(),
+        passed,
+        total,
+        pass_rate * 100.0,
+        failed.len(),
     );
 
     if !failed.is_empty() {
@@ -382,10 +398,15 @@ fn test_amsnet_schemify_roundtrip() {
         let mut connectivity = 0usize;
         let mut chn_fail = 0usize;
         for (_i, msg) in &failed {
-            if msg.starts_with("pipeline:") { pipeline_fail += 1; }
-            else if msg.starts_with("missing instances:") { missing_inst += 1; }
-            else if msg.contains(".chn") { chn_fail += 1; }
-            else { connectivity += 1; }
+            if msg.starts_with("pipeline:") {
+                pipeline_fail += 1;
+            } else if msg.starts_with("missing instances:") {
+                missing_inst += 1;
+            } else if msg.contains(".chn") {
+                chn_fail += 1;
+            } else {
+                connectivity += 1;
+            }
         }
         eprintln!("\nFailure categories:");
         eprintln!("  pipeline errors:    {}", pipeline_fail);
@@ -402,6 +423,8 @@ fn test_amsnet_schemify_roundtrip() {
     assert!(
         pass_rate >= 1.0,
         "Schemify round-trip pass rate {:.1}% ({}/{}) — must be 100%",
-        pass_rate * 100.0, passed, total,
+        pass_rate * 100.0,
+        passed,
+        total,
     );
 }

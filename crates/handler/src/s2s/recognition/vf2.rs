@@ -234,18 +234,14 @@ impl<'a> Vf2State<'a> {
                 let net_a = self.pin_net(c, edge.from_pin);
                 let net_b = self.pin_net(c, edge.to_pin);
                 match edge.constraint {
-                    EdgeConstraint::SameNet => {
-                        match (net_a, net_b) {
-                            (Some(a), Some(b)) if a == b => {}
-                            _ => return false,
-                        }
-                    }
-                    EdgeConstraint::DifferentNet => {
-                        match (net_a, net_b) {
-                            (Some(a), Some(b)) if a != b => {}
-                            _ => return false,
-                        }
-                    }
+                    EdgeConstraint::SameNet => match (net_a, net_b) {
+                        (Some(a), Some(b)) if a == b => {}
+                        _ => return false,
+                    },
+                    EdgeConstraint::DifferentNet => match (net_a, net_b) {
+                        (Some(a), Some(b)) if a != b => {}
+                        _ => return false,
+                    },
                 }
                 continue;
             }
@@ -340,10 +336,26 @@ mod tests {
             primitive: prim,
             symbol: String::new(),
             pins: vec![
-                Pin { name: "D".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "G".into(), dir: PinDir::Input, net_idx: None },
-                Pin { name: "S".into(), dir: PinDir::Inout, net_idx: None },
-                Pin { name: "B".into(), dir: PinDir::Bulk, net_idx: None },
+                Pin {
+                    name: "D".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "G".into(),
+                    dir: PinDir::Input,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "S".into(),
+                    dir: PinDir::Inout,
+                    net_idx: None,
+                },
+                Pin {
+                    name: "B".into(),
+                    dir: PinDir::Bulk,
+                    net_idx: None,
+                },
             ],
             params: HashMap::new(),
             x: 0,
@@ -370,7 +382,13 @@ mod tests {
         }
         for &(net_name, inst_idx, pin_idx) in connections {
             let net_idx = c.get_or_create_net(net_name);
-            c.connect(net_idx, PinRef { instance_idx: inst_idx, pin_idx });
+            c.connect(
+                net_idx,
+                PinRef {
+                    instance_idx: inst_idx,
+                    pin_idx,
+                },
+            );
         }
         c
     }
@@ -407,8 +425,12 @@ mod tests {
         let circuit = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("outm", 0, 0), ("inp", 0, 1), ("tail", 0, 2),
-                ("outp", 1, 0), ("inn", 1, 1), ("tail", 1, 2),
+                ("outm", 0, 0),
+                ("inp", 0, 1),
+                ("tail", 0, 2),
+                ("outp", 1, 0),
+                ("inn", 1, 1),
+                ("tail", 1, 2),
             ],
         );
         let pattern = diff_pair_pattern();
@@ -428,8 +450,12 @@ mod tests {
         let circuit = build_circuit(
             vec![make_pmos("M1"), make_pmos("M2")],
             &[
-                ("outm", 0, 0), ("inp", 0, 1), ("tail", 0, 2),
-                ("outp", 1, 0), ("inn", 1, 1), ("tail", 1, 2),
+                ("outm", 0, 0),
+                ("inp", 0, 1),
+                ("tail", 0, 2),
+                ("outp", 1, 0),
+                ("inn", 1, 1),
+                ("tail", 1, 2),
             ],
         );
         let pattern = diff_pair_pattern();
@@ -443,8 +469,12 @@ mod tests {
         let circuit = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("outm", 0, 0), ("vin", 0, 1), ("tail", 0, 2),
-                ("outp", 1, 0), ("vin", 1, 1), ("tail", 1, 2),
+                ("outm", 0, 0),
+                ("vin", 0, 1),
+                ("tail", 0, 2),
+                ("outp", 1, 0),
+                ("vin", 1, 1),
+                ("tail", 1, 2),
             ],
         );
         let pattern = diff_pair_pattern();
@@ -458,8 +488,12 @@ mod tests {
         let circuit = build_circuit(
             vec![make_nmos("M1"), make_pmos("M2")],
             &[
-                ("outm", 0, 0), ("inp", 0, 1), ("tail", 0, 2),
-                ("outp", 1, 0), ("inn", 1, 1), ("tail", 1, 2),
+                ("outm", 0, 0),
+                ("inp", 0, 1),
+                ("tail", 0, 2),
+                ("outp", 1, 0),
+                ("inn", 1, 1),
+                ("tail", 1, 2),
             ],
         );
         let pattern = diff_pair_pattern();
@@ -475,8 +509,12 @@ mod tests {
         let circuit = build_circuit(
             vec![make_nmos("M1"), make_nmos("M2")],
             &[
-                ("bias", 0, 0), ("bias", 0, 1), ("vss", 0, 2),
-                ("out",  1, 0), ("bias", 1, 1), ("vss", 1, 2),
+                ("bias", 0, 0),
+                ("bias", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("bias", 1, 1),
+                ("vss", 1, 2),
             ],
         );
         let matches = find_matches(&pattern, &circuit.top);
@@ -491,8 +529,12 @@ mod tests {
         let circuit = build_circuit(
             vec![make_nmos("MN"), make_pmos("MP")],
             &[
-                ("out", 0, 0), ("vin", 0, 1), ("vss", 0, 2),
-                ("out", 1, 0), ("vin", 1, 1), ("vdd", 1, 2),
+                ("out", 0, 0),
+                ("vin", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("vin", 1, 1),
+                ("vdd", 1, 2),
             ],
         );
         let matches = find_matches(&pattern, &circuit.top);
@@ -506,8 +548,12 @@ mod tests {
         let circuit = build_circuit(
             vec![make_nmos("MN"), make_nmos("MP")],
             &[
-                ("out", 0, 0), ("vin", 0, 1), ("vss", 0, 2),
-                ("out", 1, 0), ("vin", 1, 1), ("vss", 1, 2),
+                ("out", 0, 0),
+                ("vin", 0, 1),
+                ("vss", 0, 2),
+                ("out", 1, 0),
+                ("vin", 1, 1),
+                ("vss", 1, 2),
             ],
         );
         let matches = find_matches(&pattern, &circuit.top);

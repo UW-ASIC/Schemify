@@ -60,14 +60,13 @@ fn setup_xschem_env() -> Option<XschemEnv> {
     )
     .ok()?;
 
-    Some(XschemEnv { library_path, rcfile })
+    Some(XschemEnv {
+        library_path,
+        rcfile,
+    })
 }
 
-fn xschem_netlist(
-    sch_path: &Path,
-    netlist_dir: &Path,
-    env: &XschemEnv,
-) -> Result<PathBuf, String> {
+fn xschem_netlist(sch_path: &Path, netlist_dir: &Path, env: &XschemEnv) -> Result<PathBuf, String> {
     fs::create_dir_all(netlist_dir).map_err(|e| format!("mkdir: {e}"))?;
 
     let _ = Command::new("timeout")
@@ -196,7 +195,7 @@ fn run_pipeline_to_sch(input: &str, sch_dir: &Path, name: &str) -> Result<PathBu
         Router::new().route(subckt, &test_backend());
     }
 
-    let blocks = recognize_subcircuit(&mut circuit.top);
+    let blocks = recognize_subcircuit(&circuit.top);
     place(&mut circuit.top, &blocks, &test_backend());
     Router::new().route(&mut circuit.top, &test_backend());
 
@@ -225,8 +224,8 @@ fn test_simple_amp_xschem_roundtrip() {
         }
     };
 
-    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/simple_amp.spice");
+    let fixture_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/simple_amp.spice");
     if !fixture_path.exists() {
         eprintln!("fixture not found: {:?}", fixture_path);
         return;
@@ -236,21 +235,19 @@ fn test_simple_amp_xschem_roundtrip() {
     let tmp = std::env::temp_dir().join("schemify_xschem_rt_simple_amp");
     let _ = fs::remove_dir_all(&tmp);
 
-    let sch_path = run_pipeline_to_sch(&input, &tmp.join("sch"), "simple_amp")
-        .expect("pipeline failed");
+    let sch_path =
+        run_pipeline_to_sch(&input, &tmp.join("sch"), "simple_amp").expect("pipeline failed");
 
-    let spice_path = xschem_netlist(&sch_path, &tmp.join("netlist"), &env)
-        .expect("xschem netlist failed");
+    let spice_path =
+        xschem_netlist(&sch_path, &tmp.join("netlist"), &env).expect("xschem netlist failed");
 
     let output_spice = fs::read_to_string(&spice_path).unwrap();
 
     let input_pins = parse_netlist_pins(&input, true);
     let output_pins = parse_netlist_pins(&output_spice, true);
 
-    let input_insts: HashSet<String> =
-        input_pins.keys().map(|(inst, _)| inst.clone()).collect();
-    let output_insts: HashSet<String> =
-        output_pins.keys().map(|(inst, _)| inst.clone()).collect();
+    let input_insts: HashSet<String> = input_pins.keys().map(|(inst, _)| inst.clone()).collect();
+    let output_insts: HashSet<String> = output_pins.keys().map(|(inst, _)| inst.clone()).collect();
     let missing: Vec<_> = input_insts.difference(&output_insts).collect();
     assert!(missing.is_empty(), "missing instances: {:?}", missing);
 
@@ -258,7 +255,10 @@ fn test_simple_amp_xschem_roundtrip() {
     assert!(
         matched == total && extra == 0,
         "connectivity mismatch: {}/{} matched, {} extra\n{}",
-        matched, total, extra, details.join("\n"),
+        matched,
+        total,
+        extra,
+        details.join("\n"),
     );
 }
 
@@ -274,8 +274,8 @@ fn test_diff_pair_xschem_roundtrip() {
         }
     };
 
-    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/diff_pair.spice");
+    let fixture_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/diff_pair.spice");
     if !fixture_path.exists() {
         eprintln!("fixture not found: {:?}", fixture_path);
         return;
@@ -285,21 +285,19 @@ fn test_diff_pair_xschem_roundtrip() {
     let tmp = std::env::temp_dir().join("schemify_xschem_rt_diff_pair");
     let _ = fs::remove_dir_all(&tmp);
 
-    let sch_path = run_pipeline_to_sch(&input, &tmp.join("sch"), "diff_pair")
-        .expect("pipeline failed");
+    let sch_path =
+        run_pipeline_to_sch(&input, &tmp.join("sch"), "diff_pair").expect("pipeline failed");
 
-    let spice_path = xschem_netlist(&sch_path, &tmp.join("netlist"), &env)
-        .expect("xschem netlist failed");
+    let spice_path =
+        xschem_netlist(&sch_path, &tmp.join("netlist"), &env).expect("xschem netlist failed");
 
     let output_spice = fs::read_to_string(&spice_path).unwrap();
 
     let input_pins = parse_netlist_pins(&input, true);
     let output_pins = parse_netlist_pins(&output_spice, true);
 
-    let input_insts: HashSet<String> =
-        input_pins.keys().map(|(inst, _)| inst.clone()).collect();
-    let output_insts: HashSet<String> =
-        output_pins.keys().map(|(inst, _)| inst.clone()).collect();
+    let input_insts: HashSet<String> = input_pins.keys().map(|(inst, _)| inst.clone()).collect();
+    let output_insts: HashSet<String> = output_pins.keys().map(|(inst, _)| inst.clone()).collect();
     let missing: Vec<_> = input_insts.difference(&output_insts).collect();
     assert!(missing.is_empty(), "missing instances: {:?}", missing);
 
@@ -307,7 +305,10 @@ fn test_diff_pair_xschem_roundtrip() {
     assert!(
         matched == total && extra == 0,
         "connectivity mismatch: {}/{} matched, {} extra\n{}",
-        matched, total, extra, details.join("\n"),
+        matched,
+        total,
+        extra,
+        details.join("\n"),
     );
 }
 
@@ -324,8 +325,7 @@ fn test_amsnet_xschem_roundtrip() {
     };
 
     let amsnet_dir = {
-        let local = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/amsnet");
+        let local = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/amsnet");
         let sibling = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../../SpiceToSchematic/tests/amsnet");
         if local.exists() {
@@ -395,8 +395,7 @@ fn test_amsnet_xschem_roundtrip() {
             continue;
         }
 
-        let (matched, total, extra, details) =
-            compare_connectivity(&input_pins, &output_pins);
+        let (matched, total, extra, details) = compare_connectivity(&input_pins, &output_pins);
 
         if matched == total && extra == 0 {
             passed += 1;
@@ -406,16 +405,29 @@ fn test_amsnet_xschem_roundtrip() {
             } else {
                 details.join("; ")
             };
-            failed.push((i, format!("{}/{} nets, {} extra — {}", matched, total, extra, detail_str)));
+            failed.push((
+                i,
+                format!(
+                    "{}/{} nets, {} extra — {}",
+                    matched, total, extra, detail_str
+                ),
+            ));
         }
     }
 
     let total = passed + failed.len();
-    let pass_rate = if total > 0 { passed as f64 / total as f64 } else { 0.0 };
+    let pass_rate = if total > 0 {
+        passed as f64 / total as f64
+    } else {
+        0.0
+    };
 
     eprintln!(
         "\nXSchem round-trip: {}/{} passed ({:.1}%), {} failed",
-        passed, total, pass_rate * 100.0, failed.len(),
+        passed,
+        total,
+        pass_rate * 100.0,
+        failed.len(),
     );
 
     if !failed.is_empty() {
@@ -424,10 +436,15 @@ fn test_amsnet_xschem_roundtrip() {
         let mut missing_inst = 0usize;
         let mut connectivity = 0usize;
         for (_i, msg) in &failed {
-            if msg.starts_with("pipeline:") { pipeline_fail += 1; }
-            else if msg.starts_with("xschem:") { xschem_fail += 1; }
-            else if msg.starts_with("missing instances:") { missing_inst += 1; }
-            else { connectivity += 1; }
+            if msg.starts_with("pipeline:") {
+                pipeline_fail += 1;
+            } else if msg.starts_with("xschem:") {
+                xschem_fail += 1;
+            } else if msg.starts_with("missing instances:") {
+                missing_inst += 1;
+            } else {
+                connectivity += 1;
+            }
         }
         eprintln!("\nFailure categories:");
         eprintln!("  pipeline errors:    {}", pipeline_fail);
@@ -437,7 +454,10 @@ fn test_amsnet_xschem_roundtrip() {
 
         eprintln!("\nConnectivity failures:");
         for (i, msg) in &failed {
-            if !msg.starts_with("pipeline:") && !msg.starts_with("xschem:") && !msg.starts_with("missing") {
+            if !msg.starts_with("pipeline:")
+                && !msg.starts_with("xschem:")
+                && !msg.starts_with("missing")
+            {
                 eprintln!("  circuit {}: {}", i, &msg[..msg.len().min(300)]);
             }
         }
@@ -446,6 +466,8 @@ fn test_amsnet_xschem_roundtrip() {
     assert!(
         pass_rate >= 1.0,
         "XSchem round-trip pass rate {:.1}% ({}/{}) — must be 100%",
-        pass_rate * 100.0, passed, total,
+        pass_rate * 100.0,
+        passed,
+        total,
     );
 }

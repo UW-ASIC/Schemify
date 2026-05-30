@@ -122,7 +122,9 @@ pub(crate) const GROUND_NAMES: &[&str] = &["vss", "gnd", "0", "avss", "dvss"];
 ///
 /// Uses `subckt.port_directions` when available. Falls back to `PinDir::Inout`
 /// for ports without a direction entry.
-pub(crate) fn classify_ports(subckt: &Subcircuit) -> (Vec<(&str, PinDir)>, Vec<(&str, PinDir)>, Vec<(&str, PinDir)>) {
+type PortList<'a> = Vec<(&'a str, PinDir)>;
+
+pub(crate) fn classify_ports(subckt: &Subcircuit) -> (PortList<'_>, PortList<'_>, PortList<'_>) {
     let mut inputs = Vec::new();
     let mut outputs = Vec::new();
     let mut ios = Vec::new();

@@ -61,6 +61,12 @@ pub struct SpiceParser {
     control_buf: String,
 }
 
+impl Default for SpiceParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpiceParser {
     pub fn new() -> Self {
         Self {
@@ -177,13 +183,9 @@ fn preprocess(source: &str) -> Vec<String> {
         }
 
         // Full-line comment.
-        if trimmed.starts_with('*') {
-            // Check for pragma: `* .xs_pragma ...`
-            let after_star = trimmed[1..].trim();
-            if after_star
-                .to_ascii_lowercase()
-                .starts_with(".xs_pragma")
-            {
+        if let Some(after_star) = trimmed.strip_prefix('*') {
+            let after_star = after_star.trim();
+            if after_star.to_ascii_lowercase().starts_with(".xs_pragma") {
                 // Encode as a synthetic line the main parser will recognise.
                 logical_lines.push(format!("#pragma {}", after_star));
             }
@@ -198,10 +200,10 @@ fn preprocess(source: &str) -> Vec<String> {
         }
 
         // Continuation line.
-        if effective.starts_with('+') {
+        if let Some(rest) = effective.strip_prefix('+') {
             if let Some(last) = logical_lines.last_mut() {
                 last.push(' ');
-                last.push_str(effective[1..].trim());
+                last.push_str(rest.trim());
             }
             continue;
         }
@@ -246,8 +248,8 @@ impl SpiceParser {
         }
 
         // Synthetic pragma line from preprocessor.
-        if trimmed.starts_with("#pragma ") {
-            self.parse_pragma(&trimmed["#pragma ".len()..]);
+        if let Some(rest) = trimmed.strip_prefix("#pragma ") {
+            self.parse_pragma(rest);
             return Ok(());
         }
 
@@ -256,11 +258,7 @@ impl SpiceParser {
             return self.parse_dot_command(circuit, trimmed, line_no);
         }
 
-        let prefix = trimmed
-            .chars()
-            .next()
-            .unwrap()
-            .to_ascii_lowercase();
+        let prefix = trimmed.chars().next().unwrap().to_ascii_lowercase();
 
         match prefix {
             'm' => self.parse_mosfet(circuit, trimmed, line_no),
@@ -288,7 +286,10 @@ impl SpiceParser {
     /// Add an instance to the correct scope (current subckt or top-level).
     fn add_instance_scoped(&self, circuit: &mut Circuit, inst: Instance) -> u32 {
         if self.in_subckt() {
-            let sub = circuit.subcircuits.get_mut(self.current_subckt_name()).unwrap();
+            let sub = circuit
+                .subcircuits
+                .get_mut(self.current_subckt_name())
+                .unwrap();
             let idx = sub.instances.len() as u32;
             sub.instances.push(inst);
             idx
@@ -300,7 +301,10 @@ impl SpiceParser {
     /// Get or create a net in the correct scope.
     fn get_or_create_net_scoped(&self, circuit: &mut Circuit, name: &str) -> u32 {
         if self.in_subckt() {
-            let sub = circuit.subcircuits.get_mut(self.current_subckt_name()).unwrap();
+            let sub = circuit
+                .subcircuits
+                .get_mut(self.current_subckt_name())
+                .unwrap();
             for (i, net) in sub.nets.iter().enumerate() {
                 if net.name == name {
                     return i as u32;
@@ -317,7 +321,10 @@ impl SpiceParser {
     /// Connect a pin to a net in the correct scope.
     fn connect_scoped(&self, circuit: &mut Circuit, net_idx: u32, pin_ref: PinRef) {
         if self.in_subckt() {
-            let sub = circuit.subcircuits.get_mut(self.current_subckt_name()).unwrap();
+            let sub = circuit
+                .subcircuits
+                .get_mut(self.current_subckt_name())
+                .unwrap();
             sub.nets[net_idx as usize].pins.push(pin_ref);
             sub.instances[pin_ref.instance_idx as usize].pins[pin_ref.pin_idx as usize].net_idx =
                 Some(net_idx);
@@ -420,9 +427,7 @@ impl SpiceParser {
                 };
                 circuit.models.insert(model_name, model);
             }
-        } else if cmd.eq_ignore_ascii_case(".include")
-            || cmd.eq_ignore_ascii_case(".lib")
-        {
+        } else if cmd.eq_ignore_ascii_case(".include") || cmd.eq_ignore_ascii_case(".lib") {
             circuit.analysis.includes.push(line.to_string());
         } else if cmd.eq_ignore_ascii_case(".control") {
             self.control_buf = format!("{line}\n");
@@ -497,10 +502,26 @@ impl SpiceParser {
         };
 
         let pins = vec![
-            Pin { name: "D".to_string(), dir: PinDir::Inout, net_idx: None },
-            Pin { name: "G".to_string(), dir: PinDir::Input, net_idx: None },
-            Pin { name: "S".to_string(), dir: PinDir::Inout, net_idx: None },
-            Pin { name: "B".to_string(), dir: PinDir::Bulk, net_idx: None },
+            Pin {
+                name: "D".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+            Pin {
+                name: "G".to_string(),
+                dir: PinDir::Input,
+                net_idx: None,
+            },
+            Pin {
+                name: "S".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+            Pin {
+                name: "B".to_string(),
+                dir: PinDir::Bulk,
+                net_idx: None,
+            },
         ];
 
         let mut params = HashMap::new();
@@ -565,9 +586,21 @@ impl SpiceParser {
         };
 
         let pins = vec![
-            Pin { name: "C".to_string(), dir: PinDir::Inout, net_idx: None },
-            Pin { name: "B".to_string(), dir: PinDir::Input, net_idx: None },
-            Pin { name: "E".to_string(), dir: PinDir::Inout, net_idx: None },
+            Pin {
+                name: "C".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+            Pin {
+                name: "B".to_string(),
+                dir: PinDir::Input,
+                net_idx: None,
+            },
+            Pin {
+                name: "E".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
         ];
 
         let mut params = HashMap::new();
@@ -620,8 +653,16 @@ impl SpiceParser {
         let minus = tokens[2].to_ascii_lowercase();
 
         let pins = vec![
-            Pin { name: "p".to_string(), dir: PinDir::Inout, net_idx: None },
-            Pin { name: "n".to_string(), dir: PinDir::Inout, net_idx: None },
+            Pin {
+                name: "p".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+            Pin {
+                name: "n".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
         ];
 
         // For V/I sources the "value" can be a multi-token stimulus spec like
@@ -694,8 +735,16 @@ impl SpiceParser {
             .unwrap_or_default();
 
         let pins = vec![
-            Pin { name: "A".to_string(), dir: PinDir::Inout, net_idx: None },
-            Pin { name: "K".to_string(), dir: PinDir::Inout, net_idx: None },
+            Pin {
+                name: "A".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+            Pin {
+                name: "K".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
         ];
 
         let mut params = HashMap::new();
@@ -794,10 +843,26 @@ impl SpiceParser {
         let ncm = tokens[4].to_ascii_lowercase();
 
         let pins = vec![
-            Pin { name: "p".to_string(), dir: PinDir::Output, net_idx: None },
-            Pin { name: "n".to_string(), dir: PinDir::Output, net_idx: None },
-            Pin { name: "cp".to_string(), dir: PinDir::Input, net_idx: None },
-            Pin { name: "cn".to_string(), dir: PinDir::Input, net_idx: None },
+            Pin {
+                name: "p".to_string(),
+                dir: PinDir::Output,
+                net_idx: None,
+            },
+            Pin {
+                name: "n".to_string(),
+                dir: PinDir::Output,
+                net_idx: None,
+            },
+            Pin {
+                name: "cp".to_string(),
+                dir: PinDir::Input,
+                net_idx: None,
+            },
+            Pin {
+                name: "cn".to_string(),
+                dir: PinDir::Input,
+                net_idx: None,
+            },
         ];
 
         let mut params = HashMap::new();
@@ -866,8 +931,16 @@ impl SpiceParser {
         let vsense = tokens[3].to_ascii_lowercase();
 
         let pins = vec![
-            Pin { name: "p".to_string(), dir: PinDir::Output, net_idx: None },
-            Pin { name: "n".to_string(), dir: PinDir::Output, net_idx: None },
+            Pin {
+                name: "p".to_string(),
+                dir: PinDir::Output,
+                net_idx: None,
+            },
+            Pin {
+                name: "n".to_string(),
+                dir: PinDir::Output,
+                net_idx: None,
+            },
         ];
 
         let mut params = HashMap::new();
@@ -1052,8 +1125,10 @@ fn reclassify_instances(instances: &mut [Instance]) {
 /// Check if a subcircuit name looks like a PDK MOSFET wrapper.
 fn is_mosfet_subckt_name(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
-    lower.contains("nfet") || lower.contains("pfet")
-        || lower.contains("nmos") || lower.contains("pmos")
+    lower.contains("nfet")
+        || lower.contains("pfet")
+        || lower.contains("nmos")
+        || lower.contains("pmos")
 }
 
 fn strip_inline_comment(line: &str) -> &str {
@@ -1215,13 +1290,11 @@ mod tests {
         assert_eq!(inst.params.get("l").unwrap(), "100n");
 
         // Verify net connections (net names lowercased).
-        let drain_net = circuit
-            .top
-            .nets
+        let drain_net = circuit.top.nets.iter().find(|n| n.name == "drain").unwrap();
+        assert!(drain_net
+            .pins
             .iter()
-            .find(|n| n.name == "drain")
-            .unwrap();
-        assert!(drain_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 0));
+            .any(|p| p.instance_idx == 0 && p.pin_idx == 0));
     }
 
     // 2. Parse diff pair (2 NMOS) — shared source net
@@ -1239,15 +1312,16 @@ M2 out2 inn  tail bulk nmos_model w=2u l=100n
         assert_eq!(circuit.top.instances[1].name, "m2");
 
         // The "tail" net should be connected to both instances' source pins (pin_idx=2).
-        let tail_net = circuit
-            .top
-            .nets
-            .iter()
-            .find(|n| n.name == "tail")
-            .unwrap();
+        let tail_net = circuit.top.nets.iter().find(|n| n.name == "tail").unwrap();
         assert_eq!(tail_net.pins.len(), 2);
-        assert!(tail_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 2));
-        assert!(tail_net.pins.iter().any(|p| p.instance_idx == 1 && p.pin_idx == 2));
+        assert!(tail_net
+            .pins
+            .iter()
+            .any(|p| p.instance_idx == 0 && p.pin_idx == 2));
+        assert!(tail_net
+            .pins
+            .iter()
+            .any(|p| p.instance_idx == 1 && p.pin_idx == 2));
     }
 
     // 3. Parse with line continuation
@@ -1309,7 +1383,10 @@ M2 out in vss vss nmos_model w=1u l=100n
 
         // Verify net connections.
         let in_net = circuit.top.nets.iter().find(|n| n.name == "in").unwrap();
-        assert!(in_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 0));
+        assert!(in_net
+            .pins
+            .iter()
+            .any(|p| p.instance_idx == 0 && p.pin_idx == 0));
     }
 
     // 6. Parse two-terminal devices (R, C, V) — names lowercased
@@ -1443,10 +1520,7 @@ M1 d g s b nmos_model
         assert_eq!(parser.pragmas()[0].directive, "mirror");
         assert_eq!(parser.pragmas()[0].args, vec!["M1", "M2"]);
         assert_eq!(parser.pragmas()[1].directive, "diffpair");
-        assert_eq!(
-            parser.pragmas()[1].args,
-            vec!["M3", "M4", "symmetry=true"]
-        );
+        assert_eq!(parser.pragmas()[1].args, vec!["M3", "M4", "symmetry=true"]);
 
         // The device line should still parse.
         assert_eq!(circuit.top.instances.len(), 1);
@@ -1746,8 +1820,14 @@ V1 a 0 1.8
 
         assert_eq!(circuit.top.instances.len(), 2);
         let a = &circuit.analysis;
-        assert_eq!(a.analyses, &[".tran 1n 100u", ".ac dec 10 1 1G", ".dc V1 0 5 0.1", ".op"]);
-        assert_eq!(a.measurements, &[".meas tran vout_avg AVG V(b) FROM=10u TO=100u"]);
+        assert_eq!(
+            a.analyses,
+            &[".tran 1n 100u", ".ac dec 10 1 1G", ".dc V1 0 5 0.1", ".op"]
+        );
+        assert_eq!(
+            a.measurements,
+            &[".meas tran vout_avg AVG V(b) FROM=10u TO=100u"]
+        );
         assert_eq!(a.outputs, &[".save all", ".print tran V(a) V(b)"]);
         assert_eq!(a.initial_conds, &[".ic V(b)=0"]);
         assert_eq!(a.options, &[".options reltol=1e-4"]);

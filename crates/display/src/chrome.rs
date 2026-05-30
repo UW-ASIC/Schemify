@@ -53,7 +53,15 @@ pub fn menu_bar(ctx: &egui::Context, app: &mut App) {
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
         egui::menu::bar(ui, |ui| {
             #[cfg(not(target_arch = "wasm32"))]
-            file_menu(ui, &mut cmds, &mut open_file, &mut save_file, &mut save_as, &mut save_all, active_idx);
+            file_menu(
+                ui,
+                &mut cmds,
+                &mut open_file,
+                &mut save_file,
+                &mut save_as,
+                &mut save_all,
+                active_idx,
+            );
             #[cfg(target_arch = "wasm32")]
             file_menu_web(ui, &mut cmds);
             edit_menu(ui, &mut cmds, can_undo, can_redo);
@@ -136,9 +144,17 @@ pub fn menu_bar(ctx: &egui::Context, app: &mut App) {
 
     #[cfg(not(target_arch = "wasm32"))]
     if save_all {
-        let paths: Vec<std::path::PathBuf> = app.documents().iter().filter_map(|d| {
-            if let schemify_handler::state::Origin::File(p) = &d.origin { Some(p.clone()) } else { None }
-        }).collect();
+        let paths: Vec<std::path::PathBuf> = app
+            .documents()
+            .iter()
+            .filter_map(|d| {
+                if let schemify_handler::state::Origin::File(p) = &d.origin {
+                    Some(p.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
         for path in paths {
             let _ = app.save_to_path(&path);
         }
@@ -320,6 +336,7 @@ fn edit_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>, can_undo: bool, can_red
 
 // ── View ─────────────────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn view_menu(
     ui: &mut egui::Ui,
     cmds: &mut Vec<Command>,
@@ -374,7 +391,12 @@ fn view_menu(
             *new_view_mode = Some(ViewMode::Symbol);
             ui.close_menu();
         }
-        if tog(ui, "Documentation View", "", view_mode == ViewMode::Documentation) {
+        if tog(
+            ui,
+            "Documentation View",
+            "",
+            view_mode == ViewMode::Documentation,
+        ) {
             *new_view_mode = Some(ViewMode::Documentation);
             ui.close_menu();
         }
@@ -398,7 +420,11 @@ fn place_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>, bus_mode: bool, toggle
             cmds.push(Command::SetTool(Tool::Wire));
             ui.close_menu();
         }
-        let bus_label = if bus_mode { "\u{2713} Bus Mode" } else { "  Bus Mode" };
+        let bus_label = if bus_mode {
+            "\u{2713} Bus Mode"
+        } else {
+            "  Bus Mode"
+        };
         if sc(ui, bus_label, "B") {
             *toggle_bus = true;
             ui.close_menu();
@@ -459,7 +485,11 @@ fn hierarchy_menu(ui: &mut egui::Ui, _cmds: &mut Vec<Command>) {
 
 // ── Simulate ─────────────────────────────────────────────────────────────────
 
-fn simulate_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>, sim_backend: schemify_core::simulation::SpiceBackend) {
+fn simulate_menu(
+    ui: &mut egui::Ui,
+    cmds: &mut Vec<Command>,
+    sim_backend: schemify_core::simulation::SpiceBackend,
+) {
     ui.menu_button("Simulate", |ui| {
         if sc(ui, "Run Simulation", "F5") {
             cmds.push(Command::RunSim);
@@ -474,7 +504,11 @@ fn simulate_menu(ui: &mut egui::Ui, cmds: &mut Vec<Command>, sim_backend: schemi
                 (SpiceBackend::Spectre, "Spectre"),
             ];
             for (variant, label) in &backends {
-                let prefix = if sim_backend == *variant { "\u{2713} " } else { "  " };
+                let prefix = if sim_backend == *variant {
+                    "\u{2713} "
+                } else {
+                    "  "
+                };
                 if sc(ui, &format!("{prefix}{label}"), "") {
                     cmds.push(Command::SetSimBackend(variant.as_str().to_string()));
                     ui.close_menu();
@@ -625,12 +659,13 @@ pub fn tab_bar(ctx: &egui::Context, app: &mut App) {
 
             for (i, (name, dirty)) in doc_info.iter().enumerate() {
                 let is_active = i == active;
-                let display = if name.is_empty() { "Untitled" } else { name.as_str() };
+                let display = if name.is_empty() {
+                    "Untitled"
+                } else {
+                    name.as_str()
+                };
 
-                let basename = display
-                    .rsplit(&['/', '\\'][..])
-                    .next()
-                    .unwrap_or(display);
+                let basename = display.rsplit(&['/', '\\'][..]).next().unwrap_or(display);
 
                 let label = if *dirty {
                     format!("\u{25cf} {basename}")
@@ -640,10 +675,8 @@ pub fn tab_bar(ctx: &egui::Context, app: &mut App) {
 
                 // Tab with embedded close button
                 let tab_h = ui.spacing().interact_size.y;
-                let (rect, response) = ui.allocate_exact_size(
-                    egui::vec2(max_tab_w, tab_h),
-                    egui::Sense::click(),
-                );
+                let (rect, response) =
+                    ui.allocate_exact_size(egui::vec2(max_tab_w, tab_h), egui::Sense::click());
 
                 // Background
                 let bg = if is_active {
@@ -679,10 +712,8 @@ pub fn tab_bar(ctx: &egui::Context, app: &mut App) {
                 let mut close_clicked = false;
                 if tab_count > 1 {
                     let close_size = 14.0;
-                    let close_center = egui::pos2(
-                        rect.max.x - close_size * 0.5 - 3.0,
-                        rect.center().y,
-                    );
+                    let close_center =
+                        egui::pos2(rect.max.x - close_size * 0.5 - 3.0, rect.center().y);
                     let close_rect = egui::Rect::from_center_size(
                         close_center,
                         egui::vec2(close_size, close_size),
@@ -947,7 +978,9 @@ fn parse_vim_command(input: &str) -> VimResult {
         "autolayout" | "layout" => VimResult::Dispatch(Command::AutoLayout),
 
         // Symbol generation
-        "gensym" | "gensymbol" | "makesymbol" => VimResult::Dispatch(Command::GenerateSymbolFromSchematic),
+        "gensym" | "gensymbol" | "makesymbol" => {
+            VimResult::Dispatch(Command::GenerateSymbolFromSchematic)
+        }
 
         // View mode (GUI-only, not dispatch)
         "schematic" | "sch" => VimResult::SetView(ViewMode::Schematic),

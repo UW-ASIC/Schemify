@@ -40,7 +40,8 @@ impl std::error::Error for TransportError {}
 /// transport only sees raw strings (newline-delimited JSON lines).
 pub trait PluginTransport {
     /// Spawn/start the plugin using the given manifest and plugin directory.
-    fn spawn(&mut self, manifest: &PluginManifest, plugin_dir: &Path) -> Result<(), TransportError>;
+    fn spawn(&mut self, manifest: &PluginManifest, plugin_dir: &Path)
+        -> Result<(), TransportError>;
 
     /// Send a message (newline-delimited JSON line) to the plugin.
     fn send(&mut self, msg: &str) -> Result<(), TransportError>;
@@ -101,8 +102,7 @@ mod tests {
 
     #[test]
     fn transport_error_is_error_trait() {
-        let err: Box<dyn std::error::Error> =
-            Box::new(TransportError::SpawnFailed("test".into()));
+        let err: Box<dyn std::error::Error> = Box::new(TransportError::SpawnFailed("test".into()));
         assert!(err.to_string().contains("spawn failed"));
     }
 

@@ -79,7 +79,11 @@ impl Default for WasmTransport {
 
 #[cfg(feature = "wasm")]
 impl PluginTransport for WasmTransport {
-    fn spawn(&mut self, manifest: &PluginManifest, plugin_dir: &Path) -> Result<(), TransportError> {
+    fn spawn(
+        &mut self,
+        manifest: &PluginManifest,
+        plugin_dir: &Path,
+    ) -> Result<(), TransportError> {
         if self.running {
             return Err(TransportError::SpawnFailed(
                 "transport already running".into(),
@@ -107,46 +111,54 @@ impl PluginTransport for WasmTransport {
 
         // Expose host_send(ptr: i32, len: i32) -- plugin writes a message for the host.
         linker
-            .func_wrap("env", "host_send", |mut caller: wasmtime::Caller<'_, WasmState>, ptr: i32, len: i32| {
-                let memory = caller
-                    .get_export("memory")
-                    .and_then(|e| e.into_memory())
-                    .expect("plugin must export memory");
-                let data = memory.data(&caller);
-                let start = ptr as usize;
-                let end = start + len as usize;
-                if end > data.len() {
-                    return;
-                }
-                if let Ok(msg) = std::str::from_utf8(&data[start..end]) {
-                    caller.data_mut().outbox.push_back(msg.to_owned());
-                }
-            })
+            .func_wrap(
+                "env",
+                "host_send",
+                |mut caller: wasmtime::Caller<'_, WasmState>, ptr: i32, len: i32| {
+                    let memory = caller
+                        .get_export("memory")
+                        .and_then(|e| e.into_memory())
+                        .expect("plugin must export memory");
+                    let data = memory.data(&caller);
+                    let start = ptr as usize;
+                    let end = start + len as usize;
+                    if end > data.len() {
+                        return;
+                    }
+                    if let Ok(msg) = std::str::from_utf8(&data[start..end]) {
+                        caller.data_mut().outbox.push_back(msg.to_owned());
+                    }
+                },
+            )
             .map_err(|e| TransportError::WasmError(format!("failed to link host_send: {e}")))?;
 
         // Expose host_recv(ptr: i32, len: i32) -> i32 -- plugin reads a message from the host.
         // Returns the number of bytes written, or 0 if no message available,
         // or -1 if the buffer is too small.
         linker
-            .func_wrap("env", "host_recv", |mut caller: wasmtime::Caller<'_, WasmState>, ptr: i32, len: i32| -> i32 {
-                let msg = match caller.data_mut().inbox.pop_front() {
-                    Some(m) => m,
-                    None => return 0,
-                };
-                let bytes = msg.as_bytes();
-                if bytes.len() > len as usize {
-                    // Put it back -- buffer too small.
-                    caller.data_mut().inbox.push_front(msg);
-                    return -1;
-                }
-                let memory = caller
-                    .get_export("memory")
-                    .and_then(|e| e.into_memory())
-                    .expect("plugin must export memory");
-                let start = ptr as usize;
-                memory.data_mut(&mut caller)[start..start + bytes.len()].copy_from_slice(bytes);
-                bytes.len() as i32
-            })
+            .func_wrap(
+                "env",
+                "host_recv",
+                |mut caller: wasmtime::Caller<'_, WasmState>, ptr: i32, len: i32| -> i32 {
+                    let msg = match caller.data_mut().inbox.pop_front() {
+                        Some(m) => m,
+                        None => return 0,
+                    };
+                    let bytes = msg.as_bytes();
+                    if bytes.len() > len as usize {
+                        // Put it back -- buffer too small.
+                        caller.data_mut().inbox.push_front(msg);
+                        return -1;
+                    }
+                    let memory = caller
+                        .get_export("memory")
+                        .and_then(|e| e.into_memory())
+                        .expect("plugin must export memory");
+                    let start = ptr as usize;
+                    memory.data_mut(&mut caller)[start..start + bytes.len()].copy_from_slice(bytes);
+                    bytes.len() as i32
+                },
+            )
             .map_err(|e| TransportError::WasmError(format!("failed to link host_recv: {e}")))?;
 
         let instance = linker

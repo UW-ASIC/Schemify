@@ -265,19 +265,21 @@ fn find(ctx: &egui::Context, app: &mut App) {
             ui.separator();
 
             // Results list
-            egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                for (i, result) in find.results.iter().enumerate() {
-                    let selected = find.selected == Some(i);
-                    let label = format!("[{}] {}", result.object_type, result.label);
-                    let resp = ui.selectable_label(selected, &label);
-                    if resp.clicked() {
-                        find.selected = Some(i);
+            egui::ScrollArea::vertical()
+                .max_height(200.0)
+                .show(ui, |ui| {
+                    for (i, result) in find.results.iter().enumerate() {
+                        let selected = find.selected == Some(i);
+                        let label = format!("[{}] {}", result.object_type, result.label);
+                        let resp = ui.selectable_label(selected, &label);
+                        if resp.clicked() {
+                            find.selected = Some(i);
+                        }
+                        if resp.double_clicked() && result.object_type == "Instance" {
+                            open_props_idx = Some(result.index);
+                        }
                     }
-                    if resp.double_clicked() && result.object_type == "Instance" {
-                        open_props_idx = Some(result.index);
-                    }
-                }
-            });
+                });
 
             if find.results.is_empty() && !find.query.is_empty() {
                 ui.label("No results.");
@@ -543,7 +545,11 @@ fn show_theme_tab(
         }
 
         if ui.button("Reset to Default").clicked() {
-            let base = if state.selected_preset == Some(1) { 1 } else { 0 };
+            let base = if state.selected_preset == Some(1) {
+                1
+            } else {
+                0
+            };
             state.json_edit_buf = format_tokens(&tokens_for_preset(base));
             state.selected_preset = Some(base as u16);
             state.dirty = true;
@@ -564,15 +570,11 @@ fn show_theme_tab(
 
 // ── Keybinds tab ─────────────────────────────────────────────────────────────
 
-fn show_keybinds_tab(
-    ui: &mut egui::Ui,
-    _state: &mut schemify_handler::state::SettingsDialogState,
-) {
+fn show_keybinds_tab(ui: &mut egui::Ui, _state: &mut schemify_handler::state::SettingsDialogState) {
     // Store filter in egui's frame-persistent temp storage to avoid
     // colliding with the theme tab's json_edit_buf.
     let filter_id = ui.id().with("kb_filter");
-    let mut filter: String = ui
-        .data_mut(|d| d.get_temp::<String>(filter_id).unwrap_or_default());
+    let mut filter: String = ui.data_mut(|d| d.get_temp::<String>(filter_id).unwrap_or_default());
 
     ui.horizontal(|ui| {
         ui.label("Filter:");
@@ -631,11 +633,7 @@ fn import(ctx: &egui::Context, app: &mut App) {
                         .selected_text(format!("{:?}", state.format))
                         .show_ui(ui, |ui| {
                             ui.selectable_value(&mut state.format, ImportFormat::Spice, "SPICE");
-                            ui.selectable_value(
-                                &mut state.format,
-                                ImportFormat::Xschem,
-                                "Xschem",
-                            );
+                            ui.selectable_value(&mut state.format, ImportFormat::Xschem, "Xschem");
                             ui.selectable_value(
                                 &mut state.format,
                                 ImportFormat::Virtuoso,
@@ -765,11 +763,13 @@ fn spice_code(ctx: &egui::Context, app: &mut App) {
                             ui.set_width(half_w);
                             ui.label(egui::RichText::new("Netlist (read-only)").strong().small());
                             if netlist.is_empty() {
-                                ui.weak("No netlist generated yet.\nClick \"Generate Netlist\" above.");
+                                ui.weak(
+                                    "No netlist generated yet.\nClick \"Generate Netlist\" above.",
+                                );
                             } else {
-                                egui::ScrollArea::vertical()
-                                    .id_salt("netlist_scroll")
-                                    .show(ui, |ui| {
+                                egui::ScrollArea::vertical().id_salt("netlist_scroll").show(
+                                    ui,
+                                    |ui| {
                                         let mut display = netlist.clone();
                                         ui.add(
                                             egui::TextEdit::multiline(&mut display)
@@ -779,7 +779,8 @@ fn spice_code(ctx: &egui::Context, app: &mut App) {
                                                 .desired_rows(20)
                                                 .interactive(false),
                                         );
-                                    });
+                                    },
+                                );
                             }
                         });
                     });

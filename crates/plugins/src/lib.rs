@@ -1,12 +1,12 @@
-pub mod manifest;
-pub mod jsonrpc;
 pub mod capability;
-pub mod transport;
 pub mod host;
+pub mod jsonrpc;
 pub mod manager;
+pub mod manifest;
+pub mod transport;
 
+pub use capability::{negotiate, HostCapabilities, NegotiatedCapabilities};
+pub use host::HostAction;
 pub use manager::{PluginManager, PluginState};
 pub use manifest::PluginManifest;
-pub use host::HostAction;
-pub use capability::{HostCapabilities, NegotiatedCapabilities, negotiate};
-pub use transport::{PluginTransport, TransportError, create_transport};
+pub use transport::{create_transport, PluginTransport, TransportError};

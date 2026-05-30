@@ -266,8 +266,16 @@ impl App {
                 let doc = self.state.active_document_mut();
                 if idx < doc.schematic.instances.len() {
                     self.push_undo_snapshot();
-                    self.state.active_document_mut().schematic.instances.remove(idx);
-                    self.state.active_document_mut().selection.instances.remove(&idx);
+                    self.state
+                        .active_document_mut()
+                        .schematic
+                        .instances
+                        .remove(idx);
+                    self.state
+                        .active_document_mut()
+                        .selection
+                        .instances
+                        .remove(&idx);
                     self.invalidate_connectivity();
                 }
             }
@@ -276,7 +284,11 @@ impl App {
                 if idx < doc.schematic.wires.len() {
                     self.push_undo_snapshot();
                     self.state.active_document_mut().schematic.wires.remove(idx);
-                    self.state.active_document_mut().selection.wires.remove(&idx);
+                    self.state
+                        .active_document_mut()
+                        .selection
+                        .wires
+                        .remove(&idx);
                     self.invalidate_connectivity();
                 }
             }
@@ -451,10 +463,7 @@ impl App {
                     doc.schematic.instances.name[idx] = sym;
                 }
             }
-            RenameNet {
-                old_name,
-                new_name,
-            } => {
+            RenameNet { old_name, new_name } => {
                 self.push_undo_snapshot();
                 let old_sym = self.state.interner.get_or_intern(&old_name);
                 let new_sym = self.state.interner.get_or_intern(&new_name);
@@ -520,61 +529,55 @@ impl App {
             }
 
             // ── Import ──
-            ImportSpice { path } => {
-                match std::fs::read_to_string(&path) {
-                    Ok(source) => {
-                        let name = std::path::Path::new(&path)
-                            .file_stem()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .into_owned();
+            ImportSpice { path } => match std::fs::read_to_string(&path) {
+                Ok(source) => {
+                    let name = std::path::Path::new(&path)
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into_owned();
 
-                        let result = if crate::spice_import::is_pyspice_source(&source) {
-                            #[cfg(not(target_arch = "wasm32"))]
-                            {
-                                crate::spice_import::import_pyspice(
-                                    &source,
-                                    &name,
-                                    &mut self.state.interner,
-                                )
-                            }
-                            #[cfg(target_arch = "wasm32")]
-                            {
-                                Err("PySpice import not available in WASM".to_string())
-                            }
-                        } else {
-                            crate::spice_import::import_spice(
+                    let result = if crate::spice_import::is_pyspice_source(&source) {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            crate::spice_import::import_pyspice(
                                 &source,
+                                &name,
                                 &mut self.state.interner,
                             )
-                        };
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            Err("PySpice import not available in WASM".to_string())
+                        }
+                    } else {
+                        crate::spice_import::import_spice(&source, &mut self.state.interner)
+                    };
 
-                        match result {
-                            Ok(schematic) => {
-                                let doc = Document {
-                                    schematic,
-                                    name,
-                                    origin: Origin::File(path.into()),
-                                    ..Default::default()
-                                };
-                                self.state.documents.push(doc);
-                                self.state.active_doc = self.state.documents.len() - 1;
-                                self.state.status_msg = "Import complete".into();
-                                self.state.dialogs.import.is_open = false;
-                            }
-                            Err(e) => {
-                                self.state.status_msg = format!("Import failed: {e}");
-                                self.state.dialogs.import.status_msg =
-                                    format!("Error: {e}");
-                            }
+                    match result {
+                        Ok(schematic) => {
+                            let doc = Document {
+                                schematic,
+                                name,
+                                origin: Origin::File(path.into()),
+                                ..Default::default()
+                            };
+                            self.state.documents.push(doc);
+                            self.state.active_doc = self.state.documents.len() - 1;
+                            self.state.status_msg = "Import complete".into();
+                            self.state.dialogs.import.is_open = false;
+                        }
+                        Err(e) => {
+                            self.state.status_msg = format!("Import failed: {e}");
+                            self.state.dialogs.import.status_msg = format!("Error: {e}");
                         }
                     }
-                    Err(e) => {
-                        self.state.status_msg = format!("Cannot read file: {e}");
-                        self.state.dialogs.import.status_msg = format!("Error: {e}");
-                    }
                 }
-            }
+                Err(e) => {
+                    self.state.status_msg = format!("Cannot read file: {e}");
+                    self.state.dialogs.import.status_msg = format!("Error: {e}");
+                }
+            },
 
             // ── Plugins ──
             PluginsRefresh => {
@@ -607,7 +610,7 @@ impl App {
 
     fn push_undo_snapshot(&mut self) {
         let sch = self.state.active_document().schematic.clone();
-        self.push_undo(UndoEntry::Snapshot(sch));
+        self.push_undo(UndoEntry::Snapshot(Box::new(sch)));
     }
 
     fn handle_undo(&mut self) {
@@ -624,8 +627,9 @@ impl App {
             }
             UndoEntry::Snapshot(old_schematic) => {
                 let doc = self.state.active_document_mut();
-                let current = std::mem::replace(&mut doc.schematic, old_schematic);
-                doc.redo_history.push_back(UndoEntry::Snapshot(current));
+                let current = std::mem::replace(&mut doc.schematic, *old_schematic);
+                doc.redo_history
+                    .push_back(UndoEntry::Snapshot(Box::new(current)));
                 doc.connectivity = None;
             }
         }
@@ -644,8 +648,9 @@ impl App {
             }
             UndoEntry::Snapshot(old_schematic) => {
                 let doc = self.state.active_document_mut();
-                let current = std::mem::replace(&mut doc.schematic, old_schematic);
-                doc.undo_history.push_back(UndoEntry::Snapshot(current));
+                let current = std::mem::replace(&mut doc.schematic, *old_schematic);
+                doc.undo_history
+                    .push_back(UndoEntry::Snapshot(Box::new(current)));
                 doc.connectivity = None;
             }
         }
@@ -719,7 +724,12 @@ impl App {
                         schemify_core::types::DeviceKind::OutputPin => PinDirection::Output,
                         _ => PinDirection::InOut,
                     };
-                    Some((sch.instances.name[i], sch.instances.x[i], sch.instances.y[i], dir))
+                    Some((
+                        sch.instances.name[i],
+                        sch.instances.x[i],
+                        sch.instances.y[i],
+                        dir,
+                    ))
                 })
                 .collect()
         };
@@ -727,9 +737,7 @@ impl App {
         // Resolve names via interner (separate borrow).
         let pin_data: Vec<(String, i32, i32, PinDirection)> = label_data
             .iter()
-            .map(|(sym, x, y, dir)| {
-                (self.state.interner.resolve(sym).to_string(), *x, *y, *dir)
-            })
+            .map(|(sym, x, y, dir)| (self.state.interner.resolve(sym).to_string(), *x, *y, *dir))
             .collect();
 
         if pin_data.is_empty() {
@@ -872,18 +880,42 @@ impl App {
             sum_y += (doc.schematic.wires.y0[i] as i64 + doc.schematic.wires.y1[i] as i64) / 2;
             count += 1;
         }
-        for &i in &sel.lines { sum_x += (doc.schematic.lines[i].x0 as i64 + doc.schematic.lines[i].x1 as i64) / 2; sum_y += (doc.schematic.lines[i].y0 as i64 + doc.schematic.lines[i].y1 as i64) / 2; count += 1; }
-        for &i in &sel.rects { sum_x += doc.schematic.rects[i].x as i64 + doc.schematic.rects[i].width as i64 / 2; sum_y += doc.schematic.rects[i].y as i64 + doc.schematic.rects[i].height as i64 / 2; count += 1; }
-        for &i in &sel.circles { sum_x += doc.schematic.circles[i].cx as i64; sum_y += doc.schematic.circles[i].cy as i64; count += 1; }
-        for &i in &sel.arcs { sum_x += doc.schematic.arcs[i].cx as i64; sum_y += doc.schematic.arcs[i].cy as i64; count += 1; }
-        for &i in &sel.texts { sum_x += doc.schematic.texts[i].x as i64; sum_y += doc.schematic.texts[i].y as i64; count += 1; }
+        for &i in &sel.lines {
+            sum_x += (doc.schematic.lines[i].x0 as i64 + doc.schematic.lines[i].x1 as i64) / 2;
+            sum_y += (doc.schematic.lines[i].y0 as i64 + doc.schematic.lines[i].y1 as i64) / 2;
+            count += 1;
+        }
+        for &i in &sel.rects {
+            sum_x += doc.schematic.rects[i].x as i64 + doc.schematic.rects[i].width as i64 / 2;
+            sum_y += doc.schematic.rects[i].y as i64 + doc.schematic.rects[i].height as i64 / 2;
+            count += 1;
+        }
+        for &i in &sel.circles {
+            sum_x += doc.schematic.circles[i].cx as i64;
+            sum_y += doc.schematic.circles[i].cy as i64;
+            count += 1;
+        }
+        for &i in &sel.arcs {
+            sum_x += doc.schematic.arcs[i].cx as i64;
+            sum_y += doc.schematic.arcs[i].cy as i64;
+            count += 1;
+        }
+        for &i in &sel.texts {
+            sum_x += doc.schematic.texts[i].x as i64;
+            sum_y += doc.schematic.texts[i].y as i64;
+            count += 1;
+        }
         for &i in &sel.polygons {
             if let Some(first) = doc.schematic.polygons[i].points.first() {
-                sum_x += first[0] as i64; sum_y += first[1] as i64; count += 1;
+                sum_x += first[0] as i64;
+                sum_y += first[1] as i64;
+                count += 1;
             }
         }
 
-        if count == 0 { return; }
+        if count == 0 {
+            return;
+        }
         let cx = (sum_x / count) as i32;
         let cy = (sum_y / count) as i32;
 
@@ -900,9 +932,16 @@ impl App {
         let indices: Vec<usize> = doc.selection.instances.iter().copied().collect();
         for idx in indices {
             let flags = doc.schematic.instances.flags[idx];
-            let r = if clockwise { (flags.rotation() + 1) & 0x03 } else { (flags.rotation() + 3) & 0x03 };
+            let r = if clockwise {
+                (flags.rotation() + 1) & 0x03
+            } else {
+                (flags.rotation() + 3) & 0x03
+            };
             doc.schematic.instances.flags[idx] = InstanceFlags::new(r, flags.flip(), flags.bus());
-            let (nx, ny) = rot(doc.schematic.instances.x[idx], doc.schematic.instances.y[idx]);
+            let (nx, ny) = rot(
+                doc.schematic.instances.x[idx],
+                doc.schematic.instances.y[idx],
+            );
             doc.schematic.instances.x[idx] = nx;
             doc.schematic.instances.y[idx] = ny;
         }
@@ -911,16 +950,20 @@ impl App {
         for idx in indices {
             let (nx0, ny0) = rot(doc.schematic.wires.x0[idx], doc.schematic.wires.y0[idx]);
             let (nx1, ny1) = rot(doc.schematic.wires.x1[idx], doc.schematic.wires.y1[idx]);
-            doc.schematic.wires.x0[idx] = nx0; doc.schematic.wires.y0[idx] = ny0;
-            doc.schematic.wires.x1[idx] = nx1; doc.schematic.wires.y1[idx] = ny1;
+            doc.schematic.wires.x0[idx] = nx0;
+            doc.schematic.wires.y0[idx] = ny0;
+            doc.schematic.wires.x1[idx] = nx1;
+            doc.schematic.wires.y1[idx] = ny1;
         }
         // Lines
         let indices: Vec<usize> = doc.selection.lines.iter().copied().collect();
         for idx in indices {
             let (nx0, ny0) = rot(doc.schematic.lines[idx].x0, doc.schematic.lines[idx].y0);
             let (nx1, ny1) = rot(doc.schematic.lines[idx].x1, doc.schematic.lines[idx].y1);
-            doc.schematic.lines[idx].x0 = nx0; doc.schematic.lines[idx].y0 = ny0;
-            doc.schematic.lines[idx].x1 = nx1; doc.schematic.lines[idx].y1 = ny1;
+            doc.schematic.lines[idx].x0 = nx0;
+            doc.schematic.lines[idx].y0 = ny0;
+            doc.schematic.lines[idx].x1 = nx1;
+            doc.schematic.lines[idx].y1 = ny1;
         }
         // Rects: rotate corners, recompute.
         let indices: Vec<usize> = doc.selection.rects.iter().copied().collect();
@@ -937,21 +980,28 @@ impl App {
         let indices: Vec<usize> = doc.selection.circles.iter().copied().collect();
         for idx in indices {
             let (nx, ny) = rot(doc.schematic.circles[idx].cx, doc.schematic.circles[idx].cy);
-            doc.schematic.circles[idx].cx = nx; doc.schematic.circles[idx].cy = ny;
+            doc.schematic.circles[idx].cx = nx;
+            doc.schematic.circles[idx].cy = ny;
         }
         // Arcs: rotate center, adjust start_angle.
         let indices: Vec<usize> = doc.selection.arcs.iter().copied().collect();
         for idx in indices {
             let (nx, ny) = rot(doc.schematic.arcs[idx].cx, doc.schematic.arcs[idx].cy);
-            doc.schematic.arcs[idx].cx = nx; doc.schematic.arcs[idx].cy = ny;
-            let delta = if clockwise { -std::f32::consts::FRAC_PI_2 } else { std::f32::consts::FRAC_PI_2 };
+            doc.schematic.arcs[idx].cx = nx;
+            doc.schematic.arcs[idx].cy = ny;
+            let delta = if clockwise {
+                -std::f32::consts::FRAC_PI_2
+            } else {
+                std::f32::consts::FRAC_PI_2
+            };
             doc.schematic.arcs[idx].start_angle += delta;
         }
         // Texts: rotate position.
         let indices: Vec<usize> = doc.selection.texts.iter().copied().collect();
         for idx in indices {
             let (nx, ny) = rot(doc.schematic.texts[idx].x, doc.schematic.texts[idx].y);
-            doc.schematic.texts[idx].x = nx; doc.schematic.texts[idx].y = ny;
+            doc.schematic.texts[idx].x = nx;
+            doc.schematic.texts[idx].y = ny;
             let delta: u8 = if clockwise { 1 } else { 3 };
             doc.schematic.texts[idx].rotation = (doc.schematic.texts[idx].rotation + delta) & 0x03;
         }
@@ -960,7 +1010,8 @@ impl App {
         for idx in indices {
             for pt in &mut doc.schematic.polygons[idx].points {
                 let (nx, ny) = rot(pt[0], pt[1]);
-                pt[0] = nx; pt[1] = ny;
+                pt[0] = nx;
+                pt[1] = ny;
             }
         }
     }
@@ -981,24 +1032,52 @@ impl App {
             sum_y += (doc.schematic.wires.y0[i] as i64 + doc.schematic.wires.y1[i] as i64) / 2;
             count += 1;
         }
-        for &i in &sel.lines { sum_x += (doc.schematic.lines[i].x0 as i64 + doc.schematic.lines[i].x1 as i64) / 2; sum_y += (doc.schematic.lines[i].y0 as i64 + doc.schematic.lines[i].y1 as i64) / 2; count += 1; }
-        for &i in &sel.rects { sum_x += doc.schematic.rects[i].x as i64 + doc.schematic.rects[i].width as i64 / 2; sum_y += doc.schematic.rects[i].y as i64 + doc.schematic.rects[i].height as i64 / 2; count += 1; }
-        for &i in &sel.circles { sum_x += doc.schematic.circles[i].cx as i64; sum_y += doc.schematic.circles[i].cy as i64; count += 1; }
-        for &i in &sel.arcs { sum_x += doc.schematic.arcs[i].cx as i64; sum_y += doc.schematic.arcs[i].cy as i64; count += 1; }
-        for &i in &sel.texts { sum_x += doc.schematic.texts[i].x as i64; sum_y += doc.schematic.texts[i].y as i64; count += 1; }
+        for &i in &sel.lines {
+            sum_x += (doc.schematic.lines[i].x0 as i64 + doc.schematic.lines[i].x1 as i64) / 2;
+            sum_y += (doc.schematic.lines[i].y0 as i64 + doc.schematic.lines[i].y1 as i64) / 2;
+            count += 1;
+        }
+        for &i in &sel.rects {
+            sum_x += doc.schematic.rects[i].x as i64 + doc.schematic.rects[i].width as i64 / 2;
+            sum_y += doc.schematic.rects[i].y as i64 + doc.schematic.rects[i].height as i64 / 2;
+            count += 1;
+        }
+        for &i in &sel.circles {
+            sum_x += doc.schematic.circles[i].cx as i64;
+            sum_y += doc.schematic.circles[i].cy as i64;
+            count += 1;
+        }
+        for &i in &sel.arcs {
+            sum_x += doc.schematic.arcs[i].cx as i64;
+            sum_y += doc.schematic.arcs[i].cy as i64;
+            count += 1;
+        }
+        for &i in &sel.texts {
+            sum_x += doc.schematic.texts[i].x as i64;
+            sum_y += doc.schematic.texts[i].y as i64;
+            count += 1;
+        }
         for &i in &sel.polygons {
             if let Some(first) = doc.schematic.polygons[i].points.first() {
-                sum_x += first[0] as i64; sum_y += first[1] as i64; count += 1;
+                sum_x += first[0] as i64;
+                sum_y += first[1] as i64;
+                count += 1;
             }
         }
 
-        if count == 0 { return; }
+        if count == 0 {
+            return;
+        }
         let cx = (sum_x / count) as i32;
         let cy = (sum_y / count) as i32;
 
         // Mirror: horizontal flips x around cx, vertical flips y around cy.
         let mirror = |x: i32, y: i32| -> (i32, i32) {
-            if horizontal { (2 * cx - x, y) } else { (x, 2 * cy - y) }
+            if horizontal {
+                (2 * cx - x, y)
+            } else {
+                (x, 2 * cy - y)
+            }
         };
 
         // Instances: flip flags + position.
@@ -1012,24 +1091,32 @@ impl App {
                 InstanceFlags::new(rot, !flags.flip(), flags.bus())
             };
             doc.schematic.instances.flags[idx] = new_flags;
-            let (nx, ny) = mirror(doc.schematic.instances.x[idx], doc.schematic.instances.y[idx]);
-            doc.schematic.instances.x[idx] = nx; doc.schematic.instances.y[idx] = ny;
+            let (nx, ny) = mirror(
+                doc.schematic.instances.x[idx],
+                doc.schematic.instances.y[idx],
+            );
+            doc.schematic.instances.x[idx] = nx;
+            doc.schematic.instances.y[idx] = ny;
         }
         // Wires
         let indices: Vec<usize> = doc.selection.wires.iter().copied().collect();
         for idx in indices {
             let (nx0, ny0) = mirror(doc.schematic.wires.x0[idx], doc.schematic.wires.y0[idx]);
             let (nx1, ny1) = mirror(doc.schematic.wires.x1[idx], doc.schematic.wires.y1[idx]);
-            doc.schematic.wires.x0[idx] = nx0; doc.schematic.wires.y0[idx] = ny0;
-            doc.schematic.wires.x1[idx] = nx1; doc.schematic.wires.y1[idx] = ny1;
+            doc.schematic.wires.x0[idx] = nx0;
+            doc.schematic.wires.y0[idx] = ny0;
+            doc.schematic.wires.x1[idx] = nx1;
+            doc.schematic.wires.y1[idx] = ny1;
         }
         // Lines
         let indices: Vec<usize> = doc.selection.lines.iter().copied().collect();
         for idx in indices {
             let (nx0, ny0) = mirror(doc.schematic.lines[idx].x0, doc.schematic.lines[idx].y0);
             let (nx1, ny1) = mirror(doc.schematic.lines[idx].x1, doc.schematic.lines[idx].y1);
-            doc.schematic.lines[idx].x0 = nx0; doc.schematic.lines[idx].y0 = ny0;
-            doc.schematic.lines[idx].x1 = nx1; doc.schematic.lines[idx].y1 = ny1;
+            doc.schematic.lines[idx].x0 = nx0;
+            doc.schematic.lines[idx].y0 = ny0;
+            doc.schematic.lines[idx].x1 = nx1;
+            doc.schematic.lines[idx].y1 = ny1;
         }
         // Rects
         let indices: Vec<usize> = doc.selection.rects.iter().copied().collect();
@@ -1046,13 +1133,15 @@ impl App {
         let indices: Vec<usize> = doc.selection.circles.iter().copied().collect();
         for idx in indices {
             let (nx, ny) = mirror(doc.schematic.circles[idx].cx, doc.schematic.circles[idx].cy);
-            doc.schematic.circles[idx].cx = nx; doc.schematic.circles[idx].cy = ny;
+            doc.schematic.circles[idx].cx = nx;
+            doc.schematic.circles[idx].cy = ny;
         }
         // Arcs: mirror center + invert sweep direction.
         let indices: Vec<usize> = doc.selection.arcs.iter().copied().collect();
         for idx in indices {
             let (nx, ny) = mirror(doc.schematic.arcs[idx].cx, doc.schematic.arcs[idx].cy);
-            doc.schematic.arcs[idx].cx = nx; doc.schematic.arcs[idx].cy = ny;
+            doc.schematic.arcs[idx].cx = nx;
+            doc.schematic.arcs[idx].cy = ny;
             if horizontal {
                 // Reflect angle across y-axis: start = PI - start - sweep
                 let a = &mut doc.schematic.arcs[idx];
@@ -1067,14 +1156,16 @@ impl App {
         let indices: Vec<usize> = doc.selection.texts.iter().copied().collect();
         for idx in indices {
             let (nx, ny) = mirror(doc.schematic.texts[idx].x, doc.schematic.texts[idx].y);
-            doc.schematic.texts[idx].x = nx; doc.schematic.texts[idx].y = ny;
+            doc.schematic.texts[idx].x = nx;
+            doc.schematic.texts[idx].y = ny;
         }
         // Polygons
         let indices: Vec<usize> = doc.selection.polygons.iter().copied().collect();
         for idx in indices {
             for pt in &mut doc.schematic.polygons[idx].points {
                 let (nx, ny) = mirror(pt[0], pt[1]);
-                pt[0] = nx; pt[1] = ny;
+                pt[0] = nx;
+                pt[1] = ny;
             }
         }
     }
@@ -1145,7 +1236,8 @@ impl App {
         let mut clip = Clipboard::default();
 
         for &idx in &doc.selection.instances {
-            clip.instances.push(extract_instance(&doc.schematic.instances, idx));
+            clip.instances
+                .push(extract_instance(&doc.schematic.instances, idx));
         }
         for &idx in &doc.selection.wires {
             clip.wires.push(extract_wire(&doc.schematic.wires, idx));
@@ -1433,12 +1525,10 @@ impl App {
             _ => None,
         };
         if let Some(path) = path {
-            if let Some(content) =
-                schemify_io::writer::write_chn(
-                    &self.state.documents[doc_idx].schematic,
-                    &self.state.interner,
-                )
-            {
+            if let Some(content) = schemify_io::writer::write_chn(
+                &self.state.documents[doc_idx].schematic,
+                &self.state.interner,
+            ) {
                 if std::fs::write(&path, &content).is_ok() {
                     self.state.documents[doc_idx].dirty = false;
                     self.state.status_msg = format!("Saved {}", path.display());
@@ -1458,8 +1548,7 @@ impl App {
         };
         if let Some(path) = path {
             if let Ok(content) = std::fs::read_to_string(&path) {
-                let schematic =
-                    schemify_io::reader::read_chn(&content, &mut self.state.interner);
+                let schematic = schemify_io::reader::read_chn(&content, &mut self.state.interner);
                 let doc = &mut self.state.documents[doc_idx];
                 doc.schematic = schematic;
                 doc.dirty = false;
@@ -1509,10 +1598,7 @@ fn invert_command(cmd: &Command) -> Command {
             dx: -*dx,
             dy: -*dy,
         },
-        MoveSelected { dx, dy } => MoveSelected {
-            dx: -*dx,
-            dy: -*dy,
-        },
+        MoveSelected { dx, dy } => MoveSelected { dx: -*dx, dy: -*dy },
         RotateCw => RotateCcw,
         RotateCcw => RotateCw,
         FlipHorizontal => FlipHorizontal,
@@ -1554,12 +1640,7 @@ fn extract_wire(v: &WireVec, i: usize) -> Wire {
     }
 }
 
-fn set_instance_prop(
-    sch: &mut Schematic,
-    idx: usize,
-    key: lasso::Spur,
-    value: lasso::Spur,
-) {
+fn set_instance_prop(sch: &mut Schematic, idx: usize, key: lasso::Spur, value: lasso::Spur) {
     if idx >= sch.instances.len() {
         return;
     }
@@ -1581,7 +1662,8 @@ fn set_instance_prop(
             sch.properties.push(sch.properties[i].clone());
         }
     }
-    sch.properties.push(schemify_core::schematic::Property { key, value });
+    sch.properties
+        .push(schemify_core::schematic::Property { key, value });
     sch.instances.prop_start[idx] = new_start as u32;
     sch.instances.prop_count[idx] = (count + 1) as u16;
 }

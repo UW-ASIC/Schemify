@@ -103,14 +103,14 @@ impl Router {
         for &(px, py) in pin_pos_to_nets.keys() {
             let gx = px / GRID_RES;
             let gy = py / GRID_RES;
-            for &(dx, dy) in &[(0,0), (0,-1), (0,1), (-1,0), (1,0)] {
+            for &(dx, dy) in &[(0, 0), (0, -1), (0, 1), (-1, 0), (1, 0)] {
                 obstacles.unset(gx + dx, gy + dy);
             }
         }
 
         for (net_i, strategy) in strategies.iter().enumerate() {
             let net = &subckt.nets[net_i];
-            let is_port_net = port_net_names.contains(net.name.as_str());
+            let _is_port_net = port_net_names.contains(net.name.as_str());
             if net.pins.is_empty() {
                 continue;
             }
@@ -143,7 +143,8 @@ impl Router {
         // --- Route Wire-strategy nets ---
         for (net_i, positions) in &wire_nets {
             // Build per-net foreign pin list (pins belonging only to other nets).
-            let foreign_pins: Vec<(i32, i32)> = pin_pos_to_nets.iter()
+            let foreign_pins: Vec<(i32, i32)> = pin_pos_to_nets
+                .iter()
                 .filter(|(_, nets)| nets.iter().all(|&n| n != *net_i))
                 .map(|(&(px, py), _)| (px / GRID_RES, py / GRID_RES))
                 .collect();
@@ -199,7 +200,11 @@ impl Router {
         }
         let g = self.grid_snap;
         let rem = val.rem_euclid(g);
-        if rem < (g + 1) / 2 { val - rem } else { val - rem + g }
+        if rem < (g + 1) / 2 {
+            val - rem
+        } else {
+            val - rem + g
+        }
     }
 }
 
@@ -222,7 +227,7 @@ impl BitGrid {
         let width = ((max_x - min_x + 1) as usize).max(1);
         let height = ((max_y - min_y + 1) as usize).max(1);
         let total_bits = width * height;
-        let num_u64 = (total_bits + 63) / 64;
+        let num_u64 = total_bits.div_ceil(64);
         Self {
             data: vec![0u64; num_u64],
             min_x,
@@ -296,7 +301,12 @@ fn build_obstacle_grid(instances: &[Instance]) -> BitGrid {
         max_x = max_x.max(cx + hw);
         max_y = max_y.max(cy + hh);
     }
-    let mut grid = BitGrid::new(min_x - padding, min_y - padding, max_x + padding, max_y + padding);
+    let mut grid = BitGrid::new(
+        min_x - padding,
+        min_y - padding,
+        max_x + padding,
+        max_y + padding,
+    );
     for inst in instances {
         let cx = inst.x / GRID_RES;
         let cy = inst.y / GRID_RES;
@@ -345,6 +355,7 @@ struct RouteResult {
     needs_labels: bool,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn route_multi_pin_net(
     net_idx: u32,
     positions: &[(i32, i32)],
@@ -358,7 +369,10 @@ fn route_multi_pin_net(
     workspace: &mut RouterWorkspace,
 ) -> RouteResult {
     if positions.len() < 2 {
-        return RouteResult { wires: Vec::new(), needs_labels: false };
+        return RouteResult {
+            wires: Vec::new(),
+            needs_labels: false,
+        };
     }
 
     let mut wires = Vec::new();
@@ -399,7 +413,15 @@ fn route_multi_pin_net(
         // Attempt A* routing.
         let segment_wires = if from == to {
             Vec::new()
-        } else if let Some(path) = astar_path(from, to, obstacles, foreign_pins, &all_wires, budget_multiplier, workspace) {
+        } else if let Some(path) = astar_path(
+            from,
+            to,
+            obstacles,
+            foreign_pins,
+            &all_wires,
+            budget_multiplier,
+            workspace,
+        ) {
             path_to_wires(net_idx, &path, router.grid_snap)
         } else {
             // Fallback: L-shape with foreign-pin and body avoidance.
@@ -413,18 +435,21 @@ fn route_multi_pin_net(
         wires.extend(segment_wires);
     }
 
-    RouteResult { wires, needs_labels }
+    RouteResult {
+        wires,
+        needs_labels,
+    }
 }
 
 // ---------------------------------------------------------------------------
 // A* workspace
 // ---------------------------------------------------------------------------
 
-/// Reusable workspace for A* pathfinding.
-/// Retains allocated capacity between calls.
+type BestMap = HashMap<(i32, i32), (i32, Direction, Option<(i32, i32)>)>;
+
 struct RouterWorkspace {
     open: BinaryHeap<AStarNode>,
-    best: HashMap<(i32, i32), (i32, Direction, Option<(i32, i32)>)>,
+    best: BestMap,
     closed: HashSet<(i32, i32)>,
 }
 
@@ -608,11 +633,7 @@ fn astar_path(
 }
 
 /// Reconstruct the path from start to end using the best-cost map.
-fn reconstruct_path(
-    best: &HashMap<(i32, i32), (i32, Direction, Option<(i32, i32)>)>,
-    start: (i32, i32),
-    end: (i32, i32),
-) -> Vec<(i32, i32)> {
+fn reconstruct_path(best: &BestMap, start: (i32, i32), end: (i32, i32)) -> Vec<(i32, i32)> {
     let mut path = Vec::new();
     let mut current = end;
     path.push((current.0 * GRID_RES, current.1 * GRID_RES));
@@ -638,11 +659,7 @@ fn reconstruct_path(
 ///
 /// Both the test segment and existing wires are axis-aligned (orthogonal),
 /// so we only need to check perpendicular segment intersections.
-fn segments_cross(
-    a: (i32, i32),
-    b: (i32, i32),
-    existing_wires: &[(i32, i32, i32, i32)],
-) -> bool {
+fn segments_cross(a: (i32, i32), b: (i32, i32), existing_wires: &[(i32, i32, i32, i32)]) -> bool {
     for &(x1, y1, x2, y2) in existing_wires {
         if orthogonal_segments_intersect(a.0, a.1, b.0, b.1, x1, y1, x2, y2) {
             return true;
@@ -652,6 +669,7 @@ fn segments_cross(
 }
 
 /// Check if two axis-aligned segments intersect (proper crossing, not shared endpoints).
+#[allow(clippy::too_many_arguments)]
 fn orthogonal_segments_intersect(
     ax1: i32,
     ay1: i32,
@@ -749,7 +767,11 @@ fn snap(val: i32, grid_snap: i32) -> i32 {
         return val;
     }
     let rem = val.rem_euclid(grid_snap);
-    if rem < (grid_snap + 1) / 2 { val - rem } else { val - rem + grid_snap }
+    if rem < (grid_snap + 1) / 2 {
+        val - rem
+    } else {
+        val - rem + grid_snap
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -849,13 +871,13 @@ fn l_shape_wires_safe(
     let corner_a = (to.0, from.1);
     let wires_a = l_shape_wires(net_idx, from, to);
     let a_hits_corner = is_foreign(corner_a) && corner_a != from && corner_a != to;
-    let a_hits_segment = wires_a.iter().any(|w| wire_hits(w));
+    let a_hits_segment = wires_a.iter().any(&wire_hits);
 
     // Option B: vertical then horizontal (corner at (from.x, to.y)).
     let corner_b = (from.0, to.1);
     let wires_b = l_shape_wires_vfirst(net_idx, from, to);
     let b_hits_corner = is_foreign(corner_b) && corner_b != from && corner_b != to;
-    let b_hits_segment = wires_b.iter().any(|w| wire_hits(w));
+    let b_hits_segment = wires_b.iter().any(&wire_hits);
 
     if !a_hits_corner && !a_hits_segment {
         wires_a
@@ -1392,7 +1414,11 @@ mod tests {
 
         assert!(!subckt.wires.is_empty(), "should produce wire segments");
         // Wire-strategy nets now get a single naming label for xschem compatibility.
-        assert_eq!(subckt.labels.len(), 1, "should have exactly one naming label");
+        assert_eq!(
+            subckt.labels.len(),
+            1,
+            "should have exactly one naming label"
+        );
     }
 
     #[test]
@@ -1417,14 +1443,14 @@ mod tests {
 
         assert_eq!(router.snap(0), 0);
         assert_eq!(router.snap(4), 0);
-        assert_eq!(router.snap(5), 10);      // round half up
+        assert_eq!(router.snap(5), 10); // round half up
         assert_eq!(router.snap(14), 10);
         assert_eq!(router.snap(15), 20);
-        assert_eq!(router.snap(-4), 0);       // -4 closer to 0 than -10
-        assert_eq!(router.snap(-5), 0);       // equidistant, round toward +inf
-        assert_eq!(router.snap(-6), -10);     // -6 closer to -10 than 0
-        assert_eq!(router.snap(-20), -20);    // exact grid value preserved
-        assert_eq!(router.snap(-200), -200);  // exact grid value preserved
+        assert_eq!(router.snap(-4), 0); // -4 closer to 0 than -10
+        assert_eq!(router.snap(-5), 0); // equidistant, round toward +inf
+        assert_eq!(router.snap(-6), -10); // -6 closer to -10 than 0
+        assert_eq!(router.snap(-20), -20); // exact grid value preserved
+        assert_eq!(router.snap(-200), -200); // exact grid value preserved
         assert_eq!(router.snap(23), 20);
         assert_eq!(router.snap(27), 30);
     }
@@ -1594,8 +1620,15 @@ mod tests {
 
         // Route with no existing wires: should be cheaper/shorter.
         let empty_existing: Vec<(i32, i32, i32, i32)> = Vec::new();
-        let path_without_crossing =
-            astar_path((0, -20), (50, 20), &obstacles, &[], &empty_existing, 1.0, &mut ws);
+        let path_without_crossing = astar_path(
+            (0, -20),
+            (50, 20),
+            &obstacles,
+            &[],
+            &empty_existing,
+            1.0,
+            &mut ws,
+        );
         assert!(path_without_crossing.is_some());
 
         // Both paths reach the destination.
@@ -1658,7 +1691,11 @@ mod tests {
         ];
 
         let merged = merge_collinear_wires(&wires);
-        assert_eq!(merged.len(), 1, "two adjacent collinear segments should merge");
+        assert_eq!(
+            merged.len(),
+            1,
+            "two adjacent collinear segments should merge"
+        );
         assert_eq!(merged[0].x1, 0);
         assert_eq!(merged[0].x2, 50);
         assert_eq!(merged[0].y1, 0);
@@ -1686,7 +1723,10 @@ mod tests {
         router.route(&mut subckt, &test_backend());
 
         // Should produce wires (net is short, 3 pins <= 4 threshold).
-        assert!(!subckt.wires.is_empty(), "multi-pin net should produce wires");
+        assert!(
+            !subckt.wires.is_empty(),
+            "multi-pin net should produce wires"
+        );
     }
 
     #[test]
@@ -1918,22 +1958,54 @@ mod tests {
     #[test]
     fn t_junction_crossing_splits_wires() {
         let wires = vec![
-            Wire { net_idx: 0, x1: 0, y1: 0, x2: 100, y2: 0 },   // horizontal
-            Wire { net_idx: 0, x1: 50, y1: -50, x2: 50, y2: 50 }, // vertical
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            }, // horizontal
+            Wire {
+                net_idx: 0,
+                x1: 50,
+                y1: -50,
+                x2: 50,
+                y2: 50,
+            }, // vertical
         ];
         let result = restore_t_junctions(&wires);
         // Should produce 4 wire segments
-        assert_eq!(result.len(), 4, "Expected 4 segments after T-junction split, got {}: {:?}", result.len(), result);
+        assert_eq!(
+            result.len(),
+            4,
+            "Expected 4 segments after T-junction split, got {}: {:?}",
+            result.len(),
+            result
+        );
         // Check that (50,0) appears as an endpoint
-        let has_junction = result.iter().any(|w| (w.x1 == 50 && w.y1 == 0) || (w.x2 == 50 && w.y2 == 0));
+        let has_junction = result
+            .iter()
+            .any(|w| (w.x1 == 50 && w.y1 == 0) || (w.x2 == 50 && w.y2 == 0));
         assert!(has_junction, "Junction point (50,0) should be an endpoint");
     }
 
     #[test]
     fn t_junction_no_crossing_no_split() {
         let wires = vec![
-            Wire { net_idx: 0, x1: 0, y1: 0, x2: 100, y2: 0 },
-            Wire { net_idx: 0, x1: 0, y1: 50, x2: 100, y2: 50 },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 50,
+                x2: 100,
+                y2: 50,
+            },
         ];
         let result = restore_t_junctions(&wires);
         assert_eq!(result.len(), 2, "Parallel wires should not be split");
@@ -1942,11 +2014,27 @@ mod tests {
     #[test]
     fn t_junction_endpoint_touching_not_split() {
         let wires = vec![
-            Wire { net_idx: 0, x1: 0, y1: 0, x2: 100, y2: 0 },
-            Wire { net_idx: 0, x1: 0, y1: -50, x2: 0, y2: 0 },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: -50,
+                x2: 0,
+                y2: 0,
+            },
         ];
         let result = restore_t_junctions(&wires);
-        assert_eq!(result.len(), 2, "Endpoint-touching wires should not be split");
+        assert_eq!(
+            result.len(),
+            2,
+            "Endpoint-touching wires should not be split"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1956,21 +2044,49 @@ mod tests {
     #[test]
     fn dedup_same_net_duplicate_removed() {
         let wires = vec![
-            Wire { net_idx: 0, x1: 0, y1: 0, x2: 100, y2: 0 },
-            Wire { net_idx: 0, x1: 0, y1: 0, x2: 100, y2: 0 },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            },
         ];
         let nets = vec![Net::new("n0")];
         let mut labels = Vec::new();
         let result = deduplicate_wires(wires, &mut labels, &nets);
-        assert_eq!(result.len(), 1, "Duplicate wire on same net should be removed");
+        assert_eq!(
+            result.len(),
+            1,
+            "Duplicate wire on same net should be removed"
+        );
         assert_eq!(result[0].net_idx, 0);
     }
 
     #[test]
     fn dedup_same_net_reversed_duplicate_removed() {
         let wires = vec![
-            Wire { net_idx: 0, x1: 0, y1: 0, x2: 100, y2: 0 },
-            Wire { net_idx: 0, x1: 100, y1: 0, x2: 0, y2: 0 },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            },
+            Wire {
+                net_idx: 0,
+                x1: 100,
+                y1: 0,
+                x2: 0,
+                y2: 0,
+            },
         ];
         let nets = vec![Net::new("n0")];
         let mut labels = Vec::new();
@@ -1981,27 +2097,63 @@ mod tests {
     #[test]
     fn dedup_cross_net_conflict_uses_label_fallback() {
         let mut n0 = Net::new("n0");
-        n0.pins.push(crate::s2s::ir::PinRef { instance_idx: 0, pin_idx: 0 });
+        n0.pins.push(crate::s2s::ir::PinRef {
+            instance_idx: 0,
+            pin_idx: 0,
+        });
         let mut n1 = Net::new("n1");
-        n1.pins.push(crate::s2s::ir::PinRef { instance_idx: 1, pin_idx: 0 });
+        n1.pins.push(crate::s2s::ir::PinRef {
+            instance_idx: 1,
+            pin_idx: 0,
+        });
         let nets = vec![n0, n1];
         let wires = vec![
-            Wire { net_idx: 0, x1: 0, y1: 0, x2: 100, y2: 0 },
-            Wire { net_idx: 1, x1: 0, y1: 0, x2: 100, y2: 0 },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            },
+            Wire {
+                net_idx: 1,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            },
         ];
         let mut labels = Vec::new();
         let result = deduplicate_wires(wires, &mut labels, &nets);
         // The conflicting net (net 1) should have its wires removed
-        assert!(result.iter().all(|w| w.net_idx != 1), "Conflicting net's wires should be removed");
+        assert!(
+            result.iter().all(|w| w.net_idx != 1),
+            "Conflicting net's wires should be removed"
+        );
         // A label should be added for the conflicting net
-        assert!(labels.iter().any(|l| l.net_idx == 1), "Label should be added for conflicting net");
+        assert!(
+            labels.iter().any(|l| l.net_idx == 1),
+            "Label should be added for conflicting net"
+        );
     }
 
     #[test]
     fn dedup_different_segments_no_removal() {
         let wires = vec![
-            Wire { net_idx: 0, x1: 0, y1: 0, x2: 100, y2: 0 },
-            Wire { net_idx: 1, x1: 200, y1: 0, x2: 300, y2: 0 },
+            Wire {
+                net_idx: 0,
+                x1: 0,
+                y1: 0,
+                x2: 100,
+                y2: 0,
+            },
+            Wire {
+                net_idx: 1,
+                x1: 200,
+                y1: 0,
+                x2: 300,
+                y2: 0,
+            },
         ];
         let nets = vec![Net::new("n0"), Net::new("n1")];
         let mut labels = Vec::new();

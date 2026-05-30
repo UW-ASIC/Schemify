@@ -95,25 +95,75 @@ pub enum Command {
     },
 
     // === Geometry ===
-    AddLine { x0: i32, y0: i32, x1: i32, y1: i32 },
-    AddRect { x: i32, y: i32, w: i32, h: i32 },
-    AddCircle { cx: i32, cy: i32, radius: i32 },
-    AddArc { cx: i32, cy: i32, radius: i32, start: f32, sweep: f32 },
-    AddText { x: i32, y: i32, content: String },
-    AddPolygon { points: Vec<[i32; 2]> },
+    AddLine {
+        x0: i32,
+        y0: i32,
+        x1: i32,
+        y1: i32,
+    },
+    AddRect {
+        x: i32,
+        y: i32,
+        w: i32,
+        h: i32,
+    },
+    AddCircle {
+        cx: i32,
+        cy: i32,
+        radius: i32,
+    },
+    AddArc {
+        cx: i32,
+        cy: i32,
+        radius: i32,
+        start: f32,
+        sweep: f32,
+    },
+    AddText {
+        x: i32,
+        y: i32,
+        content: String,
+    },
+    AddPolygon {
+        points: Vec<[i32; 2]>,
+    },
 
     // === Movement ===
-    MoveInstance { idx: usize, dx: i32, dy: i32 },
-    MoveWire { idx: usize, dx: i32, dy: i32 },
-    MoveSelected { dx: i32, dy: i32 },
+    MoveInstance {
+        idx: usize,
+        dx: i32,
+        dy: i32,
+    },
+    MoveWire {
+        idx: usize,
+        dx: i32,
+        dy: i32,
+    },
+    MoveSelected {
+        dx: i32,
+        dy: i32,
+    },
 
     // === Properties ===
-    SetInstanceProp { idx: usize, key: String, value: String },
-    RenameInstance { idx: usize, new_name: String },
-    RenameNet { old_name: String, new_name: String },
+    SetInstanceProp {
+        idx: usize,
+        key: String,
+        value: String,
+    },
+    RenameInstance {
+        idx: usize,
+        new_name: String,
+    },
+    RenameNet {
+        old_name: String,
+        new_name: String,
+    },
     SetSpiceCode(String),
     SetDocumentation(String),
-    SetWireColor { idx: usize, color: Color },
+    SetWireColor {
+        idx: usize,
+        color: Color,
+    },
 
     // === Simulation ===
     RunSim,
@@ -128,12 +178,20 @@ pub enum Command {
     GenerateSymbolFromSchematic,
 
     // === Import ===
-    ImportSpice { path: String },
+    ImportSpice {
+        path: String,
+    },
 
     // === Plugins ===
     PluginsRefresh,
-    PluginCommand { tag: String, payload: Vec<u8> },
-    PluginMutation { tag: String, payload: Option<Vec<u8>> },
+    PluginCommand {
+        tag: String,
+        payload: Vec<u8>,
+    },
+    PluginMutation {
+        tag: String,
+        payload: Option<Vec<u8>>,
+    },
 }
 
 // ====================================================

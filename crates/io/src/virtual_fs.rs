@@ -2,15 +2,14 @@ use std::collections::HashMap;
 
 /// In-memory filesystem for WASM builds.
 /// Populated from project.json at startup, then used in place of real FS.
+#[derive(Default)]
 pub struct VirtualFs {
     files: HashMap<String, String>,
 }
 
 impl VirtualFs {
     pub fn new() -> Self {
-        Self {
-            files: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn insert(&mut self, path: String, content: String) {

@@ -23,6 +23,7 @@ fn token_bool(tokens: &ThemeTokens, key: &str) -> Option<bool> {
 // All colors the canvas renderer needs, resolved once per theme change.
 // Matches Zig `Palette.zig` structure + rubber_band / selection_rect / text.
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct CanvasPalette {
     pub canvas_bg: Color32,
@@ -43,48 +44,49 @@ pub struct CanvasPalette {
     pub text: Color32,
 }
 
+#[allow(dead_code)]
 impl CanvasPalette {
     /// Dark palette — matches Zig reference `Palette.zig` dark-mode values.
     pub fn dark() -> Self {
         Self {
-            canvas_bg:      Color32::from_rgb(0x1a, 0x1a, 0x2e),
-            grid_dot:       Color32::from_rgb(0x3a, 0x3a, 0x4e),
-            wire:           Color32::from_rgb(0x4f, 0xc3, 0xf7),
-            wire_selected:  Color32::from_rgb(0xff, 0xeb, 0x3b),
-            wire_endpoint:  Color32::from_rgb(0x66, 0xbb, 0x6a),
-            bus:            Color32::from_rgb(0x42, 0xa5, 0xf5),
-            inst_body:      Color32::from_rgb(0xb0, 0xbe, 0xc5),
-            inst_selected:  Color32::from_rgb(0xff, 0xeb, 0x3b),
-            inst_pin:       Color32::from_rgb(0xfd, 0xd8, 0x35),
-            symbol_line:    Color32::from_rgb(0x90, 0xa4, 0xae),
-            symbol_pin:     Color32::from_rgb(0xfd, 0xd8, 0x35),
-            wire_preview:   Color32::from_rgb(0x80, 0xcb, 0xc4),
-            origin:         Color32::from_rgb(0xef, 0x53, 0x50),
-            rubber_band:    Color32::from_rgba_unmultiplied(0x42, 0xa5, 0xf5, 80),
+            canvas_bg: Color32::from_rgb(0x1a, 0x1a, 0x2e),
+            grid_dot: Color32::from_rgb(0x3a, 0x3a, 0x4e),
+            wire: Color32::from_rgb(0x4f, 0xc3, 0xf7),
+            wire_selected: Color32::from_rgb(0xff, 0xeb, 0x3b),
+            wire_endpoint: Color32::from_rgb(0x66, 0xbb, 0x6a),
+            bus: Color32::from_rgb(0x42, 0xa5, 0xf5),
+            inst_body: Color32::from_rgb(0xb0, 0xbe, 0xc5),
+            inst_selected: Color32::from_rgb(0xff, 0xeb, 0x3b),
+            inst_pin: Color32::from_rgb(0xfd, 0xd8, 0x35),
+            symbol_line: Color32::from_rgb(0x90, 0xa4, 0xae),
+            symbol_pin: Color32::from_rgb(0xfd, 0xd8, 0x35),
+            wire_preview: Color32::from_rgb(0x80, 0xcb, 0xc4),
+            origin: Color32::from_rgb(0xef, 0x53, 0x50),
+            rubber_band: Color32::from_rgba_unmultiplied(0x42, 0xa5, 0xf5, 80),
             selection_rect: Color32::from_rgba_unmultiplied(0xff, 0xeb, 0x3b, 40),
-            text:           Color32::from_rgb(0xe0, 0xe0, 0xe0),
+            text: Color32::from_rgb(0xe0, 0xe0, 0xe0),
         }
     }
 
     /// Light palette — inverted for light backgrounds.
     pub fn light() -> Self {
         Self {
-            canvas_bg:      Color32::from_rgb(0xfa, 0xfa, 0xfc),
-            grid_dot:       Color32::from_rgb(0xc8, 0xc8, 0xd2),
-            wire:           Color32::from_rgb(0x00, 0x28, 0x78),
-            wire_selected:  Color32::from_rgb(0xc8, 0x5a, 0x00),
-            wire_endpoint:  Color32::from_rgb(0x2e, 0x7d, 0x32),
-            bus:            Color32::from_rgb(0x1e, 0x78, 0x73),
-            inst_body:      Color32::from_rgb(0x54, 0x6e, 0x7a),
-            inst_selected:  Color32::from_rgb(0xc8, 0x5a, 0x00),
-            inst_pin:       Color32::from_rgb(0xb4, 0x96, 0x14),
-            symbol_line:    Color32::from_rgb(0x28, 0x28, 0x28),
-            symbol_pin:     Color32::from_rgb(0xb4, 0x96, 0x14),
-            wire_preview:   Color32::from_rgb(0x28, 0xb4, 0x50),
-            origin:         Color32::from_rgb(0xc6, 0x28, 0x28),
-            rubber_band:    Color32::from_rgba_unmultiplied(0x1e, 0x64, 0xc8, 80),
+            canvas_bg: Color32::from_rgb(0xfa, 0xfa, 0xfc),
+            grid_dot: Color32::from_rgb(0xc8, 0xc8, 0xd2),
+            wire: Color32::from_rgb(0x00, 0x28, 0x78),
+            wire_selected: Color32::from_rgb(0xc8, 0x5a, 0x00),
+            wire_endpoint: Color32::from_rgb(0x2e, 0x7d, 0x32),
+            bus: Color32::from_rgb(0x1e, 0x78, 0x73),
+            inst_body: Color32::from_rgb(0x54, 0x6e, 0x7a),
+            inst_selected: Color32::from_rgb(0xc8, 0x5a, 0x00),
+            inst_pin: Color32::from_rgb(0xb4, 0x96, 0x14),
+            symbol_line: Color32::from_rgb(0x28, 0x28, 0x28),
+            symbol_pin: Color32::from_rgb(0xb4, 0x96, 0x14),
+            wire_preview: Color32::from_rgb(0x28, 0xb4, 0x50),
+            origin: Color32::from_rgb(0xc6, 0x28, 0x28),
+            rubber_band: Color32::from_rgba_unmultiplied(0x1e, 0x64, 0xc8, 80),
             selection_rect: Color32::from_rgba_unmultiplied(0xc8, 0x5a, 0x00, 40),
-            text:           Color32::from_rgb(0x1e, 0x1e, 0x1e),
+            text: Color32::from_rgb(0x1e, 0x1e, 0x1e),
         }
     }
 
@@ -94,22 +96,22 @@ impl CanvasPalette {
         let base = if dark { Self::dark() } else { Self::light() };
 
         Self {
-            canvas_bg:      token_color(tokens, "canvas_bg").unwrap_or(base.canvas_bg),
-            grid_dot:       token_color(tokens, "grid_color").unwrap_or(base.grid_dot),
-            wire:           token_color(tokens, "wire_default").unwrap_or(base.wire),
-            wire_selected:  token_color(tokens, "wire_selected").unwrap_or(base.wire_selected),
-            wire_endpoint:  token_color(tokens, "ghost_color").unwrap_or(base.wire_endpoint),
-            bus:            token_color(tokens, "wire_bus").unwrap_or(base.bus),
-            inst_body:      token_color(tokens, "symbol_fill").unwrap_or(base.inst_body),
-            inst_selected:  token_color(tokens, "wire_selected").unwrap_or(base.inst_selected),
-            inst_pin:       token_color(tokens, "pin_color").unwrap_or(base.inst_pin),
-            symbol_line:    token_color(tokens, "symbol_stroke").unwrap_or(base.symbol_line),
-            symbol_pin:     token_color(tokens, "pin_color").unwrap_or(base.symbol_pin),
-            wire_preview:   token_color(tokens, "ghost_color").unwrap_or(base.wire_preview),
-            origin:         token_color(tokens, "crosshair_color").unwrap_or(base.origin),
-            rubber_band:    token_color(tokens, "selection_stroke").unwrap_or(base.rubber_band),
+            canvas_bg: token_color(tokens, "canvas_bg").unwrap_or(base.canvas_bg),
+            grid_dot: token_color(tokens, "grid_color").unwrap_or(base.grid_dot),
+            wire: token_color(tokens, "wire_default").unwrap_or(base.wire),
+            wire_selected: token_color(tokens, "wire_selected").unwrap_or(base.wire_selected),
+            wire_endpoint: token_color(tokens, "ghost_color").unwrap_or(base.wire_endpoint),
+            bus: token_color(tokens, "wire_bus").unwrap_or(base.bus),
+            inst_body: token_color(tokens, "symbol_fill").unwrap_or(base.inst_body),
+            inst_selected: token_color(tokens, "wire_selected").unwrap_or(base.inst_selected),
+            inst_pin: token_color(tokens, "pin_color").unwrap_or(base.inst_pin),
+            symbol_line: token_color(tokens, "symbol_stroke").unwrap_or(base.symbol_line),
+            symbol_pin: token_color(tokens, "pin_color").unwrap_or(base.symbol_pin),
+            wire_preview: token_color(tokens, "ghost_color").unwrap_or(base.wire_preview),
+            origin: token_color(tokens, "crosshair_color").unwrap_or(base.origin),
+            rubber_band: token_color(tokens, "selection_stroke").unwrap_or(base.rubber_band),
             selection_rect: token_color(tokens, "selection_fill").unwrap_or(base.selection_rect),
-            text:           token_color(tokens, "label_color").unwrap_or(base.text),
+            text: token_color(tokens, "label_color").unwrap_or(base.text),
         }
     }
 }
@@ -171,6 +173,7 @@ impl WidgetPalette {
 }
 
 /// Resolve a ThemeColor to a concrete Color32.
+#[allow(dead_code)]
 pub fn resolve_theme_color(tc: &ThemeColor, tokens: &ThemeTokens, fallback: Color32) -> Color32 {
     match tc {
         ThemeColor::Literal([r, g, b, a]) => Color32::from_rgba_unmultiplied(*r, *g, *b, *a),
@@ -179,6 +182,7 @@ pub fn resolve_theme_color(tc: &ThemeColor, tokens: &ThemeTokens, fallback: Colo
 }
 
 /// Convenience: get the right default palette for a dark/light mode flag.
+#[allow(dead_code)]
 pub fn palette_for_visuals(dark: bool) -> CanvasPalette {
     if dark {
         CanvasPalette::dark()

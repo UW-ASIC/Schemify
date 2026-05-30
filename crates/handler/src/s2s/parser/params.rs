@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
-use crate::s2s::ir::{Circuit, Instance};
 use super::expr::{eval_expr, parse_spice_number};
+use crate::s2s::ir::{Circuit, Instance};
 
 /// Resolve raw `.param` string values to f64 via fixed-point iteration.
 ///

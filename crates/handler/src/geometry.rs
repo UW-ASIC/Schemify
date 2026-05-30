@@ -126,9 +126,12 @@ impl App {
 
         for i in 0..n {
             let d2 = point_to_segment_dist_sq(
-                wpx, wpy,
-                wires.x0[i] as f64, wires.y0[i] as f64,
-                wires.x1[i] as f64, wires.y1[i] as f64,
+                wpx,
+                wpy,
+                wires.x0[i] as f64,
+                wires.y0[i] as f64,
+                wires.x1[i] as f64,
+                wires.y1[i] as f64,
             );
             if d2 < tol_sq {
                 return Some(i);
@@ -142,9 +145,12 @@ impl App {
         let wpy = wy as f64;
         for (i, l) in self.schematic().lines.iter().enumerate() {
             let d2 = point_to_segment_dist_sq(
-                wpx, wpy,
-                l.x0 as f64, l.y0 as f64,
-                l.x1 as f64, l.y1 as f64,
+                wpx,
+                wpy,
+                l.x0 as f64,
+                l.y0 as f64,
+                l.x1 as f64,
+                l.y1 as f64,
             );
             if d2 < SELECT_HIT_RADIUS_SQ {
                 return Some(i);
@@ -229,9 +235,12 @@ impl App {
             // Edge proximity
             for win in p.points.windows(2) {
                 let d2 = point_to_segment_dist_sq(
-                    wpx, wpy,
-                    win[0][0] as f64, win[0][1] as f64,
-                    win[1][0] as f64, win[1][1] as f64,
+                    wpx,
+                    wpy,
+                    win[0][0] as f64,
+                    win[0][1] as f64,
+                    win[1][0] as f64,
+                    win[1][1] as f64,
                 );
                 if d2 < SELECT_HIT_RADIUS_SQ {
                     return Some(i);
@@ -242,9 +251,12 @@ impl App {
                 let first = p.points.first().unwrap();
                 let last = p.points.last().unwrap();
                 let d2 = point_to_segment_dist_sq(
-                    wpx, wpy,
-                    last[0] as f64, last[1] as f64,
-                    first[0] as f64, first[1] as f64,
+                    wpx,
+                    wpy,
+                    last[0] as f64,
+                    last[1] as f64,
+                    first[0] as f64,
+                    first[1] as f64,
                 );
                 if d2 < SELECT_HIT_RADIUS_SQ {
                     return Some(i);
@@ -313,8 +325,14 @@ impl App {
             let y0 = self.wires().y0[i];
             let x1 = self.wires().x1[i];
             let y1 = self.wires().y1[i];
-            if x0 >= min_x && x0 <= max_x && y0 >= min_y && y0 <= max_y
-                && x1 >= min_x && x1 <= max_x && y1 >= min_y && y1 <= max_y
+            if x0 >= min_x
+                && x0 <= max_x
+                && y0 >= min_y
+                && y0 <= max_y
+                && x1 >= min_x
+                && x1 <= max_x
+                && y1 >= min_y
+                && y1 <= max_y
             {
                 wire_hits.push(i);
             }
@@ -330,44 +348,105 @@ impl App {
         // Geometry types — collect then select to avoid borrow conflict
         let sch = &self.state.active_document().schematic;
 
-        let line_hits: Vec<usize> = sch.lines.iter().enumerate().filter(|(_, l)| {
-            l.x0 >= min_x && l.x0 <= max_x && l.y0 >= min_y && l.y0 <= max_y
-            && l.x1 >= min_x && l.x1 <= max_x && l.y1 >= min_y && l.y1 <= max_y
-        }).map(|(i, _)| i).collect();
-
-        let rect_hits: Vec<usize> = sch.rects.iter().enumerate().filter(|(_, r)| {
-            r.x >= min_x && r.x <= max_x && r.y >= min_y && r.y <= max_y
-            && r.x + r.width >= min_x && r.x + r.width <= max_x
-            && r.y + r.height >= min_y && r.y + r.height <= max_y
-        }).map(|(i, _)| i).collect();
-
-        let circle_hits: Vec<usize> = sch.circles.iter().enumerate().filter(|(_, c)| {
-            c.cx - c.radius >= min_x && c.cx + c.radius <= max_x
-            && c.cy - c.radius >= min_y && c.cy + c.radius <= max_y
-        }).map(|(i, _)| i).collect();
-
-        let arc_hits: Vec<usize> = sch.arcs.iter().enumerate().filter(|(_, a)| {
-            a.cx - a.radius >= min_x && a.cx + a.radius <= max_x
-            && a.cy - a.radius >= min_y && a.cy + a.radius <= max_y
-        }).map(|(i, _)| i).collect();
-
-        let text_hits: Vec<usize> = sch.texts.iter().enumerate().filter(|(_, t)| {
-            t.x >= min_x && t.x <= max_x && t.y >= min_y && t.y <= max_y
-        }).map(|(i, _)| i).collect();
-
-        let polygon_hits: Vec<usize> = sch.polygons.iter().enumerate().filter(|(_, p)| {
-            p.points.iter().all(|pt| {
-                pt[0] >= min_x && pt[0] <= max_x && pt[1] >= min_y && pt[1] <= max_y
+        let line_hits: Vec<usize> = sch
+            .lines
+            .iter()
+            .enumerate()
+            .filter(|(_, l)| {
+                l.x0 >= min_x
+                    && l.x0 <= max_x
+                    && l.y0 >= min_y
+                    && l.y0 <= max_y
+                    && l.x1 >= min_x
+                    && l.x1 <= max_x
+                    && l.y1 >= min_y
+                    && l.y1 <= max_y
             })
-        }).map(|(i, _)| i).collect();
+            .map(|(i, _)| i)
+            .collect();
+
+        let rect_hits: Vec<usize> = sch
+            .rects
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| {
+                r.x >= min_x
+                    && r.x <= max_x
+                    && r.y >= min_y
+                    && r.y <= max_y
+                    && r.x + r.width >= min_x
+                    && r.x + r.width <= max_x
+                    && r.y + r.height >= min_y
+                    && r.y + r.height <= max_y
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        let circle_hits: Vec<usize> = sch
+            .circles
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| {
+                c.cx - c.radius >= min_x
+                    && c.cx + c.radius <= max_x
+                    && c.cy - c.radius >= min_y
+                    && c.cy + c.radius <= max_y
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        let arc_hits: Vec<usize> = sch
+            .arcs
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| {
+                a.cx - a.radius >= min_x
+                    && a.cx + a.radius <= max_x
+                    && a.cy - a.radius >= min_y
+                    && a.cy + a.radius <= max_y
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        let text_hits: Vec<usize> = sch
+            .texts
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| t.x >= min_x && t.x <= max_x && t.y >= min_y && t.y <= max_y)
+            .map(|(i, _)| i)
+            .collect();
+
+        let polygon_hits: Vec<usize> = sch
+            .polygons
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| {
+                p.points
+                    .iter()
+                    .all(|pt| pt[0] >= min_x && pt[0] <= max_x && pt[1] >= min_y && pt[1] <= max_y)
+            })
+            .map(|(i, _)| i)
+            .collect();
 
         let doc = self.state.active_document_mut();
-        for idx in line_hits { doc.selection.lines.insert(idx); }
-        for idx in rect_hits { doc.selection.rects.insert(idx); }
-        for idx in circle_hits { doc.selection.circles.insert(idx); }
-        for idx in arc_hits { doc.selection.arcs.insert(idx); }
-        for idx in text_hits { doc.selection.texts.insert(idx); }
-        for idx in polygon_hits { doc.selection.polygons.insert(idx); }
+        for idx in line_hits {
+            doc.selection.lines.insert(idx);
+        }
+        for idx in rect_hits {
+            doc.selection.rects.insert(idx);
+        }
+        for idx in circle_hits {
+            doc.selection.circles.insert(idx);
+        }
+        for idx in arc_hits {
+            doc.selection.arcs.insert(idx);
+        }
+        for idx in text_hits {
+            doc.selection.texts.insert(idx);
+        }
+        for idx in polygon_hits {
+            doc.selection.polygons.insert(idx);
+        }
     }
 
     /// Manhattan routing helper.

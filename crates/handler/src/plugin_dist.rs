@@ -24,7 +24,10 @@ pub enum PluginAction {
         identity: String,
     },
     /// Extract tarball to directory.
-    Extract { tarball_path: PathBuf, dest: PathBuf },
+    Extract {
+        tarball_path: PathBuf,
+        dest: PathBuf,
+    },
     /// Validate plugin.toml in extracted directory.
     ValidateManifest { plugin_dir: PathBuf },
     /// Move directory from temp to final location.
@@ -249,15 +252,11 @@ pub fn uninstall_actions(
         PluginAction::RemoveDir {
             path: preview.plugin_dir,
         },
-        PluginAction::RemoveLockEntry {
-            id: id.to_string(),
-        },
+        PluginAction::RemoveLockEntry { id: id.to_string() },
     ];
 
     if !keep_data {
-        actions.push(PluginAction::RemovePluginData {
-            id: id.to_string(),
-        });
+        actions.push(PluginAction::RemovePluginData { id: id.to_string() });
     }
 
     actions.push(PluginAction::Notify {
@@ -359,15 +358,9 @@ mod tests {
 
         assert!(actions.len() >= 5);
         assert!(matches!(&actions[0], PluginAction::Notify { .. }));
-        assert!(matches!(
-            &actions[1],
-            PluginAction::DownloadTarball { .. }
-        ));
+        assert!(matches!(&actions[1], PluginAction::DownloadTarball { .. }));
         assert!(matches!(&actions[2], PluginAction::Extract { .. }));
-        assert!(matches!(
-            &actions[3],
-            PluginAction::ValidateManifest { .. }
-        ));
+        assert!(matches!(&actions[3], PluginAction::ValidateManifest { .. }));
         assert!(matches!(&actions[4], PluginAction::MoveDir { .. }));
         assert!(matches!(&actions[5], PluginAction::UpdateLock { .. }));
     }
@@ -391,12 +384,7 @@ mod tests {
 
     #[test]
     fn install_actions_project_requires_dir() {
-        let result = install_actions(
-            "github:user/repo@1.0.0",
-            None,
-            InstallTarget::Project,
-            None,
-        );
+        let result = install_actions("github:user/repo@1.0.0", None, InstallTarget::Project, None);
         assert!(result.is_err());
     }
 

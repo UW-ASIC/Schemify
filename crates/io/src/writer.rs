@@ -25,12 +25,20 @@ fn write_chn_impl(w: &mut String, s: &Schematic, int: &Rodeo) -> std::fmt::Resul
     // Top-level declaration
     match s.stype {
         SchematicType::Symbol | SchematicType::Primitive => {
-            let name = if s.name.is_empty() { "untitled" } else { &s.name };
+            let name = if s.name.is_empty() {
+                "untitled"
+            } else {
+                &s.name
+            };
             writeln!(w, "\nSYMBOL {name}")?;
             write_sym_metadata(w, s, int)?;
         }
         SchematicType::Testbench => {
-            let name = if s.name.is_empty() { "untitled" } else { &s.name };
+            let name = if s.name.is_empty() {
+                "untitled"
+            } else {
+                &s.name
+            };
             writeln!(w, "\nTESTBENCH {name}")?;
             write_testbench_metadata(w, s)?;
         }
@@ -118,7 +126,7 @@ fn write_params(w: &mut String, s: &Schematic, int: &Rodeo) -> std::fmt::Result 
 }
 
 fn write_instances(w: &mut String, s: &Schematic, int: &Rodeo) -> std::fmt::Result {
-    if s.instances.len() == 0 {
+    if s.instances.is_empty() {
         return Ok(());
     }
     writeln!(w, "  instances:")?;
@@ -180,7 +188,7 @@ fn write_instances(w: &mut String, s: &Schematic, int: &Rodeo) -> std::fmt::Resu
 }
 
 fn write_wires(w: &mut String, s: &Schematic, int: &Rodeo) -> std::fmt::Result {
-    if s.wires.len() == 0 {
+    if s.wires.is_empty() {
         return Ok(());
     }
     writeln!(w, "\n  wires:")?;
@@ -214,10 +222,8 @@ fn write_wires(w: &mut String, s: &Schematic, int: &Rodeo) -> std::fmt::Result {
 }
 
 fn write_drawing(w: &mut String, s: &Schematic) -> std::fmt::Result {
-    let has_any = !s.lines.is_empty()
-        || !s.rects.is_empty()
-        || !s.circles.is_empty()
-        || !s.arcs.is_empty();
+    let has_any =
+        !s.lines.is_empty() || !s.rects.is_empty() || !s.circles.is_empty() || !s.arcs.is_empty();
     if !has_any {
         return Ok(());
     }
@@ -315,7 +321,7 @@ fn pin_dir_str(dir: PinDirection) -> &'static str {
     }
 }
 
-fn kind_to_name<'a>(kind: DeviceKind, symbol: &'a str) -> &'a str {
+fn kind_to_name(kind: DeviceKind, symbol: &str) -> &str {
     // For MOSFET variants, preserve the specific symbol name (nmos3, nmos4, etc.)
     // if already set; otherwise fall back to the canonical symbol name.
     if symbol.is_empty() {

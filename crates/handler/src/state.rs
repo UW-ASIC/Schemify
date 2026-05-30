@@ -6,11 +6,9 @@ use lasso::Rodeo;
 use schemify_core::commands::{Command, Tool};
 use schemify_core::devices::Pdk;
 use schemify_core::plugin_types::WidgetNode;
-use schemify_core::theme::ThemeOverride;
-use schemify_core::schematic::{
-    Arc, Circle, Instance, Line, Polygon, Rect, Schematic, Text, Wire,
-};
+use schemify_core::schematic::{Arc, Circle, Instance, Line, Polygon, Rect, Schematic, Text, Wire};
 use schemify_core::simulation::{SimResult, SpiceBackend};
+use schemify_core::theme::ThemeOverride;
 use schemify_core::types::{Connectivity, DeviceKind, Sym};
 use schemify_io::config::ProjectConfig;
 
@@ -21,20 +19,14 @@ pub const MAX_COMMAND_QUEUE: usize = 64;
 // Types internal to handler (moved from core per ADR-001)
 // ====================================================
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum Origin {
+    #[default]
     Unsaved,
     Buffer(String),
     File(PathBuf),
     Memory,
 }
-
-impl Default for Origin {
-    fn default() -> Self {
-        Self::Unsaved
-    }
-}
-
 
 #[derive(Debug, Clone, Default)]
 pub struct BackendAvailability {
@@ -98,6 +90,12 @@ pub struct AppState {
     /// Pending widget actions from plugin panels: (tag, payload_json_bytes).
     /// Integration layer drains these and sends to PluginManager.
     pub pending_plugin_commands: Vec<(String, Vec<u8>)>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AppState {
@@ -275,6 +273,12 @@ pub struct ToolState {
     pub snap_size: f32,
     pub snap_to_grid: bool,
     pub bus_mode: bool,
+}
+
+impl Default for ToolState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ToolState {
@@ -896,10 +900,8 @@ impl Clipboard {
 
 #[derive(Debug, Clone)]
 pub enum UndoEntry {
-    /// Lightweight inverse command (for invertible ops: move, rotate, zoom)
     Inverse(Command),
-    /// Full schematic snapshot (for non-invertible ops: delete, place)
-    Snapshot(Schematic),
+    Snapshot(Box<Schematic>),
 }
 
 // ====================================================

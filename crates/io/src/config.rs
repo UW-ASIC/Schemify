@@ -128,8 +128,10 @@ pub fn parse_from_string(content: &str) -> ProjectConfig {
             }
             TomlSection::Simulation => {
                 if key == "spice_include_paths" {
-                    config.simulation.spice_include_paths =
-                        parse_str_array(val).into_iter().map(PathBuf::from).collect();
+                    config.simulation.spice_include_paths = parse_str_array(val)
+                        .into_iter()
+                        .map(PathBuf::from)
+                        .collect();
                 }
             }
             TomlSection::Plugins => {
@@ -176,10 +178,7 @@ fn parse_str_array(val: &str) -> Vec<String> {
     if !trimmed.starts_with('[') {
         return Vec::new();
     }
-    let inner = trimmed
-        .trim_start_matches('[')
-        .trim_end_matches(']')
-        .trim();
+    let inner = trimmed.trim_start_matches('[').trim_end_matches(']').trim();
     let mut result = Vec::new();
     let mut i = 0;
     let bytes = inner.as_bytes();
@@ -233,12 +232,9 @@ fn dispatch_array(config: &mut ProjectConfig, section: TomlSection, key: &str, v
 
 #[cfg(not(target_arch = "wasm32"))]
 fn expand_path_globs(config: &mut ProjectConfig, project_dir: &Path) {
-    config.paths.schematics =
-        expand_globs(project_dir, &config.paths.schematics, ".chn");
-    config.paths.testbenches =
-        expand_globs(project_dir, &config.paths.testbenches, ".chn_tb");
-    config.paths.primitives =
-        expand_globs(project_dir, &config.paths.primitives, ".chn_prim");
+    config.paths.schematics = expand_globs(project_dir, &config.paths.schematics, ".chn");
+    config.paths.testbenches = expand_globs(project_dir, &config.paths.testbenches, ".chn_tb");
+    config.paths.primitives = expand_globs(project_dir, &config.paths.primitives, ".chn_prim");
 }
 
 #[cfg(not(target_arch = "wasm32"))]

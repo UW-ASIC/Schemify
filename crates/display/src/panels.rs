@@ -29,7 +29,11 @@ fn file_explorer_examples(ui: &mut egui::Ui, app: &mut App) {
     egui::CollapsingHeader::new("Examples")
         .default_open(false)
         .show(ui, |ui| {
-            for kind in [ExampleKind::Schematic, ExampleKind::Testbench, ExampleKind::Primitive] {
+            for kind in [
+                ExampleKind::Schematic,
+                ExampleKind::Testbench,
+                ExampleKind::Primitive,
+            ] {
                 let filtered: Vec<_> = examples.iter().filter(|e| e.kind == kind).collect();
                 if filtered.is_empty() {
                     continue;
@@ -69,11 +73,7 @@ fn file_explorer_native(ui: &mut egui::Ui, app: &mut App) {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let mut files: Vec<_> = entries
                     .filter_map(|e| e.ok())
-                    .filter(|e| {
-                        e.path()
-                            .extension()
-                            .map_or(false, |ext| ext == "chn")
-                    })
+                    .filter(|e| e.path().extension().is_some_and(|ext| ext == "chn"))
                     .collect();
                 files.sort_by_key(|e| e.file_name());
 
@@ -323,22 +323,17 @@ fn render_simple_markdown(ui: &mut egui::Ui, text: &str) {
         let trimmed = line.trim();
 
         // Display math block: $$...$$
-        if trimmed.starts_with("$$") {
+        if let Some(rest) = trimmed.strip_prefix("$$") {
             if in_math_block {
-                // Closing $$ — render accumulated math.
                 crate::math_render::render_display(ui, &math_buf);
                 math_buf.clear();
                 in_math_block = false;
-            } else if trimmed.ends_with("$$") && trimmed.len() > 2 {
-                // Single-line $$content$$
-                let content = &trimmed[2..trimmed.len() - 2];
+            } else if let Some(content) = rest.strip_suffix("$$") {
                 crate::math_render::render_display(ui, content);
             } else {
-                // Opening $$
                 in_math_block = true;
-                let after = &trimmed[2..];
-                if !after.is_empty() {
-                    math_buf.push_str(after);
+                if !rest.is_empty() {
+                    math_buf.push_str(rest);
                 }
             }
             continue;
@@ -422,7 +417,12 @@ pub fn file_explorer_window(ctx: &egui::Context, app: &mut App, theme: &ThemeTok
         .show(ctx, |ui| {
             file_explorer(ui, app);
             ui.add_space(8.0);
-            plugin_sidebar(ui, app, schemify_handler::state::PanelLayout::LeftSidebar, theme);
+            plugin_sidebar(
+                ui,
+                app,
+                schemify_handler::state::PanelLayout::LeftSidebar,
+                theme,
+            );
         });
 
     if !open {
@@ -466,7 +466,7 @@ pub fn context_menu(ctx: &egui::Context, app: &mut App) {
     let sel_count = app.selection().count();
     let has_selection = sel_count > 0;
     let has_instance = matches!(cm.hit, schemify_handler::state::ContextHit::Instance(_));
-    let has_wire = matches!(cm.hit, schemify_handler::state::ContextHit::Wire(_));
+    let _has_wire = matches!(cm.hit, schemify_handler::state::ContextHit::Wire(_));
     let has_hit = !matches!(cm.hit, schemify_handler::state::ContextHit::None);
     let is_group = sel_count > 1;
     let is_canvas = !has_selection && !has_hit;
@@ -642,6 +642,7 @@ pub fn context_menu(ctx: &egui::Context, app: &mut App) {
 
 /// Widget types that plugins can send for rendering.
 /// Matches the Zig PluginPanels widget tags.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum ParsedWidget {
     Label(String),
@@ -681,6 +682,7 @@ pub enum ParsedWidget {
 }
 
 /// Render a single plugin widget. Returns a command if the widget triggered an action.
+#[allow(dead_code)]
 fn render_widget(ui: &mut egui::Ui, widget: &ParsedWidget) -> Option<Command> {
     match widget {
         ParsedWidget::Label(text) => {
@@ -782,6 +784,7 @@ fn render_widget(ui: &mut egui::Ui, widget: &ParsedWidget) -> Option<Command> {
 }
 
 /// Render a list of plugin widgets, collecting any triggered commands.
+#[allow(dead_code)]
 pub fn render_widget_list(ui: &mut egui::Ui, widgets: &[ParsedWidget]) -> Vec<Command> {
     let mut cmds = Vec::new();
     for widget in widgets {
@@ -905,10 +908,7 @@ fn draw_panel_body(ui: &mut egui::Ui, load_state: PluginLoadState, palette: &Wid
             ui.weak("Loading...");
         }
         PluginLoadState::Failed => {
-            ui.colored_label(
-                palette.alert_error,
-                "Plugin failed to load.",
-            );
+            ui.colored_label(palette.alert_error, "Plugin failed to load.");
         }
         PluginLoadState::Loaded => {
             ui.weak("Plugin loaded \u{2014} no widgets received");

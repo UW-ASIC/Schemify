@@ -34,6 +34,12 @@ pub struct App {
     state: AppState,
 }
 
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl App {
     pub fn new() -> Self {
         Self {
@@ -79,7 +85,7 @@ impl App {
                     .into_owned();
                 Ok(())
             }
-            None => Err(io::Error::new(io::ErrorKind::Other, "serialization failed")),
+            None => Err(io::Error::other("serialization failed")),
         }
     }
 

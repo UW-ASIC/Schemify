@@ -21,9 +21,8 @@ pub struct LockEntry {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn read_lock_file(path: &std::path::Path) -> Result<LockFile, std::io::Error> {
     match std::fs::read_to_string(path) {
-        Ok(content) => toml::from_str(&content).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
-        }),
+        Ok(content) => toml::from_str(&content)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(LockFile::default()),
         Err(e) => Err(e),
     }
@@ -31,9 +30,7 @@ pub fn read_lock_file(path: &std::path::Path) -> Result<LockFile, std::io::Error
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn write_lock_file(path: &std::path::Path, lock: &LockFile) -> Result<(), std::io::Error> {
-    let content = toml::to_string_pretty(lock).map_err(|e| {
-        std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-    })?;
+    let content = toml::to_string_pretty(lock).map_err(|e| std::io::Error::other(e.to_string()))?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }

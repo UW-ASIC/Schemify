@@ -36,7 +36,11 @@ impl Default for SubprocessTransport {
 }
 
 impl PluginTransport for SubprocessTransport {
-    fn spawn(&mut self, manifest: &PluginManifest, plugin_dir: &Path) -> Result<(), TransportError> {
+    fn spawn(
+        &mut self,
+        manifest: &PluginManifest,
+        plugin_dir: &Path,
+    ) -> Result<(), TransportError> {
         if self.is_running() {
             return Err(TransportError::SpawnFailed(
                 "transport already running".into(),
@@ -87,10 +91,7 @@ impl PluginTransport for SubprocessTransport {
     }
 
     fn send(&mut self, msg: &str) -> Result<(), TransportError> {
-        let stdin = self
-            .stdin
-            .as_mut()
-            .ok_or(TransportError::NotRunning)?;
+        let stdin = self.stdin.as_mut().ok_or(TransportError::NotRunning)?;
         stdin
             .write_all(msg.as_bytes())
             .map_err(|e| TransportError::SendFailed(e.to_string()))?;
@@ -101,10 +102,7 @@ impl PluginTransport for SubprocessTransport {
     }
 
     fn recv(&mut self) -> Result<Option<String>, TransportError> {
-        let reader = self
-            .stdout_buf
-            .as_mut()
-            .ok_or(TransportError::NotRunning)?;
+        let reader = self.stdout_buf.as_mut().ok_or(TransportError::NotRunning)?;
 
         self.line_buf.clear();
         match reader.read_line(&mut self.line_buf) {
@@ -269,7 +267,8 @@ entry = "cat"
         t.spawn(&manifest, std::path::Path::new("/tmp")).unwrap();
 
         // cat echoes stdin to stdout
-        t.send("{\"jsonrpc\":\"2.0\",\"method\":\"test\"}\n").unwrap();
+        t.send("{\"jsonrpc\":\"2.0\",\"method\":\"test\"}\n")
+            .unwrap();
 
         // Give cat a moment to echo back, then read.
         std::thread::sleep(std::time::Duration::from_millis(50));

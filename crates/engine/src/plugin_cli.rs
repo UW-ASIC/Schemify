@@ -2,9 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use clap::Subcommand;
-use schemify_handler::plugin_dist::{
-    self, InstallTarget, PluginAction,
-};
+use schemify_handler::plugin_dist::{self, InstallTarget, PluginAction};
 use schemify_io::lock::{self, LockEntry};
 use schemify_io::paths;
 
@@ -130,9 +128,7 @@ fn run_install_from_file(file_path: &str, project: bool, project_dir: Option<&Pa
         .get("id")
         .and_then(|v| v.as_str())
         .or_else(|| plugin_section.get("name").and_then(|v| v.as_str()));
-    let version = plugin_section
-        .get("version")
-        .and_then(|v| v.as_str());
+    let version = plugin_section.get("version").and_then(|v| v.as_str());
 
     let id = match id {
         Some(id) => id.to_string(),
@@ -222,14 +218,13 @@ fn run_uninstall(id: &str, keep_data: bool, project_dir: Option<&Path>) {
         println!("  Plugin data: (stored state)");
     }
 
-    let actions =
-        match plugin_dist::uninstall_actions(id, &lock_file, keep_data, project_dir) {
-            Ok(a) => a,
-            Err(e) => {
-                eprintln!("error: {e}");
-                process::exit(1);
-            }
-        };
+    let actions = match plugin_dist::uninstall_actions(id, &lock_file, keep_data, project_dir) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("error: {e}");
+            process::exit(1);
+        }
+    };
 
     if let Err(e) = execute_actions(&actions) {
         eprintln!("error: {e}");
@@ -253,10 +248,13 @@ fn run_list() {
         return;
     }
 
-    println!("{:<20} {:<10} {:<8} {}", "ID", "VERSION", "SCOPE", "SOURCE");
+    println!("{:<20} {:<10} {:<8} SOURCE", "ID", "VERSION", "SCOPE");
     println!("{}", "-".repeat(60));
     for p in &plugins {
-        println!("{:<20} {:<10} {:<8} {}", p.id, p.version, p.location, p.source);
+        println!(
+            "{:<20} {:<10} {:<8} {}",
+            p.id, p.version, p.location, p.source
+        );
     }
 }
 
@@ -272,8 +270,7 @@ fn execute_actions(actions: &[PluginAction]) -> Result<(), String> {
             }
             PluginAction::DownloadTarball { url, dest, .. } => {
                 if let Some(parent) = dest.parent() {
-                    std::fs::create_dir_all(parent)
-                        .map_err(|e| format!("creating dir: {e}"))?;
+                    std::fs::create_dir_all(parent).map_err(|e| format!("creating dir: {e}"))?;
                 }
                 download_with_retry(url, dest, 3)?;
             }
@@ -304,8 +301,7 @@ fn execute_actions(actions: &[PluginAction]) -> Result<(), String> {
                 // Try rename first (same filesystem), fall back to copy+delete
                 if std::fs::rename(from, to).is_err() {
                     copy_dir_recursive(from, to)?;
-                    std::fs::remove_dir_all(from)
-                        .map_err(|e| format!("cleaning temp dir: {e}"))?;
+                    std::fs::remove_dir_all(from).map_err(|e| format!("cleaning temp dir: {e}"))?;
                 }
             }
             PluginAction::UpdateLock { entry } => {
@@ -327,8 +323,7 @@ fn execute_actions(actions: &[PluginAction]) -> Result<(), String> {
             }
             PluginAction::RemoveDir { path } => {
                 if path.exists() {
-                    std::fs::remove_dir_all(path)
-                        .map_err(|e| format!("removing dir: {e}"))?;
+                    std::fs::remove_dir_all(path).map_err(|e| format!("removing dir: {e}"))?;
                 }
             }
             PluginAction::RemovePluginData { .. } => {
@@ -357,7 +352,10 @@ fn download_with_retry(url: &str, dest: &Path, max_retries: u32) -> Result<(), S
         match status {
             Ok(s) if s.success() => return Ok(()),
             Ok(_) if attempt < max_retries - 1 => {
-                eprintln!("  Download failed, retrying ({}/{max_retries})...", attempt + 1);
+                eprintln!(
+                    "  Download failed, retrying ({}/{max_retries})...",
+                    attempt + 1
+                );
                 let delay = 1u64 << attempt;
                 std::thread::sleep(std::time::Duration::from_secs(delay));
             }
@@ -411,8 +409,7 @@ fn find_manifest(dir: &Path) -> Option<PathBuf> {
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     std::fs::create_dir_all(dst).map_err(|e| format!("creating {}: {e}", dst.display()))?;
-    let entries =
-        std::fs::read_dir(src).map_err(|e| format!("reading {}: {e}", src.display()))?;
+    let entries = std::fs::read_dir(src).map_err(|e| format!("reading {}: {e}", src.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("reading entry: {e}"))?;
         let src_path = entry.path();

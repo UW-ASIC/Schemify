@@ -23,12 +23,12 @@ impl SpiceColors {
     fn dark() -> Self {
         Self {
             comment: Color32::from_rgb(106, 153, 85),    // green
-            directive: Color32::from_rgb(197, 134, 192),  // purple
-            component: Color32::from_rgb(220, 160, 80),   // orange
-            number: Color32::from_rgb(100, 200, 180),     // teal
-            string: Color32::from_rgb(206, 145, 120),     // brown/gold
-            keyword: Color32::from_rgb(86, 156, 214),     // blue
-            default: Color32::from_rgb(212, 212, 212),    // light gray
+            directive: Color32::from_rgb(197, 134, 192), // purple
+            component: Color32::from_rgb(220, 160, 80),  // orange
+            number: Color32::from_rgb(100, 200, 180),    // teal
+            string: Color32::from_rgb(206, 145, 120),    // brown/gold
+            keyword: Color32::from_rgb(86, 156, 214),    // blue
+            default: Color32::from_rgb(212, 212, 212),   // light gray
         }
     }
 
@@ -45,25 +45,25 @@ impl SpiceColors {
     }
 
     fn for_visuals(dark: bool) -> Self {
-        if dark { Self::dark() } else { Self::light() }
+        if dark {
+            Self::dark()
+        } else {
+            Self::light()
+        }
     }
 }
-
 
 // ── SPICE Highlighting ──────────────────────────────────────────────────────
 
 const SPICE_DIRECTIVES: &[&str] = &[
-    ".tran", ".ac", ".dc", ".op", ".noise", ".tf", ".sens", ".pz",
-    ".model", ".subckt", ".ends", ".end", ".param", ".func",
-    ".include", ".lib", ".save", ".print", ".plot", ".probe",
-    ".meas", ".measure", ".option", ".options", ".global", ".temp",
-    ".ic", ".nodeset", ".step", ".alter", ".control", ".endc",
-    ".four", ".monte", ".pss", ".hb",
+    ".tran", ".ac", ".dc", ".op", ".noise", ".tf", ".sens", ".pz", ".model", ".subckt", ".ends",
+    ".end", ".param", ".func", ".include", ".lib", ".save", ".print", ".plot", ".probe", ".meas",
+    ".measure", ".option", ".options", ".global", ".temp", ".ic", ".nodeset", ".step", ".alter",
+    ".control", ".endc", ".four", ".monte", ".pss", ".hb",
 ];
 
 const SPICE_KEYWORDS: &[&str] = &[
-    "dc", "ac", "pulse", "sin", "pwl", "exp", "sffm", "am",
-    "poly", "table", "vol", "cur",
+    "dc", "ac", "pulse", "sin", "pwl", "exp", "sffm", "am", "poly", "table", "vol", "cur",
 ];
 
 fn is_spice_number_char(c: char) -> bool {
@@ -73,16 +73,48 @@ fn is_spice_number_char(c: char) -> bool {
 fn is_si_suffix(s: &str) -> bool {
     matches!(
         s.to_lowercase().as_str(),
-        "t" | "g" | "meg" | "k" | "m" | "u" | "n" | "p" | "f" | "a"
-            | "mil" | "hz" | "khz" | "mhz" | "ghz"
+        "t" | "g"
+            | "meg"
+            | "k"
+            | "m"
+            | "u"
+            | "n"
+            | "p"
+            | "f"
+            | "a"
+            | "mil"
+            | "hz"
+            | "khz"
+            | "mhz"
+            | "ghz"
     )
 }
 
 fn is_component_prefix(c: char) -> bool {
     matches!(
         c.to_ascii_uppercase(),
-        'R' | 'C' | 'L' | 'V' | 'I' | 'M' | 'Q' | 'D' | 'J' | 'K'
-            | 'X' | 'E' | 'F' | 'G' | 'H' | 'B' | 'S' | 'W' | 'T' | 'U' | 'O' | 'P' | 'N'
+        'R' | 'C'
+            | 'L'
+            | 'V'
+            | 'I'
+            | 'M'
+            | 'Q'
+            | 'D'
+            | 'J'
+            | 'K'
+            | 'X'
+            | 'E'
+            | 'F'
+            | 'G'
+            | 'H'
+            | 'B'
+            | 'S'
+            | 'W'
+            | 'T'
+            | 'U'
+            | 'O'
+            | 'P'
+            | 'N'
     )
 }
 
@@ -242,43 +274,174 @@ fn highlight_spice_line(line: &str, colors: &SpiceColors, font: &FontId, job: &m
 // ── LaTeX Highlighting ──────────────────────────────────────────────────────
 
 const LATEX_SECTION_CMDS: &[&str] = &[
-    "section", "subsection", "subsubsection", "paragraph", "chapter",
-    "part", "title", "author", "date", "abstract",
+    "section",
+    "subsection",
+    "subsubsection",
+    "paragraph",
+    "chapter",
+    "part",
+    "title",
+    "author",
+    "date",
+    "abstract",
 ];
 
-const LATEX_ENV_CMDS: &[&str] = &[
-    "begin", "end",
-];
+const LATEX_ENV_CMDS: &[&str] = &["begin", "end"];
 
 const LATEX_MATH_CMDS: &[&str] = &[
-    "frac", "dfrac", "tfrac", "sqrt", "sum", "prod", "int", "iint", "iiint",
-    "oint", "lim", "inf", "sup", "max", "min",
-    "sin", "cos", "tan", "cot", "sec", "csc", "arcsin", "arccos", "arctan",
-    "sinh", "cosh", "tanh", "log", "ln", "exp", "det", "dim", "ker", "gcd",
-    "left", "right", "big", "Big", "bigg", "Bigg",
-    "text", "mathrm", "mathbf", "mathbb", "mathcal", "mathit", "boldsymbol",
-    "overline", "underline", "hat", "bar", "vec", "dot", "ddot", "tilde",
-    "overbrace", "underbrace",
+    "frac",
+    "dfrac",
+    "tfrac",
+    "sqrt",
+    "sum",
+    "prod",
+    "int",
+    "iint",
+    "iiint",
+    "oint",
+    "lim",
+    "inf",
+    "sup",
+    "max",
+    "min",
+    "sin",
+    "cos",
+    "tan",
+    "cot",
+    "sec",
+    "csc",
+    "arcsin",
+    "arccos",
+    "arctan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "log",
+    "ln",
+    "exp",
+    "det",
+    "dim",
+    "ker",
+    "gcd",
+    "left",
+    "right",
+    "big",
+    "Big",
+    "bigg",
+    "Bigg",
+    "text",
+    "mathrm",
+    "mathbf",
+    "mathbb",
+    "mathcal",
+    "mathit",
+    "boldsymbol",
+    "overline",
+    "underline",
+    "hat",
+    "bar",
+    "vec",
+    "dot",
+    "ddot",
+    "tilde",
+    "overbrace",
+    "underbrace",
 ];
 
 const LATEX_GREEK: &[&str] = &[
-    "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon",
-    "zeta", "eta", "theta", "vartheta", "iota", "kappa", "lambda",
-    "mu", "nu", "xi", "pi", "varpi", "rho", "varrho", "sigma",
-    "varsigma", "tau", "upsilon", "phi", "varphi", "chi", "psi", "omega",
-    "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Phi", "Psi", "Omega",
+    "alpha",
+    "beta",
+    "gamma",
+    "delta",
+    "epsilon",
+    "varepsilon",
+    "zeta",
+    "eta",
+    "theta",
+    "vartheta",
+    "iota",
+    "kappa",
+    "lambda",
+    "mu",
+    "nu",
+    "xi",
+    "pi",
+    "varpi",
+    "rho",
+    "varrho",
+    "sigma",
+    "varsigma",
+    "tau",
+    "upsilon",
+    "phi",
+    "varphi",
+    "chi",
+    "psi",
+    "omega",
+    "Gamma",
+    "Delta",
+    "Theta",
+    "Lambda",
+    "Xi",
+    "Pi",
+    "Sigma",
+    "Phi",
+    "Psi",
+    "Omega",
 ];
 
 const LATEX_OPERATORS: &[&str] = &[
-    "times", "div", "cdot", "pm", "mp", "leq", "geq", "neq", "approx",
-    "equiv", "sim", "propto", "infty", "partial", "nabla",
-    "forall", "exists", "nexists", "in", "notin",
-    "subset", "supset", "subseteq", "supseteq", "cup", "cap",
-    "emptyset", "land", "lor", "neg",
-    "to", "rightarrow", "leftarrow", "Rightarrow", "Leftarrow",
-    "iff", "mapsto", "uparrow", "downarrow",
-    "ldots", "cdots", "vdots", "ddots",
-    "quad", "qquad", "hbar", "ell", "Re", "Im", "aleph", "angle",
+    "times",
+    "div",
+    "cdot",
+    "pm",
+    "mp",
+    "leq",
+    "geq",
+    "neq",
+    "approx",
+    "equiv",
+    "sim",
+    "propto",
+    "infty",
+    "partial",
+    "nabla",
+    "forall",
+    "exists",
+    "nexists",
+    "in",
+    "notin",
+    "subset",
+    "supset",
+    "subseteq",
+    "supseteq",
+    "cup",
+    "cap",
+    "emptyset",
+    "land",
+    "lor",
+    "neg",
+    "to",
+    "rightarrow",
+    "leftarrow",
+    "Rightarrow",
+    "Leftarrow",
+    "iff",
+    "mapsto",
+    "uparrow",
+    "downarrow",
+    "ldots",
+    "cdots",
+    "vdots",
+    "ddots",
+    "quad",
+    "qquad",
+    "hbar",
+    "ell",
+    "Re",
+    "Im",
+    "aleph",
+    "angle",
 ];
 
 struct LatexColors {
@@ -329,7 +492,11 @@ impl LatexColors {
     }
 
     fn for_visuals(dark: bool) -> Self {
-        if dark { Self::dark() } else { Self::light() }
+        if dark {
+            Self::dark()
+        } else {
+            Self::light()
+        }
     }
 }
 
@@ -343,7 +510,7 @@ pub fn highlight_latex(text: &str, font: FontId, dark: bool) -> LayoutJob {
     let len = bytes.len();
     let mut i = 0;
     let mut plain_start = 0;
-    let mut in_math = false;
+    let in_math = false;
 
     let fmt = |color: Color32| TextFormat {
         font_id: font.clone(),

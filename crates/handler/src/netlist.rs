@@ -86,11 +86,15 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo) -> CircuitIR {
 
         let model_name = || -> String {
             get_prop("model").unwrap_or_else(|| match kind {
-                DeviceKind::Nmos3 | DeviceKind::Nmos4 | DeviceKind::Nmos4Depl
-                | DeviceKind::NmosSub | DeviceKind::Nmoshv4 | DeviceKind::Rnmos4 => {
-                    "nmos".to_owned()
-                }
-                DeviceKind::Pmos3 | DeviceKind::Pmos4 | DeviceKind::PmosSub
+                DeviceKind::Nmos3
+                | DeviceKind::Nmos4
+                | DeviceKind::Nmos4Depl
+                | DeviceKind::NmosSub
+                | DeviceKind::Nmoshv4
+                | DeviceKind::Rnmos4 => "nmos".to_owned(),
+                DeviceKind::Pmos3
+                | DeviceKind::Pmos4
+                | DeviceKind::PmosSub
                 | DeviceKind::Pmoshv4 => "pmos".to_owned(),
                 DeviceKind::Npn => "npn".to_owned(),
                 DeviceKind::Pnp => "pnp".to_owned(),
@@ -152,9 +156,14 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo) -> CircuitIR {
             }
 
             // MOSFETs (4-terminal)
-            DeviceKind::Nmos4 | DeviceKind::Pmos4 | DeviceKind::Nmos4Depl
-            | DeviceKind::NmosSub | DeviceKind::PmosSub | DeviceKind::Nmoshv4
-            | DeviceKind::Pmoshv4 | DeviceKind::Rnmos4 => {
+            DeviceKind::Nmos4
+            | DeviceKind::Pmos4
+            | DeviceKind::Nmos4Depl
+            | DeviceKind::NmosSub
+            | DeviceKind::PmosSub
+            | DeviceKind::Nmoshv4
+            | DeviceKind::Pmoshv4
+            | DeviceKind::Rnmos4 => {
                 components.push(Component::Mosfet {
                     name,
                     nd: net(0),
@@ -349,8 +358,7 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo) -> CircuitIR {
             // Subcircuit instance
             DeviceKind::Subckt | DeviceKind::DigitalInstance => {
                 let symbol = interner.resolve(&sch.instances.symbol[i]);
-                let port_mapping: Vec<String> =
-                    (0..pins.len()).map(|p| net(p)).collect();
+                let port_mapping: Vec<String> = (0..pins.len()).map(&net).collect();
                 let parameters: Vec<(String, String)> = params;
                 instances.push(Instance {
                     name,
@@ -402,8 +410,7 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo) -> CircuitIR {
                 let kind_and_params = parts[2];
                 if let Some(paren) = kind_and_params.find('(') {
                     let kind = kind_and_params[..paren].to_owned();
-                    let param_str = kind_and_params[paren + 1..]
-                        .trim_end_matches(')');
+                    let param_str = kind_and_params[paren + 1..].trim_end_matches(')');
                     let params: Vec<(String, String)> = param_str
                         .split_whitespace()
                         .filter_map(|kv| {
@@ -458,9 +465,15 @@ fn strip_spice_prefix(name: &str, kind: DeviceKind) -> String {
         DeviceKind::Capacitor => 'c',
         DeviceKind::Inductor => 'l',
         DeviceKind::Diode | DeviceKind::Zener => 'd',
-        DeviceKind::Nmos3 | DeviceKind::Nmos4 | DeviceKind::Nmos4Depl
-        | DeviceKind::NmosSub | DeviceKind::Nmoshv4 | DeviceKind::Rnmos4
-        | DeviceKind::Pmos3 | DeviceKind::Pmos4 | DeviceKind::PmosSub
+        DeviceKind::Nmos3
+        | DeviceKind::Nmos4
+        | DeviceKind::Nmos4Depl
+        | DeviceKind::NmosSub
+        | DeviceKind::Nmoshv4
+        | DeviceKind::Rnmos4
+        | DeviceKind::Pmos3
+        | DeviceKind::Pmos4
+        | DeviceKind::PmosSub
         | DeviceKind::Pmoshv4 => 'm',
         DeviceKind::Npn | DeviceKind::Pnp => 'q',
         DeviceKind::Njfet | DeviceKind::Pjfet => 'j',
@@ -554,12 +567,8 @@ fn parse_value(s: &str) -> IrValue {
 
     // Expression or raw
     if s.contains('{') || s.contains('+') || s.contains('*') || s.contains('/') {
-        IrValue::Expression {
-            expr: s.to_owned(),
-        }
+        IrValue::Expression { expr: s.to_owned() }
     } else {
-        IrValue::Raw {
-            text: s.to_owned(),
-        }
+        IrValue::Raw { text: s.to_owned() }
     }
 }

@@ -12,7 +12,7 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
     let wires = &sch.wires;
     let instances = &sch.instances;
 
-    if wires.len() == 0 && instances.len() == 0 {
+    if wires.is_empty() && instances.is_empty() {
         return Connectivity::default();
     }
 
@@ -40,8 +40,7 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
                 if !ni.is_empty() && !nj.is_empty() && ni != nj {
                     continue;
                 }
-                if on_wire_interior(pt, (wires.x0[j], wires.y0[j]), (wires.x1[j], wires.y1[j]))
-                {
+                if on_wire_interior(pt, (wires.x0[j], wires.y0[j]), (wires.x1[j], wires.y1[j])) {
                     uf.unite(pt, (wires.x0[j], wires.y0[j]));
                 }
             }
@@ -73,9 +72,7 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
             for wi in 0..wires.len() {
                 let w0 = (wires.x0[wi], wires.y0[wi]);
                 let w1 = (wires.x1[wi], wires.y1[wi]);
-                let touches = abs == w0
-                    || abs == w1
-                    || on_wire_interior(abs, w0, w1);
+                let touches = abs == w0 || abs == w1 || on_wire_interior(abs, w0, w1);
                 if touches {
                     let wn = interner.resolve(&wires.net_name[wi]);
                     if first_wire.is_none() {
@@ -121,9 +118,9 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
             // placed power symbols.
             let ps = instances.prop_start[i] as usize;
             let pc = instances.prop_count[i] as usize;
-            let net_prop = sch.properties[ps..ps + pc].iter().find(|p| {
-                interner.resolve(&p.key) == "net"
-            });
+            let net_prop = sch.properties[ps..ps + pc]
+                .iter()
+                .find(|p| interner.resolve(&p.key) == "net");
             if let Some(prop) = net_prop {
                 interner.resolve(&prop.value).to_owned()
             } else {
@@ -139,8 +136,10 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
         };
 
         let flags = instances.flags[i];
-        let (tx, ty) =
-            flags.transform_point(prim.pin_positions[0].x as i32, prim.pin_positions[0].y as i32);
+        let (tx, ty) = flags.transform_point(
+            prim.pin_positions[0].x as i32,
+            prim.pin_positions[0].y as i32,
+        );
         let abs = (instances.x[i] + tx, instances.y[i] + ty);
         uf.make_set(abs);
         let root = uf.find(abs);
@@ -203,6 +202,7 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
     // Instance connections
     let mut instance_connections: Vec<Vec<PinConnection>> = vec![Vec::new(); instances.len()];
 
+    #[allow(clippy::needless_range_loop)] // indexes multiple SoA parallel arrays
     for i in 0..instances.len() {
         let kind = instances.kind[i];
         let prim = match primitives::find_by_kind(kind) {
@@ -258,8 +258,10 @@ pub fn resolve(sch: &Schematic, interner: &Rodeo) -> Connectivity {
         };
 
         let flags = instances.flags[i];
-        let (tx, ty) =
-            flags.transform_point(prim.pin_positions[0].x as i32, prim.pin_positions[0].y as i32);
+        let (tx, ty) = flags.transform_point(
+            prim.pin_positions[0].x as i32,
+            prim.pin_positions[0].y as i32,
+        );
         let abs = (instances.x[i] + tx, instances.y[i] + ty);
         let root = uf.find(abs);
 
@@ -413,14 +415,7 @@ mod tests {
         }
     }
 
-    fn named_wire(
-        x0: i32,
-        y0: i32,
-        x1: i32,
-        y1: i32,
-        name: &str,
-        interner: &mut Rodeo,
-    ) -> Wire {
+    fn named_wire(x0: i32, y0: i32, x1: i32, y1: i32, name: &str, interner: &mut Rodeo) -> Wire {
         Wire {
             net_name: interner.get_or_intern(name),
             x0,

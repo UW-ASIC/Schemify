@@ -1,8 +1,8 @@
-use lasso::Rodeo;
 use crate::s2s::ir::{self, NetClass};
 use crate::s2s::output::schemify::SchemifyBackend;
 use crate::s2s::parser::SpiceParser;
 use crate::s2s::{annotation, placement, recognition, routing::Router};
+use lasso::Rodeo;
 
 use schemify_core::schematic::{Instance, ModelDef, Property, Schematic, Wire};
 use schemify_core::simulation::StimulusLang;
@@ -137,7 +137,13 @@ fn convert_subcircuit(
             (n, "vdd", DeviceKind::Vdd, label.x - tx, label.y - ty)
         } else {
             // LabPin pin offset is (0, 0) — rotation doesn't affect it.
-            (net.name.clone(), "lab_pin", DeviceKind::LabPin, label.x, label.y)
+            (
+                net.name.clone(),
+                "lab_pin",
+                DeviceKind::LabPin,
+                label.x,
+                label.y,
+            )
         };
 
         // For GND/VDD, store original net name as a property so connectivity
@@ -227,8 +233,7 @@ pub fn import_pyspice(
 
     // Write to a temp file so cross-file imports can resolve.
     let tmp_path = std::env::temp_dir().join(format!("schemify_pyspice_{name}.py"));
-    std::fs::write(&tmp_path, py_source)
-        .map_err(|e| format!("writing temp file: {e}"))?;
+    std::fs::write(&tmp_path, py_source).map_err(|e| format!("writing temp file: {e}"))?;
 
     let output = Command::new("python3")
         .arg(&tmp_path)
@@ -243,11 +248,9 @@ pub fn import_pyspice(
 
     // Accept stdout containing valid SPICE even on non-zero exit
     // (testbenches may print netlist then fail running simulation).
-    if stdout.is_empty() || !stdout.contains(".end") {
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("python3 failed:\n{stderr}"));
-        }
+    if (stdout.is_empty() || !stdout.contains(".end")) && !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("python3 failed:\n{stderr}"));
     }
 
     let mut schematic = import_spice(&stdout, interner)?;
@@ -258,16 +261,13 @@ pub fn import_pyspice(
 
 /// Check if source text looks like a PySpice script (first 50 lines).
 pub fn is_pyspice_source(source: &str) -> bool {
-    source
-        .lines()
-        .take(50)
-        .any(|line| {
-            let t = line.trim();
-            t.starts_with("from pyspice_rs")
-                || t.starts_with("import pyspice_rs")
-                || t.starts_with("from PySpice")
-                || t.starts_with("import PySpice")
-        })
+    source.lines().take(50).any(|line| {
+        let t = line.trim();
+        t.starts_with("from pyspice_rs")
+            || t.starts_with("import pyspice_rs")
+            || t.starts_with("from PySpice")
+            || t.starts_with("import PySpice")
+    })
 }
 
 fn map_device_kind(p: ir::Primitive) -> DeviceKind {

@@ -2,10 +2,11 @@ use serde::Deserialize;
 use std::path::Path;
 
 /// Plugin runtime type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PluginRuntime {
     Native,
+    #[default]
     Subprocess,
     Wasm,
 }
@@ -18,12 +19,6 @@ impl PluginRuntime {
             Self::Subprocess => "subprocess",
             Self::Wasm => "wasm",
         }
-    }
-}
-
-impl Default for PluginRuntime {
-    fn default() -> Self {
-        Self::Subprocess
     }
 }
 
@@ -128,7 +123,7 @@ pub struct ManifestCommands {
 /// Validate a plugin id: `[a-z0-9][a-z0-9-]*[a-z0-9]`, 3-64 chars.
 pub fn validate_plugin_id(id: &str) -> Result<(), String> {
     let len = id.len();
-    if len < 3 || len > 64 {
+    if !(3..=64).contains(&len) {
         return Err(format!("plugin id must be 3-64 chars, got {len}"));
     }
     let bytes = id.as_bytes();
@@ -141,10 +136,7 @@ pub fn validate_plugin_id(id: &str) -> Result<(), String> {
     }
     for &b in bytes {
         if !b.is_ascii_lowercase() && !b.is_ascii_digit() && b != b'-' {
-            return Err(format!(
-                "plugin id contains invalid char '{}'",
-                b as char
-            ));
+            return Err(format!("plugin id contains invalid char '{}'", b as char));
         }
     }
     Ok(())
@@ -158,8 +150,8 @@ impl PluginManifest {
 
     /// Load a plugin.toml from a file path.
     pub fn load(path: &Path) -> Result<Self, ManifestError> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| ManifestError::Io(path.to_owned(), e))?;
+        let content =
+            std::fs::read_to_string(path).map_err(|e| ManifestError::Io(path.to_owned(), e))?;
         Self::parse(&content).map_err(|e| ManifestError::Parse(path.to_owned(), e))
     }
 
