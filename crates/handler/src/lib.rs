@@ -21,7 +21,7 @@ use std::path::Path;
 use schemify_core::commands::{Command, Tool};
 use schemify_core::devices::Pdk;
 use schemify_core::schematic::{InstanceVec, Pin, Property, Schematic, WireVec};
-use schemify_core::simulation::SimResult;
+use schemify_core::simulation::{SimResult, StimulusLang};
 use schemify_core::theme::ThemeOverride;
 use schemify_core::traits::{AppRead, AppWrite};
 use schemify_core::types::{Connectivity, Sym};
@@ -145,6 +145,10 @@ impl App {
 
     pub fn sim_results(&self) -> Option<&SimResult> {
         self.active_doc().sim_results.as_ref()
+    }
+
+    pub fn stimulus_lang(&self) -> StimulusLang {
+        self.active_doc().schematic.stimulus_lang
     }
 
     pub fn pdk(&self) -> Option<&Pdk> {
@@ -644,6 +648,7 @@ impl AppWrite for App {
 mod tests {
     use super::*;
     use schemify_core::commands::Command;
+    use schemify_core::simulation::StimulusLang;
 
     #[test]
     fn add_wire_with_bus_mode_propagates_flag() {
@@ -680,5 +685,25 @@ mod tests {
 
         assert_eq!(app.wires().len(), 1);
         assert!(!app.wires().bus[0]);
+    }
+
+    #[test]
+    fn stimulus_lang_default() {
+        let app = App::new();
+        assert_eq!(app.stimulus_lang(), StimulusLang::NgSpice);
+    }
+
+    #[test]
+    fn stimulus_lang_after_dispatch() {
+        let mut app = App::new();
+        app.dispatch(Command::SetStimulusLang("xyce".to_string()));
+        assert_eq!(app.stimulus_lang(), StimulusLang::Xyce);
+    }
+
+    #[test]
+    fn stimulus_lang_invalid_is_ignored() {
+        let mut app = App::new();
+        app.dispatch(Command::SetStimulusLang("bogus".to_string()));
+        assert_eq!(app.stimulus_lang(), StimulusLang::NgSpice);
     }
 }
