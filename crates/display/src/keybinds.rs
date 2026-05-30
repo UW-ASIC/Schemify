@@ -508,3 +508,204 @@ const fn kb(
         shortcut,
     }
 }
+
+// ── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    /// Helper: find the first keybind matching the given modifiers + key.
+    fn find_keybind(
+        ctrl: bool,
+        shift: bool,
+        alt: bool,
+        key: egui::Key,
+    ) -> Option<&'static Keybind> {
+        KEYBINDS
+            .iter()
+            .find(|kb| kb.ctrl == ctrl && kb.shift == shift && kb.alt == alt && kb.key == key)
+    }
+
+    // ── Specific keybind mappings ───────────────────────────────────────────
+
+    #[test]
+    fn t_maps_to_text_tool() {
+        let kb = find_keybind(false, false, false, egui::Key::T).expect("T keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::SetTool(Tool::Text)) => {}
+            other => panic!("T should map to SetTool(Text), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn r_maps_to_rotate_cw() {
+        let kb = find_keybind(false, false, false, egui::Key::R).expect("R keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::RotateCw) => {}
+            other => panic!("R should map to RotateCw, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn shift_r_maps_to_rotate_ccw() {
+        let kb = find_keybind(false, true, false, egui::Key::R).expect("Shift+R keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::RotateCcw) => {}
+            other => panic!("Shift+R should map to RotateCcw, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn w_maps_to_wire_tool() {
+        let kb = find_keybind(false, false, false, egui::Key::W).expect("W keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::SetTool(Tool::Wire)) => {}
+            other => panic!("W should map to SetTool(Wire), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn escape_maps_to_select_tool() {
+        let kb =
+            find_keybind(false, false, false, egui::Key::Escape).expect("Esc keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::SetTool(Tool::Select)) => {}
+            other => panic!("Escape should map to SetTool(Select), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ctrl_z_maps_to_undo() {
+        let kb = find_keybind(true, false, false, egui::Key::Z).expect("Ctrl+Z keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::Undo) => {}
+            other => panic!("Ctrl+Z should map to Undo, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ctrl_y_maps_to_redo() {
+        let kb = find_keybind(true, false, false, egui::Key::Y).expect("Ctrl+Y keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::Redo) => {}
+            other => panic!("Ctrl+Y should map to Redo, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ctrl_s_maps_to_save() {
+        let kb = find_keybind(true, false, false, egui::Key::S).expect("Ctrl+S keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::FileSave) => {}
+            other => panic!("Ctrl+S should map to FileSave, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn delete_maps_to_delete_selected() {
+        let kb =
+            find_keybind(false, false, false, egui::Key::Delete).expect("Del keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::DeleteSelected) => {}
+            other => panic!("Delete should map to DeleteSelected, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn x_maps_to_flip_horizontal() {
+        let kb = find_keybind(false, false, false, egui::Key::X).expect("X keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::FlipHorizontal) => {}
+            other => panic!("X should map to FlipHorizontal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn m_maps_to_move_tool() {
+        let kb = find_keybind(false, false, false, egui::Key::M).expect("M keybind not found");
+        match &kb.command {
+            KeyCommand::Dispatch(Command::SetTool(Tool::Move)) => {}
+            other => panic!("M should map to SetTool(Move), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn arrow_keys_map_to_nudge() {
+        let up = find_keybind(false, false, false, egui::Key::ArrowUp).expect("Up not found");
+        let down = find_keybind(false, false, false, egui::Key::ArrowDown).expect("Down not found");
+        let left = find_keybind(false, false, false, egui::Key::ArrowLeft).expect("Left not found");
+        let right =
+            find_keybind(false, false, false, egui::Key::ArrowRight).expect("Right not found");
+
+        assert!(matches!(
+            &up.command,
+            KeyCommand::Dispatch(Command::NudgeUp)
+        ));
+        assert!(matches!(
+            &down.command,
+            KeyCommand::Dispatch(Command::NudgeDown)
+        ));
+        assert!(matches!(
+            &left.command,
+            KeyCommand::Dispatch(Command::NudgeLeft)
+        ));
+        assert!(matches!(
+            &right.command,
+            KeyCommand::Dispatch(Command::NudgeRight)
+        ));
+    }
+
+    // ── Table integrity ─────────────────────────────────────────────────────
+
+    #[test]
+    fn no_duplicate_keybinds_for_same_combo() {
+        // With modifier-differentiated binds, the same (ctrl, shift, alt, key)
+        // tuple should not appear more than once (first match wins, so duplicates
+        // are dead code).
+        let mut seen = HashSet::new();
+        for kb in KEYBINDS {
+            let combo = (kb.ctrl, kb.shift, kb.alt, kb.key);
+            assert!(
+                seen.insert(combo),
+                "Duplicate keybind for {:?} (ctrl={}, shift={}, alt={})",
+                kb.key,
+                kb.ctrl,
+                kb.shift,
+                kb.alt,
+            );
+        }
+    }
+
+    #[test]
+    fn every_keybind_has_nonempty_label() {
+        for kb in KEYBINDS {
+            assert!(
+                !kb.label.is_empty(),
+                "Keybind for {:?} has empty label",
+                kb.key
+            );
+        }
+    }
+
+    #[test]
+    fn every_keybind_has_nonempty_shortcut_string() {
+        for kb in KEYBINDS {
+            assert!(
+                !kb.shortcut.is_empty(),
+                "Keybind for {:?} has empty shortcut string",
+                kb.key
+            );
+        }
+    }
+
+    #[test]
+    fn keybind_table_is_not_empty() {
+        assert!(
+            KEYBINDS.len() > 20,
+            "Expected at least 20 keybinds, got {}",
+            KEYBINDS.len()
+        );
+    }
+}

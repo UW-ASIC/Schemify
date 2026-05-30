@@ -233,3 +233,196 @@ pub fn apply_theme(ctx: &egui::Context, tokens: &ThemeTokens) {
 
     ctx.set_visuals(visuals);
 }
+
+// ── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use schemify_core::theme::{ThemeTokens, ThemeValue};
+
+    // ── CanvasPalette construction ──────────────────────────────────────────
+
+    #[test]
+    fn dark_palette_has_dark_canvas_bg() {
+        let p = CanvasPalette::dark();
+        assert!(p.canvas_bg.r() < 80);
+        assert!(p.canvas_bg.g() < 80);
+        assert!(p.canvas_bg.b() < 80);
+    }
+
+    #[test]
+    fn light_palette_has_light_canvas_bg() {
+        let p = CanvasPalette::light();
+        assert!(p.canvas_bg.r() > 200);
+        assert!(p.canvas_bg.g() > 200);
+        assert!(p.canvas_bg.b() > 200);
+    }
+
+    #[test]
+    fn dark_and_light_theme_palettes_differ() {
+        let d = CanvasPalette::dark();
+        let l = CanvasPalette::light();
+        assert_ne!(d.canvas_bg, l.canvas_bg);
+        assert_ne!(d.wire, l.wire);
+        assert_ne!(d.text, l.text);
+    }
+
+    // ── palette_for_visuals ─────────────────────────────────────────────────
+
+    #[test]
+    fn palette_for_visuals_dark_true() {
+        let p = palette_for_visuals(true);
+        let d = CanvasPalette::dark();
+        assert_eq!(p.canvas_bg, d.canvas_bg);
+    }
+
+    #[test]
+    fn palette_for_visuals_dark_false() {
+        let p = palette_for_visuals(false);
+        let l = CanvasPalette::light();
+        assert_eq!(p.canvas_bg, l.canvas_bg);
+    }
+
+    // ── from_tokens with defaults ───────────────────────────────────────────
+
+    #[test]
+    fn from_tokens_dark_uses_token_overrides() {
+        let tokens = ThemeTokens::dark();
+        let p = CanvasPalette::from_tokens(&tokens);
+        // ThemeTokens::dark() provides a canvas_bg token [22,22,28,255],
+        // which overrides the hardcoded dark() default.
+        assert_eq!(
+            p.canvas_bg,
+            Color32::from_rgba_premultiplied(22, 22, 28, 255)
+        );
+    }
+
+    #[test]
+    fn from_tokens_light_uses_token_overrides() {
+        let tokens = ThemeTokens::light();
+        let p = CanvasPalette::from_tokens(&tokens);
+        // ThemeTokens::light() provides a canvas_bg token [250,250,252,255].
+        assert_eq!(
+            p.canvas_bg,
+            Color32::from_rgba_premultiplied(250, 250, 252, 255)
+        );
+    }
+
+    #[test]
+    fn from_tokens_empty_falls_back_to_dark() {
+        // Empty tokens with no dark_mode key -> defaults to dark.
+        let tokens = ThemeTokens {
+            tokens: std::collections::HashMap::new(),
+        };
+        let p = CanvasPalette::from_tokens(&tokens);
+        let d = CanvasPalette::dark();
+        assert_eq!(p.canvas_bg, d.canvas_bg);
+    }
+
+    // ── from_tokens with custom override ────────────────────────────────────
+
+    #[test]
+    fn from_tokens_canvas_bg_override() {
+        let mut tokens = ThemeTokens::dark();
+        tokens
+            .tokens
+            .insert("canvas_bg".to_string(), ThemeValue::Color([255, 0, 0, 255]));
+        let p = CanvasPalette::from_tokens(&tokens);
+        assert_eq!(
+            p.canvas_bg,
+            Color32::from_rgba_premultiplied(255, 0, 0, 255)
+        );
+    }
+
+    // ── token_color / token_bool helpers ────────────────────────────────────
+
+    #[test]
+    fn token_color_returns_none_for_missing_key() {
+        let tokens = ThemeTokens::dark();
+        assert!(token_color(&tokens, "nonexistent_key_xyz").is_none());
+    }
+
+    #[test]
+    fn token_color_returns_none_for_wrong_type() {
+        let mut tokens = ThemeTokens::dark();
+        tokens
+            .tokens
+            .insert("test_key".to_string(), ThemeValue::Bool(true));
+        assert!(token_color(&tokens, "test_key").is_none());
+    }
+
+    #[test]
+    fn token_bool_returns_none_for_missing_key() {
+        let tokens = ThemeTokens::dark();
+        assert!(token_bool(&tokens, "nonexistent_key_xyz").is_none());
+    }
+
+    #[test]
+    fn token_bool_returns_none_for_wrong_type() {
+        let mut tokens = ThemeTokens::dark();
+        tokens
+            .tokens
+            .insert("test_key".to_string(), ThemeValue::Color([0, 0, 0, 0]));
+        assert!(token_bool(&tokens, "test_key").is_none());
+    }
+
+    #[test]
+    fn token_bool_extracts_value() {
+        let mut tokens = ThemeTokens::dark();
+        tokens
+            .tokens
+            .insert("my_flag".to_string(), ThemeValue::Bool(false));
+        assert_eq!(token_bool(&tokens, "my_flag"), Some(false));
+    }
+
+    // ── resolve_theme_color ─────────────────────────────────────────────────
+
+    #[test]
+    fn resolve_literal_color() {
+        let tokens = ThemeTokens::dark();
+        let tc = ThemeColor::Literal([10, 20, 30, 200]);
+        let result = resolve_theme_color(&tc, &tokens, Color32::WHITE);
+        assert_eq!(result, Color32::from_rgba_unmultiplied(10, 20, 30, 200));
+    }
+
+    #[test]
+    fn resolve_token_color_found() {
+        let mut tokens = ThemeTokens::dark();
+        tokens.tokens.insert(
+            "my_color".to_string(),
+            ThemeValue::Color([50, 100, 150, 255]),
+        );
+        let tc = ThemeColor::Token("my_color".to_string());
+        let result = resolve_theme_color(&tc, &tokens, Color32::WHITE);
+        assert_eq!(result, Color32::from_rgba_premultiplied(50, 100, 150, 255));
+    }
+
+    #[test]
+    fn resolve_token_color_missing_uses_fallback() {
+        let tokens = ThemeTokens::dark();
+        let tc = ThemeColor::Token("no_such_token".to_string());
+        let fallback = Color32::from_rgb(42, 42, 42);
+        let result = resolve_theme_color(&tc, &tokens, fallback);
+        assert_eq!(result, fallback);
+    }
+
+    // ── WidgetPalette ───────────────────────────────────────────────────────
+
+    #[test]
+    fn widget_palette_dark_and_light_differ() {
+        let d = WidgetPalette::dark();
+        let l = WidgetPalette::light();
+        assert_ne!(d.text_primary, l.text_primary);
+        assert_ne!(d.accent, l.accent);
+    }
+
+    #[test]
+    fn widget_palette_from_tokens_defaults() {
+        let tokens = ThemeTokens::dark();
+        let p = WidgetPalette::from_tokens(&tokens);
+        // accent token exists in ThemeTokens::dark(), so it should be resolved.
+        // The key point is that from_tokens doesn't panic.
+        assert_ne!(p.text_primary, Color32::TRANSPARENT);
+    }
+}

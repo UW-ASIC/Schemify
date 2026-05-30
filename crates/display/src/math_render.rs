@@ -691,3 +691,176 @@ pub fn render_text_with_math(ui: &mut egui::Ui, text: &str) -> bool {
     });
     true
 }
+
+// ── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── latex_symbol ────────────────────────────────────────────────────────
+
+    #[test]
+    fn greek_lowercase_alpha() {
+        assert_eq!(latex_symbol("alpha"), Some("\u{03B1}"));
+    }
+
+    #[test]
+    fn greek_uppercase_omega() {
+        assert_eq!(latex_symbol("Omega"), Some("\u{03A9}"));
+    }
+
+    #[test]
+    fn operator_infty() {
+        assert_eq!(latex_symbol("infty"), Some("\u{221E}"));
+    }
+
+    #[test]
+    fn operator_times() {
+        assert_eq!(latex_symbol("times"), Some("\u{00D7}"));
+    }
+
+    #[test]
+    fn arrow_rightarrow() {
+        assert_eq!(latex_symbol("rightarrow"), Some("\u{2192}"));
+        assert_eq!(latex_symbol("to"), Some("\u{2192}"));
+    }
+
+    #[test]
+    fn bracket_langle() {
+        assert_eq!(latex_symbol("langle"), Some("\u{27E8}"));
+        assert_eq!(latex_symbol("rangle"), Some("\u{27E9}"));
+    }
+
+    #[test]
+    fn unknown_returns_none() {
+        assert_eq!(latex_symbol("notacommand"), None);
+        assert_eq!(latex_symbol(""), None);
+    }
+
+    #[test]
+    fn space_quad() {
+        assert_eq!(latex_symbol("quad"), Some("\u{2003}"));
+    }
+
+    // ── superscript_char ────────────────────────────────────────────────────
+
+    #[test]
+    fn superscript_digits() {
+        assert_eq!(superscript_char('0'), Some('\u{2070}'));
+        assert_eq!(superscript_char('1'), Some('\u{00B9}'));
+        assert_eq!(superscript_char('2'), Some('\u{00B2}'));
+        assert_eq!(superscript_char('3'), Some('\u{00B3}'));
+        assert_eq!(superscript_char('9'), Some('\u{2079}'));
+    }
+
+    #[test]
+    fn superscript_signs() {
+        assert_eq!(superscript_char('+'), Some('\u{207A}'));
+        assert_eq!(superscript_char('-'), Some('\u{207B}'));
+    }
+
+    #[test]
+    fn superscript_unknown() {
+        assert_eq!(superscript_char('a'), None);
+        assert_eq!(superscript_char('Z'), None);
+    }
+
+    // ── subscript_char ──────────────────────────────────────────────────────
+
+    #[test]
+    fn subscript_digits() {
+        assert_eq!(subscript_char('0'), Some('\u{2080}'));
+        assert_eq!(subscript_char('5'), Some('\u{2085}'));
+        assert_eq!(subscript_char('9'), Some('\u{2089}'));
+    }
+
+    #[test]
+    fn subscript_letters() {
+        assert_eq!(subscript_char('a'), Some('\u{2090}'));
+        assert_eq!(subscript_char('n'), Some('\u{2099}'));
+        assert_eq!(subscript_char('x'), Some('\u{2093}'));
+    }
+
+    #[test]
+    fn subscript_unknown() {
+        assert_eq!(subscript_char('z'), None);
+        assert_eq!(subscript_char('A'), None);
+    }
+
+    // ── to_unicode_script ───────────────────────────────────────────────────
+
+    #[test]
+    fn superscript_string() {
+        let result = to_unicode_script("23", true);
+        assert_eq!(result, Some("\u{00B2}\u{00B3}".to_string()));
+    }
+
+    #[test]
+    fn subscript_string() {
+        let result = to_unicode_script("10", false);
+        assert_eq!(result, Some("\u{2081}\u{2080}".to_string()));
+    }
+
+    #[test]
+    fn unicode_script_fails_on_unsupported_char() {
+        assert!(to_unicode_script("abc", true).is_none());
+    }
+
+    #[test]
+    fn unicode_script_empty_string() {
+        assert_eq!(to_unicode_script("", true), Some(String::new()));
+        assert_eq!(to_unicode_script("", false), Some(String::new()));
+    }
+
+    // ── MathParser + nodes_to_string ────────────────────────────────────────
+
+    #[test]
+    fn parse_plain_text() {
+        let mut parser = MathParser::new("abc");
+        let nodes = parser.parse_all();
+        assert_eq!(nodes_to_string(&nodes), "abc");
+    }
+
+    #[test]
+    fn parse_greek_symbol() {
+        let mut parser = MathParser::new("\\alpha");
+        let nodes = parser.parse_all();
+        assert_eq!(nodes_to_string(&nodes), "\u{03B1}");
+    }
+
+    #[test]
+    fn parse_operator() {
+        let mut parser = MathParser::new("\\sin");
+        let nodes = parser.parse_all();
+        assert_eq!(nodes_to_string(&nodes), "sin");
+    }
+
+    #[test]
+    fn parse_frac_renders_empty_for_nodes_to_string() {
+        // nodes_to_string doesn't render Frac specially — it is visual only.
+        let mut parser = MathParser::new("\\frac{a}{b}");
+        let nodes = parser.parse_all();
+        // Frac node's children are not traversed by nodes_to_string.
+        let s = nodes_to_string(&nodes);
+        // The Frac variant returns empty in nodes_to_string.
+        assert!(s.is_empty());
+    }
+
+    #[test]
+    fn parse_group() {
+        let mut parser = MathParser::new("{xy}");
+        let nodes = parser.parse_all();
+        assert_eq!(nodes_to_string(&nodes), "xy");
+    }
+
+    #[test]
+    fn parse_mixed_text_and_symbols() {
+        let mut parser = MathParser::new("E=mc\\cdot 2");
+        let nodes = parser.parse_all();
+        let s = nodes_to_string(&nodes);
+        assert!(s.contains('E'));
+        assert!(s.contains('m'));
+        assert!(s.contains('\u{22C5}')); // cdot
+    }
+}
