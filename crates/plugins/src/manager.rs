@@ -198,20 +198,28 @@ impl PluginManager {
                     "plugin_name": name,
                 });
                 let init_msg =
-                    jsonrpc::encode_notification("lifecycle/initialize", Some(init_params));
+                    jsonrpc::encode_notification("lifecycle/initialize", Some(init_params))
+                        .map_err(|e| {
+                            let msg = format!("encode initialize failed: {e}");
+                            slot.state = PluginState::Error;
+                            slot.error_msg = Some(msg.clone());
+                            msg
+                        })?;
                 if let Err(e) = new_transport.send(&init_msg) {
+                    let msg = format!("send initialize failed: {e}");
                     slot.state = PluginState::Error;
-                    slot.error_msg = Some(format!("send initialize failed: {e}"));
-                    return Err(slot.error_msg.clone().unwrap());
+                    slot.error_msg = Some(msg.clone());
+                    return Err(msg);
                 }
                 slot.transport = Some(new_transport);
                 slot.state = PluginState::Running;
                 Ok(())
             }
             Err(e) => {
+                let msg = format!("spawn failed: {e}");
                 slot.state = PluginState::Error;
-                slot.error_msg = Some(format!("spawn failed: {e}"));
-                Err(slot.error_msg.clone().unwrap())
+                slot.error_msg = Some(msg.clone());
+                Err(msg)
             }
         }
     }
@@ -230,8 +238,9 @@ impl PluginManager {
         slot.state = PluginState::Stopping;
 
         if let Some(ref mut t) = slot.transport {
-            let shutdown_msg = jsonrpc::encode_notification("lifecycle/shutdown", None);
-            let _ = t.send(&shutdown_msg);
+            if let Ok(shutdown_msg) = jsonrpc::encode_notification("lifecycle/shutdown", None) {
+                let _ = t.send(&shutdown_msg);
+            }
             let _ = t.stop();
         }
         slot.transport = None;
@@ -281,7 +290,10 @@ impl PluginManager {
             .collect();
 
         for name in names {
-            let slot = self.plugins.get_mut(&name).unwrap();
+            let slot = match self.plugins.get_mut(&name) {
+                Some(s) => s,
+                None => continue, // plugin removed between name collection and lookup
+            };
             let t = match slot.transport.as_mut() {
                 Some(t) => t,
                 None => continue,
@@ -354,7 +366,8 @@ impl PluginManager {
             .transport
             .as_mut()
             .ok_or_else(|| format!("{name} not running"))?;
-        let msg = jsonrpc::encode_notification(method, params);
+        let msg = jsonrpc::encode_notification(method, params)
+            .map_err(|e| format!("encode failed: {e}"))?;
         t.send(&msg).map_err(|e| format!("send failed: {e}"))
     }
 
@@ -402,7 +415,8 @@ impl PluginManager {
             .transport
             .as_mut()
             .ok_or_else(|| format!("{plugin_name} not running"))?;
-        let msg = jsonrpc::encode_response(id, result);
+        let msg = jsonrpc::encode_response(id, result)
+            .map_err(|e| format!("encode response failed: {e}"))?;
         t.send(&msg)
             .map_err(|e| format!("send response failed: {e}"))
     }
@@ -423,7 +437,8 @@ impl PluginManager {
             .transport
             .as_mut()
             .ok_or_else(|| format!("{plugin_name} not running"))?;
-        let msg = jsonrpc::encode_error(id, code, message);
+        let msg = jsonrpc::encode_error(id, code, message)
+            .map_err(|e| format!("encode error failed: {e}"))?;
         t.send(&msg).map_err(|e| format!("send error failed: {e}"))
     }
 
@@ -449,7 +464,8 @@ impl PluginManager {
             .transport
             .as_mut()
             .ok_or_else(|| format!("{plugin_name} not running"))?;
-        let msg = jsonrpc::encode_request(id, method, params);
+        let msg = jsonrpc::encode_request(id, method, params)
+            .map_err(|e| format!("encode request failed: {e}"))?;
         t.send(&msg)
             .map_err(|e| format!("send request failed: {e}"))?;
         Ok(id)
@@ -739,5 +755,152 @@ theme = false
     fn default_impl() {
         let mgr = PluginManager::default();
         assert_eq!(mgr.plugin_count(), 0);
+    }
+
+    #[test]
+    fn tick_with_no_running_plugins_returns_empty() {
+        let mut mgr = PluginManager::new();
+        let actions = mgr.tick();
+        assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn notify_unknown_plugin_returns_error() {
+        let mut mgr = PluginManager::new();
+        let result = mgr.notify_plugin("nonexistent", "test/method", None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("unknown plugin"));
+    }
+
+    #[test]
+    fn send_response_unknown_plugin_returns_error() {
+        let mut mgr = PluginManager::new();
+        let result = mgr.send_response("nonexistent", 1, serde_json::json!(null));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("unknown plugin"));
+    }
+
+    #[test]
+    fn send_error_response_unknown_plugin_returns_error() {
+        let mut mgr = PluginManager::new();
+        let result = mgr.send_error_response("nonexistent", 1, -32600, "bad");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("unknown plugin"));
+    }
+
+    #[test]
+    fn send_request_unknown_plugin_returns_error() {
+        let mut mgr = PluginManager::new();
+        let result = mgr.send_request("nonexistent", "test/method", None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("unknown plugin"));
+    }
+
+    #[test]
+    fn notify_plugin_not_running_returns_error() {
+        let mut mgr = PluginManager::new();
+        let manifest = PluginManifest::parse(
+            r#"
+[plugin]
+name = "Idle"
+version = "0.1.0"
+entry = "echo"
+"#,
+        )
+        .unwrap();
+
+        mgr.plugins.insert(
+            "Idle".into(),
+            PluginSlot {
+                manifest,
+                dir: std::env::temp_dir(),
+                state: PluginState::Discovered,
+                capability: NegotiatedCapabilities::default(),
+                transport: None,
+                error_msg: None,
+            },
+        );
+
+        let result = mgr.notify_plugin("Idle", "test/method", None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not running"));
+    }
+
+    #[test]
+    fn tick_detects_crashed_subprocess() {
+        let mut mgr = PluginManager::new();
+        let manifest = PluginManifest::parse(
+            r#"
+[plugin]
+name = "CrashTest"
+version = "0.1.0"
+entry = "cat"
+"#,
+        )
+        .unwrap();
+
+        // Start cat, then kill it to simulate a crash.
+        mgr.plugins.insert(
+            "CrashTest".into(),
+            PluginSlot {
+                manifest: manifest.clone(),
+                dir: std::env::temp_dir(),
+                state: PluginState::Discovered,
+                capability: NegotiatedCapabilities::default(),
+                transport: None,
+                error_msg: None,
+            },
+        );
+
+        let result = mgr.start_plugin("CrashTest");
+        assert!(result.is_ok(), "expected start to succeed: {result:?}");
+
+        // Force-stop the transport to simulate a crash.
+        if let Some(slot) = mgr.plugins.get_mut("CrashTest") {
+            if let Some(ref mut t) = slot.transport {
+                let _ = t.stop();
+            }
+        }
+
+        // Tick should detect the plugin is dead, transition to Error.
+        let actions = mgr.tick();
+        assert!(actions.is_empty());
+        assert_eq!(mgr.plugin_state("CrashTest"), Some(PluginState::Error));
+        assert!(mgr.error_msg("CrashTest").is_some());
+    }
+
+    #[test]
+    fn start_already_running_returns_error() {
+        let mut mgr = PluginManager::new();
+        let manifest = PluginManifest::parse(
+            r#"
+[plugin]
+name = "RunTwice"
+version = "0.1.0"
+entry = "cat"
+"#,
+        )
+        .unwrap();
+
+        mgr.plugins.insert(
+            "RunTwice".into(),
+            PluginSlot {
+                manifest,
+                dir: std::env::temp_dir(),
+                state: PluginState::Discovered,
+                capability: NegotiatedCapabilities::default(),
+                transport: None,
+                error_msg: None,
+            },
+        );
+
+        let r1 = mgr.start_plugin("RunTwice");
+        assert!(r1.is_ok());
+
+        let r2 = mgr.start_plugin("RunTwice");
+        assert!(r2.is_err());
+        assert!(r2.unwrap_err().contains("already running"));
+
+        mgr.stop_all();
     }
 }
