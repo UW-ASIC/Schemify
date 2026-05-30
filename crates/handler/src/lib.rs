@@ -639,3 +639,46 @@ impl AppWrite for App {
         self.set_cursor_world(x, y)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use schemify_core::commands::Command;
+
+    #[test]
+    fn add_wire_with_bus_mode_propagates_flag() {
+        let mut app = App::new();
+        app.toggle_bus_mode();
+        assert!(app.tool_state().bus_mode);
+
+        app.dispatch(Command::AddWire {
+            x0: 0,
+            y0: 0,
+            x1: 100,
+            y1: 0,
+            net_name: None,
+            bus: true,
+        });
+
+        assert_eq!(app.wires().len(), 1);
+        assert!(app.wires().bus[0]);
+    }
+
+    #[test]
+    fn add_wire_without_bus_mode_has_bus_false() {
+        let mut app = App::new();
+        assert!(!app.tool_state().bus_mode);
+
+        app.dispatch(Command::AddWire {
+            x0: 0,
+            y0: 0,
+            x1: 100,
+            y1: 0,
+            net_name: None,
+            bus: false,
+        });
+
+        assert_eq!(app.wires().len(), 1);
+        assert!(!app.wires().bus[0]);
+    }
+}

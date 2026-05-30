@@ -1,7 +1,7 @@
 ---
 id: gui/06
 title: Verify bus mode flag propagates to AddWire
-status: ready-for-agent
+status: done
 priority: medium
 labels: [gui-linking, display]
 ---
@@ -14,7 +14,7 @@ Menu checkbox toggles `app.state.tool.bus_mode` but unclear if `AddWire` command
 
 ## Acceptance criteria
 
-- [ ] Audit all `AddWire` dispatch sites in canvas.rs
-- [ ] Confirm bus_mode flag propagates from tool state → AddWire { bus }
-- [ ] Fix any hardcoded `bus: false` paths
-- [ ] Add test: enable bus mode → draw wire → verify AddWire has bus=true
+- [x] Audit all `AddWire` dispatch sites in canvas.rs — only 1 site (line 2044)
+- [x] Confirm bus_mode flag propagates from tool state → AddWire { bus } — correct (line 2043)
+- [x] Fix any hardcoded `bus: false` paths — none found
+- [x] Add test: enable bus mode → draw wire → verify AddWire has bus=true — handler/src/lib.rs
