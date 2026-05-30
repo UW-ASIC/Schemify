@@ -151,10 +151,18 @@ fn build_table() -> Vec<PrimEntry> {
         ep(include_str!("../primitives/coupling.chn_prim")),
         // Non-electrical / UI
         ep_special(include_str!("../primitives/gnd.chn_prim"), true, Some("0")),
-        ep_special(include_str!("../primitives/vdd.chn_prim"), true, Some("VDD")),
+        ep_special(
+            include_str!("../primitives/vdd.chn_prim"),
+            true,
+            Some("VDD"),
+        ),
         ep_special(include_str!("../primitives/lab_pin.chn_prim"), true, None),
         ep_special(include_str!("../primitives/input_pin.chn_prim"), true, None),
-        ep_special(include_str!("../primitives/output_pin.chn_prim"), true, None),
+        ep_special(
+            include_str!("../primitives/output_pin.chn_prim"),
+            true,
+            None,
+        ),
         ep_special(include_str!("../primitives/inout_pin.chn_prim"), true, None),
         ep_special(include_str!("../primitives/probe.chn_prim"), true, None),
         // Digital / HDL blocks
@@ -163,15 +171,25 @@ fn build_table() -> Vec<PrimEntry> {
         ep(include_str!("../primitives/spice_block.chn_prim")),
     ];
 
-    embedded.iter().map(|e| parse_prim(e)).collect()
+    embedded.iter().map(parse_prim).collect()
 }
 
 fn ep(src: &'static str) -> EmbeddedPrim {
-    EmbeddedPrim { src, kind_override: None, non_electrical: false, injected_net: None }
+    EmbeddedPrim {
+        src,
+        kind_override: None,
+        non_electrical: false,
+        injected_net: None,
+    }
 }
 
 fn ep_override(src: &'static str, kind: &'static str) -> EmbeddedPrim {
-    EmbeddedPrim { src, kind_override: Some(kind), non_electrical: false, injected_net: None }
+    EmbeddedPrim {
+        src,
+        kind_override: Some(kind),
+        non_electrical: false,
+        injected_net: None,
+    }
 }
 
 fn ep_special(
@@ -179,7 +197,12 @@ fn ep_special(
     non_electrical: bool,
     injected_net: Option<&'static str>,
 ) -> EmbeddedPrim {
-    EmbeddedPrim { src, kind_override: None, non_electrical, injected_net }
+    EmbeddedPrim {
+        src,
+        kind_override: None,
+        non_electrical,
+        injected_net,
+    }
 }
 
 // ── Parser ──────────────────────────────────────────────────────────────────
@@ -272,9 +295,7 @@ fn parse_prim(meta: &EmbeddedPrim) -> PrimEntry {
         }
 
         // Drawing sub-section keywords
-        if state == State::Drawing
-            || state == State::DrawingLines
-            || state == State::DrawingPinPos
+        if state == State::Drawing || state == State::DrawingLines || state == State::DrawingPinPos
         {
             if line.starts_with("lines:") {
                 state = State::DrawingLines;
@@ -383,10 +404,10 @@ fn parse_i16(s: &'static str) -> Option<(i16, &'static str)> {
     if s.is_empty() {
         return None;
     }
-    let (neg, s) = if s.starts_with('-') {
-        (true, &s[1..])
-    } else if s.starts_with('+') {
-        (false, &s[1..])
+    let (neg, s) = if let Some(rest) = s.strip_prefix('-') {
+        (true, rest)
+    } else if let Some(rest) = s.strip_prefix('+') {
+        (false, rest)
     } else {
         (false, s)
     };
@@ -433,7 +454,11 @@ fn parse_two_points(s: &'static str) -> Option<[i16; 4]> {
 fn parse_circle(s: &'static str) -> Option<DrawCircle> {
     let pt = parse_one_point(s)?;
     let r = find_named_i16(s, "r=")?;
-    Some(DrawCircle { cx: pt[0], cy: pt[1], r })
+    Some(DrawCircle {
+        cx: pt[0],
+        cy: pt[1],
+        r,
+    })
 }
 
 fn parse_arc(s: &'static str) -> Option<DrawArc> {
@@ -466,7 +491,11 @@ fn parse_text(s: &'static str) -> Option<DrawText> {
     if content.is_empty() {
         return None;
     }
-    Some(DrawText { x: pt[0], y: pt[1], content })
+    Some(DrawText {
+        x: pt[0],
+        y: pt[1],
+        content,
+    })
 }
 
 fn first_token(s: &'static str) -> &'static str {

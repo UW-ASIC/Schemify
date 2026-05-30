@@ -3,8 +3,8 @@
 //! SchemifyRS serializes these to JSON; PySpice-rs deserializes and runs.
 //! No Rust crate dependency — JSON is the contract.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 // ── Top-level ──
 
@@ -18,7 +18,7 @@ pub struct CircuitIR {
 
 // ── Subcircuit ──
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Subcircuit {
     pub name: String,
     pub ports: Vec<Port>,
@@ -99,28 +99,161 @@ pub enum VerilogConnection {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Component {
-    Resistor { name: String, n1: String, n2: String, value: IrValue, params: Vec<(String, String)> },
-    Capacitor { name: String, n1: String, n2: String, value: IrValue, params: Vec<(String, String)> },
-    Inductor { name: String, n1: String, n2: String, value: IrValue, params: Vec<(String, String)> },
-    MutualInductor { name: String, inductor1: String, inductor2: String, coupling: f64 },
-    VoltageSource { name: String, np: String, nm: String, value: IrValue, waveform: Option<IrWaveform> },
-    CurrentSource { name: String, np: String, nm: String, value: IrValue, waveform: Option<IrWaveform> },
-    BehavioralVoltage { name: String, np: String, nm: String, expression: String },
-    BehavioralCurrent { name: String, np: String, nm: String, expression: String },
-    Vcvs { name: String, np: String, nm: String, ncp: String, ncm: String, gain: f64 },
-    Vccs { name: String, np: String, nm: String, ncp: String, ncm: String, transconductance: f64 },
-    Cccs { name: String, np: String, nm: String, vsense: String, gain: f64 },
-    Ccvs { name: String, np: String, nm: String, vsense: String, transresistance: f64 },
-    Diode { name: String, np: String, nm: String, model: String, params: Vec<(String, String)> },
-    Bjt { name: String, nc: String, nb: String, ne: String, model: String, params: Vec<(String, String)> },
-    Mosfet { name: String, nd: String, ng: String, ns: String, nb: String, model: String, params: Vec<(String, String)> },
-    Jfet { name: String, nd: String, ng: String, ns: String, model: String, params: Vec<(String, String)> },
-    Mesfet { name: String, nd: String, ng: String, ns: String, model: String, params: Vec<(String, String)> },
-    VSwitch { name: String, np: String, nm: String, ncp: String, ncm: String, model: String },
-    ISwitch { name: String, np: String, nm: String, vcontrol: String, model: String },
-    TLine { name: String, inp: String, inm: String, outp: String, outm: String, z0: f64, td: f64 },
-    Xspice { name: String, connections: Vec<String>, model: String },
-    RawSpice { line: String },
+    Resistor {
+        name: String,
+        n1: String,
+        n2: String,
+        value: IrValue,
+        params: Vec<(String, String)>,
+    },
+    Capacitor {
+        name: String,
+        n1: String,
+        n2: String,
+        value: IrValue,
+        params: Vec<(String, String)>,
+    },
+    Inductor {
+        name: String,
+        n1: String,
+        n2: String,
+        value: IrValue,
+        params: Vec<(String, String)>,
+    },
+    MutualInductor {
+        name: String,
+        inductor1: String,
+        inductor2: String,
+        coupling: f64,
+    },
+    VoltageSource {
+        name: String,
+        np: String,
+        nm: String,
+        value: IrValue,
+        waveform: Option<IrWaveform>,
+    },
+    CurrentSource {
+        name: String,
+        np: String,
+        nm: String,
+        value: IrValue,
+        waveform: Option<IrWaveform>,
+    },
+    BehavioralVoltage {
+        name: String,
+        np: String,
+        nm: String,
+        expression: String,
+    },
+    BehavioralCurrent {
+        name: String,
+        np: String,
+        nm: String,
+        expression: String,
+    },
+    Vcvs {
+        name: String,
+        np: String,
+        nm: String,
+        ncp: String,
+        ncm: String,
+        gain: f64,
+    },
+    Vccs {
+        name: String,
+        np: String,
+        nm: String,
+        ncp: String,
+        ncm: String,
+        transconductance: f64,
+    },
+    Cccs {
+        name: String,
+        np: String,
+        nm: String,
+        vsense: String,
+        gain: f64,
+    },
+    Ccvs {
+        name: String,
+        np: String,
+        nm: String,
+        vsense: String,
+        transresistance: f64,
+    },
+    Diode {
+        name: String,
+        np: String,
+        nm: String,
+        model: String,
+        params: Vec<(String, String)>,
+    },
+    Bjt {
+        name: String,
+        nc: String,
+        nb: String,
+        ne: String,
+        model: String,
+        params: Vec<(String, String)>,
+    },
+    Mosfet {
+        name: String,
+        nd: String,
+        ng: String,
+        ns: String,
+        nb: String,
+        model: String,
+        params: Vec<(String, String)>,
+    },
+    Jfet {
+        name: String,
+        nd: String,
+        ng: String,
+        ns: String,
+        model: String,
+        params: Vec<(String, String)>,
+    },
+    Mesfet {
+        name: String,
+        nd: String,
+        ng: String,
+        ns: String,
+        model: String,
+        params: Vec<(String, String)>,
+    },
+    VSwitch {
+        name: String,
+        np: String,
+        nm: String,
+        ncp: String,
+        ncm: String,
+        model: String,
+    },
+    ISwitch {
+        name: String,
+        np: String,
+        nm: String,
+        vcontrol: String,
+        model: String,
+    },
+    TLine {
+        name: String,
+        inp: String,
+        inm: String,
+        outp: String,
+        outm: String,
+        z0: f64,
+        td: f64,
+    },
+    Xspice {
+        name: String,
+        connections: Vec<String>,
+        model: String,
+    },
+    RawSpice {
+        line: String,
+    },
 }
 
 // ── Values & waveforms ──
@@ -136,17 +269,53 @@ pub enum IrValue {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum IrWaveform {
-    Sin { offset: f64, amplitude: f64, frequency: f64, delay: f64, damping: f64, phase: f64 },
-    Pulse { initial: f64, pulsed: f64, delay: f64, rise_time: f64, fall_time: f64, pulse_width: f64, period: f64 },
-    Pwl { values: Vec<(f64, f64)> },
-    Exp { initial: f64, pulsed: f64, rise_delay: f64, rise_tau: f64, fall_delay: f64, fall_tau: f64 },
-    Sffm { offset: f64, amplitude: f64, carrier_freq: f64, modulation_index: f64, signal_freq: f64 },
-    Am { amplitude: f64, offset: f64, modulating_freq: f64, carrier_freq: f64, delay: f64 },
+    Sin {
+        offset: f64,
+        amplitude: f64,
+        frequency: f64,
+        delay: f64,
+        damping: f64,
+        phase: f64,
+    },
+    Pulse {
+        initial: f64,
+        pulsed: f64,
+        delay: f64,
+        rise_time: f64,
+        fall_time: f64,
+        pulse_width: f64,
+        period: f64,
+    },
+    Pwl {
+        values: Vec<(f64, f64)>,
+    },
+    Exp {
+        initial: f64,
+        pulsed: f64,
+        rise_delay: f64,
+        rise_tau: f64,
+        fall_delay: f64,
+        fall_tau: f64,
+    },
+    Sffm {
+        offset: f64,
+        amplitude: f64,
+        carrier_freq: f64,
+        modulation_index: f64,
+        signal_freq: f64,
+    },
+    Am {
+        amplitude: f64,
+        offset: f64,
+        modulating_freq: f64,
+        carrier_freq: f64,
+        delay: f64,
+    },
 }
 
 // ── Testbench ──
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Testbench {
     pub dut: String,
     pub stimulus: Vec<Component>,
@@ -183,48 +352,165 @@ pub struct SimOptions {
 #[serde(tag = "type")]
 pub enum Analysis {
     Op,
-    Dc { sweeps: Vec<DcSweep> },
-    Ac { variation: String, points: u32, start: f64, stop: f64 },
-    Transient { step: f64, stop: f64, start: Option<f64>, max_step: Option<f64>, uic: bool },
+    Dc {
+        sweeps: Vec<DcSweep>,
+    },
+    Ac {
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
+    },
+    Transient {
+        step: f64,
+        stop: f64,
+        start: Option<f64>,
+        max_step: Option<f64>,
+        uic: bool,
+    },
     Noise {
-        output: String, reference: String, source: String,
-        variation: String, points: u32, start: f64, stop: f64,
+        output: String,
+        reference: String,
+        source: String,
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
         points_per_summary: Option<u32>,
     },
-    Tf { output: String, source: String },
-    Sensitivity { output: String, ac: Option<AcSweepParams> },
-    PoleZero { node1: String, node2: String, node3: String, node4: String, tf_type: String, pz_type: String },
-    Distortion { variation: String, points: u32, start: f64, stop: f64, f2overf1: Option<f64> },
-    Pss { fundamental: f64, stabilization: f64, observe_node: String, points_per_period: u32, harmonics: u32 },
-    HarmonicBalance { frequencies: Vec<f64>, harmonics: Vec<u32> },
-    SPar { variation: String, points: u32, start: f64, stop: f64 },
-    Stability { probe: String, variation: String, points: u32, start: f64, stop: f64 },
-    TransientNoise { step: f64, stop: f64 },
-    Fourier { fundamental: f64, outputs: Vec<String>, num_harmonics: Option<u32> },
+    Tf {
+        output: String,
+        source: String,
+    },
+    Sensitivity {
+        output: String,
+        ac: Option<AcSweepParams>,
+    },
+    PoleZero {
+        node1: String,
+        node2: String,
+        node3: String,
+        node4: String,
+        tf_type: String,
+        pz_type: String,
+    },
+    Distortion {
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
+        f2overf1: Option<f64>,
+    },
+    Pss {
+        fundamental: f64,
+        stabilization: f64,
+        observe_node: String,
+        points_per_period: u32,
+        harmonics: u32,
+    },
+    HarmonicBalance {
+        frequencies: Vec<f64>,
+        harmonics: Vec<u32>,
+    },
+    SPar {
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
+    },
+    Stability {
+        probe: String,
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
+    },
+    TransientNoise {
+        step: f64,
+        stop: f64,
+    },
+    Fourier {
+        fundamental: f64,
+        outputs: Vec<String>,
+        num_harmonics: Option<u32>,
+    },
     // Vendor-specific
-    XyceSampling { num_samples: u32, distributions: Vec<(String, String)> },
-    XyceEmbeddedSampling { num_samples: u32, distributions: Vec<(String, String)> },
-    XycePce { num_samples: u32, distributions: Vec<(String, String)>, order: u32 },
-    XyceFft { signal: String, np: u32, start: f64, stop: f64, window: String, format: String },
-    SpectreSweep { param: String, start: f64, stop: f64, step: f64, inner: String, inner_type: String },
-    SpectreMonteCarlo { iterations: u32, inner: String, inner_type: String, seed: Option<u64> },
+    XyceSampling {
+        num_samples: u32,
+        distributions: Vec<(String, String)>,
+    },
+    XyceEmbeddedSampling {
+        num_samples: u32,
+        distributions: Vec<(String, String)>,
+    },
+    XycePce {
+        num_samples: u32,
+        distributions: Vec<(String, String)>,
+        order: u32,
+    },
+    XyceFft {
+        signal: String,
+        np: u32,
+        start: f64,
+        stop: f64,
+        window: String,
+        format: String,
+    },
+    SpectreSweep {
+        param: String,
+        start: f64,
+        stop: f64,
+        step: f64,
+        inner: String,
+        inner_type: String,
+    },
+    SpectreMonteCarlo {
+        iterations: u32,
+        inner: String,
+        inner_type: String,
+        seed: Option<u64>,
+    },
     SpectrePac {
-        pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32,
-        variation: String, points: u32, start: f64, stop: f64, sweep_type: String,
+        pss_fundamental: f64,
+        pss_stabilization: f64,
+        pss_harmonics: u32,
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
+        sweep_type: String,
     },
     SpectrePnoise {
-        pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32,
-        output: String, reference: String,
-        variation: String, points: u32, start: f64, stop: f64,
+        pss_fundamental: f64,
+        pss_stabilization: f64,
+        pss_harmonics: u32,
+        output: String,
+        reference: String,
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
     },
     SpectrePxf {
-        pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32,
-        output: String, source: String,
-        variation: String, points: u32, start: f64, stop: f64,
+        pss_fundamental: f64,
+        pss_stabilization: f64,
+        pss_harmonics: u32,
+        output: String,
+        source: String,
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
     },
     SpectrePstb {
-        pss_fundamental: f64, pss_stabilization: f64, pss_harmonics: u32,
-        probe: String, variation: String, points: u32, start: f64, stop: f64,
+        pss_fundamental: f64,
+        pss_stabilization: f64,
+        pss_harmonics: u32,
+        probe: String,
+        variation: String,
+        points: u32,
+        start: f64,
+        stop: f64,
     },
 }
 
@@ -254,44 +540,7 @@ pub struct ModelLibrary {
     pub backend_paths: HashMap<String, String>,
 }
 
-// ── Defaults & constructors ──
-
-impl Default for Subcircuit {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            ports: Vec::new(),
-            parameters: Vec::new(),
-            components: Vec::new(),
-            instances: Vec::new(),
-            models: Vec::new(),
-            raw_spice: Vec::new(),
-            includes: Vec::new(),
-            libs: Vec::new(),
-            osdi_loads: Vec::new(),
-            verilog_blocks: Vec::new(),
-        }
-    }
-}
-
-impl Default for Testbench {
-    fn default() -> Self {
-        Self {
-            dut: String::new(),
-            stimulus: Vec::new(),
-            analyses: Vec::new(),
-            options: SimOptions::default(),
-            saves: Vec::new(),
-            measures: Vec::new(),
-            temperature: None,
-            nominal_temperature: None,
-            initial_conditions: Vec::new(),
-            node_sets: Vec::new(),
-            step_params: Vec::new(),
-            extra_lines: Vec::new(),
-        }
-    }
-}
+// ── Constructors ──
 
 impl Subcircuit {
     pub fn new(name: impl Into<String>) -> Self {
@@ -331,9 +580,15 @@ impl CircuitIR {
 }
 
 impl IrValue {
-    pub fn numeric(v: f64) -> Self { Self::Numeric { value: v } }
-    pub fn expr(e: impl Into<String>) -> Self { Self::Expression { expr: e.into() } }
-    pub fn raw(t: impl Into<String>) -> Self { Self::Raw { text: t.into() } }
+    pub fn numeric(v: f64) -> Self {
+        Self::Numeric { value: v }
+    }
+    pub fn expr(e: impl Into<String>) -> Self {
+        Self::Expression { expr: e.into() }
+    }
+    pub fn raw(t: impl Into<String>) -> Self {
+        Self::Raw { text: t.into() }
+    }
 }
 
 #[cfg(test)]
@@ -364,10 +619,7 @@ mod tests {
             ns: "source".into(),
             nb: "bulk".into(),
             model: "nmos_3p3".into(),
-            params: vec![
-                ("W".into(), "1u".into()),
-                ("L".into(), "180n".into()),
-            ],
+            params: vec![("W".into(), "1u".into()), ("L".into(), "180n".into())],
         };
         let json = serde_json::to_string(&comp).unwrap();
         let back: Component = serde_json::from_str(&json).unwrap();
@@ -467,20 +719,44 @@ mod tests {
         top.instances.push(Instance {
             name: "X1".into(),
             subcircuit: "opamp".into(),
-            port_mapping: vec!["inp".into(), "inn".into(), "out".into(), "vdd".into(), "vss".into()],
+            port_mapping: vec![
+                "inp".into(),
+                "inn".into(),
+                "out".into(),
+                "vdd".into(),
+                "vss".into(),
+            ],
             parameters: vec![("gain".into(), "1000".into())],
         });
 
         let sub = Subcircuit {
             name: "opamp".into(),
             ports: vec![
-                Port { name: "inp".into(), direction: PortDirection::Input },
-                Port { name: "inn".into(), direction: PortDirection::Input },
-                Port { name: "out".into(), direction: PortDirection::Output },
-                Port { name: "vdd".into(), direction: PortDirection::InOut },
-                Port { name: "vss".into(), direction: PortDirection::InOut },
+                Port {
+                    name: "inp".into(),
+                    direction: PortDirection::Input,
+                },
+                Port {
+                    name: "inn".into(),
+                    direction: PortDirection::Input,
+                },
+                Port {
+                    name: "out".into(),
+                    direction: PortDirection::Output,
+                },
+                Port {
+                    name: "vdd".into(),
+                    direction: PortDirection::InOut,
+                },
+                Port {
+                    name: "vss".into(),
+                    direction: PortDirection::InOut,
+                },
             ],
-            parameters: vec![ParamDef { name: "gain".into(), default: Some("100".into()) }],
+            parameters: vec![ParamDef {
+                name: "gain".into(),
+                default: Some("100".into()),
+            }],
             ..Subcircuit::default()
         };
 
@@ -500,13 +776,27 @@ mod tests {
     fn analysis_variants_serialize() {
         let analyses = vec![
             Analysis::Op,
-            Analysis::Transient { step: 1e-9, stop: 1e-3, start: None, max_step: None, uic: false },
+            Analysis::Transient {
+                step: 1e-9,
+                stop: 1e-3,
+                start: None,
+                max_step: None,
+                uic: false,
+            },
             Analysis::Noise {
-                output: "out".into(), reference: "0".into(), source: "V1".into(),
-                variation: "dec".into(), points: 100, start: 1.0, stop: 1e9,
+                output: "out".into(),
+                reference: "0".into(),
+                source: "V1".into(),
+                variation: "dec".into(),
+                points: 100,
+                start: 1.0,
+                stop: 1e9,
                 points_per_summary: None,
             },
-            Analysis::HarmonicBalance { frequencies: vec![1e9], harmonics: vec![7] },
+            Analysis::HarmonicBalance {
+                frequencies: vec![1e9],
+                harmonics: vec![7],
+            },
         ];
         for a in &analyses {
             let json = serde_json::to_string(a).unwrap();

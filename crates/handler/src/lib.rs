@@ -1,14 +1,14 @@
+pub mod connectivity;
+mod dispatch;
 pub mod examples;
 pub mod geometry;
 pub mod ir;
+pub mod netlist;
+pub mod plugin_dist;
 pub mod s2s;
+pub mod spice_import;
 pub mod state;
 pub mod transform;
-pub mod plugin_dist;
-pub mod connectivity;
-mod dispatch;
-pub mod netlist;
-pub mod spice_import;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -46,8 +46,7 @@ impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn open_file(&mut self, path: &Path) -> io::Result<()> {
         let content = std::fs::read_to_string(path)?;
-        let schematic =
-            schemify_io::reader::read_chn(&content, &mut self.state.interner);
+        let schematic = schemify_io::reader::read_chn(&content, &mut self.state.interner);
         let name = path
             .file_stem()
             .unwrap_or_default()
@@ -80,17 +79,13 @@ impl App {
                     .into_owned();
                 Ok(())
             }
-            None => Err(io::Error::new(
-                io::ErrorKind::Other,
-                "serialization failed",
-            )),
+            None => Err(io::Error::new(io::ErrorKind::Other, "serialization failed")),
         }
     }
 
     /// Load a schematic from in-memory content (used by WASM / tests).
     pub fn open_from_content(&mut self, name: &str, content: &str) {
-        let schematic =
-            schemify_io::reader::read_chn(content, &mut self.state.interner);
+        let schematic = schemify_io::reader::read_chn(content, &mut self.state.interner);
         let doc = Document {
             schematic,
             name: name.to_string(),
@@ -316,7 +311,11 @@ impl App {
     }
 
     pub fn select_instance(&mut self, idx: usize) {
-        self.state.active_document_mut().selection.instances.insert(idx);
+        self.state
+            .active_document_mut()
+            .selection
+            .instances
+            .insert(idx);
     }
 
     pub fn select_wire(&mut self, idx: usize) {
@@ -332,7 +331,11 @@ impl App {
     }
 
     pub fn select_circle(&mut self, idx: usize) {
-        self.state.active_document_mut().selection.circles.insert(idx);
+        self.state
+            .active_document_mut()
+            .selection
+            .circles
+            .insert(idx);
     }
 
     pub fn select_arc(&mut self, idx: usize) {
@@ -344,7 +347,11 @@ impl App {
     }
 
     pub fn select_polygon(&mut self, idx: usize) {
-        self.state.active_document_mut().selection.polygons.insert(idx);
+        self.state
+            .active_document_mut()
+            .selection
+            .polygons
+            .insert(idx);
     }
 
     pub fn is_line_selected(&self, idx: usize) -> bool {
@@ -435,7 +442,12 @@ impl App {
     /// Replaces any existing override from the same plugin.
     pub fn apply_theme_override(&mut self, theme_override: ThemeOverride) {
         let id = &theme_override.plugin_id;
-        if let Some(existing) = self.state.theme_overrides.iter_mut().find(|o| o.plugin_id == *id) {
+        if let Some(existing) = self
+            .state
+            .theme_overrides
+            .iter_mut()
+            .find(|o| o.plugin_id == *id)
+        {
             *existing = theme_override;
         } else {
             self.state.theme_overrides.push(theme_override);
@@ -450,87 +462,15 @@ impl App {
     // ── Netlist / Simulation ──
 
     pub(crate) fn generate_netlist(&mut self) {
-        use schemify_sim::ir::*;
-        use std::fmt::Write;
-
         let ir = netlist::to_circuit_ir(
             &self.state.active_document().schematic,
             &self.state.interner,
         );
-
-        let mut buf = String::new();
-        writeln!(buf, "* SchemifyRS netlist").unwrap();
-        writeln!(buf, "* {}", self.state.active_document().name).unwrap();
-        writeln!(buf).unwrap();
-
-        // Models
-        for m in &ir.top.models {
-            write!(buf, ".model {} {}", m.name, m.kind).unwrap();
-            if !m.parameters.is_empty() {
-                write!(buf, " (").unwrap();
-                for (k, v) in &m.parameters {
-                    write!(buf, " {}={}", k, v).unwrap();
-                }
-                write!(buf, " )").unwrap();
-            }
-            writeln!(buf).unwrap();
-        }
-
-        // Components
-        for comp in &ir.top.components {
-            match comp {
-                Component::Resistor { name, n1, n2, value, .. } => {
-                    writeln!(buf, "R{} {} {} {}", name, n1, n2, ir_val(value)).unwrap();
-                }
-                Component::Capacitor { name, n1, n2, value, .. } => {
-                    writeln!(buf, "C{} {} {} {}", name, n1, n2, ir_val(value)).unwrap();
-                }
-                Component::Inductor { name, n1, n2, value, .. } => {
-                    writeln!(buf, "L{} {} {} {}", name, n1, n2, ir_val(value)).unwrap();
-                }
-                Component::VoltageSource { name, np, nm, value, .. } => {
-                    writeln!(buf, "V{} {} {} {}", name, np, nm, ir_val(value)).unwrap();
-                }
-                Component::CurrentSource { name, np, nm, value, .. } => {
-                    writeln!(buf, "I{} {} {} {}", name, np, nm, ir_val(value)).unwrap();
-                }
-                Component::Diode { name, np, nm, model, .. } => {
-                    writeln!(buf, "D{} {} {} {}", name, np, nm, model).unwrap();
-                }
-                Component::Mosfet { name, nd, ng, ns, nb, model, .. } => {
-                    writeln!(buf, "M{} {} {} {} {} {}", name, nd, ng, ns, nb, model).unwrap();
-                }
-                Component::Bjt { name, nc, nb, ne, model, .. } => {
-                    writeln!(buf, "Q{} {} {} {} {}", name, nc, nb, ne, model).unwrap();
-                }
-                Component::Jfet { name, nd, ng, ns, model, .. } => {
-                    writeln!(buf, "J{} {} {} {} {}", name, nd, ng, ns, model).unwrap();
-                }
-                Component::RawSpice { line } => {
-                    writeln!(buf, "{}", line).unwrap();
-                }
-                _ => {
-                    writeln!(buf, "* (unsupported component)").unwrap();
-                }
-            }
-        }
-
-        // Subcircuit instances
-        for inst in &ir.top.instances {
-            write!(buf, "X{}", inst.name).unwrap();
-            for p in &inst.port_mapping {
-                write!(buf, " {}", p).unwrap();
-            }
-            writeln!(buf, " {}", inst.subcircuit).unwrap();
-        }
-
-        // Raw SPICE
-        for line in &ir.top.raw_spice {
-            writeln!(buf, "{}", line).unwrap();
-        }
-
-        writeln!(buf, ".end").unwrap();
-        self.state.last_netlist = buf;
+        let title = format!(
+            "SchemifyRS netlist\n* {}",
+            self.state.active_document().name
+        );
+        self.state.last_netlist = schemify_sim::codegen::emit_netlist(&ir, &title);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -591,8 +531,7 @@ circuit = pyspice_rs.load_circuit(circuit_json)
         let pypath = match schemify_sim::pyspice::python_path() {
             Some(p) => p,
             None => {
-                self.state.status_msg =
-                    "PySpice not available (not bundled at build time)".into();
+                self.state.status_msg = "PySpice not available (not bundled at build time)".into();
                 return;
             }
         };
@@ -608,7 +547,10 @@ circuit = pyspice_rs.load_circuit(circuit_json)
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 if output.status.success() {
-                    self.state.status_msg = format!("Simulation complete. {}", stdout.lines().next().unwrap_or(""));
+                    self.state.status_msg = format!(
+                        "Simulation complete. {}",
+                        stdout.lines().next().unwrap_or("")
+                    );
                     if !stdout.is_empty() {
                         self.state.last_netlist = format!(
                             "{}\n\n* === Simulation Output ===\n{}",
@@ -635,15 +577,6 @@ circuit = pyspice_rs.load_circuit(circuit_json)
 
     fn active_doc(&self) -> &Document {
         self.state.active_document()
-    }
-}
-
-fn ir_val(v: &schemify_sim::ir::IrValue) -> String {
-    use schemify_sim::ir::IrValue;
-    match v {
-        IrValue::Numeric { value } => format!("{value}"),
-        IrValue::Expression { expr } => format!("{{{expr}}}"),
-        IrValue::Raw { text } => text.clone(),
     }
 }
 
