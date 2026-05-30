@@ -432,6 +432,51 @@ impl App {
         self.state.tool.draw.first_point = pos;
     }
 
+    // ── Text tool helpers ──
+
+    pub fn set_text_pos(&mut self, pos: Option<[i32; 2]>) {
+        self.state.tool.draw.text_pos = pos;
+    }
+
+    pub fn set_text_input_active(&mut self, active: bool) {
+        self.state.tool.draw.text_input_active = active;
+    }
+
+    pub fn text_buf_mut(&mut self) -> &mut String {
+        &mut self.state.tool.draw.text_buf
+    }
+
+    /// Commit the current text input as an AddText command.
+    /// Clears text_pos, text_buf, and text_input_active afterward.
+    /// No-op if text_pos is None or text_buf is empty.
+    pub fn commit_text(&mut self) {
+        let pos = match self.state.tool.draw.text_pos {
+            Some(p) => p,
+            None => return,
+        };
+        let content = std::mem::take(&mut self.state.tool.draw.text_buf);
+        if content.is_empty() {
+            // Nothing to commit — just clear state.
+            self.state.tool.draw.text_pos = None;
+            self.state.tool.draw.text_input_active = false;
+            return;
+        }
+        self.state.tool.draw.text_pos = None;
+        self.state.tool.draw.text_input_active = false;
+        self.dispatch(Command::AddText {
+            x: pos[0],
+            y: pos[1],
+            content,
+        });
+    }
+
+    /// Clear all text draw state without committing.
+    pub fn clear_text_input(&mut self) {
+        self.state.tool.draw.text_pos = None;
+        self.state.tool.draw.text_buf.clear();
+        self.state.tool.draw.text_input_active = false;
+    }
+
     // ── Plugin integration ──
 
     pub fn drain_plugin_commands(&mut self) -> Vec<(String, Vec<u8>)> {
@@ -705,5 +750,76 @@ mod tests {
         let mut app = App::new();
         app.dispatch(Command::SetStimulusLang("bogus".to_string()));
         assert_eq!(app.stimulus_lang(), StimulusLang::NgSpice);
+    }
+
+    #[test]
+    fn set_text_pos_stores_position() {
+        let mut app = App::new();
+        assert!(app.tool_state().draw.text_pos.is_none());
+
+        app.set_text_pos(Some([100, 200]));
+        assert_eq!(app.tool_state().draw.text_pos, Some([100, 200]));
+
+        app.set_text_pos(None);
+        assert!(app.tool_state().draw.text_pos.is_none());
+    }
+
+    #[test]
+    fn commit_text_dispatches_add_text_and_clears_state() {
+        let mut app = App::new();
+        app.set_text_pos(Some([50, 75]));
+        app.set_text_input_active(true);
+        app.text_buf_mut().push_str("hello");
+
+        app.commit_text();
+
+        assert!(app.tool_state().draw.text_pos.is_none());
+        assert!(app.tool_state().draw.text_buf.is_empty());
+        assert!(!app.tool_state().draw.text_input_active);
+
+        assert_eq!(app.schematic().texts.len(), 1);
+        let text = &app.schematic().texts[0];
+        assert_eq!(text.x, 50);
+        assert_eq!(text.y, 75);
+        assert_eq!(app.resolve(text.content), "hello");
+    }
+
+    #[test]
+    fn commit_text_no_position_is_noop() {
+        let mut app = App::new();
+        app.text_buf_mut().push_str("orphan");
+
+        app.commit_text();
+
+        assert_eq!(app.schematic().texts.len(), 0);
+        assert_eq!(app.tool_state().draw.text_buf, "orphan");
+    }
+
+    #[test]
+    fn commit_text_empty_buffer_clears_state_without_dispatch() {
+        let mut app = App::new();
+        app.set_text_pos(Some([10, 20]));
+        app.set_text_input_active(true);
+
+        app.commit_text();
+
+        assert!(app.tool_state().draw.text_pos.is_none());
+        assert!(!app.tool_state().draw.text_input_active);
+        assert_eq!(app.schematic().texts.len(), 0);
+    }
+
+    #[test]
+    fn clear_text_input_resets_all_text_draw_state() {
+        let mut app = App::new();
+        app.set_text_pos(Some([30, 40]));
+        app.set_text_input_active(true);
+        app.text_buf_mut().push_str("discard me");
+
+        app.clear_text_input();
+
+        assert!(app.tool_state().draw.text_pos.is_none());
+        assert!(app.tool_state().draw.text_buf.is_empty());
+        assert!(!app.tool_state().draw.text_input_active);
+        assert_eq!(app.schematic().texts.len(), 0);
     }
 }
