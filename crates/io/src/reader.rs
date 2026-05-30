@@ -239,7 +239,7 @@ fn parse(s: &mut Schematic, data: &str, int: &mut Rodeo) {
             Section::Instances => parse_instance(s, trimmed, int),
             Section::TypeTable => parse_type_table_row(s, &tt, trimmed, int),
             Section::Wires => parse_wire(s, trimmed, int),
-            Section::Drawing => parse_drawing(s, trimmed),
+            Section::Drawing => parse_drawing(s, trimmed, int),
             Section::Analyses => parse_prefixed(s, "analysis.", trimmed, int),
             Section::Measures => parse_prefixed(s, "measure.", trimmed, int),
             Section::Annotations => parse_prefixed(s, "ann.", trimmed, int),
@@ -494,59 +494,155 @@ fn parse_wire(s: &mut Schematic, line: &str, int: &mut Rodeo) {
     });
 }
 
-/// Drawing: `line|rect|circle|arc x0 y0 ...`
-fn parse_drawing(s: &mut Schematic, line: &str) {
+/// Drawing: `line|rect|circle|arc|text|polygon ...`
+fn parse_drawing(s: &mut Schematic, line: &str, int: &mut Rodeo) {
     let mut tok = line.split_whitespace();
     let shape = match tok.next() {
         Some(s) => s,
         None => return,
     };
-    let nums: Vec<i32> = tok.filter_map(|v| v.parse().ok()).collect();
 
     match shape {
-        "line" if nums.len() >= 4 => {
-            s.lines.push(Line {
-                x0: nums[0],
-                y0: nums[1],
-                x1: nums[2],
-                y1: nums[3],
-                color: Color::NONE,
-                thickness: 0,
-            });
+        "text" => parse_text(s, line, int),
+        "polygon" => parse_polygon(s, line),
+        _ => {
+            let nums: Vec<i32> = tok.filter_map(|v| v.parse().ok()).collect();
+            match shape {
+                "line" if nums.len() >= 4 => {
+                    s.lines.push(Line {
+                        x0: nums[0],
+                        y0: nums[1],
+                        x1: nums[2],
+                        y1: nums[3],
+                        color: Color::NONE,
+                        thickness: 0,
+                    });
+                }
+                "rect" if nums.len() >= 4 => {
+                    s.rects.push(Rect {
+                        x: nums[0],
+                        y: nums[1],
+                        width: nums[2] - nums[0],
+                        height: nums[3] - nums[1],
+                        fill: Color::NONE,
+                        stroke: Color::NONE,
+                        thickness: 0,
+                    });
+                }
+                "circle" if nums.len() >= 3 => {
+                    s.circles.push(Circle {
+                        cx: nums[0],
+                        cy: nums[1],
+                        radius: nums[2],
+                        fill: Color::NONE,
+                        stroke: Color::NONE,
+                        thickness: 0,
+                    });
+                }
+                "arc" if nums.len() >= 5 => {
+                    s.arcs.push(Arc {
+                        cx: nums[0],
+                        cy: nums[1],
+                        radius: nums[2],
+                        start_angle: nums[3] as f32,
+                        sweep_angle: nums[4] as f32,
+                        stroke: Color::NONE,
+                        thickness: 0,
+                    });
+                }
+                _ => {}
+            }
         }
-        "rect" if nums.len() >= 4 => {
-            s.rects.push(Rect {
-                x: nums[0],
-                y: nums[1],
-                width: nums[2] - nums[0],
-                height: nums[3] - nums[1],
-                fill: Color::NONE,
-                stroke: Color::NONE,
-                thickness: 0,
-            });
+    }
+}
+
+/// Text: `text x y font_size rotation "content" [color=#RRGGBB]`
+fn parse_text(s: &mut Schematic, line: &str, int: &mut Rodeo) {
+    // Skip "text " prefix
+    let rest = match line.strip_prefix("text ") {
+        Some(r) => r.trim_start(),
+        None => return,
+    };
+
+    let mut tok = rest.split_whitespace();
+    let x: i32 = tok.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let y: i32 = tok.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let font_size_i: i32 = tok.next().and_then(|v| v.parse().ok()).unwrap_or(12);
+    let rotation: u8 = tok.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+
+    // Extract quoted content from the rest of the line
+    let after_rotation = rest
+        .splitn(5, char::is_whitespace)
+        .nth(4)
+        .unwrap_or("")
+        .trim_start();
+
+    let (content, trailing) = if let Some(after_quote) = after_rotation.strip_prefix('"') {
+        // Find the closing quote
+        if let Some(end) = after_quote.find('"') {
+            (&after_quote[..end], &after_quote[end + 1..])
+        } else {
+            // No closing quote — take everything
+            (after_quote, "")
         }
-        "circle" if nums.len() >= 3 => {
-            s.circles.push(Circle {
-                cx: nums[0],
-                cy: nums[1],
-                radius: nums[2],
-                fill: Color::NONE,
-                stroke: Color::NONE,
-                thickness: 0,
-            });
+    } else {
+        // No quotes — take the next token
+        let end = after_rotation
+            .find(char::is_whitespace)
+            .unwrap_or(after_rotation.len());
+        (&after_rotation[..end], &after_rotation[end..])
+    };
+
+    let mut color = Color::NONE;
+    for attr in trailing.split_whitespace() {
+        if let Some(hex) = attr.strip_prefix("color=#") {
+            color = parse_hex_color(hex);
         }
-        "arc" if nums.len() >= 5 => {
-            s.arcs.push(Arc {
-                cx: nums[0],
-                cy: nums[1],
-                radius: nums[2],
-                start_angle: nums[3] as f32,
-                sweep_angle: nums[4] as f32,
-                stroke: Color::NONE,
-                thickness: 0,
-            });
+    }
+
+    s.texts.push(Text {
+        x,
+        y,
+        content: int.get_or_intern(content),
+        font_size: font_size_i as f32,
+        color,
+        rotation,
+    });
+}
+
+/// Polygon: `polygon x0,y0 x1,y1 ... [thickness=N] [fill=#RRGGBB] [stroke=#RRGGBB]`
+fn parse_polygon(s: &mut Schematic, line: &str) {
+    let rest = match line.strip_prefix("polygon ") {
+        Some(r) => r.trim_start(),
+        None => return,
+    };
+
+    let mut points = Vec::new();
+    let mut thickness: u8 = 0;
+    let mut fill = Color::NONE;
+    let mut stroke = Color::NONE;
+
+    for tok in rest.split_whitespace() {
+        if let Some(v) = tok.strip_prefix("thickness=") {
+            thickness = v.parse().unwrap_or(0);
+        } else if let Some(hex) = tok.strip_prefix("fill=#") {
+            fill = parse_hex_color(hex);
+        } else if let Some(hex) = tok.strip_prefix("stroke=#") {
+            stroke = parse_hex_color(hex);
+        } else if let Some(comma) = tok.find(',') {
+            let xv: i32 = tok[..comma].parse().unwrap_or(0);
+            let yv: i32 = tok[comma + 1..].parse().unwrap_or(0);
+            points.push([xv, yv]);
         }
-        _ => {}
+    }
+
+    if points.len() >= 3 {
+        s.polygons.push(Polygon {
+            points,
+            fill,
+            stroke,
+            thickness,
+        });
     }
 }
 
