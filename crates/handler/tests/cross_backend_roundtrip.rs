@@ -145,8 +145,12 @@ fn emit_spice(subckt: &Subcircuit) -> String {
                         .get("model")
                         .map(|s| s.as_str())
                         .unwrap_or("jmod");
-                    writeln!(buf, "{} {} {} {} {}", name, nets[0], nets[1], nets[2], model)
-                        .unwrap();
+                    writeln!(
+                        buf,
+                        "{} {} {} {} {}",
+                        name, nets[0], nets[1], nets[2], model
+                    )
+                    .unwrap();
                 }
             }
             Primitive::BehavioralSource => {

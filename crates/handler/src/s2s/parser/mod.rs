@@ -5,7 +5,10 @@ use std::collections::HashMap;
 
 use thiserror::Error;
 
-use crate::s2s::ir::{Circuit, Instance, Model, Pin, PinDir, PinRef, Primitive, Subcircuit};
+use crate::s2s::ir::{
+    Circuit, DiagnosticKind, Instance, Model, ParseDiagnostic, Pin, PinDir, PinRef, Primitive,
+    Subcircuit,
+};
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -276,8 +279,11 @@ impl SpiceParser {
             'j' => self.parse_jfet(circuit, trimmed, line_no),
             'b' => self.parse_behavioral_source(circuit, trimmed, line_no),
             'x' => self.parse_subckt_instance(circuit, trimmed, line_no),
-            _ => {
-                // Silently ignore unknown device prefixes (matches Zig behaviour).
+            other => {
+                circuit.diagnostics.push(ParseDiagnostic {
+                    line_no,
+                    kind: DiagnosticKind::UnknownDevicePrefix(other),
+                });
                 Ok(())
             }
         }
@@ -345,7 +351,7 @@ impl SpiceParser {
         &mut self,
         circuit: &mut Circuit,
         line: &str,
-        _line_no: usize,
+        line_no: usize,
     ) -> Result<(), ParseError> {
         let tokens: Vec<&str> = line.split_whitespace().collect();
         if tokens.is_empty() {
@@ -455,6 +461,11 @@ impl SpiceParser {
                     circuit.analysis.other.push(line.to_string());
                 }
             }
+        } else {
+            circuit.diagnostics.push(ParseDiagnostic {
+                line_no,
+                kind: DiagnosticKind::UnknownDotCommand(cmd.to_string()),
+            });
         }
 
         Ok(())
@@ -2067,11 +2078,20 @@ R1 a b 1k
         assert_eq!(inst.params.get("model").unwrap(), "jmod");
 
         let d_net = circuit.top.nets.iter().find(|n| n.name == "d").unwrap();
-        assert!(d_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 0));
+        assert!(d_net
+            .pins
+            .iter()
+            .any(|p| p.instance_idx == 0 && p.pin_idx == 0));
         let g_net = circuit.top.nets.iter().find(|n| n.name == "g").unwrap();
-        assert!(g_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 1));
+        assert!(g_net
+            .pins
+            .iter()
+            .any(|p| p.instance_idx == 0 && p.pin_idx == 1));
         let s_net = circuit.top.nets.iter().find(|n| n.name == "s").unwrap();
-        assert!(s_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 2));
+        assert!(s_net
+            .pins
+            .iter()
+            .any(|p| p.instance_idx == 0 && p.pin_idx == 2));
     }
 
     #[test]
@@ -2102,5 +2122,102 @@ R1 a b 1k
         assert_eq!(inst.primitive, Primitive::BehavioralSource);
         assert_eq!(inst.pins.len(), 2);
         assert_eq!(inst.params.get("i").unwrap(), "{V(a)*gm}");
+    }
+
+    #[test]
+    fn unknown_device_prefix_produces_diagnostic() {
+        let input = "\
+* test
+K1 L1 L2 0.99
+R1 a b 1k
+";
+        let mut parser = SpiceParser::new();
+        let circuit = parser.parse(input).unwrap();
+        assert_eq!(circuit.top.instances.len(), 1, "only R1 parsed");
+        assert_eq!(circuit.diagnostics.len(), 1);
+        assert!(matches!(
+            circuit.diagnostics[0].kind,
+            crate::s2s::ir::DiagnosticKind::UnknownDevicePrefix('k')
+        ));
+        // Line numbers are logical (post-preprocess); comment stripped, so K1 is line 1.
+        assert_eq!(circuit.diagnostics[0].line_no, 1);
+    }
+
+    #[test]
+    fn unknown_dot_command_produces_diagnostic() {
+        let input = "\
+* test
+R1 a b 1k
+.banana 42
+";
+        let mut parser = SpiceParser::new();
+        let circuit = parser.parse(input).unwrap();
+        assert_eq!(circuit.top.instances.len(), 1);
+        assert_eq!(circuit.diagnostics.len(), 1);
+        assert!(matches!(
+            &circuit.diagnostics[0].kind,
+            crate::s2s::ir::DiagnosticKind::UnknownDotCommand(cmd) if cmd == ".banana"
+        ));
+    }
+
+    #[test]
+    fn known_devices_produce_no_diagnostics() {
+        let input = "\
+* all known prefixes
+R1 a b 1k
+C1 a b 1p
+L1 a b 1u
+D1 a b dmod
+V1 a b 5
+I1 a b 1m
+M1 d g s b nch w=1u l=100n
+Q1 c b e npn_mod
+J1 d g s jmod
+B1 out 0 i={V(a)*gm}
+E1 out 0 a b 10
+G1 out 0 a b 1m
+.model dmod d
+.model nch nmos
+.model npn_mod npn
+.model jmod njf
+";
+        let mut parser = SpiceParser::new();
+        let circuit = parser.parse(input).unwrap();
+        assert!(
+            circuit.diagnostics.is_empty(),
+            "expected no diagnostics, got: {:?}",
+            circuit.diagnostics
+        );
+    }
+
+    #[test]
+    fn multiple_unknown_cards_all_collected() {
+        let input = "\
+* mixed known/unknown
+R1 a b 1k
+K1 L1 L2 0.99
+.banana 42
+W1 a b ctrl
+.mango test
+";
+        let mut parser = SpiceParser::new();
+        let circuit = parser.parse(input).unwrap();
+        assert_eq!(circuit.diagnostics.len(), 4);
+        assert!(matches!(
+            circuit.diagnostics[0].kind,
+            crate::s2s::ir::DiagnosticKind::UnknownDevicePrefix('k')
+        ));
+        assert!(matches!(
+            &circuit.diagnostics[1].kind,
+            crate::s2s::ir::DiagnosticKind::UnknownDotCommand(cmd) if cmd == ".banana"
+        ));
+        assert!(matches!(
+            circuit.diagnostics[2].kind,
+            crate::s2s::ir::DiagnosticKind::UnknownDevicePrefix('w')
+        ));
+        assert!(matches!(
+            &circuit.diagnostics[3].kind,
+            crate::s2s::ir::DiagnosticKind::UnknownDotCommand(cmd) if cmd == ".mango"
+        ));
     }
 }

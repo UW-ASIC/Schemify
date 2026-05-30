@@ -1,4 +1,32 @@
 use std::collections::HashMap;
+use std::fmt;
+
+/// Classification of a parse-phase diagnostic.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DiagnosticKind {
+    UnknownDevicePrefix(char),
+    UnknownDotCommand(String),
+}
+
+/// A diagnostic emitted during SPICE parsing (not post-parse validation).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseDiagnostic {
+    pub line_no: usize,
+    pub kind: DiagnosticKind,
+}
+
+impl fmt::Display for ParseDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.kind {
+            DiagnosticKind::UnknownDevicePrefix(ch) => {
+                write!(f, "line {}: unknown device prefix '{}'", self.line_no, ch)
+            }
+            DiagnosticKind::UnknownDotCommand(cmd) => {
+                write!(f, "line {}: unknown dot command '{}'", self.line_no, cmd)
+            }
+        }
+    }
+}
 
 /// Pin direction/role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -253,6 +281,8 @@ pub struct Circuit {
     pub models: HashMap<String, Model>,
     /// Structured analysis/stimulus commands parsed from the source SPICE.
     pub analysis: AnalysisBlock,
+    /// Diagnostics collected during parsing (unknown cards, etc.).
+    pub diagnostics: Vec<ParseDiagnostic>,
 }
 
 impl Circuit {
@@ -262,6 +292,7 @@ impl Circuit {
             subcircuits: HashMap::new(),
             models: HashMap::new(),
             analysis: AnalysisBlock::default(),
+            diagnostics: Vec::new(),
         }
     }
 
