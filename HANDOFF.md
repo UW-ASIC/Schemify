@@ -1,6 +1,6 @@
 # HANDOFF — SchemifyRS Implementation Gaps
 
-Generated: 2026-05-30 | Branch: `dev` (HEAD `99c7718`)
+Updated: 2026-05-30 | Branch: `dev` (HEAD `15af9ba`)
 
 Issues live as markdown under `.scratch/` (see `docs/agents/issue-tracker.md`).
 
@@ -40,15 +40,15 @@ S2S importer exists (~13.5k LOC in `handler/src/s2s/`). These are gaps, not gree
 
 | ID | Title | Status | Pri | Deps |
 |----|-------|--------|-----|------|
-| s2s/01 | Device card coverage (J/K/S/W/B/T silent drop) | ready-for-agent | high | — |
-| s2s/02 | Hierarchical subcircuit import (multi-sheet) | ready-for-agent | high | s2s/03 |
-| s2s/03 | Relayout adapter (Schematic ↔ s2s-IR) | ready-for-agent | high | — |
+| s2s/01 | Device card coverage (J/B added, K/S/W/T deferred) | **done** | high | — |
+| s2s/02 | Hierarchical subcircuit import (multi-sheet) | ready-for-agent | high | ~~s2s/03~~ ✅ |
+| s2s/03 | Relayout adapter (Schematic ↔ s2s-IR) | **done** | high | — |
 | s2s/04 | Surface validation diagnostics to user | ready-for-agent | medium | — |
-| s2s/05 | Ignored card diagnostics (parser warnings) | ready-for-agent | medium | s2s/01 |
+| s2s/05 | Ignored card diagnostics (parser warnings) | ready-for-agent | medium | ~~s2s/01~~ ✅ |
 | s2s/06 | WASM import smoke test + PySpice UX | ready-for-agent | low | — |
 | s2s/07 | Document S2S + fix CONTEXT-MAP drift | ready-for-agent | low | — |
 | s2s/08 | Simulation result back-annotation | needs-info | high | gen/02 |
-| s2s/09 | Spectre/HSPICE dialect support | needs-info | low | — |
+| s2s/09 | ~~Spectre/HSPICE dialect support~~ | **wontfix** | — | — |
 
 ### GUI Linking (`.scratch/gui-linking/issues/`)
 
@@ -67,8 +67,8 @@ S2S importer exists (~13.5k LOC in `handler/src/s2s/`). These are gaps, not gree
 
 | ID | Title | Status | Pri | Deps |
 |----|-------|--------|-----|------|
-| gen/01 | Unblock 53 ignored spice roundtrip tests | ready-for-agent | critical | gen/02 |
-| gen/02 | Complete PySpice simulation pipeline | ready-for-agent | critical | — |
+| gen/01 | Unblock 53 ignored spice roundtrip tests | **done** | critical | ~~gen/02~~ ✅ |
+| gen/02 | Complete PySpice simulation pipeline | **done** | critical | — |
 | gen/03 | Display crate unit tests (zero today) | ready-for-agent | high | — |
 | gen/04 | Plugin host panic → Result hardening (33 panics) | ready-for-agent | high | — |
 | gen/05 | Criterion benchmarks for hot paths | ready-for-agent | medium | — |
@@ -127,10 +127,11 @@ S2S importer exists (~13.5k LOC in `handler/src/s2s/`). These are gaps, not gree
 
 ## Totals
 
-**25 issues across 4 tracks**
+**25 issues across 4 tracks — 4 done, 1 wontfix, 20 remaining**
 
-- **Critical:** 2 (simulation pipeline, roundtrip tests)
-- **High:** 6 (device cards, relayout, text tool, back-annotation, display tests, plugin hardening)
+- **Done:** 4 (gen/01, gen/02, s2s/01, s2s/03)
+- **Wontfix:** 1 (s2s/09 — Spectre/HSPICE irrelevant, PySpice emits ngspice)
+- **High:** 4 (text tool, back-annotation, display tests, plugin hardening)
 - **Medium:** 11 (various GUI, infra, IO)
-- **Low:** 6 (docs, WASM, dialects, polish)
-- **Needs-info:** 5 (require triage/clarification before agent work)
+- **Low:** 5 (docs, WASM, polish)
+- **Needs-info:** 4 (require triage/clarification before agent work)

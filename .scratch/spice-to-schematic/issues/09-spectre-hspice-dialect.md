@@ -1,26 +1,16 @@
 ---
 id: s2s/09
 title: Spectre and HSPICE dialect support
-status: needs-info
+status: wontfix
 priority: low
 labels: [s2s, parser]
 ---
 
 # Spectre and HSPICE dialect support
 
-## Problem
+## Status: wontfix
 
-Parser only handles ngspice dialect. Spectre (Cadence) and HSPICE netlists fail. Industry uses these heavily.
-
-## Scope
-
-- Spectre: different parameter syntax, node ordering, `subckt`/`ends` keywords
-- HSPICE: `.hdl`, `.data` directives, H-parameters
-- Xyce: parallel SPICE extensions
-
-## Acceptance criteria
-
-- [ ] Dialect auto-detection from file header/extension
-- [ ] Spectre parser covers subcircuits, device cards, parameters
-- [ ] HSPICE extensions parsed (at minimum `.hdl`, `.data`)
-- [ ] Unknown dialect → clear error message, not silent failure
+Closed 2026-05-30. PySpice generates ngspice-format SPICE — all input to
+the S2S parser comes through PySpice, so there is no user-facing need for
+Spectre/HSPICE parsing. If a user has a Spectre netlist, they convert it
+to ngspice before importing (or PySpice handles it upstream).
