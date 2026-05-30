@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::PluginError;
+
 // Standard JSON-RPC 2.0 error codes.
 pub const PARSE_ERROR: i32 = -32700;
 pub const INVALID_REQUEST: i32 = -32600;
@@ -31,10 +33,10 @@ impl Notification {
     }
 
     /// Encode to newline-delimited JSON.
-    pub fn encode(&self) -> String {
-        let mut s = serde_json::to_string(self).expect("notification serialize");
+    pub fn encode(&self) -> Result<String, PluginError> {
+        let mut s = serde_json::to_string(self)?;
         s.push('\n');
-        s
+        Ok(s)
     }
 }
 
@@ -60,10 +62,10 @@ impl Request {
     }
 
     /// Encode to newline-delimited JSON.
-    pub fn encode(&self) -> String {
-        let mut s = serde_json::to_string(self).expect("request serialize");
+    pub fn encode(&self) -> Result<String, PluginError> {
+        let mut s = serde_json::to_string(self)?;
         s.push('\n');
-        s
+        Ok(s)
     }
 }
 
@@ -115,10 +117,10 @@ impl SuccessResponse {
     }
 
     /// Encode to newline-delimited JSON.
-    pub fn encode(&self) -> String {
-        let mut s = serde_json::to_string(self).expect("response serialize");
+    pub fn encode(&self) -> Result<String, PluginError> {
+        let mut s = serde_json::to_string(self)?;
         s.push('\n');
-        s
+        Ok(s)
     }
 }
 
@@ -141,10 +143,10 @@ impl ErrorResponse {
     }
 
     /// Encode to newline-delimited JSON.
-    pub fn encode(&self) -> String {
-        let mut s = serde_json::to_string(self).expect("error serialize");
+    pub fn encode(&self) -> Result<String, PluginError> {
+        let mut s = serde_json::to_string(self)?;
         s.push('\n');
-        s
+        Ok(s)
     }
 }
 
@@ -168,22 +170,22 @@ pub enum IncomingMessage {
 }
 
 /// Serialize a notification to a newline-delimited JSON string.
-pub fn encode_notification(method: &str, params: Option<Value>) -> String {
+pub fn encode_notification(method: &str, params: Option<Value>) -> Result<String, PluginError> {
     Notification::new(method, params).encode()
 }
 
 /// Serialize a request to a newline-delimited JSON string.
-pub fn encode_request(id: u32, method: &str, params: Option<Value>) -> String {
+pub fn encode_request(id: u32, method: &str, params: Option<Value>) -> Result<String, PluginError> {
     Request::new(id, method, params).encode()
 }
 
 /// Serialize a success response.
-pub fn encode_response(id: u32, result: Value) -> String {
+pub fn encode_response(id: u32, result: Value) -> Result<String, PluginError> {
     SuccessResponse::new(id, result).encode()
 }
 
 /// Serialize an error response.
-pub fn encode_error(id: u32, code: i32, message: &str) -> String {
+pub fn encode_error(id: u32, code: i32, message: &str) -> Result<String, PluginError> {
     ErrorResponse::new(id, code, message).encode()
 }
 
@@ -229,7 +231,8 @@ mod tests {
 
     #[test]
     fn roundtrip_notification() {
-        let encoded = encode_notification("lifecycle/tick", Some(serde_json::json!({"dt": 0.016})));
+        let encoded =
+            encode_notification("lifecycle/tick", Some(serde_json::json!({"dt": 0.016}))).unwrap();
         assert!(encoded.ends_with('\n'));
         let parsed = parse_line(&encoded).unwrap();
         match parsed {
@@ -244,7 +247,7 @@ mod tests {
 
     #[test]
     fn roundtrip_request() {
-        let encoded = encode_request(42, "state/query_instances", None);
+        let encoded = encode_request(42, "state/query_instances", None).unwrap();
         let parsed = parse_line(&encoded).unwrap();
         match parsed {
             IncomingMessage::Request { id, method, params } => {
@@ -258,7 +261,7 @@ mod tests {
 
     #[test]
     fn roundtrip_response() {
-        let encoded = encode_response(7, serde_json::json!({"ok": true}));
+        let encoded = encode_response(7, serde_json::json!({"ok": true})).unwrap();
         let parsed = parse_line(&encoded).unwrap();
         match parsed {
             IncomingMessage::Response { id, result, error } => {
@@ -272,7 +275,7 @@ mod tests {
 
     #[test]
     fn roundtrip_error_response() {
-        let encoded = encode_error(3, METHOD_NOT_FOUND, "no such method");
+        let encoded = encode_error(3, METHOD_NOT_FOUND, "no such method").unwrap();
         let parsed = parse_line(&encoded).unwrap();
         match parsed {
             IncomingMessage::Response { id, error, .. } => {
@@ -357,7 +360,7 @@ mod tests {
                 "shapes": []
             })),
         );
-        let encoded = req.encode();
+        let encoded = req.encode().unwrap();
         let parsed = parse_line(&encoded).unwrap();
         match parsed {
             IncomingMessage::Request { id, method, params } => {
@@ -373,7 +376,7 @@ mod tests {
     #[test]
     fn notification_no_params_roundtrip() {
         let n = Notification::new("lifecycle/shutdown", None);
-        let encoded = n.encode();
+        let encoded = n.encode().unwrap();
         let parsed = parse_line(&encoded).unwrap();
         match parsed {
             IncomingMessage::Notification { method, params } => {
@@ -382,5 +385,50 @@ mod tests {
             }
             _ => panic!("expected notification"),
         }
+    }
+
+    #[test]
+    fn encode_notification_returns_ok() {
+        let result = encode_notification("test/method", None);
+        assert!(result.is_ok());
+        assert!(result.unwrap().ends_with('\n'));
+    }
+
+    #[test]
+    fn encode_request_returns_ok() {
+        let result = encode_request(1, "test/method", None);
+        assert!(result.is_ok());
+        assert!(result.unwrap().ends_with('\n'));
+    }
+
+    #[test]
+    fn encode_response_returns_ok() {
+        let result = encode_response(1, serde_json::json!(null));
+        assert!(result.is_ok());
+        assert!(result.unwrap().ends_with('\n'));
+    }
+
+    #[test]
+    fn encode_error_returns_ok() {
+        let result = encode_error(1, INTERNAL_ERROR, "boom");
+        assert!(result.is_ok());
+        assert!(result.unwrap().ends_with('\n'));
+    }
+
+    #[test]
+    fn parse_line_rejects_non_object() {
+        assert!(parse_line("[1,2,3]").is_err());
+    }
+
+    #[test]
+    fn parse_line_rejects_non_integer_id() {
+        let result = parse_line(r#"{"jsonrpc":"2.0","id":"abc"}"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_line_rejects_request_with_non_integer_id() {
+        let result = parse_line(r#"{"jsonrpc":"2.0","id":"abc","method":"test"}"#);
+        assert!(result.is_err());
     }
 }

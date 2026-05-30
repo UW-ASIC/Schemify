@@ -115,10 +115,13 @@ impl PluginTransport for WasmTransport {
                 "env",
                 "host_send",
                 |mut caller: wasmtime::Caller<'_, WasmState>, ptr: i32, len: i32| {
-                    let memory = caller
-                        .get_export("memory")
-                        .and_then(|e| e.into_memory())
-                        .expect("plugin must export memory");
+                    let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+                        Some(m) => m,
+                        None => {
+                            eprintln!("host_send: plugin does not export memory");
+                            return;
+                        }
+                    };
                     let data = memory.data(&caller);
                     let start = ptr as usize;
                     let end = start + len as usize;
@@ -150,10 +153,15 @@ impl PluginTransport for WasmTransport {
                         caller.data_mut().inbox.push_front(msg);
                         return -1;
                     }
-                    let memory = caller
-                        .get_export("memory")
-                        .and_then(|e| e.into_memory())
-                        .expect("plugin must export memory");
+                    let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+                        Some(m) => m,
+                        None => {
+                            eprintln!("host_recv: plugin does not export memory");
+                            // Put the message back since we couldn't deliver it.
+                            caller.data_mut().inbox.push_front(msg);
+                            return -2;
+                        }
+                    };
                     let start = ptr as usize;
                     memory.data_mut(&mut caller)[start..start + bytes.len()].copy_from_slice(bytes);
                     bytes.len() as i32
