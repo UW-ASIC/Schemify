@@ -364,6 +364,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     // Handle interaction.
     handle(&response, app, &viewport, ui.ctx());
 
+    // Text input overlay: show a TextEdit when the text tool is active and a position is set.
+    show_text_input_overlay(ui, app, &viewport);
+
     // Update cursor world position.
     if let Some(pos) = response.hover_pos() {
         let [wx, wy] = viewport.pixel_to_world(pos.x, pos.y);
@@ -1280,6 +1283,46 @@ fn render_overlays(
     }
 }
 
+// ── Text input overlay ──────────────────────────────────────────────────────
+
+/// Render a floating TextEdit at the text tool's click position.
+/// On Enter: commit the text. On Escape: cancel.
+fn show_text_input_overlay(ui: &mut egui::Ui, app: &mut App, viewport: &CanvasViewport) {
+    if !app.tool_state().draw.text_input_active {
+        return;
+    }
+    let pos = match app.tool_state().draw.text_pos {
+        Some(p) => p,
+        None => return,
+    };
+
+    let pixel = viewport.w2p(pos[0], pos[1]);
+
+    egui::Area::new(egui::Id::new("text_tool_input"))
+        .fixed_pos(egui::Pos2::new(pixel.x, pixel.y))
+        .order(egui::Order::Foreground)
+        .show(ui.ctx(), |ui| {
+            let te = egui::TextEdit::singleline(app.text_buf_mut())
+                .desired_width(150.0)
+                .hint_text("Enter text...");
+            let response = ui.add(te);
+
+            // Request focus on first frame.
+            if !response.has_focus() {
+                response.request_focus();
+            }
+
+            // Enter → commit.
+            if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                app.commit_text();
+            }
+            // Escape → cancel.
+            if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                app.clear_text_input();
+            }
+        });
+}
+
 // ── Wire preview ─────────────────────────────────────────────────────────────
 
 fn draw_wire_preview(
@@ -1758,6 +1801,13 @@ fn handle_mouse_press(response: &Response, app: &mut App, viewport: &CanvasViewp
                 }
                 Tool::Line | Tool::Rect | Tool::Circle | Tool::Arc => {
                     handle_draw_click(app, tool, wx, wy);
+                }
+                Tool::Text
+                    // Only open input if not already active (avoid repositioning mid-edit).
+                    if !app.tool_state().draw.text_input_active =>
+                {
+                    app.set_text_pos(Some([wx, wy]));
+                    app.set_text_input_active(true);
                 }
                 _ => {}
             }
