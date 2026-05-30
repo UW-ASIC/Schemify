@@ -34,6 +34,9 @@ const NPN_PIN_OFFSETS: [(i32, i32); 3] = [(20, -30), (-20, 0), (20, 30)];
 /// PNP: C=(20,30) B=(-20,0) E=(20,-30)  (C/E swapped vs NPN)
 const PNP_PIN_OFFSETS: [(i32, i32); 3] = [(20, 30), (-20, 0), (20, -30)];
 
+/// JFET: D=(20,-30) G=(-20,0) S=(20,30) — same layout as BJT
+const JFET_PIN_OFFSETS: [(i32, i32); 3] = [(20, -30), (-20, 0), (20, 30)];
+
 /// Two-terminal devices (R/C/L/V/I/D): p=(0,-30) n=(0,30)
 const TWO_TERM_OFFSETS: [(i32, i32); 2] = [(0, -30), (0, 30)];
 
@@ -100,6 +103,7 @@ impl PinGeometry for SchemifyBackend {
             Primitive::Pnp => &PNP_PIN_OFFSETS,
             Primitive::Vcvs | Primitive::Vccs => &VCXS_OFFSETS,
             Primitive::Ccvs | Primitive::Cccs => &TWO_TERM_OFFSETS,
+            Primitive::Jfet => &JFET_PIN_OFFSETS,
             _ if primitive.is_mosfet() => &NMOS_PIN_OFFSETS,
             _ => &TWO_TERM_OFFSETS,
         }
@@ -452,6 +456,8 @@ fn primitive_kind(p: Primitive) -> &'static str {
         Primitive::Vccs => "vccs",
         Primitive::Ccvs => "ccvs",
         Primitive::Cccs => "cccs",
+        Primitive::Jfet => "jfet",
+        Primitive::BehavioralSource => "bsource",
         Primitive::Subcircuit => "subckt",
     }
 }
@@ -472,6 +478,8 @@ fn primitive_sym(p: Primitive) -> &'static str {
         Primitive::Vccs => "vccs",
         Primitive::Ccvs => "ccvs",
         Primitive::Cccs => "cccs",
+        Primitive::Jfet => "jfet",
+        Primitive::BehavioralSource => "bsource",
         Primitive::Subcircuit => "subckt",
     }
 }

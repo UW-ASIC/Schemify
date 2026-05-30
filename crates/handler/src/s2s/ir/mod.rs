@@ -28,6 +28,8 @@ pub enum Primitive {
     Vccs,
     Ccvs,
     Cccs,
+    Jfet,
+    BehavioralSource,
     Subcircuit,
 }
 
@@ -38,6 +40,10 @@ impl Primitive {
 
     pub fn is_bjt(self) -> bool {
         matches!(self, Primitive::Npn | Primitive::Pnp)
+    }
+
+    pub fn is_jfet(self) -> bool {
+        matches!(self, Primitive::Jfet)
     }
 }
 

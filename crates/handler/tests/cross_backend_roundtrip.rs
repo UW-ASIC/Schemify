@@ -138,6 +138,26 @@ fn emit_spice(subckt: &Subcircuit) -> String {
                     writeln!(buf).unwrap();
                 }
             }
+            Primitive::Jfet => {
+                if nets.len() >= 3 {
+                    let model = inst
+                        .params
+                        .get("model")
+                        .map(|s| s.as_str())
+                        .unwrap_or("jmod");
+                    writeln!(buf, "{} {} {} {} {}", name, nets[0], nets[1], nets[2], model)
+                        .unwrap();
+                }
+            }
+            Primitive::BehavioralSource => {
+                if nets.len() >= 2 {
+                    write!(buf, "{} {} {}", name, nets[0], nets[1]).unwrap();
+                    for (k, v) in &inst.params {
+                        write!(buf, " {}={}", k, v).unwrap();
+                    }
+                    writeln!(buf).unwrap();
+                }
+            }
             Primitive::Subcircuit => {
                 let sym = &inst.symbol;
                 write!(buf, "{} ", name).unwrap();

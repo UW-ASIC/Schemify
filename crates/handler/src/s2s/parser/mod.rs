@@ -273,6 +273,8 @@ impl SpiceParser {
             'g' => self.parse_vccs(circuit, trimmed, line_no),
             'f' => self.parse_cccs(circuit, trimmed, line_no),
             'h' => self.parse_ccvs(circuit, trimmed, line_no),
+            'j' => self.parse_jfet(circuit, trimmed, line_no),
+            'b' => self.parse_behavioral_source(circuit, trimmed, line_no),
             'x' => self.parse_subckt_instance(circuit, trimmed, line_no),
             _ => {
                 // Silently ignore unknown device prefixes (matches Zig behaviour).
@@ -620,6 +622,153 @@ impl SpiceParser {
 
         let idx = self.add_instance_scoped(circuit, inst);
         let net_names = [collector, base, emitter];
+        for (pin_i, net_name) in net_names.iter().enumerate() {
+            let net_idx = self.get_or_create_net_scoped(circuit, net_name);
+            self.connect_scoped(
+                circuit,
+                net_idx,
+                PinRef {
+                    instance_idx: idx,
+                    pin_idx: pin_i as u32,
+                },
+            );
+        }
+
+        Ok(())
+    }
+
+    fn parse_jfet(
+        &mut self,
+        circuit: &mut Circuit,
+        line: &str,
+        _line_no: usize,
+    ) -> Result<(), ParseError> {
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        if tokens.len() < 5 {
+            return Err(ParseError::MissingPins(
+                tokens.first().unwrap_or(&"J?").to_ascii_lowercase(),
+            ));
+        }
+        let name = tokens[0].to_ascii_lowercase();
+        let drain = tokens[1].to_ascii_lowercase();
+        let gate = tokens[2].to_ascii_lowercase();
+        let source = tokens[3].to_ascii_lowercase();
+        let model = tokens[4].to_ascii_lowercase();
+
+        let pins = vec![
+            Pin {
+                name: "D".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+            Pin {
+                name: "G".to_string(),
+                dir: PinDir::Input,
+                net_idx: None,
+            },
+            Pin {
+                name: "S".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+        ];
+
+        let mut params = HashMap::new();
+        params.insert("model".to_string(), model);
+        for tok in &tokens[5..] {
+            if let Some((k, v)) = tok.split_once('=') {
+                params.insert(k.to_ascii_lowercase(), v.to_ascii_lowercase());
+            }
+        }
+
+        let inst = Instance {
+            name,
+            primitive: Primitive::Jfet,
+            symbol: String::new(),
+            pins,
+            params,
+            x: 0,
+            y: 0,
+            rotation: 0,
+            flip: false,
+        };
+
+        let idx = self.add_instance_scoped(circuit, inst);
+        let net_names = [drain, gate, source];
+        for (pin_i, net_name) in net_names.iter().enumerate() {
+            let net_idx = self.get_or_create_net_scoped(circuit, net_name);
+            self.connect_scoped(
+                circuit,
+                net_idx,
+                PinRef {
+                    instance_idx: idx,
+                    pin_idx: pin_i as u32,
+                },
+            );
+        }
+
+        Ok(())
+    }
+
+    fn parse_behavioral_source(
+        &mut self,
+        circuit: &mut Circuit,
+        line: &str,
+        _line_no: usize,
+    ) -> Result<(), ParseError> {
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        if tokens.len() < 4 {
+            return Err(ParseError::MissingPins(
+                tokens.first().unwrap_or(&"B?").to_ascii_lowercase(),
+            ));
+        }
+        let name = tokens[0].to_ascii_lowercase();
+        let plus = tokens[1].to_ascii_lowercase();
+        let minus = tokens[2].to_ascii_lowercase();
+
+        let pins = vec![
+            Pin {
+                name: "p".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+            Pin {
+                name: "n".to_string(),
+                dir: PinDir::Inout,
+                net_idx: None,
+            },
+        ];
+
+        let mut params = HashMap::new();
+        let mut value_parts: Vec<&str> = Vec::new();
+        for tok in tokens.iter().skip(3) {
+            if tok.contains('=') {
+                if let Some((k, v)) = tok.split_once('=') {
+                    params.insert(k.to_ascii_lowercase(), v.to_string());
+                }
+            } else {
+                value_parts.push(tok);
+            }
+        }
+        let value = value_parts.join(" ").to_ascii_lowercase();
+        if !value.is_empty() {
+            params.insert("value".to_string(), value);
+        }
+
+        let inst = Instance {
+            name,
+            primitive: Primitive::BehavioralSource,
+            symbol: String::new(),
+            pins,
+            params,
+            x: 0,
+            y: 0,
+            rotation: 0,
+            flip: false,
+        };
+
+        let idx = self.add_instance_scoped(circuit, inst);
+        let net_names = [plus, minus];
         for (pin_i, net_name) in net_names.iter().enumerate() {
             let net_idx = self.get_or_create_net_scoped(circuit, net_name);
             self.connect_scoped(
@@ -1899,5 +2048,59 @@ R1 a b 1k
         assert!(circuit.analysis.includes[1].contains(".lib"));
         // Not in analyses
         assert!(circuit.analysis.analyses.is_empty());
+    }
+
+    #[test]
+    fn parse_jfet() {
+        let input = "J1 d g s jmod\n";
+        let mut parser = SpiceParser::new();
+        let circuit = parser.parse(input).unwrap();
+
+        assert_eq!(circuit.top.instances.len(), 1);
+        let inst = &circuit.top.instances[0];
+        assert_eq!(inst.name, "j1");
+        assert_eq!(inst.primitive, Primitive::Jfet);
+        assert_eq!(inst.pins.len(), 3);
+        assert_eq!(inst.pins[0].name, "D");
+        assert_eq!(inst.pins[1].name, "G");
+        assert_eq!(inst.pins[2].name, "S");
+        assert_eq!(inst.params.get("model").unwrap(), "jmod");
+
+        let d_net = circuit.top.nets.iter().find(|n| n.name == "d").unwrap();
+        assert!(d_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 0));
+        let g_net = circuit.top.nets.iter().find(|n| n.name == "g").unwrap();
+        assert!(g_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 1));
+        let s_net = circuit.top.nets.iter().find(|n| n.name == "s").unwrap();
+        assert!(s_net.pins.iter().any(|p| p.instance_idx == 0 && p.pin_idx == 2));
+    }
+
+    #[test]
+    fn parse_behavioral_source_voltage() {
+        let input = "B1 out 0 V={expression}\n";
+        let mut parser = SpiceParser::new();
+        let circuit = parser.parse(input).unwrap();
+
+        assert_eq!(circuit.top.instances.len(), 1);
+        let inst = &circuit.top.instances[0];
+        assert_eq!(inst.name, "b1");
+        assert_eq!(inst.primitive, Primitive::BehavioralSource);
+        assert_eq!(inst.pins.len(), 2);
+        assert_eq!(inst.pins[0].name, "p");
+        assert_eq!(inst.pins[1].name, "n");
+        assert_eq!(inst.params.get("v").unwrap(), "{expression}");
+    }
+
+    #[test]
+    fn parse_behavioral_source_current() {
+        let input = "B2 a b I={V(a)*gm}\n";
+        let mut parser = SpiceParser::new();
+        let circuit = parser.parse(input).unwrap();
+
+        assert_eq!(circuit.top.instances.len(), 1);
+        let inst = &circuit.top.instances[0];
+        assert_eq!(inst.name, "b2");
+        assert_eq!(inst.primitive, Primitive::BehavioralSource);
+        assert_eq!(inst.pins.len(), 2);
+        assert_eq!(inst.params.get("i").unwrap(), "{V(a)*gm}");
     }
 }

@@ -40,6 +40,9 @@ const TWO_TERM_OFFSETS: [(i32, i32); 2] = [
     (0, 30),  // n/-/K: bottom
 ];
 
+/// JFET: D=(20,-30) G=(-20,0) S=(20,30) — same layout as BJT
+const JFET_PIN_OFFSETS: [(i32, i32); 3] = [(20, -30), (-20, 0), (20, 30)];
+
 /// Voltage-controlled sources (VCVS/VCCS): p=(0,-30) n=(0,30) cp=(-30,-10) cn=(-30,10)
 const VCXS_OFFSETS: [(i32, i32); 4] = [(0, -30), (0, 30), (-30, -10), (-30, 10)];
 
@@ -521,6 +524,7 @@ impl PinGeometry for XschemBackend {
             Primitive::Pmos => &PMOS_PIN_OFFSETS,
             Primitive::Vcvs | Primitive::Vccs => &VCXS_OFFSETS,
             Primitive::Ccvs | Primitive::Cccs => &TWO_TERM_OFFSETS,
+            Primitive::Jfet => &JFET_PIN_OFFSETS,
             _ if primitive.is_mosfet() => &NMOS_PIN_OFFSETS,
             _ => &TWO_TERM_OFFSETS,
         }
@@ -597,6 +601,8 @@ fn primitive_name(p: Primitive) -> &'static str {
         Primitive::Vccs => "vccs",
         Primitive::Ccvs => "ccvs",
         Primitive::Cccs => "cccs",
+        Primitive::Jfet => "jfet",
+        Primitive::BehavioralSource => "bsource",
         Primitive::Subcircuit => "subcircuit",
     }
 }

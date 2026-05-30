@@ -286,6 +286,8 @@ fn map_device_kind(p: ir::Primitive) -> DeviceKind {
         ir::Primitive::Vccs => DeviceKind::Vccs,
         ir::Primitive::Ccvs => DeviceKind::Ccvs,
         ir::Primitive::Cccs => DeviceKind::Cccs,
+        ir::Primitive::Jfet => DeviceKind::Njfet,
+        ir::Primitive::BehavioralSource => DeviceKind::Behavioral,
         ir::Primitive::Subcircuit => DeviceKind::Subckt,
     }
 }
@@ -306,6 +308,8 @@ fn primitive_sym(p: ir::Primitive) -> &'static str {
         ir::Primitive::Vccs => "vccs",
         ir::Primitive::Ccvs => "ccvs",
         ir::Primitive::Cccs => "cccs",
+        ir::Primitive::Jfet => "jfet",
+        ir::Primitive::BehavioralSource => "bsource",
         ir::Primitive::Subcircuit => "subckt",
     }
 }
