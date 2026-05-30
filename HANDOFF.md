@@ -1,6 +1,6 @@
 # HANDOFF — SchemifyRS Implementation Gaps
 
-Updated: 2026-05-30 | Branch: `dev` (HEAD `6b346a2`)
+Updated: 2026-05-30 | Branch: `dev`
 
 Issues live as markdown under `.scratch/` (see `docs/agents/issue-tracker.md`).
 
@@ -69,16 +69,16 @@ S2S importer exists (~13.5k LOC in `handler/src/s2s/`). These are gaps, not gree
 |----|-------|--------|-----|------|
 | gen/01 | Unblock 53 ignored spice roundtrip tests | **done** | critical | ~~gen/02~~ ✅ |
 | gen/02 | Complete PySpice simulation pipeline | **done** | critical | — |
-| gen/03 | Display crate unit tests (zero today) | ready-for-agent | high | — |
-| gen/04 | Plugin host panic → Result hardening (33 panics) | ready-for-agent | high | — |
-| gen/05 | Criterion benchmarks for hot paths | ready-for-agent | medium | — |
-| gen/06 | Engine crate tests (zero today) | ready-for-agent | medium | — |
+| gen/03 | Display crate unit tests (100 tests added) | **done** | high | — |
+| gen/04 | Plugin host panic → Result hardening (21 new tests) | **done** | high | — |
+| gen/05 | Criterion benchmarks (10 benchmarks, 4 hot paths) | **done** | medium | — |
+| gen/06 | Engine crate tests (82 tests added) | **done** | medium | — |
 
 ### IO/Plugins (`.scratch/io-plugins-gaps/`) — from prior HANDOFF
 
 | ID | Title | Status | Pri | Deps |
 |----|-------|--------|-----|------|
-| io/01 | Writer drops drawing shapes (roundtrip loss) | ready-for-agent | medium | — |
+| io/01 | Writer drops drawing shapes (text+polygon roundtrip) | **done** | medium | — |
 | io/02 | Plugin subprocess transport stubbed | needs-info | medium | — |
 | io/03 | Plugin Command/undo stream | needs-info | medium | io/02 |
 
@@ -127,11 +127,11 @@ S2S importer exists (~13.5k LOC in `handler/src/s2s/`). These are gaps, not gree
 
 ## Totals
 
-**25 issues across 4 tracks — 9 done, 1 wontfix, 15 remaining**
+**25 issues across 4 tracks — 14 done, 1 wontfix, 10 remaining**
 
-- **Done:** 9 (gen/01, gen/02, s2s/01, s2s/03, s2s/05, gui/01, gui/03, gui/04, gui/06)
+- **Done:** 14 (gen/01-06, s2s/01, s2s/03, s2s/05, gui/01, gui/03, gui/04, gui/06, io/01)
 - **Wontfix:** 1 (s2s/09 — Spectre/HSPICE irrelevant, PySpice emits ngspice)
-- **High:** 2 (back-annotation, display tests, plugin hardening)
-- **Medium:** 8 (various GUI, infra, IO)
-- **Low:** 5 (docs, WASM, polish)
+- **High:** 1 (s2s/08 back-annotation, needs-info)
+- **Medium:** 5 (gui/02, gui/05, gui/07, io/02, io/03)
+- **Low:** 4 (s2s/04, s2s/06, s2s/07, gui/08)
 - **Needs-info:** 4 (require triage/clarification before agent work)
