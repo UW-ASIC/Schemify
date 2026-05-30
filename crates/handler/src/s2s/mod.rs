@@ -1,3 +1,4 @@
+pub mod adapter;
 pub mod annotation;
 pub mod ir;
 pub mod output;
