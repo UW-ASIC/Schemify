@@ -2,15 +2,13 @@ use crate::s2s::adapter::schematic_from_subcircuit;
 use crate::s2s::ir::{self, NetClass};
 use crate::s2s::output::schemify::SchemifyBackend;
 use crate::s2s::parser::SpiceParser;
+use crate::s2s::shared::{map_device_kind, primitive_sym, GROUND_NAMES, POWER_NAMES};
 use crate::s2s::{annotation, placement, recognition, routing::Router};
 use lasso::Rodeo;
 
 use schemify_core::schematic::{Instance, ModelDef, Property, Schematic, Wire};
 use schemify_core::simulation::StimulusLang;
 use schemify_core::types::{Color, DeviceKind, InstanceFlags, SchematicType};
-
-const POWER_NAMES: &[&str] = &["vdd", "vcc", "avdd", "dvdd"];
-const GROUND_NAMES: &[&str] = &["vss", "gnd", "0", "avss", "dvss"];
 
 /// Result of a hierarchical SPICE import.
 #[derive(Debug, Clone)]
@@ -325,46 +323,3 @@ pub fn is_pyspice_source(source: &str) -> bool {
     })
 }
 
-fn map_device_kind(p: ir::Primitive) -> DeviceKind {
-    match p {
-        ir::Primitive::Nmos => DeviceKind::Nmos4,
-        ir::Primitive::Pmos => DeviceKind::Pmos4,
-        ir::Primitive::Npn => DeviceKind::Npn,
-        ir::Primitive::Pnp => DeviceKind::Pnp,
-        ir::Primitive::Resistor => DeviceKind::Resistor,
-        ir::Primitive::Capacitor => DeviceKind::Capacitor,
-        ir::Primitive::Inductor => DeviceKind::Inductor,
-        ir::Primitive::Diode => DeviceKind::Diode,
-        ir::Primitive::Vsource => DeviceKind::Vsource,
-        ir::Primitive::Isource => DeviceKind::Isource,
-        ir::Primitive::Vcvs => DeviceKind::Vcvs,
-        ir::Primitive::Vccs => DeviceKind::Vccs,
-        ir::Primitive::Ccvs => DeviceKind::Ccvs,
-        ir::Primitive::Cccs => DeviceKind::Cccs,
-        ir::Primitive::Jfet => DeviceKind::Njfet,
-        ir::Primitive::BehavioralSource => DeviceKind::Behavioral,
-        ir::Primitive::Subcircuit => DeviceKind::Subckt,
-    }
-}
-
-fn primitive_sym(p: ir::Primitive) -> &'static str {
-    match p {
-        ir::Primitive::Nmos => "nmos4",
-        ir::Primitive::Pmos => "pmos4",
-        ir::Primitive::Npn => "npn",
-        ir::Primitive::Pnp => "pnp",
-        ir::Primitive::Resistor => "res",
-        ir::Primitive::Capacitor => "capa",
-        ir::Primitive::Inductor => "ind",
-        ir::Primitive::Diode => "diode",
-        ir::Primitive::Vsource => "vsource",
-        ir::Primitive::Isource => "isource",
-        ir::Primitive::Vcvs => "vcvs",
-        ir::Primitive::Vccs => "vccs",
-        ir::Primitive::Ccvs => "ccvs",
-        ir::Primitive::Cccs => "cccs",
-        ir::Primitive::Jfet => "jfet",
-        ir::Primitive::BehavioralSource => "bsource",
-        ir::Primitive::Subcircuit => "subckt",
-    }
-}

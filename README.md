@@ -4,13 +4,13 @@ Schematic capture tool for circuit design. Built in Rust with egui.
 
 ## Crates
 
-| Crate | Purpose |
-|-------|---------|
-| `schemify-core` | Types shared across crate boundaries (zero logic) |
-| `schemify-handler` | App state + `dispatch(Command)` API |
-| `schemify-io` | File I/O and format parsing |
-| `schemify-display` | GUI (egui/eframe) |
-| `schemify-sim` | SPICE IR and multi-dialect netlist emission |
+| Crate              | Purpose                                            |
+| ------------------ | -------------------------------------------------- |
+| `schemify-core`    | Types shared across crate boundaries (zero logic)  |
+| `schemify-handler` | App state + `dispatch(Command)` API                |
+| `schemify-io`      | File I/O and format parsing                        |
+| `schemify-display` | GUI (egui/eframe)                                  |
+| `schemify-sim`     | SPICE IR and multi-dialect netlist emission        |
 | `schemify-plugins` | Plugin runtime with subprocess and WASM transports |
 
 ## Build

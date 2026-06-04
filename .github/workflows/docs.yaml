@@ -1,0 +1,90 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'crates/**'
+      - 'web/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── mdBook ──
+      - name: Install mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: 'latest'
+
+      - name: Build docs
+        run: mdbook build docs
+
+      # ── WASM demo ──
+      - name: Install Rust + wasm32 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli
+
+      - name: Install binaryen
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq binaryen
+
+      - name: Build WASM
+        run: |
+          cargo build \
+            -p schemify-display \
+            --lib \
+            --target wasm32-unknown-unknown \
+            --release
+
+      - name: Run wasm-bindgen
+        run: |
+          wasm-bindgen \
+            --target web \
+            --out-dir docs/book/demo \
+            --no-typescript \
+            target/wasm32-unknown-unknown/release/schemify_display.wasm
+
+      - name: Optimize WASM
+        run: wasm-opt -O2 docs/book/demo/schemify_display_bg.wasm -o docs/book/demo/schemify_display_bg.wasm
+
+      - name: Copy web assets
+        run: cp web/index.html docs/book/demo/
+
+      # ── Upload ──
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/book
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

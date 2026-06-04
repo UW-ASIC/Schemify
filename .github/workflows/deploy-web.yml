@@ -35,7 +35,7 @@ jobs:
       - name: Checkout SchemifyRS
         uses: actions/checkout@v4
         with:
-          repository: omarElhassworthy/SchemifyRS
+          repository: UW-ASIC/Schemify
           ref: ${{ inputs.schemify_ref }}
           path: schemify
 

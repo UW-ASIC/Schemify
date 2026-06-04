@@ -10,7 +10,10 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
+use schemify_core::types::InstanceFlags;
+
 use crate::s2s::ir::{Circuit, NetClass, PinDir, Primitive, Subcircuit};
+use crate::s2s::shared::primitive_sym;
 use crate::s2s::validation::{self, Severity};
 
 use super::{
@@ -110,14 +113,7 @@ impl PinGeometry for SchemifyBackend {
     }
 
     fn transform_pin(&self, dx: i32, dy: i32, rotation: u8, flip: bool) -> (i32, i32) {
-        let dx = if flip { -dx } else { dx };
-        match rotation {
-            0 => (dx, dy),
-            1 => (-dy, dx),
-            2 => (-dx, -dy),
-            3 => (dy, -dx),
-            _ => (dx, dy),
-        }
+        InstanceFlags::new(rotation, flip, false).transform_point(dx, dy)
     }
 }
 
@@ -449,28 +445,6 @@ fn primitive_kind(p: Primitive) -> &'static str {
         Primitive::Resistor => "resistor",
         Primitive::Capacitor => "capacitor",
         Primitive::Inductor => "inductor",
-        Primitive::Diode => "diode",
-        Primitive::Vsource => "vsource",
-        Primitive::Isource => "isource",
-        Primitive::Vcvs => "vcvs",
-        Primitive::Vccs => "vccs",
-        Primitive::Ccvs => "ccvs",
-        Primitive::Cccs => "cccs",
-        Primitive::Jfet => "jfet",
-        Primitive::BehavioralSource => "bsource",
-        Primitive::Subcircuit => "subckt",
-    }
-}
-
-fn primitive_sym(p: Primitive) -> &'static str {
-    match p {
-        Primitive::Nmos => "nmos4",
-        Primitive::Pmos => "pmos4",
-        Primitive::Npn => "npn",
-        Primitive::Pnp => "pnp",
-        Primitive::Resistor => "res",
-        Primitive::Capacitor => "capa",
-        Primitive::Inductor => "ind",
         Primitive::Diode => "diode",
         Primitive::Vsource => "vsource",
         Primitive::Isource => "isource",

@@ -725,10 +725,13 @@ fn spice_code(ctx: &egui::Context, app: &mut App) {
                     ui.fonts(|f| f.layout_job(job))
                 };
 
-                // SPICE highlighter for read-only netlist view
+                // Plain monospace layouter for read-only circuit IR view
                 let mut netlist_layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                     let font = egui::FontId::monospace(13.0);
-                    let mut job = crate::highlight::highlight_spice(text, font, dark);
+                    let mut job = egui::text::LayoutJob::single_section(
+                        text.to_string(),
+                        egui::TextFormat::simple(font, ui.visuals().text_color()),
+                    );
                     job.wrap.max_width = wrap_width;
                     ui.fonts(|f| f.layout_job(job))
                 };
@@ -761,7 +764,7 @@ fn spice_code(ctx: &egui::Context, app: &mut App) {
                         // Right: netlist (read-only, highlighted)
                         ui.vertical(|ui| {
                             ui.set_width(half_w);
-                            ui.label(egui::RichText::new("Netlist (read-only)").strong().small());
+                            ui.label(egui::RichText::new("Circuit IR (read-only)").strong().small());
                             if netlist.is_empty() {
                                 ui.weak(
                                     "No netlist generated yet.\nClick \"Generate Netlist\" above.",

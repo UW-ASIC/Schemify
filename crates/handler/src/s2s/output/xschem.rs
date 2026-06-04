@@ -15,6 +15,8 @@ use super::{
     classify_ports, compute_instance_bbox, distribute_x, distribute_y, Backend, PinGeometry,
     GROUND_NAMES, POWER_NAMES,
 };
+use schemify_core::types::InstanceFlags;
+
 use crate::s2s::ir::{Circuit, PinDir, Primitive, Subcircuit};
 use crate::s2s::validation::{self, Severity};
 
@@ -531,14 +533,7 @@ impl PinGeometry for XschemBackend {
     }
 
     fn transform_pin(&self, dx: i32, dy: i32, rotation: u8, flip: bool) -> (i32, i32) {
-        let dx = if flip { -dx } else { dx };
-        match rotation {
-            0 => (dx, dy),
-            1 => (-dy, dx),
-            2 => (-dx, -dy),
-            3 => (dy, -dx),
-            _ => (dx, dy),
-        }
+        InstanceFlags::new(rotation, flip, false).transform_point(dx, dy)
     }
 }
 

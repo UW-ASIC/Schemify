@@ -1,0 +1,21 @@
+[book]
+title = "Schemify"
+description = "A fast, cross-platform schematic editor for circuit design"
+authors = ["Omar El-Siwy"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/UW-ASIC/Schemify"
+edit-url-template = "https://github.com/UW-ASIC/Schemify/edit/main/docs/{path}"
+site-url = "/Schemify/"
+no-section-label = false
+
+[output.html.fold]
+enable = true
+level = 1

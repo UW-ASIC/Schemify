@@ -2,6 +2,7 @@ pub mod schemify;
 pub mod xschem;
 
 use crate::s2s::ir::{Circuit, Instance, PinDir, Primitive, Subcircuit};
+use crate::s2s::shared::{GROUND_NAMES, POWER_NAMES};
 
 /// Pin geometry provider — knows pin offsets and coordinate transforms.
 ///
@@ -85,7 +86,7 @@ pub(crate) fn compute_instance_bbox(subckt: &Subcircuit) -> Option<BBox> {
 
 /// Snap a value to the nearest multiple of 10.
 pub(crate) fn snap_to_grid(v: i32) -> i32 {
-    ((v as f64) / 10.0).round() as i32 * 10
+    crate::transform::snap(v, 10)
 }
 
 /// Distribute `n` pin Y-positions evenly within [y_min, y_max], centered.
@@ -113,10 +114,6 @@ pub(crate) fn distribute_x(n: usize, x_min: i32, x_max: i32) -> Vec<i32> {
         .map(|i| snap_to_grid(x_min + spacing * (i as i32 + 1)))
         .collect()
 }
-
-/// Well-known power/ground net name patterns.
-pub(crate) const POWER_NAMES: &[&str] = &["vdd", "vcc", "avdd", "dvdd"];
-pub(crate) const GROUND_NAMES: &[&str] = &["vss", "gnd", "0", "avss", "dvss"];
 
 /// Classify subcircuit ports into input, output, and io/power/ground groups.
 ///

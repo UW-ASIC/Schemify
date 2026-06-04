@@ -3,6 +3,7 @@
 
 use crate::s2s::ir::{Net, Subcircuit};
 use crate::s2s::output::{pin_position, PinGeometry};
+use crate::s2s::shared::{is_ground_name, is_power_name};
 
 /// Strategy for drawing a net on the schematic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,9 +19,6 @@ const BASE_WIRE_DISTANCE_THRESHOLD: i32 = 300;
 
 /// Fanout above which a net is always labelled (too many connections to draw).
 const FANOUT_THRESHOLD: usize = 4;
-
-/// Power/ground name patterns (case-insensitive match).
-const POWER_GROUND_NAMES: &[&str] = &["vdd", "vcc", "vss", "gnd", "0"];
 
 /// Compute an adaptive wire distance threshold based on the circuit bounding box.
 /// For small/tight circuits the threshold equals the base; for spread-out circuits
@@ -75,8 +73,7 @@ fn classify_net(
     }
 
     // Well-known power/ground names always get labels.
-    let name_lower = net.name.to_ascii_lowercase();
-    if POWER_GROUND_NAMES.iter().any(|&pg| name_lower == pg) {
+    if is_power_name(&net.name) || is_ground_name(&net.name) {
         return NetStrategy::Label;
     }
 

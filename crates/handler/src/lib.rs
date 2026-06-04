@@ -521,11 +521,10 @@ impl App {
             &self.state.active_document().schematic,
             &self.state.interner,
         );
-        let title = format!(
-            "SchemifyRS netlist\n* {}",
-            self.state.active_document().name
-        );
-        self.state.last_netlist = schemify_sim::codegen::emit_netlist(&ir, &title);
+        self.state.last_netlist = match serde_json::to_string_pretty(&ir) {
+            Ok(json) => json,
+            Err(e) => format!("Failed to serialize circuit IR: {e}"),
+        };
     }
 
     #[cfg(not(target_arch = "wasm32"))]

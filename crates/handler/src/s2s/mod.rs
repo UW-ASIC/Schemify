@@ -6,4 +6,5 @@ pub mod parser;
 pub mod placement;
 pub mod recognition;
 pub mod routing;
+pub mod shared;
 pub mod validation;

@@ -41,52 +41,58 @@ pub struct CanvasPalette {
     pub origin: Color32,
     pub rubber_band: Color32,
     pub selection_rect: Color32,
-    pub text: Color32,
+    pub text_label: Color32,
+    pub geometry_line: Color32,
+    pub geometry_fill: Color32,
 }
 
 #[allow(dead_code)]
 impl CanvasPalette {
-    /// Dark palette — matches Zig reference `Palette.zig` dark-mode values.
+    /// Dark palette — canvas rendering defaults.
     pub fn dark() -> Self {
         Self {
-            canvas_bg: Color32::from_rgb(0x1a, 0x1a, 0x2e),
-            grid_dot: Color32::from_rgb(0x3a, 0x3a, 0x4e),
-            wire: Color32::from_rgb(0x4f, 0xc3, 0xf7),
-            wire_selected: Color32::from_rgb(0xff, 0xeb, 0x3b),
-            wire_endpoint: Color32::from_rgb(0x66, 0xbb, 0x6a),
-            bus: Color32::from_rgb(0x42, 0xa5, 0xf5),
-            inst_body: Color32::from_rgb(0xb0, 0xbe, 0xc5),
-            inst_selected: Color32::from_rgb(0xff, 0xeb, 0x3b),
-            inst_pin: Color32::from_rgb(0xfd, 0xd8, 0x35),
-            symbol_line: Color32::from_rgb(0x90, 0xa4, 0xae),
-            symbol_pin: Color32::from_rgb(0xfd, 0xd8, 0x35),
-            wire_preview: Color32::from_rgb(0x80, 0xcb, 0xc4),
-            origin: Color32::from_rgb(0xef, 0x53, 0x50),
-            rubber_band: Color32::from_rgba_unmultiplied(0x42, 0xa5, 0xf5, 80),
-            selection_rect: Color32::from_rgba_unmultiplied(0xff, 0xeb, 0x3b, 40),
-            text: Color32::from_rgb(0xe0, 0xe0, 0xe0),
+            canvas_bg: Color32::from_rgb(30, 30, 36),
+            grid_dot: Color32::from_rgba_premultiplied(80, 80, 90, 120),
+            wire: Color32::from_rgb(100, 200, 100),
+            wire_selected: Color32::from_rgb(255, 200, 50),
+            wire_endpoint: Color32::from_rgb(130, 220, 130),
+            bus: Color32::from_rgb(80, 140, 220),
+            inst_body: Color32::from_rgb(200, 200, 210),
+            inst_selected: Color32::from_rgb(255, 200, 50),
+            inst_pin: Color32::from_rgb(200, 80, 80),
+            symbol_line: Color32::from_rgb(200, 200, 210),
+            symbol_pin: Color32::from_rgb(253, 216, 53),
+            wire_preview: Color32::from_rgb(255, 140, 40),
+            origin: Color32::from_rgba_premultiplied(100, 100, 120, 80),
+            rubber_band: Color32::from_rgba_premultiplied(80, 140, 255, 40),
+            selection_rect: Color32::from_rgba_premultiplied(80, 140, 255, 60),
+            text_label: Color32::from_rgba_premultiplied(180, 180, 195, 200),
+            geometry_line: Color32::from_rgb(180, 180, 195),
+            geometry_fill: Color32::from_rgba_premultiplied(60, 60, 80, 40),
         }
     }
 
     /// Light palette — inverted for light backgrounds.
     pub fn light() -> Self {
         Self {
-            canvas_bg: Color32::from_rgb(0xfa, 0xfa, 0xfc),
-            grid_dot: Color32::from_rgb(0xc8, 0xc8, 0xd2),
-            wire: Color32::from_rgb(0x00, 0x28, 0x78),
-            wire_selected: Color32::from_rgb(0xc8, 0x5a, 0x00),
-            wire_endpoint: Color32::from_rgb(0x2e, 0x7d, 0x32),
-            bus: Color32::from_rgb(0x1e, 0x78, 0x73),
-            inst_body: Color32::from_rgb(0x54, 0x6e, 0x7a),
-            inst_selected: Color32::from_rgb(0xc8, 0x5a, 0x00),
-            inst_pin: Color32::from_rgb(0xb4, 0x96, 0x14),
-            symbol_line: Color32::from_rgb(0x28, 0x28, 0x28),
-            symbol_pin: Color32::from_rgb(0xb4, 0x96, 0x14),
-            wire_preview: Color32::from_rgb(0x28, 0xb4, 0x50),
-            origin: Color32::from_rgb(0xc6, 0x28, 0x28),
-            rubber_band: Color32::from_rgba_unmultiplied(0x1e, 0x64, 0xc8, 80),
-            selection_rect: Color32::from_rgba_unmultiplied(0xc8, 0x5a, 0x00, 40),
-            text: Color32::from_rgb(0x1e, 0x1e, 0x1e),
+            canvas_bg: Color32::from_rgb(245, 245, 248),
+            grid_dot: Color32::from_rgba_premultiplied(160, 160, 170, 120),
+            wire: Color32::from_rgb(30, 140, 30),
+            wire_selected: Color32::from_rgb(200, 140, 0),
+            wire_endpoint: Color32::from_rgb(40, 160, 40),
+            bus: Color32::from_rgb(40, 80, 180),
+            inst_body: Color32::from_rgb(50, 50, 60),
+            inst_selected: Color32::from_rgb(200, 140, 0),
+            inst_pin: Color32::from_rgb(180, 40, 40),
+            symbol_line: Color32::from_rgb(50, 50, 60),
+            symbol_pin: Color32::from_rgb(180, 150, 20),
+            wire_preview: Color32::from_rgb(220, 100, 20),
+            origin: Color32::from_rgba_premultiplied(140, 140, 160, 80),
+            rubber_band: Color32::from_rgba_premultiplied(40, 100, 220, 30),
+            selection_rect: Color32::from_rgba_premultiplied(40, 100, 220, 60),
+            text_label: Color32::from_rgba_premultiplied(60, 60, 70, 200),
+            geometry_line: Color32::from_rgb(60, 60, 70),
+            geometry_fill: Color32::from_rgba_premultiplied(200, 200, 220, 40),
         }
     }
 
@@ -111,7 +117,9 @@ impl CanvasPalette {
             origin: token_color(tokens, "crosshair_color").unwrap_or(base.origin),
             rubber_band: token_color(tokens, "selection_stroke").unwrap_or(base.rubber_band),
             selection_rect: token_color(tokens, "selection_fill").unwrap_or(base.selection_rect),
-            text: token_color(tokens, "label_color").unwrap_or(base.text),
+            text_label: token_color(tokens, "label_color").unwrap_or(base.text_label),
+            geometry_line: token_color(tokens, "symbol_stroke").unwrap_or(base.geometry_line),
+            geometry_fill: base.geometry_fill,
         }
     }
 }
@@ -265,7 +273,7 @@ mod tests {
         let l = CanvasPalette::light();
         assert_ne!(d.canvas_bg, l.canvas_bg);
         assert_ne!(d.wire, l.wire);
-        assert_ne!(d.text, l.text);
+        assert_ne!(d.text_label, l.text_label);
     }
 
     // ── palette_for_visuals ─────────────────────────────────────────────────

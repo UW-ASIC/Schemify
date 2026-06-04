@@ -77,6 +77,7 @@
             wasm-bindgen-cli
             binaryen # wasm-opt
             cargo-watch
+            mdbook
 
             # broken on mac (NEED TO FIX)
             xschem # for roundtrip netlist tests
