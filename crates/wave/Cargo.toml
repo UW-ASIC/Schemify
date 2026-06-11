@@ -1,0 +1,8 @@
+[package]
+name = "schemify-wave"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+rustfft = "6"

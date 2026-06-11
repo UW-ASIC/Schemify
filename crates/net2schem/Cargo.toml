@@ -1,0 +1,10 @@
+[package]
+name = "schemify-net2schem"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+schemify-core = { path = "../core" }
+lasso = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }

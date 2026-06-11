@@ -1,0 +1,42 @@
+chn_prim 1.0
+
+SYMBOL tline
+  desc: Ideal transmission line
+
+  pins [4]:
+    p1p  inout
+    p1n  inout
+    p2p  inout
+    p2n  inout
+
+  params [2]:
+    z0 = 50
+    td = 1n
+
+  spice_prefix: T
+  spice_format: "@name @p1p @p1n @p2p @p2n z0=@z0 td=@td"
+
+  drawing:
+    lines:
+      # Port 1 leads
+      (-30,-10) (-15,-10)
+      (-30,10) (-15,10)
+      # Port 2 leads
+      (15,-10) (30,-10)
+      (15,10) (30,10)
+      # Box
+      (-15,-15) (15,-15)
+      (15,-15) (15,15)
+      (15,15) (-15,15)
+      (-15,15) (-15,-15)
+      # Internal wave symbol
+      (-8,0) (-4,-5)
+      (-4,-5) (0,0)
+      (0,0) (4,5)
+      (4,5) (8,0)
+    text: (0,-20) "@name"
+    pin_positions:
+      p1p: (-30,-10)
+      p1n: (-30,10)
+      p2p: (30,-10)
+      p2n: (30,10)

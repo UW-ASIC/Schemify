@@ -1,0 +1,53 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/net2schem",
+    "crates/display",
+    "crates/mcp",
+    "crates/optimizer",
+    "crates/plugins",
+    "crates/wave",
+    "marketplace",
+]
+exclude = [
+    "plugin_examples/hello-world",
+    "plugin_examples/bom-panel",
+    "plugin_examples/drc-overlay",
+    "plugins/theme-registry",
+    "plugins/pdk-switcher",
+    "plugins/gmid-lut",
+    "plugins/pdk-mapper",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+lasso = "0.7"
+rustc-hash = "2"
+toml = "0.8"
+
+[package]
+name = "schemify"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "schemify"
+path = "src/main.rs"
+
+[dependencies]
+schemify-core = { path = "crates/core" }
+schemify-net2schem = { path = "crates/net2schem" }
+schemify-display = { path = "crates/display" }
+schemify-mcp = { path = "crates/mcp" }
+schemify-plugins = { path = "crates/plugins" }
+clap = { version = "4", features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }

@@ -1,0 +1,22 @@
+[plugin]
+id = "bom-panel"
+name = "BOM Panel"
+version = "0.1.0"
+description = "Live bill-of-materials panel that updates on schematic changes"
+entry = "cargo run --release"
+
+[capabilities]
+panels = true
+commands = true
+overlays = false
+theme = false
+
+[[panels.panel]]
+name = "Bill of Materials"
+slot = "RightSidebar"
+priority = 10
+
+[[commands.command]]
+name = "refresh_bom"
+description = "Manually refresh the BOM table"
+keybind = "Ctrl+Shift+B"

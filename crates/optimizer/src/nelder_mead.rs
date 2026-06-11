@@ -1,0 +1,264 @@
+//! Ask-tell Nelder-Mead simplex over bounded params.
+//!
+//! Classic downhill simplex split into a state machine because evaluations
+//! arrive one at a time (tell), instead of the algorithm driving a closure.
+//! Every candidate is clamped to [lo, hi] before being handed out, so the
+//! simplex only ever contains feasible points.
+
+use serde::{Deserialize, Serialize};
+
+use crate::Param;
+
+const ALPHA: f64 = 1.0; // reflection
+const GAMMA: f64 = 2.0; // expansion
+const RHO: f64 = 0.5; // contraction
+const SIGMA: f64 = 0.5; // shrink
+
+/// Placeholder for not-yet-evaluated vertices. `f64::MAX` instead of
+/// `INFINITY` so the state survives a JSON round-trip (serde_json maps
+/// non-finite floats to null).
+const UNEVALUATED: f64 = f64::MAX;
+
+/// Where the state machine is waiting for its next evaluation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum Phase {
+    /// Evaluating the initial simplex; `next` is the vertex awaiting a score.
+    BuildingSimplex { next: u8 },
+    Reflecting,
+    Expanding,
+    Contracting { outside: bool },
+    /// Re-evaluating shrunk vertices one at a time; `next` is the row index.
+    Shrinking { next: u8 },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub(crate) struct NelderMead {
+    lo: Vec<f64>,
+    hi: Vec<f64>,
+    /// (n+1) x n row-major; rows kept sorted by score between iterations.
+    simplex: Vec<f64>,
+    /// n+1 scores, parallel to simplex rows.
+    fvals: Vec<f64>,
+    phase: Phase,
+    /// The point handed out by `candidate()`; the next `tell` scores it.
+    candidate: Vec<f64>,
+    /// Reflected point kept across Reflecting -> Expanding/Contracting.
+    reflected: Vec<f64>,
+    f_reflected: f64,
+}
+
+impl NelderMead {
+    /// Initial simplex: clamped init point plus one vertex per param,
+    /// perturbed by 5% of the param's range (flipped negative if clamping
+    /// would collapse it, jittered if the range itself is degenerate).
+    pub(crate) fn new(params: &[Param]) -> Self {
+        let n = params.len();
+        let lo: Vec<f64> = params.iter().map(|p| p.min).collect();
+        let hi: Vec<f64> = params.iter().map(|p| p.max).collect();
+        let init: Vec<f64> = params.iter().map(|p| p.init.clamp(p.min, p.max)).collect();
+
+        let mut simplex = Vec::with_capacity((n + 1) * n);
+        simplex.extend_from_slice(&init);
+        for i in 0..n {
+            let mut v = init.clone();
+            let step = 0.05 * (hi[i] - lo[i]);
+            let up = (v[i] + step).clamp(lo[i], hi[i]);
+            v[i] = if up != v[i] {
+                up
+            } else {
+                let down = (v[i] - step).clamp(lo[i], hi[i]);
+                if down != v[i] {
+                    down
+                } else {
+                    // min == max (or fp-degenerate range): nudge so the
+                    // simplex still spans every dimension.
+                    v[i] + 1e-9 * (1.0 + v[i].abs())
+                }
+            };
+            simplex.extend_from_slice(&v);
+        }
+
+        NelderMead {
+            lo,
+            hi,
+            candidate: init,
+            simplex,
+            fvals: vec![UNEVALUATED; n + 1],
+            phase: Phase::BuildingSimplex { next: 0 },
+            reflected: Vec::new(),
+            f_reflected: UNEVALUATED,
+        }
+    }
+
+    pub(crate) fn candidate(&self) -> &[f64] {
+        &self.candidate
+    }
+
+    /// Record the score for the current candidate and compute the next one.
+    pub(crate) fn tell(&mut self, score: f64) {
+        let n = self.n();
+        match self.phase {
+            Phase::BuildingSimplex { next } => {
+                self.fvals[next as usize] = score;
+                let next = next as usize + 1;
+                if next <= n {
+                    self.candidate = self.row(next).to_vec();
+                    self.phase = Phase::BuildingSimplex { next: next as u8 };
+                } else {
+                    self.sort();
+                    self.begin_iteration();
+                }
+            }
+            Phase::Reflecting => {
+                if score < self.fvals[0] {
+                    // Best so far: try going further in the same direction.
+                    self.reflected = self.candidate.clone();
+                    self.f_reflected = score;
+                    let c = self.centroid();
+                    let mut xe: Vec<f64> = c
+                        .iter()
+                        .zip(&self.reflected)
+                        .map(|(&c, &r)| c + GAMMA * (r - c))
+                        .collect();
+                    self.clamp(&mut xe);
+                    self.candidate = xe;
+                    self.phase = Phase::Expanding;
+                } else if score < self.fvals[n - 1] {
+                    let point = self.candidate.clone();
+                    self.replace_worst(&point, score);
+                } else {
+                    self.reflected = self.candidate.clone();
+                    self.f_reflected = score;
+                    let outside = score < self.fvals[n];
+                    let c = self.centroid();
+                    let toward = if outside {
+                        self.reflected.clone()
+                    } else {
+                        self.row(n).to_vec()
+                    };
+                    let mut xc: Vec<f64> = c
+                        .iter()
+                        .zip(&toward)
+                        .map(|(&c, &t)| c + RHO * (t - c))
+                        .collect();
+                    self.clamp(&mut xc);
+                    self.candidate = xc;
+                    self.phase = Phase::Contracting { outside };
+                }
+            }
+            Phase::Expanding => {
+                // Keep whichever of expansion/reflection scored lower.
+                if score < self.f_reflected {
+                    let point = self.candidate.clone();
+                    self.replace_worst(&point, score);
+                } else {
+                    let point = self.reflected.clone();
+                    let f = self.f_reflected;
+                    self.replace_worst(&point, f);
+                }
+            }
+            Phase::Contracting { outside } => {
+                let accept = if outside {
+                    score <= self.f_reflected
+                } else {
+                    score < self.fvals[n]
+                };
+                if accept {
+                    let point = self.candidate.clone();
+                    self.replace_worst(&point, score);
+                } else {
+                    // Contraction failed: shrink everything toward the best
+                    // vertex, then re-evaluate rows 1..=n one tell at a time.
+                    let best = self.row(0).to_vec();
+                    for i in 1..=n {
+                        for (x, &b) in self.simplex[i * n..(i + 1) * n].iter_mut().zip(&best) {
+                            *x = b + SIGMA * (*x - b);
+                        }
+                        self.fvals[i] = UNEVALUATED;
+                    }
+                    self.candidate = self.row(1).to_vec();
+                    self.phase = Phase::Shrinking { next: 1 };
+                }
+            }
+            Phase::Shrinking { next } => {
+                self.fvals[next as usize] = score;
+                let next = next as usize + 1;
+                if next <= n {
+                    self.candidate = self.row(next).to_vec();
+                    self.phase = Phase::Shrinking { next: next as u8 };
+                } else {
+                    self.sort();
+                    self.begin_iteration();
+                }
+            }
+        }
+    }
+
+    fn n(&self) -> usize {
+        self.lo.len()
+    }
+
+    fn row(&self, i: usize) -> &[f64] {
+        let n = self.n();
+        &self.simplex[i * n..(i + 1) * n]
+    }
+
+    fn clamp(&self, x: &mut [f64]) {
+        for ((x, &lo), &hi) in x.iter_mut().zip(&self.lo).zip(&self.hi) {
+            *x = x.clamp(lo, hi);
+        }
+    }
+
+    /// Centroid of the best n vertices (all rows but the worst).
+    fn centroid(&self) -> Vec<f64> {
+        let n = self.n();
+        let mut c = vec![0.0; n];
+        for i in 0..n {
+            for (c, &x) in c.iter_mut().zip(self.row(i)) {
+                *c += x;
+            }
+        }
+        for c in &mut c {
+            *c /= n as f64;
+        }
+        c
+    }
+
+    /// Sort simplex rows by score ascending (best first, worst last).
+    fn sort(&mut self) {
+        let n = self.n();
+        let mut order: Vec<usize> = (0..=n).collect();
+        order.sort_by(|&a, &b| self.fvals[a].total_cmp(&self.fvals[b]));
+        let old_simplex = std::mem::take(&mut self.simplex);
+        let old_fvals = std::mem::take(&mut self.fvals);
+        self.simplex = Vec::with_capacity(old_simplex.len());
+        self.fvals = Vec::with_capacity(old_fvals.len());
+        for &src in &order {
+            self.simplex.extend_from_slice(&old_simplex[src * n..(src + 1) * n]);
+            self.fvals.push(old_fvals[src]);
+        }
+    }
+
+    fn replace_worst(&mut self, point: &[f64], score: f64) {
+        let n = self.n();
+        self.simplex[n * n..(n + 1) * n].copy_from_slice(point);
+        self.fvals[n] = score;
+        self.sort();
+        self.begin_iteration();
+    }
+
+    /// Start a fresh iteration: reflect the worst vertex through the
+    /// centroid of the rest and hand that out as the candidate.
+    fn begin_iteration(&mut self) {
+        let n = self.n();
+        let c = self.centroid();
+        let mut xr: Vec<f64> = c
+            .iter()
+            .zip(self.row(n))
+            .map(|(&c, &w)| c + ALPHA * (c - w))
+            .collect();
+        self.clamp(&mut xr);
+        self.candidate = xr;
+        self.phase = Phase::Reflecting;
+    }
+}

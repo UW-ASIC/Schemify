@@ -1,0 +1,16 @@
+[plugin]
+id = "hello-world"
+name = "Hello World"
+version = "0.1.0"
+description = "Minimal plugin that logs on every schematic change"
+entry = "cargo run --release"
+
+[capabilities]
+panels = false
+commands = true
+overlays = false
+theme = false
+
+[[commands.command]]
+name = "greet"
+description = "Log a greeting to the host"

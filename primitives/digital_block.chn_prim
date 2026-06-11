@@ -1,0 +1,28 @@
+chn_prim 1.0
+
+SYMBOL digital_block
+  desc: Digital RTL block (Verilog/VHDL)
+  pins [4]:
+    clk  i
+    rst  i
+    din  i
+    dout  o
+  params [4]:
+    source_file =
+    top_module =
+    language = verilog
+    generic = ""
+  block_type: digital
+  spice_prefix: X
+  spice_format: "@name @pins"
+  drawing:
+    rect: (-40,-30) (40,30)
+    text: (0,0) "DIGITAL"
+    lines:
+      (-40,0) (-20,0)
+      (20,0) (40,0)
+    pin_positions:
+      clk: (-40,0)
+      rst: (-40,-10)
+      din: (-40,10)
+      dout: (40,0)
