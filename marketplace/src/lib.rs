@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 pub use registry::Registry;
 
 const DEFAULT_REGISTRY_URL: &str =
-    "https://raw.githubusercontent.com/schemify/plugin-registry/main/index.json";
+    "https://raw.githubusercontent.com/UW-ASIC/Schemify/master/registry/index.json";
 
 const INSTALLED_DB_FILE: &str = "installed.json";
 
