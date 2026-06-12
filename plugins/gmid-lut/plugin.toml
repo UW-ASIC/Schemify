@@ -1,0 +1,21 @@
+[plugin]
+id = "gmid-lut"
+name = "gm/Id Characterization"
+version = "0.1.0"
+description = "Characterize PDK devices via GmIDVisualizer sweeps; gm/Id lookup tables, SVG figures, and waveform-viewer curves"
+entry = "cargo run --release"
+
+[capabilities]
+panels = true
+commands = true
+overlays = false
+theme = false
+
+[[panels.panel]]
+name = "gm/Id"
+slot = "RightSidebar"
+priority = 12
+
+[[commands.command]]
+name = "characterize_device"
+description = "Run a gm/Id characterization sweep for the selected device"

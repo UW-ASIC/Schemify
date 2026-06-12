@@ -1,0 +1,25 @@
+[plugin]
+id = "theme-registry"
+name = "Theme Registry"
+version = "0.1.0"
+description = "Hot-swap themes from the tinted-theming base16/base24 registry (Catppuccin, Gruvbox, ...)"
+entry = "cargo run --release"
+
+[capabilities]
+panels = true
+commands = true
+overlays = false
+theme = true
+
+[[panels.panel]]
+name = "Themes"
+slot = "RightSidebar"
+priority = 20
+
+[[commands.command]]
+name = "refresh_themes"
+description = "Re-download the scheme registry"
+
+[[commands.command]]
+name = "reset_theme"
+description = "Restore the default theme"

@@ -1,0 +1,15 @@
+name = "gf180mcuD"
+
+[models]
+lib = "libs.tech/ngspice/sm141064.ngspice"
+corners = ["typical", "ff", "ss", "fs", "sf"]
+default_corner = "typical"
+
+[devices]
+nmos4 = { model = "nfet_03v3", prefix = "X", pin_order = ["d", "g", "s", "b"], params = { L = "0.28", W = "0.22" } }
+pmos4 = { model = "pfet_03v3", prefix = "X", pin_order = ["d", "g", "s", "b"], params = { L = "0.28", W = "0.22" } }
+nmoshv4 = { model = "nfet_06v0", prefix = "X", pin_order = ["d", "g", "s", "b"] }
+pmoshv4 = { model = "pfet_06v0", prefix = "X", pin_order = ["d", "g", "s", "b"] }
+res = { model = "rplus_u", prefix = "X" }
+capacitor = { model = "cap_mim_2f0fF", prefix = "X" }
+diode = { model = "diode_nd2ps_03v3", prefix = "X" }

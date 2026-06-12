@@ -1,4 +1,6 @@
-plugins/
+plugins/*/target/
+plugins/gmid-lut/GmIDVisualizer/.git.vendored/
+plugins/gmid-lut/GmIDVisualizer/build/
 .claude/
 target/
 dist/

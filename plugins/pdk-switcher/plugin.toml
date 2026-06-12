@@ -1,0 +1,21 @@
+[plugin]
+id = "pdk-switcher"
+name = "PDK Switcher"
+version = "0.1.0"
+description = "Download, install and activate open-source PDKs (sky130, gf180mcu, ihp-sg13g2) from ciel-releases"
+entry = "cargo run --release"
+
+[capabilities]
+panels = true
+commands = true
+overlays = false
+theme = false
+
+[[panels.panel]]
+name = "PDK Config"
+slot = "RightSidebar"
+priority = 15
+
+[[commands.command]]
+name = "refresh_pdk_list"
+description = "Refresh the remote PDK version list"

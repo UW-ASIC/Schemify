@@ -1,0 +1,50 @@
+# ── Build outputs ─────────────────────────────────────────────────────────────
+*.o
+*.so
+*.a
+*.out
+*.exe
+*.dylib
+
+# ── CMake ─────────────────────────────────────────────────────────────────────
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+_CPack_Packages/
+install_manifest.txt
+.cache/
+# Keep compile_commands.json — useful for clangd / IDE tooling
+# compile_commands.json
+
+# ── Nix ───────────────────────────────────────────────────────────────────────
+result
+result-*
+
+# ── Editor & IDE ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Runtime artefacts ─────────────────────────────────────────────────────────
+# ngspice / xyce intermediate files written to work_dir
+*.raw
+*.lis
+*.log
+*.sp
+*.cir
+*.net
+*.meas
+
+# ── oh-my-claudecode ──────────────────────────────────────────────────────────
+.omc/
+
+# ── Miscellaneous ─────────────────────────────────────────────────────────────
+*.bak
+*.orig

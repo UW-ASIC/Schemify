@@ -1,0 +1,19 @@
+[package]
+name = "theme-registry-plugin"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "theme-registry"
+path = "src/main.rs"
+
+[dependencies]
+schemify-plugins = { path = "../../crates/plugins" }
+serde_json = "1"
+ureq = "3"
+flate2 = "1"
+tar = "0.4"
+dirs = "6"
+
+[profile.release]
+opt-level = 2
