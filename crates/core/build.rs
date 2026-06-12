@@ -9,6 +9,18 @@ use std::path::{Path, PathBuf};
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=PYSPICE_MODULE_DIR");
+    println!("cargo:rerun-if-env-changed=PYSPICE_BUNDLE_DIR");
+
+    // Externally-set PYSPICE_BUNDLE_DIR (the nix package build): the module
+    // already lives at a stable path, so bake it directly — no copy into the
+    // target dir, whose absolute path would dangle outside the sandbox.
+    if let Ok(dir) = env::var("PYSPICE_BUNDLE_DIR") {
+        if Path::new(&dir).join("pyspice_rs").exists() {
+            println!("cargo:rustc-env=PYSPICE_BUNDLE_DIR={dir}");
+            return;
+        }
+        eprintln!("Warning: PYSPICE_BUNDLE_DIR set but pyspice_rs not found in {dir}");
+    }
 
     let module_dir = env::var("PYSPICE_MODULE_DIR").ok().and_then(|dir| {
         let p = PathBuf::from(&dir);

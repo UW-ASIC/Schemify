@@ -154,7 +154,7 @@ GmidCharResult* gmid_characterise(
         const auto& p = result.plots[static_cast<std::size_t>(i)];
         auto&       g = cr->plots[i];
 
-        std::snprintf(g.svg_path, sizeof(g.svg_path), "%s", p.svg.c_str());
+        std::snprintf(g.svg_path, sizeof(g.svg_path), "%s", p.svg.string().c_str());
         std::snprintf(g.title,    sizeof(g.title),    "%.*s",
                       static_cast<int>(p.title.size()),   p.title.data());
         std::snprintf(g.x_label,  sizeof(g.x_label),  "%.*s",

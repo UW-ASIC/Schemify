@@ -78,8 +78,49 @@
           libxrandr
           libxi
         ];
+        schemify = (pkgs.makeRustPlatform {
+          cargo = rustToolchain;
+          rustc = rustToolchain;
+        }).buildRustPackage {
+          pname = "schemify";
+          version = "0.1.0";
+          src = pkgs.lib.cleanSource ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+
+          # Plugins/examples are excluded workspace members with their own
+          # lockfiles; build just the app binary.
+          cargoBuildFlags = [ "--bin" "schemify" ];
+
+          inherit buildInputs;
+          nativeBuildInputs = nativeBuildInputs ++ [ pkgs.makeWrapper ];
+
+          # core/build.rs bakes this store path in directly (no copy), so
+          # the binary finds the pyspice_rs module at runtime.
+          PYSPICE_BUNDLE_DIR = pyspiceSitePackages;
+
+          # Tests need ngspice + a writable HOME; covered by `cargo test`
+          # in the devshell and CI instead.
+          doCheck = false;
+
+          postFixup = ''
+            wrapProgram $out/bin/schemify \
+              --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath buildInputs} \
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.ngspice ]} \
+              --set-default PYTHON ${pkgs.python312}/bin/python3.12 \
+              --set-default PDK_ROOT ${sky130Pdk}
+          '';
+
+          meta = {
+            description = "Schematic capture for circuit design with sim runner, MCP server, and plugins";
+            homepage = "https://github.com/UW-ASIC/Schemify";
+            mainProgram = "schemify";
+          };
+        };
       in
       {
+        packages.default = schemify;
+        packages.schemify = schemify;
+
         devShells.default = pkgs.mkShell {
           inherit nativeBuildInputs buildInputs;
 

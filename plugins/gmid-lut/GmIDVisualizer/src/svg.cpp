@@ -59,7 +59,8 @@ void SvgWriter::polyline(std::span<const double> px,
 }
 
 bool SvgWriter::write_to(const std::filesystem::path& path) const {
-    std::FILE* f = std::fopen(path.c_str(), "wb");
+    // .string(): path::c_str() is wchar_t* on windows.
+    std::FILE* f = std::fopen(path.string().c_str(), "wb");
     if (!f) return false;
     std::fwrite(buf_.data(), 1, buf_.size(), f);
     std::fclose(f);
