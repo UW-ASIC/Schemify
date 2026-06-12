@@ -441,7 +441,7 @@ impl McpServer {
                 json!(items)
             }
             "marketplace/install" => {
-                let id = req_str(params, "name")?;
+                let id = req_plugin_id(params)?;
                 self.marketplace
                     .install(&id)
                     .map_err(|e| anyhow!("{e}"))?;
@@ -458,7 +458,7 @@ impl McpServer {
                 json!({"ok": true, "id": id})
             }
             "marketplace/uninstall" => {
-                let id = req_str(params, "name")?;
+                let id = req_plugin_id(params)?;
                 let _ = self.plugin_manager.stop(&id);
                 self.plugin_manager.remove(&id);
                 self.marketplace
@@ -467,7 +467,7 @@ impl McpServer {
                 json!({"ok": true, "id": id})
             }
             "marketplace/update" => {
-                let id = req_str(params, "name")?;
+                let id = req_plugin_id(params)?;
                 let _ = self.plugin_manager.stop(&id);
                 self.plugin_manager.remove(&id);
                 self.marketplace
@@ -811,6 +811,14 @@ fn req_str(params: &Value, key: &str) -> Result<String> {
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
         .ok_or_else(|| anyhow!("missing string parameter '{key}'"))
+}
+
+/// Plugin id for marketplace methods: `id` preferred, `name` accepted
+/// for backwards compatibility.
+fn req_plugin_id(params: &Value) -> Result<String> {
+    req_str(params, "id")
+        .or_else(|_| req_str(params, "name"))
+        .map_err(|_| anyhow!("missing string parameter 'id'"))
 }
 
 fn origin_name(origin: &Origin) -> &'static str {

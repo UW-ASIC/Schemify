@@ -1,0 +1,62 @@
+# Build the first-party plugins for every platform and attach the
+# marketplace tarballs (+ SHA256SUMS) to the plugins-v* release.
+#
+# After a run, copy the per-platform sha256 from the SHA256SUMS-* assets
+# into registry/index.json `downloads` and push.
+name: plugin-release
+
+on:
+  push:
+    tags: ["plugins-v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing plugins-v* release tag to upload to"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        run: echo "TAG=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_ENV"
+
+      - name: Build plugins
+        run: |
+          for p in theme-registry pdk-switcher gmid-lut pdk-mapper; do
+            cargo build --release --manifest-path "plugins/$p/Cargo.toml"
+          done
+
+      - name: Package tarballs
+        run: |
+          VERSION="${TAG#plugins-v}" TARGET="${{ matrix.target }}" \
+            scripts/package-plugins.sh dist/plugins
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" --verify-tag \
+            --title "First-party plugins ${TAG#plugins-}" \
+            --notes "Marketplace tarballs for the first-party plugins." \
+            2>/dev/null || true
+          gh release upload "$TAG" dist/plugins/*.tar.gz \
+            "dist/plugins/SHA256SUMS-${{ matrix.target }}.txt" --clobber
