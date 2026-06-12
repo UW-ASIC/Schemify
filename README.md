@@ -5,9 +5,10 @@ simulation flow, waveform viewer, MCP automation server, and a subprocess
 plugin system.
 
 ```
-schemify                   # GUI
-schemify cli [opts] CMD..  # dispatch commands headless (--headful for live GUI)
-schemify mcp [opts]        # JSON-RPC server on stdio (--headful mirrors a GUI)
+schemify                            # GUI
+schemify cli [opts] CMD..           # dispatch commands headless (--headful for live GUI)
+schemify mcp [opts]                 # JSON-RPC server on stdio (--headful mirrors a GUI)
+schemify export-spice --file f.chn  # netlist a schematic (--format spice|pyspice|ir)
 ```
 
 All three entry points share one command enum and one wire format:

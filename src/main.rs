@@ -12,7 +12,7 @@
 //! `{"PlaceDevice": {...}}`. One marshaler (`schemify_mcp::command_from_json`)
 //! serves CLI and MCP — no mirrored enum.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -62,6 +62,18 @@ enum Sub {
         #[arg(long, value_name = "MS")]
         step_delay: Option<u64>,
     },
+    /// Export a netlist from a schematic, headless (`make netlist`-friendly).
+    ExportSpice {
+        /// Schematic to netlist.
+        #[arg(long)]
+        file: PathBuf,
+        /// Output path; stdout when omitted.
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// Output format: spice, pyspice, or ir (circuit IR as JSON).
+        #[arg(long, default_value = "spice")]
+        format: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -77,7 +89,33 @@ fn main() -> Result<()> {
         Some(Sub::Mcp { headful, step_delay }) => {
             run_mcp(headful, step_delay.map(Duration::from_millis))
         }
+        Some(Sub::ExportSpice { file, out, format }) => run_export_spice(&file, out.as_deref(), &format),
     }
+}
+
+/// `schemify export-spice`: load a schematic, build the circuit IR, and
+/// emit it in the requested format — no GUI, no dispatch loop.
+fn run_export_spice(file: &Path, out: Option<&Path>, format: &str) -> Result<()> {
+    use schemify_core::sim::{codegen, ir};
+
+    let mut app = App::new();
+    app.open_file(file)
+        .with_context(|| format!("opening {}", file.display()))?;
+
+    let circuit: ir::CircuitIR = app.build_circuit_ir();
+    let text = match format {
+        "spice" => codegen::emit_spice(&circuit),
+        "pyspice" => codegen::emit_pyspice(&circuit),
+        "ir" => serde_json::to_string_pretty(&circuit).context("serializing circuit IR")?,
+        other => anyhow::bail!("unknown format '{other}' (expected spice, pyspice, or ir)"),
+    };
+
+    match out {
+        Some(path) => std::fs::write(path, &text)
+            .with_context(|| format!("writing {}", path.display()))?,
+        None => print!("{text}"),
+    }
+    Ok(())
 }
 
 /// Expand `@file` references and parse every command up front so a typo
