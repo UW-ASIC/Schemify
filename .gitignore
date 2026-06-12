@@ -4,3 +4,4 @@ plugins/gmid-lut/GmIDVisualizer/build/
 .claude/
 target/
 dist/
+result
