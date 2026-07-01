@@ -12,7 +12,9 @@ schemify-optimizer = { path = "../optimizer" }
 schemify-plugins = { path = "../plugins" }
 schemify-mcp = { path = "../mcp" }
 schemify-marketplace = { path = "../../marketplace" }
-eframe = { version = "0.31", features = ["wgpu", "glow"] }
+eframe = { version = "0.31", default-features = false, features = [
+    "accesskit", "default_fonts", "wgpu", "wayland", "x11",
+] }
 egui = "0.31"
 egui_extras = { version = "0.31", features = ["svg", "image"] }
 log = "0.4"

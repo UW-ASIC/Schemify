@@ -171,7 +171,7 @@ impl eframe::App for SchemifyGui {
         }
     }
 
-    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+    fn on_exit(&mut self) {
         self.plugins.manager.shutdown_all();
     }
 }
@@ -182,20 +182,20 @@ impl eframe::App for SchemifyGui {
 
 /// Run the GUI on a shared core App.
 ///
-/// Renderer selection: `SCHEMIFY_RENDERER=glow|wgpu` overrides auto-detect.
-/// Auto: wgpu everywhere, glow on WSL (wgpu can't get a GPU surface there).
-fn pick_renderer() -> eframe::Renderer {
-    if let Ok(v) = std::env::var("SCHEMIFY_RENDERER") {
+/// wgpu backends: Vulkan/Metal/DX12 native, GL on WSL (no GPU surface there).
+fn wgpu_backends() -> eframe::wgpu::Backends {
+    if let Ok(v) = std::env::var("SCHEMIFY_GPU_BACKEND") {
         return match v.to_ascii_lowercase().as_str() {
-            "glow" | "gl" | "opengl" => eframe::Renderer::Glow,
-            _ => eframe::Renderer::Wgpu,
+            "gl" | "opengl" => eframe::wgpu::Backends::GL,
+            "vulkan" | "vk" => eframe::wgpu::Backends::VULKAN,
+            _ => eframe::wgpu::Backends::PRIMARY,
         };
     }
     if is_wsl() {
-        log::info!("WSL detected, using glow (OpenGL) renderer");
-        return eframe::Renderer::Glow;
+        log::info!("WSL detected, using wgpu GL backend");
+        return eframe::wgpu::Backends::GL;
     }
-    eframe::Renderer::Wgpu
+    eframe::wgpu::Backends::PRIMARY
 }
 
 #[cfg(target_os = "linux")]
@@ -222,10 +222,21 @@ pub fn run_gui(
 ) -> eframe::Result<()> {
     let pump = rx.map(|rx| CommandPump::new(rx, step_delay));
     let options = eframe::NativeOptions {
-        renderer: pick_renderer(),
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 800.0])
             .with_title("Schemify"),
+        wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
+            wgpu_setup: eframe::egui_wgpu::WgpuSetup::CreateNew(
+                eframe::egui_wgpu::WgpuSetupCreateNew {
+                    instance_descriptor: eframe::wgpu::InstanceDescriptor {
+                        backends: wgpu_backends(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            ),
+            ..Default::default()
+        },
         ..Default::default()
     };
     eframe::run_native(
