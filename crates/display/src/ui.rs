@@ -171,7 +171,7 @@ impl eframe::App for SchemifyGui {
         }
     }
 
-    fn on_exit(&mut self) {
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.plugins.manager.shutdown_all();
     }
 }
@@ -182,6 +182,17 @@ impl eframe::App for SchemifyGui {
 
 /// Run the GUI on a shared core App.
 ///
+#[cfg(target_os = "linux")]
+fn is_wsl() -> bool {
+    std::env::var_os("WSL_DISTRO_NAME").is_some()
+        || std::path::Path::new("/proc/sys/fs/binfmt_misc/WSLInterop").exists()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn is_wsl() -> bool {
+    false
+}
+
 /// * `rx` — optional external Command channel (headful CLI/MCP driving;
 ///   matches `schemify_mcp::Sink::Channel`'s `Sender<Command>`). Commands
 ///   are pumped into `App::dispatch` each frame.
@@ -193,8 +204,19 @@ pub fn run_gui(
     rx: Option<Receiver<Command>>,
     step_delay: Option<Duration>,
 ) -> eframe::Result<()> {
+    // WSL: wgpu can't create surfaces on WSLg (bugs #2641, #2762, #6841).
+    // Use glow (glutin OpenGL) instead, and force X11 to avoid EGL mismatch.
+    if is_wsl() {
+        std::env::remove_var("WAYLAND_DISPLAY");
+        log::info!("WSL detected: using glow renderer over X11");
+    }
     let pump = rx.map(|rx| CommandPump::new(rx, step_delay));
     let options = eframe::NativeOptions {
+        renderer: if is_wsl() {
+            eframe::Renderer::Glow
+        } else {
+            eframe::Renderer::Wgpu
+        },
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 800.0])
             .with_title("Schemify"),
