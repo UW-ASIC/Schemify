@@ -106,7 +106,7 @@ impl CommandPump {
 pub fn handle_shortcuts(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
     // Suppress single-key binds while typing anywhere (command line, dialog
     // text fields, canvas text tool).
-    if gui.command_mode || gui.text_entry_focused || ctx.wants_keyboard_input() {
+    if gui.command_mode || gui.text_entry_focused || ctx.egui_wants_keyboard_input() {
         return;
     }
 

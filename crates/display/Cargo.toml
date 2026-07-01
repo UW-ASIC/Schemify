@@ -12,11 +12,9 @@ schemify-optimizer = { path = "../optimizer" }
 schemify-plugins = { path = "../plugins" }
 schemify-mcp = { path = "../mcp" }
 schemify-marketplace = { path = "../../marketplace" }
-eframe = { version = "0.31", default-features = false, features = [
-    "accesskit", "default_fonts", "wgpu", "wayland", "x11",
-] }
-egui = "0.31"
-egui_extras = { version = "0.31", features = ["svg", "image"] }
+eframe = "0.35"
+egui = "0.35"
+egui_extras = { version = "0.35", features = ["svg", "image"] }
 log = "0.4"
 serde_json = { workspace = true }
 ratex-render = { version = "0.1.11", features = ["embed-fonts"] }

@@ -130,7 +130,7 @@ fn tog(ui: &mut egui::Ui, label: &str, shortcut: &str, active: bool) -> bool {
 }
 
 pub fn menu_bar(
-    ctx: &egui::Context,
+    ui: &mut egui::Ui,
     app: &mut App,
     gui: &mut GuiState,
     plugins: &mut PluginHost,
@@ -158,62 +158,62 @@ pub fn menu_bar(
     let mut new_optimizer = false;
     let mut new_view_mode: Option<ViewMode> = None;
 
-    egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-        egui::menu::bar(ui, |ui| {
+    egui::Panel::top("menu_bar").show(ui, |ui| {
+        egui::MenuBar::new().ui(ui, |ui| {
             // ── File ──
             ui.menu_button("File", |ui| {
                 if sc(ui, "New Schematic", "Ctrl+N") {
                     cmds.push(Command::FileNew);
-                    ui.close_menu();
+
                 }
                 if sc(ui, "New Primitive...", "") {
                     cmds.push(Command::OpenNewPrimDialog);
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Open...", "Ctrl+O") {
                     open_file = true;
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Import Netlist...", "") {
                     cmds.push(Command::OpenImportDialog);
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Reload from Disk", "") {
                     cmds.push(Command::ReloadFromDisk);
-                    ui.close_menu();
+
                 }
                 ui.separator();
                 if sc(ui, "Save", "Ctrl+S") {
                     save_file = true;
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Save As...", "Ctrl+Shift+S") {
                     save_as = true;
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Save All", "") {
                     save_all = true;
-                    ui.close_menu();
+
                 }
                 ui.separator();
                 ui.menu_button("Export", |ui| {
                     if sc(ui, "Export SPICE...", "") {
                         export_spice = true;
-                        ui.close_menu();
+    
                     }
                     if sc(ui, "Export Netlist", "") {
                         cmds.push(Command::ExportNetlist);
-                        ui.close_menu();
+    
                     }
                 });
                 ui.separator();
                 if sc(ui, "New Tab", "Ctrl+T") {
                     cmds.push(Command::NewTab);
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Close Tab", "Ctrl+W") {
                     cmds.push(Command::CloseTab(active_idx));
-                    ui.close_menu();
+
                 }
             });
 
@@ -221,11 +221,11 @@ pub fn menu_bar(
             ui.menu_button("Edit", |ui| {
                 if en(ui, "Undo", "Ctrl+Z", can_undo) {
                     cmds.push(Command::Undo);
-                    ui.close_menu();
+
                 }
                 if en(ui, "Redo", "Ctrl+Y", can_redo) {
                     cmds.push(Command::Redo);
-                    ui.close_menu();
+
                 }
                 ui.separator();
                 for (label, shortcut, cmd) in [
@@ -237,7 +237,7 @@ pub fn menu_bar(
                 ] {
                     if sc(ui, label, shortcut) {
                         cmds.push(cmd);
-                        ui.close_menu();
+    
                     }
                 }
                 ui.separator();
@@ -249,7 +249,7 @@ pub fn menu_bar(
                 ] {
                     if sc(ui, label, shortcut) {
                         cmds.push(cmd);
-                        ui.close_menu();
+    
                     }
                 }
                 ui.separator();
@@ -262,7 +262,7 @@ pub fn menu_bar(
                 ] {
                     if sc(ui, label, shortcut) {
                         cmds.push(cmd);
-                        ui.close_menu();
+    
                     }
                 }
                 ui.menu_button("Align", |ui| {
@@ -278,18 +278,18 @@ pub fn menu_bar(
                     ] {
                         if sc(ui, label, shortcut) {
                             cmds.push(cmd);
-                            ui.close_menu();
+        
                         }
                     }
                 });
                 ui.separator();
                 if sc(ui, "Properties...", "Q") {
                     cmds.push(Command::OpenPropsDialog);
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Spice Code...", "") {
                     cmds.push(Command::OpenSpiceCodeEditor);
-                    ui.close_menu();
+
                 }
             });
 
@@ -303,25 +303,25 @@ pub fn menu_bar(
                 ] {
                     if sc(ui, label, shortcut) {
                         cmds.push(cmd);
-                        ui.close_menu();
+    
                     }
                 }
                 ui.separator();
                 if tog(ui, "Grid", "G", grid_on) {
                     cmds.push(Command::ToggleGrid);
-                    ui.close_menu();
+
                 }
                 if tog(ui, "Crosshair", "", gui.crosshair) {
                     gui.crosshair = !gui.crosshair;
-                    ui.close_menu();
+
                 }
                 if tog(ui, "Fill Shapes", "", gui.fill_rects) {
                     gui.fill_rects = !gui.fill_rects;
-                    ui.close_menu();
+
                 }
                 if tog(ui, "Dark Mode", "", app.state.view.dark_mode) {
                     cmds.push(Command::ToggleColorScheme);
-                    ui.close_menu();
+
                 }
                 ui.separator();
                 for (label, mode) in [
@@ -331,17 +331,17 @@ pub fn menu_bar(
                 ] {
                     if tog(ui, label, "", view_mode == mode) {
                         new_view_mode = Some(mode);
-                        ui.close_menu();
+    
                     }
                 }
                 ui.separator();
                 if sc(ui, "Library Browser", "I") {
                     cmds.push(Command::OpenLibraryBrowser);
-                    ui.close_menu();
+
                 }
                 if sc(ui, "File Explorer", "") {
                     cmds.push(Command::OpenFileExplorer);
-                    ui.close_menu();
+
                 }
             });
 
@@ -354,21 +354,21 @@ pub fn menu_bar(
                 ] {
                     if sc(ui, label, shortcut) {
                         cmds.push(Command::SetTool(tool));
-                        ui.close_menu();
+    
                     }
                 }
                 ui.separator();
                 if sc(ui, "Wire", "W") {
                     cmds.push(Command::SetTool(Tool::Wire));
-                    ui.close_menu();
+
                 }
                 if tog(ui, "Bus", "B", bus_active) {
                     cmds.push(Command::SetTool(Tool::Bus));
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Bus Ripper", "") {
                     cmds.push(Command::SetTool(Tool::BusRipper));
-                    ui.close_menu();
+
                 }
                 ui.separator();
                 for (label, shortcut, tool) in [
@@ -381,13 +381,13 @@ pub fn menu_bar(
                 ] {
                     if sc(ui, label, shortcut) {
                         cmds.push(Command::SetTool(tool));
-                        ui.close_menu();
+    
                     }
                 }
                 ui.separator();
                 if sc(ui, "Insert from Library...", "I") {
                     cmds.push(Command::OpenLibraryBrowser);
-                    ui.close_menu();
+
                 }
             });
 
@@ -395,13 +395,13 @@ pub fn menu_bar(
             ui.menu_button("Simulate", |ui| {
                 if sc(ui, "Run Simulation", "F5") {
                     cmds.push(Command::RunSim);
-                    ui.close_menu();
+
                 }
                 ui.menu_button("Backend", |ui| {
                     for be in [SpiceBackend::NgSpice, SpiceBackend::Xyce] {
                         if tog(ui, be.as_str(), "", sim_backend == be) {
                             cmds.push(Command::SetSimBackend(be.as_str().to_string()));
-                            ui.close_menu();
+        
                         }
                     }
                 });
@@ -409,7 +409,7 @@ pub fn menu_bar(
                     for lang in StimulusLang::ALL {
                         if tog(ui, lang.as_str(), "", stimulus_lang == *lang) {
                             cmds.push(Command::SetStimulusLang(lang.as_str().to_string()));
-                            ui.close_menu();
+        
                         }
                     }
                 });
@@ -419,7 +419,7 @@ pub fn menu_bar(
                             let active = if current.is_empty() { c == default } else { c == current };
                             if tog(ui, c, "", active) {
                                 cmds.push(Command::SetSimCorner(c.clone()));
-                                ui.close_menu();
+            
                             }
                         }
                     });
@@ -427,20 +427,20 @@ pub fn menu_bar(
                 ui.separator();
                 if sc(ui, "Waveform Viewer", "") {
                     open_wave = true;
-                    ui.close_menu();
+
                 }
                 if sc(ui, "New Optimizer", "") {
                     // Every activation opens a NEW instance (own window).
                     new_optimizer = true;
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Spice Code...", "") {
                     cmds.push(Command::OpenSpiceCodeEditor);
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Export Netlist", "") {
                     cmds.push(Command::ExportNetlist);
-                    ui.close_menu();
+
                 }
             });
 
@@ -448,11 +448,11 @@ pub fn menu_bar(
             ui.menu_button("Plugins", |ui| {
                 if sc(ui, "Marketplace...", "") {
                     cmds.push(Command::OpenMarketplace);
-                    ui.close_menu();
+
                 }
                 if sc(ui, "Refresh Plugins", "F6") {
                     cmds.push(Command::PluginsRefresh);
-                    ui.close_menu();
+
                 }
                 ui.separator();
 
@@ -478,7 +478,7 @@ pub fn menu_bar(
                             Some(PluginLifecycle::Running) => {
                                 if sc(ui, "Stop", "") {
                                     let _ = plugins.manager.stop(id);
-                                    ui.close_menu();
+                
                                 }
                             }
                             _ => {
@@ -486,7 +486,7 @@ pub fn menu_bar(
                                     if let Err(e) = plugins.manager.start(id) {
                                         app.state.status_msg = e.to_string();
                                     }
-                                    ui.close_menu();
+                
                                 }
                             }
                         }
@@ -516,7 +516,7 @@ pub fn menu_bar(
                                     tag: format!("{id}:{}", c.name),
                                     payload: Vec::new(),
                                 });
-                                ui.close_menu();
+            
                             }
                         }
                     });
@@ -527,7 +527,7 @@ pub fn menu_bar(
             ui.menu_button("Help", |ui| {
                 if sc(ui, "Keyboard Shortcuts...", "") {
                     cmds.push(Command::OpenSettings);
-                    ui.close_menu();
+
                 }
             });
         });
@@ -581,7 +581,7 @@ pub fn menu_bar(
 // Tab bar
 // ════════════════════════════════════════════════════════════
 
-pub fn tab_bar(ctx: &egui::Context, app: &mut App) {
+pub fn tab_bar(ui: &mut egui::Ui, app: &mut App) {
     let doc_info: Vec<(String, bool)> = app
         .state
         .documents
@@ -595,7 +595,7 @@ pub fn tab_bar(ctx: &egui::Context, app: &mut App) {
     let mut cmd = None;
     let mut new_view_mode: Option<ViewMode> = None;
 
-    egui::TopBottomPanel::top("tab_bar").show(ctx, |ui| {
+    egui::Panel::top("tab_bar").show(ui, |ui| {
         ui.horizontal(|ui| {
             let tab_h = ui.spacing().interact_size.y;
             let slant = tab_h * 0.4; // chevron tip depth
@@ -766,8 +766,8 @@ pub fn tab_bar(ctx: &egui::Context, app: &mut App) {
 // Status bar (normal + vim command mode)
 // ════════════════════════════════════════════════════════════
 
-pub fn status_bar(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
-    egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
+pub fn status_bar(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
+    egui::Panel::bottom("status_bar").show(ui, |ui| {
         ui.horizontal(|ui| {
             if gui.command_mode {
                 show_command_mode(ui, app, gui);
@@ -857,7 +857,7 @@ pub fn label_conflict_overlay(ctx: &egui::Context, app: &mut App) {
     names.dedup();
     let label_list = names.join(", ");
 
-    let screen = ctx.screen_rect();
+    let screen = ctx.input(|i| i.viewport_rect());
     egui::Area::new(egui::Id::new("label_conflict_warn"))
         .fixed_pos(egui::pos2(screen.right() - 340.0, screen.bottom() - 60.0))
         .order(egui::Order::Foreground)
@@ -947,10 +947,10 @@ pub fn doc_view(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
     // Editor on top, rendered view always live in a resizable bottom pane.
     // The bottom panel must be laid out before the central editor fills
     // the rest.
-    egui::TopBottomPanel::bottom("doc_preview_pane")
+    egui::Panel::bottom("doc_preview_pane")
         .resizable(true)
-        .default_height(ui.available_height() * 0.45)
-        .show_inside(ui, |ui| {
+        .default_size(ui.available_height() * 0.45)
+        .show(ui, |ui| {
             // Live value refs: {{R1}} / {{R1.value}} re-expand every
             // frame, so schematic edits show up immediately. Expansion
             // runs before math conversion, so refs inside $...$ work.
@@ -966,7 +966,7 @@ pub fn doc_view(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
                     render_simple_markdown(ui, &mut gui.doc_math_cache, &rendered);
                 });
         });
-    egui::CentralPanel::default().show_inside(ui, |ui| {
+    egui::CentralPanel::default().show(ui, |ui| {
         egui::ScrollArea::vertical()
             .id_salt("doc_edit_scroll")
             .auto_shrink([false, false])
@@ -1321,7 +1321,7 @@ fn library_browser(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
                     for (i, (name, pin_count)) in symbols.iter().enumerate() {
                         if *name == current {
                             // A schematic can't instance itself.
-                            ui.add_enabled(false, egui::SelectableLabel::new(false, name.as_str()))
+                            ui.add_enabled(false, egui::Button::selectable(false, name.as_str()))
                                 .on_disabled_hover_text("open schematic");
                             continue;
                         }
@@ -1468,7 +1468,7 @@ pub fn context_menu(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
                             if ui.button(name).clicked() {
                                 cmds.push(Command::SetWireColor { idx: wire_idx, color });
                                 close = true;
-                                ui.close_menu();
+            
                             }
                         }
                     });

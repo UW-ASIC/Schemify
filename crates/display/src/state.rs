@@ -108,7 +108,7 @@ impl Theme {
         ctx.set_visuals(visuals);
         // egui's default menu_width (400) makes menu-bar dropdowns
         // comically wide; menus size to their content above this floor.
-        ctx.style_mut(|s| s.spacing.menu_width = 140.0);
+        ctx.all_styles_mut(|s| s.spacing.menu_width = 140.0);
     }
 }
 

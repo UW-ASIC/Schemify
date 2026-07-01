@@ -15,7 +15,7 @@ use crate::state::Theme;
 
 /// Show all visible plugin panels. Must run before the CentralPanel is added
 /// (egui side/bottom panels claim screen space first).
-pub fn show_panels(ctx: &egui::Context, host: &mut PluginHost, theme: &Theme) {
+pub fn show_panels(ui: &mut egui::Ui, host: &mut PluginHost, theme: &Theme) {
     let mut actions: Vec<PendingUiAction> = Vec::new();
 
     for slot in [
@@ -61,22 +61,22 @@ pub fn show_panels(ctx: &egui::Context, host: &mut PluginHost, theme: &Theme) {
 
         match slot {
             PanelLayout::LeftSidebar => {
-                egui::SidePanel::left("plugin_panel_left")
+                egui::Panel::left("plugin_panel_left")
                     .resizable(true)
-                    .default_width(260.0)
-                    .show(ctx, &mut body);
+                    .default_size(260.0)
+                    .show(ui, &mut body);
             }
             PanelLayout::RightSidebar => {
-                egui::SidePanel::right("plugin_panel_right")
+                egui::Panel::right("plugin_panel_right")
                     .resizable(true)
-                    .default_width(280.0)
-                    .show(ctx, &mut body);
+                    .default_size(280.0)
+                    .show(ui, &mut body);
             }
             PanelLayout::BottomBar => {
-                egui::TopBottomPanel::bottom("plugin_panel_bottom")
+                egui::Panel::bottom("plugin_panel_bottom")
                     .resizable(true)
-                    .default_height(160.0)
-                    .show(ctx, &mut body);
+                    .default_size(160.0)
+                    .show(ui, &mut body);
             }
             PanelLayout::Overlay => {
                 // One floating window per overlay panel.
@@ -85,7 +85,7 @@ pub fn show_panels(ctx: &egui::Context, host: &mut PluginHost, theme: &Theme) {
                     egui::Window::new(&p.reg.name)
                         .id(egui::Id::new(("plugin_overlay", &p.reg.plugin_id, i)))
                         .default_width(300.0)
-                        .show(ctx, |ui| {
+                        .show(ui.ctx(), |ui| {
                             render_widgets(
                                 ui,
                                 &p.widgets,

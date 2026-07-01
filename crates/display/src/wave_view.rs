@@ -61,30 +61,30 @@ pub fn wave_window(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
 
     // Immediate viewport: runs inline on this thread, same App borrow.
     let mut close = false;
-    ctx.show_viewport_immediate(viewport_id, builder, |ctx2, _class| {
-        if ctx2.input(|i| i.viewport().close_requested()) {
+    ctx.show_viewport_immediate(viewport_id, builder, |ui, _class| {
+        if ui.ctx().input(|i| i.viewport().close_requested()) {
             close = true;
         }
-        window_contents(ctx2, app, gui);
+        window_contents(ui, app, gui);
     });
     if close {
         app.state.wave_window_open = false;
     }
 }
 
-fn window_contents(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
-    handle_screenshot(ctx, app, gui);
-    top_bar(ctx, app, gui);
-    signal_browser(ctx, app, gui);
-    trace_panel(ctx, app);
-    status_line(ctx, app);
+fn window_contents(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
+    let ctx = ui.ctx().clone();
+    handle_screenshot(&ctx, app, gui);
 
-    egui::CentralPanel::default().show(ctx, |ui| {
-        let Some(w) = app.state.wave.as_deref_mut() else {
-            return;
-        };
-        panes_view(ui, w, gui);
-    });
+    top_bar(ui, app, gui);
+    signal_browser(ui, app, gui);
+    trace_panel(ui, app);
+    status_line(ui, app);
+
+    let Some(w) = app.state.wave.as_deref_mut() else {
+        return;
+    };
+    panes_view(ui, w, gui);
 
     // Window-local keys (only when no text field has focus).
     if ctx.memory(|m| m.focused().is_none()) {
@@ -124,8 +124,8 @@ fn toggle_cursor(w: &mut WaveState, which: u8) {
 // Top bar — expression bar + view controls
 // ════════════════════════════════════════════════════════════
 
-fn top_bar(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
-    egui::TopBottomPanel::top("wave_top").show(ctx, |ui| {
+fn top_bar(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
+    egui::Panel::top("wave_top").show(ui, |ui| {
         ui.horizontal(|ui| {
             if ui.button("Open .raw…").clicked() {
                 open_raw_dialog(app);
@@ -263,10 +263,10 @@ fn handle_screenshot(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
 // Signal browser — live filter + per-file/block variable tree
 // ════════════════════════════════════════════════════════════
 
-fn signal_browser(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
-    egui::SidePanel::left("wave_signals")
-        .default_width(220.0)
-        .show(ctx, |ui| {
+fn signal_browser(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
+    egui::Panel::left("wave_signals")
+        .default_size(220.0)
+        .show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.add(
                     egui::TextEdit::singleline(&mut gui.wave.filter)
@@ -355,10 +355,10 @@ fn signal_browser(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) {
 // Trace + cursor readout panel
 // ════════════════════════════════════════════════════════════
 
-fn trace_panel(ctx: &egui::Context, app: &mut App) {
-    egui::SidePanel::right("wave_traces")
-        .default_width(240.0)
-        .show(ctx, |ui| {
+fn trace_panel(ui: &mut egui::Ui, app: &mut App) {
+    egui::Panel::right("wave_traces")
+        .default_size(240.0)
+        .show(ui, |ui| {
             let Some(w) = app.state.wave.as_deref_mut() else {
                 return;
             };
@@ -480,8 +480,8 @@ fn trace_panel(ctx: &egui::Context, app: &mut App) {
         });
 }
 
-fn status_line(ctx: &egui::Context, app: &App) {
-    egui::TopBottomPanel::bottom("wave_status").show(ctx, |ui| {
+fn status_line(ui: &mut egui::Ui, app: &App) {
+    egui::Panel::bottom("wave_status").show(ui, |ui| {
         ui.horizontal(|ui| {
             if let Some(w) = app.state.wave.as_deref() {
                 ui.weak(format!(

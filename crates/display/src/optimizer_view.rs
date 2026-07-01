@@ -68,11 +68,11 @@ pub fn optimizer_windows(ctx: &egui::Context, app: &mut App, gui: &mut GuiState)
 
         // Immediate viewport: runs inline on this thread, same App borrow.
         let mut close = false;
-        ctx.show_viewport_immediate(viewport_id, builder, |ctx2, _class| {
-            if ctx2.input(|i| i.viewport().close_requested()) {
+        ctx.show_viewport_immediate(viewport_id, builder, |ui, _class| {
+            if ui.ctx().input(|i| i.viewport().close_requested()) {
                 close = true;
             }
-            window_contents(ctx2, app, gui, id);
+            window_contents(ui, app, gui, id);
         });
         if close {
             // Hide only — params/objectives/history survive. The
@@ -82,7 +82,7 @@ pub fn optimizer_windows(ctx: &egui::Context, app: &mut App, gui: &mut GuiState)
     }
 }
 
-fn window_contents(ctx: &egui::Context, app: &mut App, gui: &mut GuiState, id: u32) {
+fn window_contents(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState, id: u32) {
     // Read `inst.opt` immutably while the UI runs; queue commands and
     // dispatch them after the borrow ends (dispatch needs &mut App).
     let mut cmds: Vec<Command> = Vec::new();
@@ -91,9 +91,9 @@ fn window_contents(ctx: &egui::Context, app: &mut App, gui: &mut GuiState, id: u
             return;
         };
         let st = gui.optimizer.entry(id).or_default();
-        top_bar(ctx, &inst.opt, id, &mut cmds);
-        status_line(ctx, &inst.opt, id, &app.state.status_msg);
-        egui::CentralPanel::default().show(ctx, |ui| {
+        top_bar(ui, &inst.opt, id, &mut cmds);
+        status_line(ui, &inst.opt, id, &app.state.status_msg);
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
@@ -116,8 +116,8 @@ fn window_contents(ctx: &egui::Context, app: &mut App, gui: &mut GuiState, id: u
 // Top bar — algorithm, reset, close
 // ════════════════════════════════════════════════════════════
 
-fn top_bar(ctx: &egui::Context, opt: &Optimizer, id: u32, cmds: &mut Vec<Command>) {
-    egui::TopBottomPanel::top(egui::Id::new(("opt_top", id))).show(ctx, |ui| {
+fn top_bar(ui: &mut egui::Ui, opt: &Optimizer, id: u32, cmds: &mut Vec<Command>) {
+    egui::Panel::top(egui::Id::new(("opt_top", id))).show(ui, |ui| {
         ui.horizontal(|ui| {
             ui.label("Algorithm:");
             let cur = opt.algorithm().as_str();
@@ -159,8 +159,8 @@ fn top_bar(ctx: &egui::Context, opt: &Optimizer, id: u32, cmds: &mut Vec<Command
     });
 }
 
-fn status_line(ctx: &egui::Context, opt: &Optimizer, id: u32, status: &str) {
-    egui::TopBottomPanel::bottom(egui::Id::new(("opt_status", id))).show(ctx, |ui| {
+fn status_line(ui: &mut egui::Ui, opt: &Optimizer, id: u32, status: &str) {
+    egui::Panel::bottom(egui::Id::new(("opt_status", id))).show(ui, |ui| {
         ui.horizontal(|ui| {
             ui.weak(format!(
                 "{} param(s) · {} objective(s) · {} eval(s)",
