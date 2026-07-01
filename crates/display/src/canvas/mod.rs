@@ -522,6 +522,56 @@ fn render_instances(painter: &Painter, app: &App, vp: &CanvasViewport, theme: &T
                 });
             painter.text(anchor, egui::Align2::LEFT_CENTER, name_str, font.clone(), label_col);
         }
+
+        // Parameter value labels (e.g. @r, @dc, @w/@l).
+        let param_col = Color32::from_rgba_premultiplied(
+            theme.symbol_line.r(),
+            theme.symbol_line.g(),
+            theme.symbol_line.b(),
+            140,
+        );
+        let pfont = FontId::proportional((10.0 * vp.zoom.min(2.0)).max(8.0));
+        let sch = app.schematic();
+        for i in 0..n {
+            let entry = match prim::find_symbol(app.resolve(insts.symbol[i]), insts.kind[i]) {
+                Some(e) => e,
+                None => continue,
+            };
+            let props = sch.instance_props(i);
+            if props.is_empty() {
+                continue;
+            }
+            let origin = vp.w2p(insts.x[i], insts.y[i]);
+            let flags = insts.flags[i];
+            let po = insts.param_offset[i];
+
+            for dt in &entry.texts {
+                if dt.content == "@name" || !dt.content.starts_with('@') {
+                    continue;
+                }
+                let label = dt.content[1..] // strip leading @
+                    .split('/')
+                    .map(|part| {
+                        props
+                            .iter()
+                            .find(|p| app.resolve(p.key) == part)
+                            .map(|p| app.resolve(p.value))
+                            .unwrap_or(part)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("/");
+
+                let (tx, ty) = flags.transform_point(
+                    dt.x as i32 + po[0] as i32,
+                    dt.y as i32 + po[1] as i32,
+                );
+                let pos = Pos2::new(
+                    origin.x + tx as f32 * vp.zoom,
+                    origin.y + ty as f32 * vp.zoom,
+                );
+                painter.text(pos, egui::Align2::LEFT_CENTER, &label, pfont.clone(), param_col);
+            }
+        }
     }
 }
 

@@ -182,6 +182,33 @@ impl eframe::App for SchemifyGui {
 
 /// Run the GUI on a shared core App.
 ///
+/// Renderer selection: `SCHEMIFY_RENDERER=glow|wgpu` overrides auto-detect.
+/// Auto: wgpu everywhere, glow on WSL (wgpu can't get a GPU surface there).
+fn pick_renderer() -> eframe::Renderer {
+    if let Ok(v) = std::env::var("SCHEMIFY_RENDERER") {
+        return match v.to_ascii_lowercase().as_str() {
+            "glow" | "gl" | "opengl" => eframe::Renderer::Glow,
+            _ => eframe::Renderer::Wgpu,
+        };
+    }
+    if is_wsl() {
+        log::info!("WSL detected, using glow (OpenGL) renderer");
+        return eframe::Renderer::Glow;
+    }
+    eframe::Renderer::Wgpu
+}
+
+#[cfg(target_os = "linux")]
+fn is_wsl() -> bool {
+    std::env::var_os("WSL_DISTRO_NAME").is_some()
+        || std::path::Path::new("/proc/sys/fs/binfmt_misc/WSLInterop").exists()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn is_wsl() -> bool {
+    false
+}
+
 /// * `rx` — optional external Command channel (headful CLI/MCP driving;
 ///   matches `schemify_mcp::Sink::Channel`'s `Sender<Command>`). Commands
 ///   are pumped into `App::dispatch` each frame.
@@ -195,6 +222,7 @@ pub fn run_gui(
 ) -> eframe::Result<()> {
     let pump = rx.map(|rx| CommandPump::new(rx, step_delay));
     let options = eframe::NativeOptions {
+        renderer: pick_renderer(),
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 800.0])
             .with_title("Schemify"),
@@ -204,9 +232,7 @@ pub fn run_gui(
         "Schemify",
         options,
         Box::new(move |cc| {
-            // Initial visuals before the first frame.
             Theme::dark().apply(&cc.egui_ctx);
-            // PNG/SVG loaders for plugin Image widgets.
             egui_extras::install_image_loaders(&cc.egui_ctx);
             Ok(Box::new(SchemifyGui::new(app, pump)))
         }),

@@ -84,15 +84,33 @@ Example — size R2 of a voltage divider until V(out) = 2 V:
 
 ## Workspace layout
 
-| Crate | Purpose |
-|---|---|
-| `crates/core` | Editor state, command handler, `.chn`/`.chn_prim` formats, circuit IR, codegen, sim runner |
-| `crates/display` | GUI (eframe/egui) |
-| `crates/mcp` | JSON-RPC server + command marshaling (shared by CLI and MCP) |
-| `crates/wave` | `.raw` parsing, columnar waveform data, trace expressions |
-| `crates/optimizer` | Ask-tell optimizer (random, Nelder–Mead) |
-| `crates/net2schem` | SPICE netlist → schematic (place & route) |
-| `crates/plugins` | Plugin host + Rust plugin SDK |
-| `marketplace` | Plugin marketplace client |
-| `primitives/` | Built-in `.chn_prim` symbols |
-| `plugin_examples/` | Example plugins (hello-world, bom-panel, drc-overlay) |
+| Crate              | Purpose                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `crates/core`      | Editor state, command handler, `.chn`/`.chn_prim` formats, circuit IR, codegen, sim runner |
+| `crates/display`   | GUI (eframe/egui)                                                                          |
+| `crates/mcp`       | JSON-RPC server + command marshaling (shared by CLI and MCP)                               |
+| `crates/wave`      | `.raw` parsing, columnar waveform data, trace expressions                                  |
+| `crates/optimizer` | Ask-tell optimizer (random, Nelder–Mead)                                                   |
+| `crates/net2schem` | SPICE netlist → schematic (place & route)                                                  |
+| `crates/plugins`   | Plugin host + Rust plugin SDK                                                              |
+| `marketplace`      | Plugin marketplace client                                                                  |
+| `primitives/`      | Built-in `.chn_prim` symbols                                                               |
+| `plugin_examples/` | Example plugins (hello-world, bom-panel, drc-overlay)                                      |
+
+## Backend Selection for Rendering:
+
+```
+  ┌──────────────┬───────────────┬──────────────────────────────────────────┐
+  │   Platform   │   Renderer    │                   Why                    │
+  ├──────────────┼───────────────┼──────────────────────────────────────────┤
+  │ macOS        │ wgpu (Metal)  │ native, best perf                        │
+  ├──────────────┼───────────────┼──────────────────────────────────────────┤
+  │ Windows      │ wgpu (DX12)   │ native, best perf                        │
+  ├──────────────┼───────────────┼──────────────────────────────────────────┤
+  │ Linux native │ wgpu (Vulkan) │ native, best perf                        │
+  ├──────────────┼───────────────┼──────────────────────────────────────────┤
+  │ WSL          │ glow (OpenGL) │ auto-detected, wgpu can't create surface │
+  ├──────────────┼───────────────┼──────────────────────────────────────────┤
+  │ Any          │ override      │ SCHEMIFY_RENDERER=glow or =wgpu          │
+  └──────────────┴───────────────┴──────────────────────────────────────────┘
+```

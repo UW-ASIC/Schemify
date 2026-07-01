@@ -989,26 +989,30 @@ impl App {
                     .map(|p| p.kind)
                     .unwrap_or_else(|| DeviceKind::from_name(&symbol_path));
 
-                // Power connectors inject their net name as a property so it
-                // is user-editable (e.g. multiple supply rails).
-                let net_prop = if kind.is_power() {
+                // Intern all property keys/values up front (before borrowing
+                // the document mutably).
+                let mut init_props: Vec<Property> = Vec::new();
+                if kind.is_power() {
                     let net_val = entry.and_then(|p| p.injected_net).unwrap_or("0");
-                    Some(Property {
+                    init_props.push(Property {
                         key: self.state.interner.get_or_intern("net"),
                         value: self.state.interner.get_or_intern(net_val),
-                    })
-                } else {
-                    None
-                };
+                    });
+                }
+                if let Some(e) = entry {
+                    for &(k, v) in &e.params {
+                        init_props.push(Property {
+                            key: self.state.interner.get_or_intern(k),
+                            value: self.state.interner.get_or_intern(v),
+                        });
+                    }
+                }
 
                 let doc = self.state.active_document_mut();
-                let (prop_start, prop_count) = if let Some(p) = net_prop {
-                    let ps = doc.schematic.properties.len() as u32;
-                    doc.schematic.properties.push(p);
-                    (ps, 1u16)
-                } else {
-                    (0, 0u16)
-                };
+                let prop_start = doc.schematic.properties.len() as u32;
+                doc.schematic.properties.extend(init_props);
+                let prop_count =
+                    (doc.schematic.properties.len() as u32 - prop_start) as u16;
 
                 doc.schematic.instances.push(Instance {
                     name: name_sym,
@@ -2543,7 +2547,21 @@ impl App {
                 .collect();
 
             lib.project_symbols.push((stem.to_owned(), pins.len()));
-            runtime.push(prim::box_symbol(stem, &pins));
+            let mut entry = prim::box_symbol(stem, &pins);
+            entry.params = sch
+                .sym_properties
+                .iter()
+                .map(|p| {
+                    let k: &'static str = Box::leak(
+                        self.state.interner.resolve(&p.key).to_owned().into_boxed_str(),
+                    );
+                    let v: &'static str = Box::leak(
+                        self.state.interner.resolve(&p.value).to_owned().into_boxed_str(),
+                    );
+                    (k, v)
+                })
+                .collect();
+            runtime.push(entry);
             symbol_schematics.push(sch);
         }
         lib.project_symbols.sort();
