@@ -188,7 +188,7 @@ impl RouterWorkspace {
 
 /// Direction of movement on the grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum Direction {
+pub(crate) enum Direction {
     Up,
     Down,
     Left,
