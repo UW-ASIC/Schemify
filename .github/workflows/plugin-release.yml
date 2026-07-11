@@ -2,7 +2,7 @@
 # marketplace tarballs (+ SHA256SUMS) to the plugins-v* release.
 #
 # After a run, copy the per-platform sha256 from the SHA256SUMS-* assets
-# into registry/index.json `downloads` and push.
+# into plugins/index.json `downloads` and push.
 name: plugin-release
 
 on:
@@ -45,10 +45,63 @@ jobs:
             cargo build --release --manifest-path "plugins/$p/Cargo.toml"
           done
 
+      # Each tarball holds <id>/plugin.toml (entry rewritten to bin/<id>)
+      # and <id>/bin/<id> (release binary; .exe on windows). gmid-lut
+      # additionally ships its vendored gmid_runner at the path runner.rs
+      # probes relative to the plugin dir. Off-linux the runner is
+      # best-effort: without a C++ compiler the plugin falls back to
+      # $GMID_RUNNER.
       - name: Package tarballs
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
-          VERSION="${TAG#plugins-v}" TARGET="${{ matrix.target }}" \
-            scripts/package-plugins.sh dist/plugins
+          set -euo pipefail
+          VERSION="${TAG#plugins-v}"
+          OUT=dist/plugins
+          PLUGINS=(theme-registry pdk-switcher gmid-lut pdk-mapper)
+
+          EXE=""
+          case "$TARGET" in *windows*) EXE=".exe" ;; esac
+
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+
+          for id in "${PLUGINS[@]}"; do
+            bin="plugins/$id/target/release/$id$EXE"
+            [ -f "$bin" ] || { echo "missing $bin — build it first" >&2; exit 1; }
+
+            stage="$OUT/$id"
+            mkdir -p "$stage/bin"
+            cp "$bin" "$stage/bin/$id$EXE"
+            sed "s|^entry = .*|entry = \"bin/$id$EXE\"|" "plugins/$id/plugin.toml" \
+              > "$stage/plugin.toml"
+
+            if [ "$id" = gmid-lut ]; then
+              runner=$(ls -t plugins/gmid-lut/target/release/build/*/out/gmid_runner$EXE \
+                2>/dev/null | head -1 || true)
+              if [ -n "$runner" ]; then
+                mkdir -p "$stage/GmIDVisualizer/build"
+                cp "$runner" "$stage/GmIDVisualizer/build/gmid_runner$EXE"
+                chmod +x "$stage/GmIDVisualizer/build/gmid_runner$EXE"
+              elif [ "$TARGET" = x86_64-unknown-linux-gnu ]; then
+                echo "gmid_runner not built" >&2; exit 1
+              else
+                echo "warning: gmid_runner not built for $TARGET — plugin falls back to \$GMID_RUNNER" >&2
+              fi
+            fi
+
+            tarball="$OUT/$id-$VERSION-$TARGET.tar.gz"
+            tar czf "$tarball" -C "$OUT" "$id"
+            rm -rf "$stage"
+          done
+
+          # SHA256SUMS-<target>.txt: macos has shasum, linux/git-bash have sha256sum.
+          cd "$OUT"
+          if command -v sha256sum >/dev/null; then
+            sha256sum -- *.tar.gz | tee "SHA256SUMS-$TARGET.txt"
+          else
+            shasum -a 256 -- *.tar.gz | tee "SHA256SUMS-$TARGET.txt"
+          fi
 
       - name: Upload release assets
         env:

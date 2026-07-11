@@ -1,20 +1,17 @@
 [workspace]
 members = [
-    "crates2/editor",
-    "crates2/gui",
-    "crates2/mcp",
-    "crates2/net2schem",
-    "crates2/optimizer",
-    "crates2/plugin-api",
-    "crates2/plugin-host",
-    "crates2/schematic",
-    "crates2/sim",
-    "crates2/wave",
+    "crates/editor",
+    "crates/gui",
+    "crates/mcp",
+    "crates/net2schem",
+    "crates/optimizer",
+    "crates/plugin-api",
+    "crates/plugin-host",
+    "crates/schematic",
+    "crates/sim",
+    "crates/wave",
 ]
 exclude = [
-    "plugin_examples/hello-world",
-    "plugin_examples/bom-panel",
-    "plugin_examples/drc-overlay",
     "plugins/theme-registry",
     "plugins/pdk-switcher",
     "plugins/gmid-lut",
@@ -46,11 +43,11 @@ name = "schemify"
 path = "src/main.rs"
 
 [dependencies]
-schemify-editor = { path = "crates2/editor" }
-schemify-net2schem = { path = "crates2/net2schem" }
-schemify-gui = { path = "crates2/gui" }
-schemify-mcp = { path = "crates2/mcp" }
-schemify-plugin-host = { path = "crates2/plugin-host" }
+schemify-editor = { path = "crates/editor" }
+schemify-net2schem = { path = "crates/net2schem" }
+schemify-gui = { path = "crates/gui" }
+schemify-mcp = { path = "crates/mcp" }
+schemify-plugin-host = { path = "crates/plugin-host" }
 clap = { version = "4", features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

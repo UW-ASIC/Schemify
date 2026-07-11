@@ -1,8 +1,0 @@
-[package]
-name = "drc-overlay-plugin"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-schemify-plugin-api = { path = "../../crates2/plugin-api" }
-serde_json = "1"
