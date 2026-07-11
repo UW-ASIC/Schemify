@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-schemify-schematic = { path = "../../crates2/schematic" }
+schemify-schematic = { path = "../schematic" }
 cktimg = { workspace = true }
 lasso = { workspace = true }
 thiserror = { workspace = true }
