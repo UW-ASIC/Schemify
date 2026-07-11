@@ -6,7 +6,7 @@
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
-use crate::schemify::{SpiceBackend, StimulusLang};
+use schemify_schematic::{SpiceBackend, StimulusLang};
 
 const SPICE_MARKER: &str = "* ===== USER STIMULUS (edit below this line) =====";
 const PY_MARKER: &str = "# ===== USER STIMULUS (edit below this line) =====";

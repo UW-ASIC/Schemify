@@ -8,6 +8,7 @@ members = [
     "crates2/optimizer",
     "crates2/plugin-api",
     "crates2/schematic",
+    "crates2/sim",
     "crates2/wave",
     "marketplace",
 ]

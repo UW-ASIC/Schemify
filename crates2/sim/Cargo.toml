@@ -1,0 +1,15 @@
+[package]
+name = "schemify-sim"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+schemify-schematic = { path = "../schematic" }
+lasso = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+schemify-wave = { path = "../wave" }

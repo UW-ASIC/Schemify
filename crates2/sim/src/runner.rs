@@ -8,8 +8,9 @@
 
 use std::path::PathBuf;
 
-use crate::schemify::SpiceBackend;
-use crate::sim::{self as ir, CircuitIR};
+use schemify_schematic::SpiceBackend;
+use crate as ir;
+use crate::CircuitIR;
 
 pub struct SimRequest {
     pub ir: CircuitIR,

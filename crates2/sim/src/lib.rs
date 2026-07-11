@@ -1,15 +1,18 @@
 //! Simulation support: circuit IR (JSON contract with pyspice_rs),
-//! code generation (PySpice scripts and SPICE netlists), stimulus files,
-//! and bundled-PySpice runtime discovery.
+//! IR emission from schematics, code generation (PySpice scripts and
+//! SPICE netlists), PDK manifests, stimulus files, and the external
+//! simulator runner.
 
 pub mod codegen;
+pub mod ir;
 pub mod ir_emit;
+pub mod pdk;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod runner;
-pub mod ir;
 pub mod stimulus;
 
 pub use ir::*;
+pub use ir_emit::{to_circuit_ir, to_circuit_ir_with_children};
 
 /// Discovery of the bundled `pyspice_rs` Python module and interpreter.
 pub mod pyspice {

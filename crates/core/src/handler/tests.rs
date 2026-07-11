@@ -1,7 +1,5 @@
 use super::*;
-use crate::sim as ir;
-use crate::schemify::{self as prim, *};
-use lasso::Rodeo;
+use crate::schemify::*;
 
     use super::*;
 

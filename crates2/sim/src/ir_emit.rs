@@ -6,10 +6,10 @@ use std::path::Path;
 
 use lasso::Rodeo;
 
-use crate::config::{LoadedPdk, PdkCell};
-use crate::handler::resolve_connectivity;
-use crate::schemify::{DeviceKind, Schematic};
-use crate::sim as ir;
+use crate::pdk::{LoadedPdk, PdkCell};
+use schemify_schematic::resolve_connectivity;
+use schemify_schematic::{DeviceKind, Schematic};
+use crate as ir;
 
 /// PDK cell for a device kind: the manifest keys cells by primitive name
 /// ("nmos4", "res", ...), so map by parsing the key back to a kind.
