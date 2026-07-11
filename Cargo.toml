@@ -6,6 +6,7 @@ members = [
     "crates/mcp",
     "crates/plugins",
     "crates2/optimizer",
+    "crates2/plugin-api",
     "crates2/wave",
     "marketplace",
 ]

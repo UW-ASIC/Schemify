@@ -1,18 +1,16 @@
-//! Schemify plugin system: subprocess plugins speaking JSON-RPC 2.0 over
+//! Schemify plugin host: subprocess plugins speaking JSON-RPC 2.0 over
 //! newline-delimited JSON on stdin/stdout.
 //!
 //! Host side: [`PluginManifest`] (plugin.toml), [`SubprocessTransport`],
 //! capability negotiation ([`negotiate`]), and [`PluginManager`] whose
 //! [`PluginManager::tick`] drains plugin messages into [`PluginHostAction`]s.
 //!
-//! Guest side: [`sdk::PluginRuntime`] for writing plugins in Rust.
-//!
-//! All plugin-facing wire types (overlay shapes, widget tree, theme values)
-//! live in this crate — they are protocol types, owned by the protocol.
+//! Wire types and the guest SDK live in `schemify-plugin-api`; re-exported
+//! here so pre-split `schemify_plugins::X` paths keep working.
 
 pub mod host;
-pub mod protocol;
-pub mod sdk;
+
+pub use schemify_plugin_api::{protocol, sdk};
 
 // Root re-exports: every pre-split `schemify_plugins::X` path keeps working.
 pub use host::*;

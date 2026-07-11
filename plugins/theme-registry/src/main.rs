@@ -7,7 +7,7 @@
 mod mapping;
 mod registry;
 
-use schemify_plugins::sdk::{
+use schemify_plugin_api::sdk::{
     AlertLevel, CommandInvocation, InitializeEvent, PanelLayout, Plugin, PluginRuntime,
     RuntimeError, ThemeColor, UiAction, WidgetNode,
 };

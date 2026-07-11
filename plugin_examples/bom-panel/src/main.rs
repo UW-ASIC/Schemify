@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use schemify_plugins::sdk::{
+use schemify_plugin_api::sdk::{
     CommandInvocation, InitializeEvent, InstanceRecord, PanelLayout, Plugin, PluginRuntime,
     RuntimeError, WidgetNode,
 };

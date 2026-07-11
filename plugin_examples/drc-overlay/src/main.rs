@@ -1,4 +1,4 @@
-use schemify_plugins::sdk::{
+use schemify_plugin_api::sdk::{
     AlertLevel, CommandInvocation, InitializeEvent, MarkerKind, OverlayShape, PanelLayout, Plugin,
     PluginRuntime, RuntimeError, WidgetNode,
 };
@@ -146,7 +146,7 @@ impl Plugin for DrcOverlay {
     fn on_ui_action(
         &mut self,
         runtime: &mut PluginRuntime,
-        action: schemify_plugins::sdk::UiAction,
+        action: schemify_plugin_api::sdk::UiAction,
     ) -> Result<(), RuntimeError> {
         if action.action == "run_drc" {
             self.run_checks(runtime)?;

@@ -5,7 +5,7 @@
 //! is one `write_all` on the process-global stdout lock, so worker and
 //! main-loop lines never interleave mid-message.
 
-use schemify_plugins::{methods, notification, WidgetNode};
+use schemify_plugin_api::{methods, notification, WidgetNode};
 use serde_json::json;
 use std::io::Write;
 

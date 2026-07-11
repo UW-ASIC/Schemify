@@ -3773,10 +3773,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemify-plugin-api"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "schemify-plugins"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "schemify-plugin-api",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

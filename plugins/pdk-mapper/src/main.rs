@@ -14,7 +14,7 @@ mod ngspice;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use schemify_plugins::sdk::{
+use schemify_plugin_api::sdk::{
     AlertLevel, CommandInvocation, InitializeEvent, InstanceRecord, PanelLayout, Plugin,
     PluginRuntime, RuntimeError, UiAction, WidgetNode,
 };

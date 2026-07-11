@@ -1,4 +1,4 @@
-use schemify_plugins::sdk::{
+use schemify_plugin_api::sdk::{
     CommandInvocation, InitializeEvent, Plugin, PluginRuntime, RuntimeError,
 };
 

@@ -4,7 +4,7 @@
 //! [`PluginRuntime`]:
 //!
 //! ```no_run
-//! use schemify_plugins::sdk::{Plugin, PluginRuntime, RuntimeError};
+//! use schemify_plugin_api::sdk::{Plugin, PluginRuntime, RuntimeError};
 //!
 //! struct MyPlugin;
 //! impl Plugin for MyPlugin {}
