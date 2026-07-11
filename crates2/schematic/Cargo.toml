@@ -1,0 +1,9 @@
+[package]
+name = "schemify-schematic"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lasso = { workspace = true }
+rustc-hash = { workspace = true }
+soa_derive = "0.13"

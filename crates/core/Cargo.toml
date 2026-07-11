@@ -6,8 +6,8 @@ edition.workspace = true
 [dependencies]
 schemify-wave = { path = "../../crates2/wave" }
 schemify-optimizer = { path = "../../crates2/optimizer" }
+schemify-schematic = { path = "../../crates2/schematic" }
 lasso = { workspace = true }
-soa_derive = "0.13"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

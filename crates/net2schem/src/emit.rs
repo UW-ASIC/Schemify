@@ -11,7 +11,7 @@
 //!   (unique names, grid alignment, rotation range, wire orthogonality,
 //!   duplicate wires, net-label consistency).
 //! - Adapter: `schematic_from_subcircuit` / `subcircuit_from_schematic` /
-//!   `relayout` between s2s-IR and `schemify_core::schemify::Schematic`.
+//!   `relayout` between s2s-IR and `schemify_schematic::Schematic`.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write as FmtWrite;
@@ -24,7 +24,7 @@ use lasso::Rodeo;
 use crate::ir::{self, Circuit, NetClass, PinDir, Primitive, Subcircuit};
 use crate::shared::{map_device_kind, map_primitive, primitive_sym, GROUND_NAMES, POWER_NAMES};
 
-use schemify_core::schemify::{
+use schemify_schematic::{
     Color, DeviceKind, Instance as CoreInstance, InstanceFlags, Property, Schematic,
     SchematicType, Wire as CoreWire,
 };
@@ -76,7 +76,7 @@ pub fn pin_position<G: PinGeometry + ?Sized>(
 /// project-symbol layout: `Input` pins on the left edge (x = -40), all other
 /// pins on the right edge (x = +40), 20-unit pitch, centered vertically.
 ///
-/// Keeping this in lockstep with `schemify_core::schemify::box_symbol` means
+/// Keeping this in lockstep with `schemify_schematic::box_symbol` means
 /// the wires/labels routed here land on the pins the app resolves when the
 /// emitted project is opened.
 fn subckt_box_pin_offset(pins: &[ir::Pin], idx: usize) -> Option<(i32, i32)> {

@@ -4,9 +4,9 @@
 use lasso::Rodeo;
 use rustc_hash::FxHashMap;
 
-use crate::schemify::{
-    self as prim, Connectivity, DeviceKind, Net, NetConnKind, NetEndpoint, PinConnection, Schematic,
-    Sym, WireVec,
+use crate::{
+    Connectivity, DeviceKind, Net, NetConnKind, NetEndpoint, PinConnection, Schematic, Sym,
+    WireVec,
 };
 
 
@@ -53,7 +53,7 @@ pub fn resolve_connectivity(sch: &Schematic, interner: &Rodeo) -> Connectivity {
     // Step 3: instance pin positions — merge with touching wires.
     for i in 0..instances.len() {
         let kind = instances.kind[i];
-        let entry = match prim::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
+        let entry = match crate::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
             Some(p) if !p.pin_positions.is_empty() => p,
             _ => continue,
         };
@@ -104,7 +104,7 @@ pub fn resolve_connectivity(sch: &Schematic, interner: &Rodeo) -> Connectivity {
             continue;
         };
 
-        let entry = match prim::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
+        let entry = match crate::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
             Some(p) if !p.pin_positions.is_empty() => p,
             _ => continue,
         };
@@ -199,7 +199,7 @@ pub fn resolve_connectivity(sch: &Schematic, interner: &Rodeo) -> Connectivity {
     #[allow(clippy::needless_range_loop)] // indexes multiple SoA parallel arrays
     for i in 0..instances.len() {
         let kind = instances.kind[i];
-        let entry = match prim::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
+        let entry = match crate::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
             Some(p) if !p.pin_positions.is_empty() => p,
             _ => continue,
         };
@@ -247,7 +247,7 @@ pub fn resolve_connectivity(sch: &Schematic, interner: &Rodeo) -> Connectivity {
             continue;
         }
 
-        let entry = match prim::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
+        let entry = match crate::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
             Some(p) if !p.pin_positions.is_empty() => p,
             _ => continue,
         };
@@ -502,3 +502,21 @@ pub(crate) fn net_name_rank(name: &str) -> u8 {
 // Netlist — Schematic + Connectivity -> crate::sim CircuitIR
 // ════════════════════════════════════════════════════════════
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn net_naming_helpers() {
+        assert!(is_auto_net_name("net1"));
+        assert!(is_auto_net_name("net42"));
+        assert!(!is_auto_net_name("VDD"));
+        assert!(!is_auto_net_name("net"));
+
+        assert_eq!(net_name_rank(""), 0);
+        assert_eq!(net_name_rank("net1"), 1);
+        assert_eq!(net_name_rank("0"), 2);
+        assert_eq!(net_name_rank("VDD"), 3);
+    }
+}

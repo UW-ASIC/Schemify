@@ -375,7 +375,7 @@ impl Circuit {
 
 // Shared constants and mappings used across the s2s pipeline.
 
-use schemify_core::schemify::DeviceKind;
+use schemify_schematic::DeviceKind;
 
 
 // Power / ground name constants

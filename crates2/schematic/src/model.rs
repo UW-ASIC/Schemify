@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use soa_derive::StructOfArray;
 
-use super::*;
+use crate::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(u8)]
@@ -249,6 +249,19 @@ impl StimulusLang {
             Self::Spectre => "spectre",
             Self::PySpice => "pyspice",
         }
+    }
+
+    /// File extension for the companion stimulus file.
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::PySpice => "py",
+            _ => "spice",
+        }
+    }
+
+    /// Whether this is a Python-based stimulus (PySpice).
+    pub fn is_python(self) -> bool {
+        matches!(self, Self::PySpice)
     }
 
     pub fn from_name(s: &str) -> Option<Self> {

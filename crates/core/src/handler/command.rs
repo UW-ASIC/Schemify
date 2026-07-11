@@ -1,7 +1,7 @@
 //! Command and Tool enums — the full UI/scripting mutation vocabulary.
 //! Every state change routes through `App::dispatch(Command)`.
 
-use super::*;
+use crate::schemify::*;
 
 #[derive(Debug, Clone)]
 pub enum Command {

@@ -6,7 +6,7 @@
 //! `handler::X` paths keep working.
 
 pub mod app;
-pub mod connectivity;
+pub mod command;
 pub mod dispatch;
 pub mod hit_test;
 pub mod io;
@@ -15,8 +15,12 @@ pub mod transform;
 pub mod undo;
 
 pub use app::*;
-pub use connectivity::*;
+pub use command::*;
 pub use dispatch::*;
+
+// Connectivity resolution moved to the schematic crate; keep old
+// `handler::resolve_connectivity` paths alive.
+pub use schemify_schematic::connectivity::*;
 pub use hit_test::*;
 pub use io::*;
 pub use transform::*;

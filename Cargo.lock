@@ -3695,10 +3695,10 @@ dependencies = [
  "lasso",
  "rustc-hash 2.1.2",
  "schemify-optimizer",
+ "schemify-schematic",
  "schemify-wave",
  "serde",
  "serde_json",
- "soa_derive",
  "thiserror 2.0.18",
  "toml",
 ]
@@ -3759,7 +3759,7 @@ dependencies = [
  "anyhow",
  "cktimg",
  "lasso",
- "schemify-core",
+ "schemify-schematic",
  "thiserror 2.0.18",
 ]
 
@@ -3791,6 +3791,15 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "toml",
+]
+
+[[package]]
+name = "schemify-schematic"
+version = "0.1.0"
+dependencies = [
+ "lasso",
+ "rustc-hash 2.1.2",
+ "soa_derive",
 ]
 
 [[package]]

@@ -3,7 +3,7 @@
 
 use std::sync::{LazyLock, RwLock};
 
-use super::*;
+use crate::*;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DrawSeg {
@@ -232,80 +232,80 @@ struct EmbeddedPrim {
 fn build_prim_table() -> Vec<PrimEntry> {
     let embedded: &[EmbeddedPrim] = &[
         // Passives
-        ep(include_str!("../../../../primitives/resistor.chn_prim")),
-        ep(include_str!("../../../../primitives/resistor3.chn_prim")),
-        ep(include_str!("../../../../primitives/capacitor.chn_prim")),
-        ep(include_str!("../../../../primitives/inductor.chn_prim")),
+        ep(include_str!("../primitives/resistor.chn_prim")),
+        ep(include_str!("../primitives/resistor3.chn_prim")),
+        ep(include_str!("../primitives/capacitor.chn_prim")),
+        ep(include_str!("../primitives/inductor.chn_prim")),
         // Diodes
-        ep(include_str!("../../../../primitives/diode.chn_prim")),
-        ep(include_str!("../../../../primitives/zener.chn_prim")),
+        ep(include_str!("../primitives/diode.chn_prim")),
+        ep(include_str!("../primitives/zener.chn_prim")),
         // MOSFETs
-        ep(include_str!("../../../../primitives/nmos3.chn_prim")),
-        ep(include_str!("../../../../primitives/pmos3.chn_prim")),
-        ep_override(include_str!("../../../../primitives/nmos.chn_prim"), "nmos4"),
-        ep_override(include_str!("../../../../primitives/pmos.chn_prim"), "pmos4"),
+        ep(include_str!("../primitives/nmos3.chn_prim")),
+        ep(include_str!("../primitives/pmos3.chn_prim")),
+        ep_override(include_str!("../primitives/nmos.chn_prim"), "nmos4"),
+        ep_override(include_str!("../primitives/pmos.chn_prim"), "pmos4"),
         // BJTs
-        ep(include_str!("../../../../primitives/npn.chn_prim")),
-        ep(include_str!("../../../../primitives/pnp.chn_prim")),
+        ep(include_str!("../primitives/npn.chn_prim")),
+        ep(include_str!("../primitives/pnp.chn_prim")),
         // JFETs
-        ep(include_str!("../../../../primitives/njfet.chn_prim")),
-        ep(include_str!("../../../../primitives/pjfet.chn_prim")),
+        ep(include_str!("../primitives/njfet.chn_prim")),
+        ep(include_str!("../primitives/pjfet.chn_prim")),
         // Independent sources
-        ep(include_str!("../../../../primitives/vsource.chn_prim")),
-        ep(include_str!("../../../../primitives/isource.chn_prim")),
-        ep(include_str!("../../../../primitives/ammeter.chn_prim")),
-        ep(include_str!("../../../../primitives/behavioral.chn_prim")),
+        ep(include_str!("../primitives/vsource.chn_prim")),
+        ep(include_str!("../primitives/isource.chn_prim")),
+        ep(include_str!("../primitives/ammeter.chn_prim")),
+        ep(include_str!("../primitives/behavioral.chn_prim")),
         // Controlled sources
-        ep(include_str!("../../../../primitives/vcvs.chn_prim")),
-        ep(include_str!("../../../../primitives/vccs.chn_prim")),
-        ep(include_str!("../../../../primitives/ccvs.chn_prim")),
-        ep(include_str!("../../../../primitives/cccs.chn_prim")),
+        ep(include_str!("../primitives/vcvs.chn_prim")),
+        ep(include_str!("../primitives/vccs.chn_prim")),
+        ep(include_str!("../primitives/ccvs.chn_prim")),
+        ep(include_str!("../primitives/cccs.chn_prim")),
         // Switches
-        ep(include_str!("../../../../primitives/vswitch.chn_prim")),
-        ep(include_str!("../../../../primitives/iswitch.chn_prim")),
+        ep(include_str!("../primitives/vswitch.chn_prim")),
+        ep(include_str!("../primitives/iswitch.chn_prim")),
         // Transmission line / coupling
-        ep(include_str!("../../../../primitives/tline.chn_prim")),
-        ep(include_str!("../../../../primitives/coupling.chn_prim")),
+        ep(include_str!("../primitives/tline.chn_prim")),
+        ep(include_str!("../primitives/coupling.chn_prim")),
         // Non-electrical / UI
         ep_special(
-            include_str!("../../../../primitives/gnd.chn_prim"),
+            include_str!("../primitives/gnd.chn_prim"),
             true,
             Some("0"),
         ),
         ep_special(
-            include_str!("../../../../primitives/vdd.chn_prim"),
+            include_str!("../primitives/vdd.chn_prim"),
             true,
             Some("VDD"),
         ),
         ep_special(
-            include_str!("../../../../primitives/lab_pin.chn_prim"),
+            include_str!("../primitives/lab_pin.chn_prim"),
             true,
             None,
         ),
         ep_special(
-            include_str!("../../../../primitives/input_pin.chn_prim"),
+            include_str!("../primitives/input_pin.chn_prim"),
             true,
             None,
         ),
         ep_special(
-            include_str!("../../../../primitives/output_pin.chn_prim"),
+            include_str!("../primitives/output_pin.chn_prim"),
             true,
             None,
         ),
         ep_special(
-            include_str!("../../../../primitives/inout_pin.chn_prim"),
+            include_str!("../primitives/inout_pin.chn_prim"),
             true,
             None,
         ),
         ep_special(
-            include_str!("../../../../primitives/probe.chn_prim"),
+            include_str!("../primitives/probe.chn_prim"),
             true,
             None,
         ),
         // Digital / HDL blocks
-        ep(include_str!("../../../../primitives/digital_block.chn_prim")),
-        ep(include_str!("../../../../primitives/verilog_a_block.chn_prim")),
-        ep(include_str!("../../../../primitives/spice_block.chn_prim")),
+        ep(include_str!("../primitives/digital_block.chn_prim")),
+        ep(include_str!("../primitives/verilog_a_block.chn_prim")),
+        ep(include_str!("../primitives/spice_block.chn_prim")),
     ];
 
     embedded.iter().map(parse_prim).collect()

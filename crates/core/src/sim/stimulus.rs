@@ -8,23 +8,6 @@ use std::path::{Path, PathBuf};
 
 use crate::schemify::{SpiceBackend, StimulusLang};
 
-// Stimulus-file concerns of StimulusLang live here; schemify.rs keeps the
-// enum minimal (only what the .chn format stores).
-impl StimulusLang {
-    /// File extension for the companion stimulus file.
-    pub fn extension(self) -> &'static str {
-        match self {
-            Self::PySpice => "py",
-            _ => "spice",
-        }
-    }
-
-    /// Whether this is a Python-based stimulus (PySpice).
-    pub fn is_python(self) -> bool {
-        matches!(self, Self::PySpice)
-    }
-}
-
 const SPICE_MARKER: &str = "* ===== USER STIMULUS (edit below this line) =====";
 const PY_MARKER: &str = "# ===== USER STIMULUS (edit below this line) =====";
 

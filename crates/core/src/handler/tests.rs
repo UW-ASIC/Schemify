@@ -363,19 +363,6 @@ use lasso::Rodeo;
     }
 
     #[test]
-    fn net_naming_helpers() {
-        assert!(is_auto_net_name("net1"));
-        assert!(is_auto_net_name("net42"));
-        assert!(!is_auto_net_name("VDD"));
-        assert!(!is_auto_net_name("net"));
-
-        assert_eq!(net_name_rank(""), 0);
-        assert_eq!(net_name_rank("net1"), 1);
-        assert_eq!(net_name_rank("0"), 2);
-        assert_eq!(net_name_rank("VDD"), 3);
-    }
-
-    #[test]
     fn stimulus_lang_dispatch() {
         let mut app = App::new();
         assert_eq!(app.schematic().stimulus_lang, StimulusLang::NgSpice);
