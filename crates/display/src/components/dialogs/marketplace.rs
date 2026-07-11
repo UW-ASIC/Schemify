@@ -4,7 +4,7 @@ use eframe::egui;
 
 use schemify_editor::handler::App;
 
-use schemify_marketplace::Marketplace;
+use schemify_plugin_host::Marketplace;
 
 use crate::state::GuiState;
 

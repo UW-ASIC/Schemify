@@ -11,7 +11,7 @@ use std::path::Path;
 
 use schemify_editor::config::global_plugins_dir;
 use schemify_editor::handler::App;
-use schemify_plugins::{
+use schemify_plugin_host::{
     methods, CommandRegistration, OverlayLayer, PanelRegistration, PluginHostAction,
     PluginLifecycle, PluginManager, ThemeOverride, WidgetNode, INTERNAL_ERROR,
 };
@@ -399,7 +399,7 @@ impl PluginHost {
                         let _ = self.manager.respond_error(
                             &plugin_id,
                             request_id,
-                            schemify_plugins::INVALID_PARAMS,
+                            schemify_plugin_host::INVALID_PARAMS,
                             &format!("no optimizer with id {id}"),
                         );
                     }

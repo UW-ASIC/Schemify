@@ -10,7 +10,7 @@
 use eframe::egui::{self, FontId, Pos2};
 
 use schemify_editor::handler::App;
-use schemify_plugins::OverlayLayer;
+use schemify_plugin_host::OverlayLayer;
 
 use crate::state::GuiState;
 pub mod interact;

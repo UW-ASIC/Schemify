@@ -5,7 +5,7 @@ use eframe::egui;
 use schemify_editor::handler::{App, Origin, ViewMode};
 use schemify_editor::schemify::{Command, SpiceBackend, StimulusLang, Tool};
 
-use schemify_plugins::PluginLifecycle;
+use schemify_plugin_host::PluginLifecycle;
 
 use crate::plugin_host::PluginHost;
 use crate::state::GuiState;

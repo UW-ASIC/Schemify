@@ -159,7 +159,7 @@ pub enum MarketplaceError {
     #[error("plugin '{0}' is not installed")]
     NotInstalled(String),
     #[error("manifest error: {0}")]
-    Manifest(#[from] schemify_plugins::ManifestError),
+    Manifest(#[from] crate::manifest::ManifestError),
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -259,7 +259,7 @@ impl Marketplace {
         install::place_plugin(&plugin_root, &self.plugins_dir, &id)?;
 
         let sha256 = install::sha256_file(path)?;
-        let manifest = schemify_plugins::PluginManifest::load(&self.plugins_dir.join(&id).join("plugin.toml"))?;
+        let manifest = crate::manifest::PluginManifest::load(&self.plugins_dir.join(&id).join("plugin.toml"))?;
         let record = install::make_installed_record(
             &id,
             &manifest.plugin.name,

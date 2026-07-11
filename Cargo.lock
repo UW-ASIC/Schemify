@@ -3682,7 +3682,7 @@ dependencies = [
  "schemify-editor",
  "schemify-mcp",
  "schemify-net2schem",
- "schemify-plugins",
+ "schemify-plugin-host",
  "serde_json",
 ]
 
@@ -3701,9 +3701,8 @@ dependencies = [
  "ratex-types",
  "rfd",
  "schemify-editor",
- "schemify-marketplace",
  "schemify-optimizer",
- "schemify-plugins",
+ "schemify-plugin-host",
  "serde_json",
 ]
 
@@ -3726,29 +3725,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "schemify-marketplace"
-version = "0.1.0"
-dependencies = [
- "flate2",
- "schemify-plugins",
- "semver",
- "serde",
- "serde_json",
- "sha2",
- "tar",
- "thiserror 2.0.18",
- "ureq",
-]
-
-[[package]]
 name = "schemify-mcp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "schemify-editor",
- "schemify-marketplace",
  "schemify-net2schem",
- "schemify-plugins",
+ "schemify-plugin-host",
  "schemify-wave",
  "serde_json",
 ]
@@ -3783,15 +3766,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "schemify-plugins"
+name = "schemify-plugin-host"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "libc",
  "schemify-plugin-api",
+ "semver",
  "serde",
  "serde_json",
+ "sha2",
+ "tar",
  "thiserror 2.0.18",
  "toml",
+ "ureq",
 ]
 
 [[package]]

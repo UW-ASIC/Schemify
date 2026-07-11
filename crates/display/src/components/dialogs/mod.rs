@@ -6,7 +6,7 @@ use eframe::egui;
 use schemify_editor::handler::{App, ObjectRef};
 use schemify_editor::schemify::Command;
 
-use schemify_marketplace::Marketplace;
+use schemify_plugin_host::Marketplace;
 
 use crate::keybinds::KEYBINDS;
 use crate::state::GuiState;

@@ -10,7 +10,7 @@ use eframe::egui::{self, Color32, FontId, Painter, Pos2, Stroke,
 use schemify_editor::handler::{App, ObjectRef};
 use schemify_editor::schemify::{self as prim, DeviceKind, InstanceFlags, PinDirection,
     Tool};
-use schemify_plugins::{MarkerKind, OverlayLayer, OverlayShape};
+use schemify_plugin_host::{MarkerKind, OverlayLayer, OverlayShape};
 
 use crate::state::{color_or, GuiState, Theme};
 

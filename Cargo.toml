@@ -3,14 +3,13 @@ members = [
     "crates/net2schem",
     "crates/display",
     "crates/mcp",
-    "crates/plugins",
     "crates2/editor",
     "crates2/optimizer",
     "crates2/plugin-api",
+    "crates2/plugin-host",
     "crates2/schematic",
     "crates2/sim",
     "crates2/wave",
-    "marketplace",
 ]
 exclude = [
     "plugin_examples/hello-world",
@@ -51,7 +50,7 @@ schemify-editor = { path = "crates2/editor" }
 schemify-net2schem = { path = "crates/net2schem" }
 schemify-display = { path = "crates/display" }
 schemify-mcp = { path = "crates/mcp" }
-schemify-plugins = { path = "crates/plugins" }
+schemify-plugin-host = { path = "crates2/plugin-host" }
 clap = { version = "4", features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

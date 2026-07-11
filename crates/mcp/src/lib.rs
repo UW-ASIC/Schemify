@@ -33,9 +33,9 @@ use schemify_editor::config;
 use schemify_editor::handler::{self, App, DispatchResult, Document, Origin};
 use schemify_editor::schemify::Command;
 use schemify_editor::sim::codegen::emit_pyspice;
-use schemify_marketplace::Marketplace;
+use schemify_plugin_host::Marketplace;
 use schemify_net2schem::emit::schematic_from_subcircuit;
-use schemify_plugins::PluginManager;
+use schemify_plugin_host::PluginManager;
 
 // ════════════════════════════════════════════════════════════
 // Server

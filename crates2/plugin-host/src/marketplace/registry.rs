@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{MarketplaceError, RegistryIndex, SearchResult};
+use super::{MarketplaceError, RegistryIndex, SearchResult};
 
 const INDEX_CACHE_FILE: &str = "registry/index.json";
 
@@ -105,7 +105,7 @@ impl Registry {
         Ok(())
     }
 
-    pub fn find_entry(&self, id: &str) -> Option<&crate::RegistryEntry> {
+    pub fn find_entry(&self, id: &str) -> Option<&super::RegistryEntry> {
         self.index
             .as_ref()?
             .plugins
@@ -117,7 +117,7 @@ impl Registry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{RegistryEntry, RegistryIndex};
+    use crate::marketplace::{RegistryEntry, RegistryIndex};
     use std::collections::HashMap;
 
     fn sample_index() -> RegistryIndex {

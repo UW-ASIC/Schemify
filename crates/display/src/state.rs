@@ -6,8 +6,8 @@ use eframe::egui::{self, Color32, Visuals};
 
 use schemify_editor::handler::ObjectRef;
 use schemify_editor::schemify::Color;
-use schemify_marketplace::SearchResult;
-use schemify_plugins::{ThemeTokens, ThemeValue};
+use schemify_plugin_host::SearchResult;
+use schemify_plugin_host::{ThemeTokens, ThemeValue};
 
 // ════════════════════════════════════════════════════════════
 // Theme — one struct for canvas + chrome colors

@@ -7,7 +7,7 @@
 
 use eframe::egui::{self, Color32};
 
-use schemify_plugins::{AlertLevel, PanelLayout, ThemeColor, WidgetNode};
+use schemify_plugin_host::{AlertLevel, PanelLayout, ThemeColor, WidgetNode};
 use serde_json::{json, Value};
 
 use crate::plugin_host::{PendingUiAction, PluginHost};

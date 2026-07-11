@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use crate::{DownloadEntry, InstalledPlugin, MarketplaceError};
+use super::{DownloadEntry, InstalledPlugin, MarketplaceError};
 
 pub fn download_and_verify(
     entry: &DownloadEntry,
@@ -87,7 +87,7 @@ pub fn validate_extracted(
     expected_id: Option<&str>,
 ) -> Result<String, MarketplaceError> {
     let manifest_path = plugin_root.join("plugin.toml");
-    let manifest = schemify_plugins::PluginManifest::load(&manifest_path)?;
+    let manifest = crate::manifest::PluginManifest::load(&manifest_path)?;
 
     if let Some(expected) = expected_id {
         if manifest.plugin.id != expected {
@@ -117,7 +117,7 @@ pub fn place_plugin(
         let _ = std::fs::remove_dir_all(plugin_root);
     }
 
-    crate::platform::make_bin_dir_executable(&dest)?;
+    super::platform::make_bin_dir_executable(&dest)?;
     Ok(())
 }
 

@@ -14,7 +14,7 @@ use eframe::egui;
 use schemify_editor::config;
 use schemify_editor::handler::{App, ViewMode};
 use schemify_editor::schemify::Command;
-use schemify_marketplace::Marketplace;
+use schemify_plugin_host::Marketplace;
 
 use crate::components;
 use crate::handler::{self, CommandPump};
