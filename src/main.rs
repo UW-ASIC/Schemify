@@ -20,7 +20,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
-use schemify_core::handler::App;
+use schemify_core::handler::{App, DispatchResult};
 use schemify_core::schemify::Command;
 use schemify_display::{run_gui, run_gui_standalone};
 use schemify_mcp::{command_from_json, run_stdio, McpServer, Sink};
@@ -165,7 +165,9 @@ fn run_cli(
 
     if !headful {
         for cmd in cmds {
-            app.dispatch(cmd);
+            if let DispatchResult::Unhandled(c) = app.dispatch(cmd) {
+                eprintln!("warning: command not handled in headless mode: {c:?}");
+            }
         }
         if save {
             let path = file.context("--save requires --file")?;

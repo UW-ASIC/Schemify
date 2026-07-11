@@ -737,6 +737,66 @@ dependencies = [
 ]
 
 [[package]]
+name = "cktimg"
+version = "0.1.0"
+source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+dependencies = [
+ "cktimg-build",
+ "cktimg-config",
+ "cktimg-devices",
+ "cktimg-ir",
+ "cktimg-netlist",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cktimg-build"
+version = "0.1.0"
+source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+dependencies = [
+ "cktimg-config",
+ "cktimg-devices",
+ "cktimg-ir",
+]
+
+[[package]]
+name = "cktimg-config"
+version = "0.1.0"
+source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+dependencies = [
+ "serde",
+ "toml",
+]
+
+[[package]]
+name = "cktimg-devices"
+version = "0.1.0"
+source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+dependencies = [
+ "phf 0.11.3",
+]
+
+[[package]]
+name = "cktimg-ir"
+version = "0.1.0"
+source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+dependencies = [
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cktimg-netlist"
+version = "0.1.0"
+source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+dependencies = [
+ "cktimg-devices",
+ "cktimg-ir",
+ "phf 0.11.3",
+]
+
+[[package]]
 name = "clap"
 version = "4.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3659,7 +3719,6 @@ dependencies = [
  "rfd",
  "schemify-core",
  "schemify-marketplace",
- "schemify-mcp",
  "schemify-optimizer",
  "schemify-plugins",
  "serde_json",
@@ -3698,6 +3757,7 @@ name = "schemify-net2schem"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cktimg",
  "lasso",
  "schemify-core",
  "thiserror 2.0.18",
@@ -3717,7 +3777,6 @@ name = "schemify-plugins"
 version = "0.1.0"
 dependencies = [
  "libc",
- "schemify-core",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

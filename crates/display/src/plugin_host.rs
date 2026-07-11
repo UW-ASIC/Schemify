@@ -270,8 +270,8 @@ impl PluginHost {
                     Some(Value::String(s)) => Value::String(snake_to_pascal(s)),
                     _ => command_json.clone(),
                 };
-                match schemify_mcp::command_from_json(&cmd_value) {
-                    Ok(cmd) => app.dispatch(cmd),
+                match schemify_core::marshal::command_from_json(&cmd_value) {
+                    Ok(cmd) => app.dispatch(cmd).or_status(app),
                     Err(e) => {
                         self.push_log(&plugin_id, "error", format!("dispatch failed: {e}"))
                     }

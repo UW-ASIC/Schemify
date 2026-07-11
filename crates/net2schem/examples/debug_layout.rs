@@ -51,10 +51,6 @@ fn main() -> anyhow::Result<()> {
                 }
             }
         }
-        let blocks = schemify_net2schem::recognition::recognize_subcircuit(sub);
-        for block in &blocks {
-            println!("  block {:?} instances {:?}", block.block_type, block.instance_indices);
-        }
         for inst in &sub.instances {
             println!(
                 "  inst {:<20} kind={:?} pos=({}, {}) rot={} flip={}",

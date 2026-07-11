@@ -32,6 +32,7 @@ anyhow = "1"
 lasso = "0.7"
 rustc-hash = "2"
 toml = "0.8"
+cktimg = { git = "https://github.com/OmarSiwy/cktImg" }
 
 [package]
 name = "schemify"

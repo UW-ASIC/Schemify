@@ -4,7 +4,7 @@
 //! backend is dropped), `validation/`, and `adapter` modules:
 //!
 //! - [`PinGeometry`] + [`pin_position`]: pin offset tables and coordinate
-//!   transforms, consumed by `crate::place` and `crate::route`.
+//!   transforms, consumed by `crate::cktimg`.
 //! - [`SchemifyBackend`]: `.chn` text emission (instances, wires, labels,
 //!   SYMBOL section for subcircuit ports) and file writing.
 //! - Validation: pure structural checks over [`Subcircuit`]/[`Circuit`]
@@ -1098,19 +1098,6 @@ pub fn subcircuit_from_schematic_with_symbols(
     }
 
     sub
-}
-
-/// Re-run placement and routing on an existing schematic.
-///
-/// Converts to IR, runs recognize + place + route, converts back.
-/// Pure function: no I/O, no global state.
-pub fn relayout(sch: &Schematic, int: &mut Rodeo) -> Schematic {
-    let mut sub = subcircuit_from_schematic(sch, int);
-    let backend = SchemifyBackend::new("");
-    let blocks = crate::recognition::recognize_subcircuit(&sub);
-    crate::place::place(&mut sub, &blocks, &backend);
-    crate::route::Router::new().route_with_blocks(&mut sub, &backend, &blocks);
-    schematic_from_subcircuit(&sub, int)
 }
 
 /// Read a property value from an instance's property slice.

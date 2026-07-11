@@ -13,7 +13,6 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use crate::emit::{pin_position, PinGeometry};
 use crate::ir::{Instance, Label, Net, NetClass, NetId, PinIdx, Subcircuit, Wire};
-use crate::recognition::Block;
 use crate::shared::{is_ground_name, is_power_name};
 
 /// Grid resolution for the A* routing grid.
@@ -131,14 +130,9 @@ fn adaptive_multiplier(subckt: &Subcircuit) -> f64 {
 }
 
 /// Classify all nets in a subcircuit based on post-placement pin positions.
-///
-/// `blocks` is accepted for API stability but no longer influences strategy:
-/// block membership used to force wires at any span, which blew up Q4 on
-/// array layouts (see `classify_net`).
 pub fn classify_nets<B: PinGeometry + ?Sized>(
     subckt: &Subcircuit,
     backend: &B,
-    _blocks: &[Block],
 ) -> Vec<NetStrategy> {
     let threshold = adaptive_threshold(subckt);
     subckt
@@ -243,18 +237,8 @@ impl Router {
     /// Uses the net classifier to decide strategy, then A* for Wire-strategy nets
     /// with L-shape fallback, and net labels for Label-strategy nets.
     pub fn route<B: PinGeometry + ?Sized>(&self, subckt: &mut Subcircuit, backend: &B) {
-        self.route_with_blocks(subckt, backend, &[]);
-    }
-
-    /// Route with recognized block info for smarter wire vs label decisions.
-    pub fn route_with_blocks<B: PinGeometry + ?Sized>(
-        &self,
-        subckt: &mut Subcircuit,
-        backend: &B,
-        blocks: &[Block],
-    ) {
         let adaptive_mult = adaptive_multiplier(subckt) * self.budget_multiplier;
-        let strategies = classify_nets(subckt, backend, blocks);
+        let strategies = classify_nets(subckt, backend);
 
         // Build obstacle grid from placed component bounding boxes. This is
         // the A* navigation grid: pin entry channels of OTHER nets stay
@@ -2143,12 +2127,12 @@ mod tests {
     #[test]
     fn power_net_classified_label() {
         let by_name = fanout_subckt("VDD", 2, 100);
-        let strategies = classify_nets(&by_name, &TestGeo, &[]);
+        let strategies = classify_nets(&by_name, &TestGeo);
         assert_eq!(strategies[0], NetStrategy::Label, "VDD by name -> Label");
 
         let mut by_class = fanout_subckt("rail", 2, 100);
         by_class.nets[0].classification = NetClass::Ground;
-        let strategies = classify_nets(&by_class, &TestGeo, &[]);
+        let strategies = classify_nets(&by_class, &TestGeo);
         assert_eq!(
             strategies[0],
             NetStrategy::Label,
@@ -2216,7 +2200,7 @@ mod tests {
     #[test]
     fn eight_pin_fanout_classified_label() {
         let subckt = fanout_subckt("load", 8, 50);
-        let strategies = classify_nets(&subckt, &TestGeo, &[]);
+        let strategies = classify_nets(&subckt, &TestGeo);
         assert_eq!(
             strategies[0],
             NetStrategy::Label,

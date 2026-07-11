@@ -28,7 +28,7 @@ use crate::state::{GuiState, OptimizerViewState};
 pub fn open_new(app: &mut App) {
     app.dispatch(Command::OptimizerNew {
         name: String::new(),
-    });
+    }).or_status(app);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -77,7 +77,7 @@ pub fn optimizer_windows(ctx: &egui::Context, app: &mut App, gui: &mut GuiState)
         if close {
             // Hide only — params/objectives/history survive. The
             // "Close instance" button dispatches OptimizerClose instead.
-            app.dispatch(Command::OptimizerSetWindowOpen { id, open: false });
+            app.dispatch(Command::OptimizerSetWindowOpen { id, open: false }).or_status(app);
         }
     }
 }
@@ -108,7 +108,7 @@ fn window_contents(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState, id: u32
         });
     }
     for cmd in cmds {
-        app.dispatch(cmd);
+        app.dispatch(cmd).or_status(app);
     }
 }
 

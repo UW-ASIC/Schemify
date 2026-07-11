@@ -64,7 +64,7 @@ impl CommandPump {
             }
             match self.rx.try_recv() {
                 Ok(cmd) => {
-                    app.dispatch(cmd);
+                    app.dispatch(cmd).or_status(app);
                     dispatched = 1;
                     self.next_ready = Some(Instant::now() + delay);
                     ctx.request_repaint_after(delay);
@@ -79,7 +79,7 @@ impl CommandPump {
             loop {
                 match self.rx.try_recv() {
                     Ok(cmd) => {
-                        app.dispatch(cmd);
+                        app.dispatch(cmd).or_status(app);
                         dispatched += 1;
                         if dispatched >= Self::MAX_PER_FRAME {
                             ctx.request_repaint(); // more queued — next frame
@@ -114,7 +114,7 @@ pub fn handle_shortcuts(ctx: &egui::Context, app: &mut App, gui: &mut GuiState) 
         return;
     };
     match &kb.command {
-        KeyCommand::Dispatch(cmd) => app.dispatch(cmd.clone()),
+        KeyCommand::Dispatch(cmd) => app.dispatch(cmd.clone()).or_status(app),
         KeyCommand::EnterCommandMode => gui.command_mode = true,
         KeyCommand::SetView(mode) => app.state.view.view_mode = *mode,
         KeyCommand::OpenFileDialog => components::open_file_dialog(app),
@@ -236,12 +236,12 @@ pub fn execute_vim_command(line: &str, app: &mut App, gui: &mut GuiState) {
         return;
     }
     match parse_vim_command(line) {
-        VimAction::Dispatch(cmd) => app.dispatch(cmd),
+        VimAction::Dispatch(cmd) => app.dispatch(cmd).or_status(app),
         VimAction::SetView(mode) => app.state.view.view_mode = mode,
         VimAction::Save => components::save_active(app),
         VimAction::SaveAndClose => {
             components::save_active(app);
-            app.dispatch(Command::CloseActiveTab);
+            app.dispatch(Command::CloseActiveTab).or_status(app);
         }
         VimAction::SaveAs => components::save_as_dialog(app),
         VimAction::OpenDialog => components::open_file_dialog(app),

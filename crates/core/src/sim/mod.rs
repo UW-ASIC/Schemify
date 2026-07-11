@@ -3,6 +3,9 @@
 //! and bundled-PySpice runtime discovery.
 
 pub mod codegen;
+pub mod ir_emit;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod runner;
 pub mod ir;
 pub mod stimulus;
 

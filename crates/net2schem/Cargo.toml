@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 schemify-core = { path = "../core" }
+cktimg = { workspace = true }
 lasso = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }

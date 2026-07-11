@@ -10,7 +10,6 @@ crate-type = ["cdylib", "rlib"]
 schemify-core = { path = "../core" }
 schemify-optimizer = { path = "../optimizer" }
 schemify-plugins = { path = "../plugins" }
-schemify-mcp = { path = "../mcp" }
 schemify-marketplace = { path = "../../marketplace" }
 eframe = { version = "0.35", features = ["glow"] }
 egui = "0.35"

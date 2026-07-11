@@ -42,7 +42,7 @@ fn open_raw_dialog(app: &mut App) {
     {
         app.dispatch(Command::WaveOpen {
             path: path.to_string_lossy().into_owned(),
-        });
+        }).or_status(app);
     }
 }
 
@@ -131,7 +131,7 @@ fn top_bar(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
                 open_raw_dialog(app);
             }
             if ui.button("Reload").on_hover_text("Re-read all files").clicked() {
-                app.dispatch(Command::WaveReload);
+                app.dispatch(Command::WaveReload).or_status(app);
             }
             ui.separator();
 
@@ -148,7 +148,7 @@ fn top_bar(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
                     file: None,
                     block: 0,
                     pane: None,
-                });
+                }).or_status(app);
             }
             ui.separator();
 
@@ -209,7 +209,7 @@ fn top_bar(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
                 {
                     app.dispatch(Command::WaveExportCsv {
                         path: path.to_string_lossy().into_owned(),
-                    });
+                    }).or_status(app);
                 }
             }
             if ui.button("Export PNG…").clicked() {
@@ -346,7 +346,7 @@ fn signal_browser(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
                     file: Some(file),
                     block,
                     pane: None,
-                });
+                }).or_status(app);
             }
         });
 }

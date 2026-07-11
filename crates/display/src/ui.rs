@@ -136,7 +136,7 @@ impl eframe::App for SchemifyGui {
                             .on_hover_text("Auto-generate symbol from schematic")
                             .clicked()
                         {
-                            app.dispatch(Command::GenerateSymbolFromSchematic);
+                            app.dispatch(Command::GenerateSymbolFromSchematic).or_status(app);
                         }
                     });
             }
@@ -194,7 +194,7 @@ fn is_wsl() -> bool {
 }
 
 /// * `rx` — optional external Command channel (headful CLI/MCP driving;
-///   matches `schemify_mcp::Sink::Channel`'s `Sender<Command>`). Commands
+///   matches the MCP server's `Sink::Channel` `Sender<Command>`). Commands
 ///   are pumped into `App::dispatch` each frame.
 /// * `step_delay` — optional pause between externally-queued commands
 ///   (visual stepping). Scheduled via `request_repaint_after`; the UI

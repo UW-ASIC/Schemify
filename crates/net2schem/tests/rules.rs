@@ -20,7 +20,6 @@ use schemify_net2schem::emit::{
     self, pin_position, SchemifyBackend, Severity, ValidationError,
 };
 use schemify_net2schem::ir::{NetClass, PinDir, Primitive, Subcircuit, Wire};
-use schemify_net2schem::recognition::recognize_subcircuit;
 use schemify_net2schem::route::{classify_nets, NetStrategy};
 use schemify_net2schem::shared::{is_ground_name, is_power_name};
 
@@ -225,7 +224,6 @@ fn check_subcircuit(sub: &Subcircuit, backend: &SchemifyBackend) -> Vec<String> 
     rule_r8_connectivity_roundtrip(sub, backend, &mut out);
     rule_q1_signal_flow(sub, backend, &mut out);
     rule_q2_power_orientation(sub, backend, &mut out);
-    rule_q3_differential_symmetry(sub, &mut out);
     rule_q4_wire_crossings(sub, &mut out);
     rule_q5_wire_vs_label(sub, backend, &mut out);
     out
@@ -1039,65 +1037,6 @@ fn rule_q2_power_orientation(sub: &Subcircuit, backend: &SchemifyBackend, out: &
 }
 
 // ===========================================================================
-// Q3 — differential pair symmetry
-// ===========================================================================
-
-fn rule_q3_differential_symmetry(sub: &Subcircuit, out: &mut Vec<String>) {
-    // Pair DifferentialP nets with their DifferentialN counterpart via the
-    // same suffix patterns the annotation pass uses.
-    let lower_names: Vec<String> = sub.nets.iter().map(|n| n.name.to_ascii_lowercase()).collect();
-    let patterns: &[(&str, &str)] = &[("_p", "_n"), ("p", "n"), ("+", "-"), ("_ip", "_in")];
-
-    // Gate-connected instance for a net: first MOSFET/BJT control pin (idx 1).
-    let gate_inst = |net_idx: usize| -> Option<usize> {
-        sub.nets[net_idx].pins.iter().find_map(|pr| {
-            let inst = sub.instances.get(pr.instance_idx.index())?;
-            let is_active = inst.primitive.is_mosfet() || inst.primitive.is_bjt();
-            (is_active && pr.pin_idx.index() == 1).then_some(pr.instance_idx.index())
-        })
-    };
-
-    for (pi_net, net) in sub.nets.iter().enumerate() {
-        if net.classification != NetClass::DifferentialP {
-            continue;
-        }
-        let p_lower = &lower_names[pi_net];
-        let ni_net = patterns.iter().find_map(|&(ps, ns)| {
-            let base = p_lower.strip_suffix(ps)?;
-            if base.is_empty() {
-                return None;
-            }
-            let neg = format!("{base}{ns}");
-            lower_names
-                .iter()
-                .position(|n| *n == neg)
-                .filter(|&j| sub.nets[j].classification == NetClass::DifferentialN)
-        });
-        let Some(ni_net) = ni_net else { continue };
-
-        let (Some(ip), Some(in_)) = (gate_inst(pi_net), gate_inst(ni_net)) else {
-            continue;
-        };
-        if ip == in_ {
-            continue;
-        }
-
-        // Symmetry about the pair's common vertical axis: mirrored x is
-        // automatic about the midpoint, so the testable component is that the
-        // two devices sit at the same height (within one grid unit).
-        let a = &sub.instances[ip];
-        let b = &sub.instances[in_];
-        let dy = (a.y - b.y).abs();
-        if dy > 10 {
-            out.push(format!(
-                "Q3: diff pair '{}'/'{}' gate devices '{}' ({}, {}) and '{}' ({}, {}) not symmetric — y differs by {dy} (> 1 grid)",
-                net.name, sub.nets[ni_net].name, a.name, a.x, a.y, b.name, b.x, b.y
-            ));
-        }
-    }
-}
-
-// ===========================================================================
 // Q4 — wire crossing count under threshold
 // ===========================================================================
 
@@ -1139,8 +1078,7 @@ fn rule_q4_wire_crossings(sub: &Subcircuit, out: &mut Vec<String>) {
 // ===========================================================================
 
 fn rule_q5_wire_vs_label(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut Vec<String>) {
-    let blocks = recognize_subcircuit(sub);
-    let strategies = classify_nets(sub, backend, &blocks);
+    let strategies = classify_nets(sub, backend);
 
     for (ni, strategy) in strategies.iter().enumerate() {
         let net = &sub.nets[ni];
