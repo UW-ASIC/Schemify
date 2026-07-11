@@ -4,9 +4,9 @@ members = [
     "crates/net2schem",
     "crates/display",
     "crates/mcp",
-    "crates/optimizer",
     "crates/plugins",
-    "crates/wave",
+    "crates2/optimizer",
+    "crates2/wave",
     "marketplace",
 ]
 exclude = [

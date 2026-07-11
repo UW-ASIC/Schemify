@@ -4,8 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-schemify-wave = { path = "../wave" }
-schemify-optimizer = { path = "../optimizer" }
+schemify-wave = { path = "../../crates2/wave" }
+schemify-optimizer = { path = "../../crates2/optimizer" }
 lasso = { workspace = true }
 soa_derive = "0.13"
 serde = { workspace = true }

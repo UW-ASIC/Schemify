@@ -8,7 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 schemify-core = { path = "../core" }
-schemify-optimizer = { path = "../optimizer" }
+schemify-optimizer = { path = "../../crates2/optimizer" }
 schemify-plugins = { path = "../plugins" }
 schemify-marketplace = { path = "../../marketplace" }
 eframe = { version = "0.35", features = ["glow"] }

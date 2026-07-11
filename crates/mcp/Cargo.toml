@@ -6,7 +6,7 @@ edition.workspace = true
 [dependencies]
 schemify-core = { path = "../core" }
 schemify-net2schem = { path = "../net2schem" }
-schemify-wave = { path = "../wave" }
+schemify-wave = { path = "../../crates2/wave" }
 schemify-plugins = { path = "../plugins" }
 schemify-marketplace = { path = "../../marketplace" }
 serde_json = { workspace = true }
