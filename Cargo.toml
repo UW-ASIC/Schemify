@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "crates/display",
-    "crates/mcp",
     "crates2/editor",
+    "crates2/gui",
+    "crates2/mcp",
     "crates2/net2schem",
     "crates2/optimizer",
     "crates2/plugin-api",
@@ -48,8 +48,8 @@ path = "src/main.rs"
 [dependencies]
 schemify-editor = { path = "crates2/editor" }
 schemify-net2schem = { path = "crates2/net2schem" }
-schemify-display = { path = "crates/display" }
-schemify-mcp = { path = "crates/mcp" }
+schemify-gui = { path = "crates2/gui" }
+schemify-mcp = { path = "crates2/mcp" }
 schemify-plugin-host = { path = "crates2/plugin-host" }
 clap = { version = "4", features = ["derive"] }
 serde_json = { workspace = true }

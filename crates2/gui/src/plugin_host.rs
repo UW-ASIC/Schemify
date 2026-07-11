@@ -43,7 +43,6 @@ pub struct PendingUiAction {
 }
 
 pub struct PluginHost {
-    pub manager: PluginManager,
     pub panels: Vec<PanelEntry>,
     pub commands: Vec<CommandRegistration>,
     pub overlays: Vec<OverlayLayer>,
@@ -66,7 +65,6 @@ pub struct PluginHost {
 impl PluginHost {
     pub fn new() -> Self {
         Self {
-            manager: PluginManager::new(),
             panels: Vec::new(),
             commands: Vec::new(),
             overlays: Vec::new(),
@@ -81,26 +79,26 @@ impl PluginHost {
 
     /// Rescan plugin directories and start every startable plugin.
     /// Returns a one-line status summary.
-    pub fn refresh(&mut self, project_dir: &Path) -> String {
-        self.manager.add_scan_dir(global_plugins_dir());
+    pub fn refresh(&mut self, manager: &mut PluginManager, project_dir: &Path) -> String {
+        manager.add_scan_dir(global_plugins_dir());
         if !project_dir.as_os_str().is_empty() {
-            self.manager.add_scan_dir(project_dir.join("plugins"));
+            manager.add_scan_dir(project_dir.join("plugins"));
         }
-        for err in self.manager.scan_directories() {
+        for err in manager.scan_directories() {
             self.push_log("host", "error", err.to_string());
         }
 
-        let ids: Vec<String> = self.manager.plugin_ids().map(str::to_owned).collect();
+        let ids: Vec<String> = manager.plugin_ids().map(str::to_owned).collect();
         for id in &ids {
             if matches!(
-                self.manager.state(id),
+                manager.state(id),
                 Some(
                     PluginLifecycle::Discovered
                         | PluginLifecycle::Stopped
                         | PluginLifecycle::Error
                 )
             ) {
-                if let Err(e) = self.manager.start(id) {
+                if let Err(e) = manager.start(id) {
                     self.push_log(id, "error", e.to_string());
                 }
             }
@@ -108,7 +106,7 @@ impl PluginHost {
 
         let (mut running, mut errored) = (0usize, 0usize);
         for id in &ids {
-            match self.manager.state(id) {
+            match manager.state(id) {
                 Some(PluginLifecycle::Running) => running += 1,
                 Some(PluginLifecycle::Error) => errored += 1,
                 _ => {}
@@ -122,19 +120,19 @@ impl PluginHost {
     }
 
     /// True while any plugin process is live (drives repaint scheduling).
-    pub fn any_running(&self) -> bool {
-        let mut ids = self.manager.plugin_ids();
-        ids.any(|id| self.manager.state(id) == Some(PluginLifecycle::Running))
+    pub fn any_running(&self, manager: &PluginManager) -> bool {
+        let mut ids = manager.plugin_ids();
+        ids.any(|id| manager.state(id) == Some(PluginLifecycle::Running))
     }
 
     /// Per-frame hook: drain core requests, pump plugin messages into GUI
     /// state, answer queries, broadcast change events, flush UI actions.
-    pub fn pump(&mut self, app: &mut App, theme: &Theme) {
+    pub fn pump(&mut self, manager: &mut PluginManager, app: &mut App, theme: &Theme) {
         // 1. Core-side requests (F6 / PluginCommand dispatched in core).
         if app.state.plugin_refresh_requested {
             app.state.plugin_refresh_requested = false;
             let project_dir = app.state.project_dir.clone();
-            app.state.status_msg = self.refresh(&project_dir);
+            app.state.status_msg = self.refresh(manager, &project_dir);
         }
         for (tag, _payload) in std::mem::take(&mut app.state.pending_plugin_commands) {
             let Some((plugin_id, command)) = tag.split_once(':') else {
@@ -142,17 +140,15 @@ impl PluginHost {
                 continue;
             };
             let params = json!({ "command": command });
-            if let Err(e) = self
-                .manager
-                .notify(plugin_id, methods::COMMAND_INVOKE, Some(params))
+            if let Err(e) = manager.notify(plugin_id, methods::COMMAND_INVOKE, Some(params))
             {
                 self.push_log(plugin_id, "error", e.to_string());
             }
         }
 
         // 2. Drain plugin messages.
-        for action in self.manager.tick() {
-            self.apply_action(action, app, theme);
+        for action in manager.tick() {
+            self.apply_action(manager, action, app, theme);
         }
 
         // 3. Change broadcasts.
@@ -160,20 +156,18 @@ impl PluginHost {
         let generation = (app.state.active_doc, doc.generation);
         if generation != self.last_generation {
             self.last_generation = generation;
-            self.manager.notify_schematic_changed();
+            manager.notify_schematic_changed();
         }
         let selection = selection_hash(app);
         if selection != self.last_selection {
             self.last_selection = selection;
-            self.manager.notify_selection_changed();
+            manager.notify_selection_changed();
         }
 
         // 4. Flush widget interactions back to their plugins.
         for ua in std::mem::take(&mut self.ui_actions) {
             let params = json!({ "action": ua.action, "payload": ua.payload });
-            if let Err(e) = self
-                .manager
-                .notify(&ua.plugin_id, methods::UI_ACTION, Some(params))
+            if let Err(e) = manager.notify(&ua.plugin_id, methods::UI_ACTION, Some(params))
             {
                 self.push_log(&ua.plugin_id, "error", e.to_string());
             }
@@ -194,7 +188,7 @@ impl PluginHost {
 
     // ── Action dispatch ─────────────────────────────────────────────
 
-    fn apply_action(&mut self, action: PluginHostAction, app: &mut App, theme: &Theme) {
+    fn apply_action(&mut self, manager: &mut PluginManager, action: PluginHostAction, app: &mut App, theme: &Theme) {
         use PluginHostAction as A;
         match action {
             A::RegisterPanel(reg) => {
@@ -290,7 +284,7 @@ impl PluginHost {
                 request_id,
             } => {
                 let result = instance_records(app);
-                self.respond(&plugin_id, request_id, result);
+                self.respond(manager, &plugin_id, request_id, result);
             }
             A::QueryNets {
                 plugin_id,
@@ -303,7 +297,7 @@ impl PluginHost {
                     .enumerate()
                     .map(|(idx, name)| json!({ "idx": idx, "name": name }))
                     .collect();
-                self.respond(&plugin_id, request_id, Value::Array(nets));
+                self.respond(manager, &plugin_id, request_id, Value::Array(nets));
             }
             A::QueryTheme {
                 plugin_id,
@@ -311,7 +305,7 @@ impl PluginHost {
             } => {
                 let result =
                     serde_json::to_value(theme.to_tokens()).unwrap_or(Value::Null);
-                self.respond(&plugin_id, request_id, result);
+                self.respond(manager, &plugin_id, request_id, result);
             }
             A::QueryProject {
                 plugin_id,
@@ -327,7 +321,7 @@ impl PluginHost {
                         .as_ref()
                         .map(|p| p.display().to_string()),
                 });
-                self.respond(&plugin_id, request_id, result);
+                self.respond(manager, &plugin_id, request_id, result);
             }
             A::QueryPdk {
                 plugin_id,
@@ -368,7 +362,7 @@ impl PluginHost {
                     }
                     None => Value::Null,
                 };
-                self.respond(&plugin_id, request_id, result);
+                self.respond(manager, &plugin_id, request_id, result);
             }
             A::QueryNetlist {
                 plugin_id,
@@ -380,7 +374,7 @@ impl PluginHost {
                     "spice": spice,
                     "instance_map": instance_refdes_map(app),
                 });
-                self.respond(&plugin_id, request_id, result);
+                self.respond(manager, &plugin_id, request_id, result);
             }
             A::QueryOptimizers {
                 plugin_id,
@@ -393,10 +387,10 @@ impl PluginHost {
                         let mut result = o.opt.to_json();
                         result["id"] = json!(o.id);
                         result["window_open"] = json!(o.window_open);
-                        self.respond(&plugin_id, request_id, result);
+                        self.respond(manager, &plugin_id, request_id, result);
                     }
                     None => {
-                        let _ = self.manager.respond_error(
+                        let _ = manager.respond_error(
                             &plugin_id,
                             request_id,
                             schemify_plugin_host::INVALID_PARAMS,
@@ -423,7 +417,7 @@ impl PluginHost {
                             })
                             .collect(),
                     );
-                    self.respond(&plugin_id, request_id, result);
+                    self.respond(manager, &plugin_id, request_id, result);
                 }
             },
             A::ErrorResponse {
@@ -432,16 +426,14 @@ impl PluginHost {
                 code,
                 message,
             } => {
-                let _ = self
-                    .manager
-                    .respond_error(&plugin_id, request_id, code, &message);
+                let _ = manager.respond_error(&plugin_id, request_id, code, &message);
             }
         }
     }
 
-    fn respond(&mut self, plugin_id: &str, request_id: u32, result: Value) {
-        if self.manager.respond(plugin_id, request_id, result).is_err() {
-            let _ = self.manager.respond_error(
+    fn respond(&mut self, manager: &mut PluginManager, plugin_id: &str, request_id: u32, result: Value) {
+        if manager.respond(plugin_id, request_id, result).is_err() {
+            let _ = manager.respond_error(
                 plugin_id,
                 request_id,
                 INTERNAL_ERROR,

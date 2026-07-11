@@ -1,0 +1,12 @@
+[package]
+name = "schemify-mcp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+schemify-editor = { path = "../editor" }
+schemify-net2schem = { path = "../net2schem" }
+schemify-wave = { path = "../wave" }
+schemify-plugin-host = { path = "../plugin-host" }
+serde_json = { workspace = true }
+anyhow = { workspace = true }

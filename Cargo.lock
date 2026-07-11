@@ -3678,30 +3678,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "schemify-display",
  "schemify-editor",
+ "schemify-gui",
  "schemify-mcp",
  "schemify-net2schem",
- "schemify-plugin-host",
- "serde_json",
-]
-
-[[package]]
-name = "schemify-display"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui",
- "egui_extras",
- "image",
- "log",
- "ratex-layout",
- "ratex-parser",
- "ratex-render",
- "ratex-types",
- "rfd",
- "schemify-editor",
- "schemify-optimizer",
  "schemify-plugin-host",
  "serde_json",
 ]
@@ -3722,6 +3702,26 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "toml",
+]
+
+[[package]]
+name = "schemify-gui"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "egui_extras",
+ "image",
+ "log",
+ "ratex-layout",
+ "ratex-parser",
+ "ratex-render",
+ "ratex-types",
+ "rfd",
+ "schemify-editor",
+ "schemify-optimizer",
+ "schemify-plugin-host",
+ "serde_json",
 ]
 
 [[package]]

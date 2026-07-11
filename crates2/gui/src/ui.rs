@@ -11,10 +11,9 @@ use std::time::Duration;
 
 use eframe::egui;
 
-use schemify_editor::config;
 use schemify_editor::handler::{App, ViewMode};
 use schemify_editor::schemify::Command;
-use schemify_plugin_host::Marketplace;
+use schemify_plugin_host::PluginService;
 
 use crate::components;
 use crate::handler::{self, CommandPump};
@@ -31,25 +30,29 @@ pub struct SchemifyGui {
     pump: Option<CommandPump>,
     /// Dark-mode flag last applied to egui visuals (re-applied on change).
     applied_dark: Option<bool>,
-    pub marketplace: Marketplace,
+    /// Plugin runtime + marketplace, owned by the composition root and
+    /// shared with a headful MCP server when one runs.
+    service: Arc<Mutex<PluginService>>,
     pub plugins: PluginHost,
 }
 
 impl SchemifyGui {
-    pub fn new(app: Arc<Mutex<App>>, pump: Option<CommandPump>) -> Self {
-        let plugins_dir = config::global_plugins_dir();
-        let cache_dir = config::cache_dir();
+    pub fn new(
+        app: Arc<Mutex<App>>,
+        pump: Option<CommandPump>,
+        service: Arc<Mutex<PluginService>>,
+    ) -> Self {
         // Discover + start plugins once at launch (F6 rescans later).
         let mut plugins = PluginHost::new();
-        if let Ok(guard) = app.lock() {
-            plugins.refresh(&guard.state.project_dir);
+        if let (Ok(mut svc), Ok(guard)) = (service.lock(), app.lock()) {
+            plugins.refresh(&mut svc.manager, &guard.state.project_dir);
         }
         Self {
             app,
             gui: GuiState::default(),
             pump,
             applied_dark: None,
-            marketplace: Marketplace::new(plugins_dir, cache_dir),
+            service,
             plugins,
         }
     }
@@ -81,7 +84,11 @@ impl eframe::App for SchemifyGui {
 
         // Plugin host: drain plugin messages, answer queries, broadcast
         // schematic/selection changes, flush widget interactions.
-        self.plugins.pump(app, &self.gui.theme);
+        let mut svc = match self.service.lock() {
+            Ok(s) => s,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        self.plugins.pump(&mut svc.manager, app, &self.gui.theme);
 
         // Theme follows the core dark-mode flag (ToggleColorScheme) plus
         // plugin theme overrides (highest priority wins).
@@ -91,15 +98,13 @@ impl eframe::App for SchemifyGui {
             self.gui.theme.apply(ui.ctx());
             self.applied_dark = Some(dark);
             self.plugins.theme_dirty = false;
-            self.plugins
-                .manager
-                .notify_theme_changed(&self.gui.theme.to_tokens());
+            svc.manager.notify_theme_changed(&self.gui.theme.to_tokens());
         }
 
         let welcome = Self::should_show_welcome(app);
 
         // Chrome.
-        components::menu_bar(ui, app, &mut self.gui, &mut self.plugins);
+        components::menu_bar(ui, app, &mut self.gui, &mut self.plugins, &mut svc.manager);
         if !welcome {
             components::tab_bar(ui, app);
         }
@@ -145,7 +150,7 @@ impl eframe::App for SchemifyGui {
         // Floating windows + dialogs + overlays.
         components::file_explorer_window(ui.ctx(), app);
         components::library_window(ui.ctx(), app, &mut self.gui);
-        components::show_all_dialogs(ui.ctx(), app, &mut self.gui, &mut self.marketplace);
+        components::show_all_dialogs(ui.ctx(), app, &mut self.gui, &mut svc.marketplace);
         components::context_menu(ui.ctx(), app, &mut self.gui);
         if !welcome && app.state.view.view_mode == ViewMode::Schematic {
             components::label_conflict_overlay(ui.ctx(), app);
@@ -162,7 +167,7 @@ impl eframe::App for SchemifyGui {
 
         // Plugin pushes (panel updates, overlays) arrive without input
         // events; keep polling while any plugin runs.
-        if self.plugins.any_running() {
+        if self.plugins.any_running(&svc.manager) {
             ui.ctx().request_repaint_after(Duration::from_millis(250));
         }
 
@@ -172,7 +177,9 @@ impl eframe::App for SchemifyGui {
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
-        self.plugins.manager.shutdown_all();
+        if let Ok(mut svc) = self.service.lock() {
+            svc.manager.shutdown_all();
+        }
     }
 }
 
@@ -203,6 +210,7 @@ pub fn run_gui(
     app: Arc<Mutex<App>>,
     rx: Option<Receiver<Command>>,
     step_delay: Option<Duration>,
+    service: Arc<Mutex<PluginService>>,
 ) -> eframe::Result<()> {
     // WSL: wgpu can't create surfaces on WSLg (bugs #2641, #2762, #6841).
     // Use glow (glutin OpenGL) instead, and force X11 to avoid EGL mismatch.
@@ -228,12 +236,19 @@ pub fn run_gui(
         Box::new(move |cc| {
             Theme::dark().apply(&cc.egui_ctx);
             egui_extras::install_image_loaders(&cc.egui_ctx);
-            Ok(Box::new(SchemifyGui::new(app, pump)))
+            Ok(Box::new(SchemifyGui::new(app, pump, service)))
         }),
     )
 }
 
 /// Convenience: run a standalone GUI owning a fresh App (no external driver).
 pub fn run_gui_standalone() -> eframe::Result<()> {
-    run_gui(Arc::new(Mutex::new(App::new())), None, None)
+    use schemify_editor::config;
+    let service = PluginService::new(config::global_plugins_dir(), config::cache_dir());
+    run_gui(
+        Arc::new(Mutex::new(App::new())),
+        None,
+        None,
+        Arc::new(Mutex::new(service)),
+    )
 }

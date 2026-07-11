@@ -33,9 +33,8 @@ use schemify_editor::config;
 use schemify_editor::handler::{self, App, DispatchResult, Document, Origin};
 use schemify_editor::schemify::Command;
 use schemify_editor::sim::codegen::emit_pyspice;
-use schemify_plugin_host::Marketplace;
 use schemify_net2schem::emit::schematic_from_subcircuit;
-use schemify_plugin_host::PluginManager;
+use schemify_plugin_host::PluginService;
 
 // ════════════════════════════════════════════════════════════
 // Server
@@ -53,8 +52,8 @@ pub enum Sink {
 pub struct McpServer {
     app: Arc<Mutex<App>>,
     sink: Sink,
-    marketplace: Marketplace,
-    plugin_manager: PluginManager,
+    /// Plugin runtime + marketplace; shared with the GUI in headful mode.
+    service: Arc<Mutex<PluginService>>,
 }
 
 /// JSON-RPC error (code + message). `anyhow::Error` converts to -32603.
@@ -73,23 +72,19 @@ impl From<anyhow::Error> for RpcErr {
 }
 
 impl McpServer {
-    pub fn new(app: Arc<Mutex<App>>, sink: Sink) -> Self {
-        let plugins_dir = config::global_plugins_dir();
-        let cache_dir = config::cache_dir();
-        let marketplace = Marketplace::new(plugins_dir.clone(), cache_dir);
-        let mut plugin_manager = PluginManager::new();
-        plugin_manager.add_scan_dir(plugins_dir);
-        Self {
-            app,
-            sink,
-            marketplace,
-            plugin_manager,
-        }
+    pub fn new(app: Arc<Mutex<App>>, sink: Sink, service: Arc<Mutex<PluginService>>) -> Self {
+        Self { app, sink, service }
     }
 
-    /// Headless server owning a fresh-wrapped App.
+    /// Headless server owning a fresh-wrapped App and its own services.
     pub fn direct(app: App) -> Self {
-        Self::new(Arc::new(Mutex::new(app)), Sink::Direct)
+        let service =
+            PluginService::new(config::global_plugins_dir(), config::cache_dir());
+        Self::new(
+            Arc::new(Mutex::new(app)),
+            Sink::Direct,
+            Arc::new(Mutex::new(service)),
+        )
     }
 
     /// Shared App handle (headful main.rs hands this to the GUI).
@@ -140,6 +135,12 @@ impl McpServer {
 
     fn lock_app(&self) -> Result<std::sync::MutexGuard<'_, App>> {
         self.app.lock().map_err(|_| anyhow!("app mutex poisoned"))
+    }
+
+    fn lock_service(&self) -> Result<std::sync::MutexGuard<'_, PluginService>> {
+        self.service
+            .lock()
+            .map_err(|_| anyhow!("plugin service mutex poisoned"))
     }
 
     /// Route a mutation through the configured sink: dispatch inline
@@ -199,10 +200,11 @@ impl McpServer {
                 self.lock_app()?.set_project_dir(PathBuf::from(&path));
                 // Mirror the GUI plugin host: project-local plugins live in
                 // <project>/plugins and become discoverable immediately.
-                self.plugin_manager
+                let mut svc = self.lock_service()?;
+                svc.manager
                     .add_scan_dir(PathBuf::from(&path).join("plugins"));
-                let errs = self.plugin_manager.scan_directories();
-                let ids: Vec<&str> = self.plugin_manager.plugin_ids().collect();
+                let errs = svc.manager.scan_directories();
+                let ids: Vec<&str> = svc.manager.plugin_ids().collect();
                 if errs.is_empty() {
                     json!({"ok": true, "plugins": ids})
                 } else {
@@ -220,29 +222,30 @@ impl McpServer {
                         import_spice(&mut app, path)?
                     }
                     Command::MarketplaceFetch => {
-                        let index = self
-                            .marketplace
-                            .fetch_index()
-                            .map_err(|e| anyhow!("{e}"))?;
+                        let mut svc = self.lock_service()?;
+                        let index = svc.marketplace.fetch_index().map_err(|e| anyhow!("{e}"))?;
                         json!({"ok": true, "count": index.plugins.len()})
                     }
                     Command::MarketplaceInstall { name } => {
-                        self.marketplace
+                        let mut svc = self.lock_service()?;
+                        svc.marketplace
                             .install(name)
                             .map_err(|e| anyhow!("{e}"))?;
-                        self.plugin_manager.scan_directories();
+                        svc.manager.scan_directories();
                         json!({"ok": true, "id": name})
                     }
                     Command::MarketplaceUninstall { name } => {
-                        let _ = self.plugin_manager.stop(name);
-                        self.plugin_manager.remove(name);
-                        self.marketplace
+                        let mut svc = self.lock_service()?;
+                        let _ = svc.manager.stop(name);
+                        svc.manager.remove(name);
+                        svc.marketplace
                             .uninstall(name)
                             .map_err(|e| anyhow!("{e}"))?;
                         json!({"ok": true, "id": name})
                     }
                     Command::PluginsRefresh => {
-                        self.plugin_manager.scan_directories();
+                        let mut svc = self.lock_service()?;
+                        svc.manager.scan_directories();
                         json!({"ok": true})
                     }
                     _ => self.dispatch_sink(cmd)?,
@@ -368,8 +371,9 @@ impl McpServer {
             }
             // ── Plugins ──
             "plugins/refresh" => {
-                let errs = self.plugin_manager.scan_directories();
-                let ids: Vec<&str> = self.plugin_manager.plugin_ids().collect();
+                let mut svc = self.lock_service()?;
+                let errs = svc.manager.scan_directories();
+                let ids: Vec<&str> = svc.manager.plugin_ids().collect();
                 if errs.is_empty() {
                     json!({"ok": true, "plugins": ids})
                 } else {
@@ -378,16 +382,17 @@ impl McpServer {
                 }
             }
             "plugins/list" => {
-                let ids: Vec<&str> = self.plugin_manager.plugin_ids().collect();
+                let svc = self.lock_service()?;
+                let ids: Vec<&str> = svc.manager.plugin_ids().collect();
                 let list: Vec<Value> = ids
                     .iter()
                     .map(|id| {
                         json!({
                             "id": id,
-                            "state": self.plugin_manager.state(id)
+                            "state": svc.manager.state(id)
                                 .map(|s| format!("{s:?}"))
                                 .unwrap_or_else(|| "Unknown".into()),
-                            "error": self.plugin_manager.error_msg(id),
+                            "error": svc.manager.error_msg(id),
                         })
                     })
                     .collect();
@@ -395,14 +400,16 @@ impl McpServer {
             }
             "plugins/start" => {
                 let id = req_str(params, "id")?;
-                self.plugin_manager
+                let mut svc = self.lock_service()?;
+                svc.manager
                     .start(&id)
                     .map_err(|e| anyhow!("{e}"))?;
                 json!({"ok": true})
             }
             "plugins/stop" => {
                 let id = req_str(params, "id")?;
-                self.plugin_manager
+                let mut svc = self.lock_service()?;
+                svc.manager
                     .stop(&id)
                     .map_err(|e| anyhow!("{e}"))?;
                 json!({"ok": true})
@@ -410,16 +417,15 @@ impl McpServer {
 
             // ── Marketplace ──
             "marketplace/fetch" => {
-                let index = self
-                    .marketplace
-                    .fetch_index()
-                    .map_err(|e| anyhow!("{e}"))?;
+                let mut svc = self.lock_service()?;
+                let index = svc.marketplace.fetch_index().map_err(|e| anyhow!("{e}"))?;
                 let count = index.plugins.len();
                 json!({"ok": true, "count": count, "updated_at": index.updated_at})
             }
             "marketplace/search" => {
                 let query = params.get("query").and_then(Value::as_str).unwrap_or("");
-                let results = self.marketplace.search(query);
+                let svc = self.lock_service()?;
+                let results = svc.marketplace.search(query);
                 let items: Vec<Value> = results
                     .iter()
                     .map(|r| {
@@ -436,8 +442,9 @@ impl McpServer {
                 json!(items)
             }
             "marketplace/list" => {
-                let installed = &self.marketplace.installed().plugins;
-                let updates = self.marketplace.check_updates();
+                let svc = self.lock_service()?;
+                let installed = &svc.marketplace.installed().plugins;
+                let updates = svc.marketplace.check_updates();
                 let items: Vec<Value> = installed
                     .iter()
                     .map(|p| {
@@ -454,41 +461,45 @@ impl McpServer {
             }
             "marketplace/install" => {
                 let id = req_plugin_id(params)?;
-                self.marketplace
+                let mut svc = self.lock_service()?;
+                svc.marketplace
                     .install(&id)
                     .map_err(|e| anyhow!("{e}"))?;
-                self.plugin_manager.scan_directories();
+                svc.manager.scan_directories();
                 json!({"ok": true, "id": id})
             }
             "marketplace/install_local" => {
                 let path = req_str(params, "path")?;
-                let id = self
+                let mut svc = self.lock_service()?;
+                let id = svc
                     .marketplace
                     .install_from_file(Path::new(&path))
                     .map_err(|e| anyhow!("{e}"))?;
-                self.plugin_manager.scan_directories();
+                svc.manager.scan_directories();
                 json!({"ok": true, "id": id})
             }
             "marketplace/uninstall" => {
                 let id = req_plugin_id(params)?;
-                let _ = self.plugin_manager.stop(&id);
-                self.plugin_manager.remove(&id);
-                self.marketplace
+                let mut svc = self.lock_service()?;
+                let _ = svc.manager.stop(&id);
+                svc.manager.remove(&id);
+                svc.marketplace
                     .uninstall(&id)
                     .map_err(|e| anyhow!("{e}"))?;
                 json!({"ok": true, "id": id})
             }
             "marketplace/update" => {
                 let id = req_plugin_id(params)?;
-                let _ = self.plugin_manager.stop(&id);
-                self.plugin_manager.remove(&id);
-                self.marketplace
+                let mut svc = self.lock_service()?;
+                let _ = svc.manager.stop(&id);
+                svc.manager.remove(&id);
+                svc.marketplace
                     .uninstall(&id)
                     .map_err(|e| anyhow!("{e}"))?;
-                self.marketplace
+                svc.marketplace
                     .install(&id)
                     .map_err(|e| anyhow!("{e}"))?;
-                self.plugin_manager.scan_directories();
+                svc.manager.scan_directories();
                 json!({"ok": true, "id": id})
             }
 
@@ -973,7 +984,15 @@ Values:
     fn channel_sink_queues_commands() {
         let (tx, rx) = std::sync::mpsc::channel();
         let app = Arc::new(Mutex::new(App::new()));
-        let mut srv = McpServer::new(Arc::clone(&app), Sink::Channel(tx));
+        let service = PluginService::new(
+            std::env::temp_dir().join("schemify-test-plugins"),
+            std::env::temp_dir().join("schemify-test-cache"),
+        );
+        let mut srv = McpServer::new(
+            Arc::clone(&app),
+            Sink::Channel(tx),
+            Arc::new(Mutex::new(service)),
+        );
         let r = result(&mut srv, "session/dispatch", json!({"command": "ZoomIn"}));
         assert_eq!(r["queued"], true);
         assert!(matches!(rx.try_recv(), Ok(Command::ZoomIn)));

@@ -5,6 +5,7 @@ use eframe::egui;
 use schemify_editor::handler::{App, Origin, ViewMode};
 use schemify_editor::schemify::{Command, SpiceBackend, StimulusLang, Tool};
 
+use schemify_plugin_host::PluginManager;
 use schemify_plugin_host::PluginLifecycle;
 
 use crate::plugin_host::PluginHost;
@@ -124,6 +125,7 @@ pub fn menu_bar(
     app: &mut App,
     gui: &mut GuiState,
     plugins: &mut PluginHost,
+    manager: &mut PluginManager,
 ) {
     let can_undo = !app.active_doc().undo_history.is_empty();
     let can_redo = !app.active_doc().redo_history.is_empty();
@@ -447,14 +449,13 @@ pub fn menu_bar(
                 ui.separator();
 
                 let ids: Vec<String> =
-                    plugins.manager.plugin_ids().map(str::to_owned).collect();
+                    manager.plugin_ids().map(str::to_owned).collect();
                 if ids.is_empty() {
                     ui.weak("No plugins found");
                 }
                 for id in &ids {
-                    let state = plugins.manager.state(id);
-                    let name = plugins
-                        .manager
+                    let state = manager.state(id);
+                    let name = manager
                         .manifest(id)
                         .map(|m| m.plugin.name.clone())
                         .unwrap_or_else(|| id.clone());
@@ -467,20 +468,20 @@ pub fn menu_bar(
                         match state {
                             Some(PluginLifecycle::Running) => {
                                 if sc(ui, "Stop", "") {
-                                    let _ = plugins.manager.stop(id);
+                                    let _ = manager.stop(id);
                 
                                 }
                             }
                             _ => {
                                 if sc(ui, "Start", "") {
-                                    if let Err(e) = plugins.manager.start(id) {
+                                    if let Err(e) = manager.start(id) {
                                         app.state.status_msg = e.to_string();
                                     }
                 
                                 }
                             }
                         }
-                        if let Some(err) = plugins.manager.error_msg(id) {
+                        if let Some(err) = manager.error_msg(id) {
                             ui.colored_label(gui.theme.error, err);
                         }
                         // Panel visibility toggles.

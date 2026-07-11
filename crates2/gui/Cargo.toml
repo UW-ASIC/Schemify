@@ -1,5 +1,5 @@
 [package]
-name = "schemify-display"
+name = "schemify-gui"
 version.workspace = true
 edition.workspace = true
 
@@ -7,9 +7,9 @@ edition.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-schemify-editor = { path = "../../crates2/editor" }
-schemify-optimizer = { path = "../../crates2/optimizer" }
-schemify-plugin-host = { path = "../../crates2/plugin-host" }
+schemify-editor = { path = "../editor" }
+schemify-optimizer = { path = "../optimizer" }
+schemify-plugin-host = { path = "../plugin-host" }
 eframe = { version = "0.35", features = ["glow"] }
 egui = "0.35"
 egui_extras = { version = "0.35", features = ["svg", "image"] }
