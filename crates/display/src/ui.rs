@@ -11,9 +11,9 @@ use std::time::Duration;
 
 use eframe::egui;
 
-use schemify_core::config;
-use schemify_core::handler::{App, ViewMode};
-use schemify_core::schemify::Command;
+use schemify_editor::config;
+use schemify_editor::handler::{App, ViewMode};
+use schemify_editor::schemify::Command;
 use schemify_marketplace::Marketplace;
 
 use crate::components;

@@ -20,8 +20,8 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
-use schemify_core::handler::{App, DispatchResult};
-use schemify_core::schemify::Command;
+use schemify_editor::handler::{App, DispatchResult};
+use schemify_editor::schemify::Command;
 use schemify_display::{run_gui, run_gui_standalone};
 use schemify_mcp::{command_from_json, run_stdio, McpServer, Sink};
 
@@ -96,7 +96,7 @@ fn main() -> Result<()> {
 /// `schemify export-spice`: load a schematic, build the circuit IR, and
 /// emit it in the requested format — no GUI, no dispatch loop.
 fn run_export_spice(file: &Path, out: Option<&Path>, format: &str) -> Result<()> {
-    use schemify_core::sim::{codegen, ir};
+    use schemify_editor::sim::{codegen, ir};
 
     let mut app = App::new();
     app.open_file(file)

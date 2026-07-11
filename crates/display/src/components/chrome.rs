@@ -3,8 +3,8 @@
 
 use eframe::egui;
 
-use schemify_core::handler::{App, ViewMode};
-use schemify_core::schemify::Command;
+use schemify_editor::handler::{App, ViewMode};
+use schemify_editor::schemify::Command;
 
 
 use crate::handler::execute_vim_command;

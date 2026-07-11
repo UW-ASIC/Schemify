@@ -2,7 +2,7 @@
 
 use eframe::egui;
 
-use schemify_core::handler::App;
+use schemify_editor::handler::App;
 
 use schemify_marketplace::Marketplace;
 

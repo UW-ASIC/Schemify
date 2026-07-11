@@ -5,8 +5,8 @@
 use eframe::egui::{self, Color32, FontId, Painter, Pos2, Stroke,
     StrokeKind};
 
-use schemify_core::handler::{App, ArcStep};
-use schemify_core::schemify::{self as prim, InstanceFlags,
+use schemify_editor::handler::{App, ArcStep};
+use schemify_editor::schemify::{self as prim, InstanceFlags,
     Tool};
 
 use crate::state::Theme;

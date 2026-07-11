@@ -4,8 +4,8 @@
 
 use eframe::egui::{self, Color32, Visuals};
 
-use schemify_core::handler::ObjectRef;
-use schemify_core::schemify::Color;
+use schemify_editor::handler::ObjectRef;
+use schemify_editor::schemify::Color;
 use schemify_marketplace::SearchResult;
 use schemify_plugins::{ThemeTokens, ThemeValue};
 

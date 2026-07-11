@@ -12,9 +12,9 @@
 
 use eframe::egui::{self, RichText};
 
-use schemify_core::handler::App;
-use schemify_core::schemify::Command;
-use schemify_core::wave::format_si;
+use schemify_editor::handler::App;
+use schemify_editor::schemify::Command;
+use schemify_editor::wave::format_si;
 use schemify_optimizer::{Optimizer, Target};
 
 use crate::state::{GuiState, OptimizerViewState};

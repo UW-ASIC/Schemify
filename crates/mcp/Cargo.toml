@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-schemify-core = { path = "../core" }
+schemify-editor = { path = "../../crates2/editor" }
 schemify-net2schem = { path = "../net2schem" }
 schemify-wave = { path = "../../crates2/wave" }
 schemify-plugins = { path = "../plugins" }

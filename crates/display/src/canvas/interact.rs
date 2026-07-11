@@ -4,8 +4,8 @@
 
 use eframe::egui::{self, PointerButton, Pos2, Response};
 
-use schemify_core::handler::{App, ObjectRef, PanMode, SELECT_HIT_RADIUS_SQ};
-use schemify_core::schemify::{Command,
+use schemify_editor::handler::{App, ObjectRef, PanMode, SELECT_HIT_RADIUS_SQ};
+use schemify_editor::schemify::{Command,
     Tool};
 
 use crate::state::{CtxHit, GuiState};
@@ -23,7 +23,7 @@ pub(crate) fn snap_world(vp: &CanvasViewport, pos: Pos2, snap_size: f32) -> [i32
 }
 
 pub(crate) fn set_zoom(app: &mut App, zoom: f32) {
-    use schemify_core::handler::Viewport;
+    use schemify_editor::handler::Viewport;
     app.state.active_document_mut().viewport.zoom =
         zoom.clamp(Viewport::MIN_ZOOM, Viewport::MAX_ZOOM);
 }

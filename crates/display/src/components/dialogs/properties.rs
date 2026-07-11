@@ -2,8 +2,8 @@
 
 use eframe::egui;
 
-use schemify_core::handler::App;
-use schemify_core::schemify::Command;
+use schemify_editor::handler::App;
+use schemify_editor::schemify::Command;
 
 
 use crate::state::GuiState;

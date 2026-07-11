@@ -9,7 +9,7 @@
 
 use eframe::egui::{self, FontId, Pos2};
 
-use schemify_core::handler::App;
+use schemify_editor::handler::App;
 use schemify_plugins::OverlayLayer;
 
 use crate::state::GuiState;
@@ -87,7 +87,7 @@ pub fn show(
     gui: &mut GuiState,
     plugin_overlays: &[OverlayLayer],
 ) {
-    use schemify_core::handler::ViewMode;
+    use schemify_editor::handler::ViewMode;
 
     let rect = ui.available_rect_before_wrap();
     let viewport = CanvasViewport::from_app(app, rect);

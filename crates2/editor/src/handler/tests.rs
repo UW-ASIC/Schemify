@@ -1,10 +1,17 @@
 use super::*;
 use crate::schemify::*;
 
-    use super::*;
+    /// Dispatch a command and assert the editor handled it.
+    fn dispatch_ok(app: &mut App, cmd: Command) {
+        let r = app.dispatch(cmd);
+        assert!(
+            !matches!(r, DispatchResult::Unhandled(_)),
+            "command unexpectedly unhandled: {r:?}"
+        );
+    }
 
     fn place_resistor(app: &mut App, x: i32, y: i32) {
-        app.dispatch(Command::PlaceDevice {
+        dispatch_ok(app, Command::PlaceDevice {
             symbol_path: "resistor".into(),
             name: "R1".into(),
             x,
@@ -17,7 +24,7 @@ use crate::schemify::*;
     #[test]
     fn verilog_a_block_netlists_as_osdi() {
         let mut app = App::new();
-        app.dispatch(Command::PlaceDevice {
+        dispatch_ok(&mut app, Command::PlaceDevice {
             symbol_path: "verilog_a_block".into(),
             name: "NVA1".into(),
             x: 0,
@@ -26,7 +33,7 @@ use crate::schemify::*;
             flip: false,
         });
         for (key, value) in [("source_file", "models/my_diode.va"), ("model_name", "my_diode")] {
-            app.dispatch(Command::SetInstanceProp {
+            dispatch_ok(&mut app, Command::SetInstanceProp {
                 idx: 0,
                 key: key.into(),
                 value: value.into(),
@@ -61,22 +68,22 @@ use crate::schemify::*;
         assert!(app.state.view.show_welcome);
 
         // New from the welcome screen: still exactly one tab.
-        app.dispatch(Command::FileNew);
+        dispatch_ok(&mut app, Command::FileNew);
         assert_eq!(app.state.documents.len(), 1);
         assert!(!app.state.view.show_welcome);
 
         // New again: now a real second tab.
-        app.dispatch(Command::NewTab);
+        dispatch_ok(&mut app, Command::NewTab);
         assert_eq!(app.state.documents.len(), 2);
         assert_eq!(app.state.active_doc, 1);
 
         // Closing the second tab keeps the first open, no welcome.
-        app.dispatch(Command::CloseTab(1));
+        dispatch_ok(&mut app, Command::CloseTab(1));
         assert_eq!(app.state.documents.len(), 1);
         assert!(!app.state.view.show_welcome);
 
         // Closing the last tab returns to the welcome screen.
-        app.dispatch(Command::CloseTab(0));
+        dispatch_ok(&mut app, Command::CloseTab(0));
         assert_eq!(app.state.documents.len(), 1);
         assert!(app.state.view.show_welcome);
     }
@@ -131,7 +138,7 @@ use crate::schemify::*;
     fn doc_vars_expand_to_live_values() {
         let mut app = App::new();
         place_resistor(&mut app, 0, 0);
-        app.dispatch(Command::SetInstanceProp {
+        dispatch_ok(&mut app, Command::SetInstanceProp {
             idx: 0,
             key: "value".into(),
             value: "10k".into(),
@@ -142,7 +149,7 @@ use crate::schemify::*;
         assert_eq!(out, "R1 is 10k (10k); missing: {{R9}} {{R1.nope}} {{open");
 
         // Schematic edit propagates on next expansion — no stale copies.
-        app.dispatch(Command::SetInstanceProp {
+        dispatch_ok(&mut app, Command::SetInstanceProp {
             idx: 0,
             key: "value".into(),
             value: "22k".into(),
@@ -161,23 +168,23 @@ use crate::schemify::*;
         assert_eq!(app.schematic().instances.x[0], 100);
         assert_eq!(app.schematic().instances.kind[0], DeviceKind::Resistor);
 
-        app.dispatch(Command::Undo);
+        dispatch_ok(&mut app, Command::Undo);
         assert_eq!(app.schematic().instances.len(), 0);
 
-        app.dispatch(Command::Redo);
+        dispatch_ok(&mut app, Command::Redo);
         assert_eq!(app.schematic().instances.len(), 1);
     }
 
     #[test]
     fn add_wires_connectivity_resolves_shared_net() {
         let mut app = App::new();
-        app.dispatch(Command::AddWire {
+        dispatch_ok(&mut app, Command::AddWire {
             x0: 0,
             y0: 0,
             x1: 100,
             y1: 0,
         });
-        app.dispatch(Command::AddWire {
+        dispatch_ok(&mut app, Command::AddWire {
             x0: 100,
             y0: 0,
             x1: 200,
@@ -193,7 +200,7 @@ use crate::schemify::*;
     #[test]
     fn connectivity_cache_invalidated_by_generation() {
         let mut app = App::new();
-        app.dispatch(Command::AddWire {
+        dispatch_ok(&mut app, Command::AddWire {
             x0: 0,
             y0: 0,
             x1: 100,
@@ -203,7 +210,7 @@ use crate::schemify::*;
 
         // Disconnected second wire must show up after the mutation bumps
         // the generation past the cached one.
-        app.dispatch(Command::AddWire {
+        dispatch_ok(&mut app, Command::AddWire {
             x0: 500,
             y0: 500,
             x1: 600,
@@ -215,13 +222,13 @@ use crate::schemify::*;
     #[test]
     fn t_junction_merges_nets() {
         let mut app = App::new();
-        app.dispatch(Command::AddWire {
+        dispatch_ok(&mut app, Command::AddWire {
             x0: 0,
             y0: 0,
             x1: 200,
             y1: 0,
         });
-        app.dispatch(Command::AddWire {
+        dispatch_ok(&mut app, Command::AddWire {
             x0: 100,
             y0: -50,
             x1: 100,
@@ -237,9 +244,9 @@ use crate::schemify::*;
         app.selection_mut().insert(ObjectRef::Instance(0));
 
         let before = app.active_doc().undo_history.len(); // snapshot from PlaceDevice
-        app.dispatch(Command::NudgeRight);
-        app.dispatch(Command::NudgeRight);
-        app.dispatch(Command::NudgeDown);
+        dispatch_ok(&mut app, Command::NudgeRight);
+        dispatch_ok(&mut app, Command::NudgeRight);
+        dispatch_ok(&mut app, Command::NudgeDown);
 
         // All three nudges coalesce into one inverse MoveSelected entry.
         let doc = app.active_doc();
@@ -256,7 +263,7 @@ use crate::schemify::*;
         assert_eq!(app.schematic().instances.y[0], snap_sz);
 
         // One undo reverts the whole nudge run.
-        app.dispatch(Command::Undo);
+        dispatch_ok(&mut app, Command::Undo);
         assert_eq!(app.schematic().instances.x[0], 0);
         assert_eq!(app.schematic().instances.y[0], 0);
     }
@@ -265,7 +272,7 @@ use crate::schemify::*;
     fn delete_selected_and_undo_snapshot() {
         let mut app = App::new();
         place_resistor(&mut app, 0, 0);
-        app.dispatch(Command::AddWire {
+        dispatch_ok(&mut app, Command::AddWire {
             x0: 0,
             y0: 0,
             x1: 100,
@@ -274,11 +281,11 @@ use crate::schemify::*;
         app.selection_mut().insert(ObjectRef::Instance(0));
         app.selection_mut().insert(ObjectRef::Wire(0));
 
-        app.dispatch(Command::DeleteSelected);
+        dispatch_ok(&mut app, Command::DeleteSelected);
         assert_eq!(app.schematic().instances.len(), 0);
         assert_eq!(app.schematic().wires.len(), 0);
 
-        app.dispatch(Command::Undo);
+        dispatch_ok(&mut app, Command::Undo);
         assert_eq!(app.schematic().instances.len(), 1);
         assert_eq!(app.schematic().wires.len(), 1);
     }
@@ -324,13 +331,13 @@ use crate::schemify::*;
     #[test]
     fn label_pin_names_net() {
         let mut app = App::new();
-        app.dispatch(Command::AddWire {
+        dispatch_ok(&mut app, Command::AddWire {
             x0: 0,
             y0: 0,
             x1: 100,
             y1: 0,
         });
-        app.dispatch(Command::PlaceDevice {
+        dispatch_ok(&mut app, Command::PlaceDevice {
             symbol_path: "lab_pin".into(),
             name: "VOUT".into(),
             x: 0,
@@ -349,14 +356,14 @@ use crate::schemify::*;
         place_resistor(&mut app, 40, 60);
         app.selection_mut().insert(ObjectRef::Instance(0));
 
-        app.dispatch(Command::RotateCw);
+        dispatch_ok(&mut app, Command::RotateCw);
         assert_eq!(app.schematic().instances.flags[0].rotation(), 1);
-        app.dispatch(Command::Undo);
+        dispatch_ok(&mut app, Command::Undo);
         assert_eq!(app.schematic().instances.flags[0].rotation(), 0);
 
-        app.dispatch(Command::FlipHorizontal);
+        dispatch_ok(&mut app, Command::FlipHorizontal);
         assert!(app.schematic().instances.flags[0].flip());
-        app.dispatch(Command::Undo);
+        dispatch_ok(&mut app, Command::Undo);
         assert!(!app.schematic().instances.flags[0].flip());
     }
 
@@ -364,8 +371,8 @@ use crate::schemify::*;
     fn stimulus_lang_dispatch() {
         let mut app = App::new();
         assert_eq!(app.schematic().stimulus_lang, StimulusLang::NgSpice);
-        app.dispatch(Command::SetStimulusLang("xyce".into()));
+        dispatch_ok(&mut app, Command::SetStimulusLang("xyce".into()));
         assert_eq!(app.schematic().stimulus_lang, StimulusLang::Xyce);
-        app.dispatch(Command::SetStimulusLang("bogus".into()));
+        dispatch_ok(&mut app, Command::SetStimulusLang("bogus".into()));
         assert_eq!(app.schematic().stimulus_lang, StimulusLang::Xyce);
     }

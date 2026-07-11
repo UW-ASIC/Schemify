@@ -9,8 +9,8 @@
 
 use std::path::Path;
 
-use schemify_core::config::global_plugins_dir;
-use schemify_core::handler::App;
+use schemify_editor::config::global_plugins_dir;
+use schemify_editor::handler::App;
 use schemify_plugins::{
     methods, CommandRegistration, OverlayLayer, PanelRegistration, PluginHostAction,
     PluginLifecycle, PluginManager, ThemeOverride, WidgetNode, INTERNAL_ERROR,
@@ -270,7 +270,7 @@ impl PluginHost {
                     Some(Value::String(s)) => Value::String(snake_to_pascal(s)),
                     _ => command_json.clone(),
                 };
-                match schemify_core::marshal::command_from_json(&cmd_value) {
+                match schemify_editor::marshal::command_from_json(&cmd_value) {
                     Ok(cmd) => app.dispatch(cmd).or_status(app),
                     Err(e) => {
                         self.push_log(&plugin_id, "error", format!("dispatch failed: {e}"))
@@ -375,7 +375,7 @@ impl PluginHost {
                 request_id,
             } => {
                 let circuit = app.build_circuit_ir();
-                let spice = schemify_core::sim::codegen::emit_spice(&circuit);
+                let spice = schemify_editor::sim::codegen::emit_spice(&circuit);
                 let result = json!({
                     "spice": spice,
                     "instance_map": instance_refdes_map(app),
@@ -523,7 +523,7 @@ fn instance_refdes_map(app: &App) -> Vec<Value> {
         let cell_prefix = app.state.pdk.as_ref().and_then(|pdk| {
             pdk.cells
                 .iter()
-                .find(|(k, _)| schemify_core::schemify::DeviceKind::from_name(k) == kind)
+                .find(|(k, _)| schemify_editor::schemify::DeviceKind::from_name(k) == kind)
                 .map(|(_, c)| c.prefix)
         });
         let prefix = cell_prefix.unwrap_or(kind_prefix as char);

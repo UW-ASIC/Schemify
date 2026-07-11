@@ -3678,30 +3678,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "schemify-core",
  "schemify-display",
+ "schemify-editor",
  "schemify-mcp",
  "schemify-net2schem",
  "schemify-plugins",
  "serde_json",
-]
-
-[[package]]
-name = "schemify-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs",
- "lasso",
- "rustc-hash 2.1.2",
- "schemify-optimizer",
- "schemify-schematic",
- "schemify-sim",
- "schemify-wave",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "toml",
 ]
 
 [[package]]
@@ -3718,11 +3700,29 @@ dependencies = [
  "ratex-render",
  "ratex-types",
  "rfd",
- "schemify-core",
+ "schemify-editor",
  "schemify-marketplace",
  "schemify-optimizer",
  "schemify-plugins",
  "serde_json",
+]
+
+[[package]]
+name = "schemify-editor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "lasso",
+ "rustc-hash 2.1.2",
+ "schemify-optimizer",
+ "schemify-schematic",
+ "schemify-sim",
+ "schemify-wave",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "toml",
 ]
 
 [[package]]
@@ -3745,7 +3745,7 @@ name = "schemify-mcp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "schemify-core",
+ "schemify-editor",
  "schemify-marketplace",
  "schemify-net2schem",
  "schemify-plugins",

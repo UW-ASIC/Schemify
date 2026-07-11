@@ -2,8 +2,8 @@
 
 use eframe::egui;
 
-use schemify_core::handler::{App, Origin, ViewMode};
-use schemify_core::schemify::{Command, SpiceBackend, StimulusLang, Tool};
+use schemify_editor::handler::{App, Origin, ViewMode};
+use schemify_editor::schemify::{Command, SpiceBackend, StimulusLang, Tool};
 
 use schemify_plugins::PluginLifecycle;
 

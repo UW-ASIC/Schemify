@@ -1,10 +1,10 @@
 [workspace]
 members = [
-    "crates/core",
     "crates/net2schem",
     "crates/display",
     "crates/mcp",
     "crates/plugins",
+    "crates2/editor",
     "crates2/optimizer",
     "crates2/plugin-api",
     "crates2/schematic",
@@ -47,7 +47,7 @@ name = "schemify"
 path = "src/main.rs"
 
 [dependencies]
-schemify-core = { path = "crates/core" }
+schemify-editor = { path = "crates2/editor" }
 schemify-net2schem = { path = "crates/net2schem" }
 schemify-display = { path = "crates/display" }
 schemify-mcp = { path = "crates/mcp" }

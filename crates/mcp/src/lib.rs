@@ -19,7 +19,7 @@ mod query;
 use query::*;
 
 /// Back-compat: marshaling moved to core (next to `Command`).
-pub use schemify_core::marshal::command_from_json;
+pub use schemify_editor::marshal::command_from_json;
 
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -29,10 +29,10 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context, Result};
 use serde_json::{json, Value};
 
-use schemify_core::config;
-use schemify_core::handler::{self, App, DispatchResult, Document, Origin};
-use schemify_core::schemify::Command;
-use schemify_core::sim::codegen::emit_pyspice;
+use schemify_editor::config;
+use schemify_editor::handler::{self, App, DispatchResult, Document, Origin};
+use schemify_editor::schemify::Command;
+use schemify_editor::sim::codegen::emit_pyspice;
 use schemify_marketplace::Marketplace;
 use schemify_net2schem::emit::schematic_from_subcircuit;
 use schemify_plugins::PluginManager;
@@ -559,8 +559,8 @@ fn import_spice(app: &mut App, path: &str) -> Result<Value> {
     Ok(json!({"ok": true, "documents": opened, "skipped_lines": skipped}))
 }
 
-fn push_imported_doc(app: &mut App, schematic: schemify_core::schemify::Schematic, name: &str) {
-    let (stem, kind) = schemify_core::handler::DocKind::split_name(name);
+fn push_imported_doc(app: &mut App, schematic: schemify_editor::schemify::Schematic, name: &str) {
+    let (stem, kind) = schemify_editor::handler::DocKind::split_name(name);
     let mut doc = Document::default();
     doc.schematic = schematic;
     doc.name = stem.to_string();

@@ -11,9 +11,9 @@
 
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Shape, Stroke, Vec2};
 
-use schemify_core::handler::App;
-use schemify_core::schemify::{Color, Command};
-use schemify_core::wave::{format_si, LineStyle, WaveState};
+use schemify_editor::handler::App;
+use schemify_editor::schemify::{Color, Command};
+use schemify_editor::wave::{format_si, LineStyle, WaveState};
 
 use crate::state::GuiState;
 
@@ -157,7 +157,7 @@ fn top_bar(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
             };
 
             if ui.button("Add pane").clicked() {
-                w.panes.push(schemify_core::wave::Pane::default());
+                w.panes.push(schemify_editor::wave::Pane::default());
                 w.active_pane = (w.panes.len() - 1) as u16;
             }
             if w.panes.len() > 1 && ui.button("Remove pane").clicked() {

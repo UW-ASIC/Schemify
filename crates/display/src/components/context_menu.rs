@@ -2,8 +2,8 @@
 
 use eframe::egui;
 
-use schemify_core::handler::{App, ObjectRef};
-use schemify_core::schemify::{Color, Command};
+use schemify_editor::handler::{App, ObjectRef};
+use schemify_editor::schemify::{Color, Command};
 
 
 use crate::state::{CtxHit, GuiState};

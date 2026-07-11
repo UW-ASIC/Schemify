@@ -3,8 +3,8 @@
 
 use eframe::egui;
 
-use schemify_core::handler::{App, ObjectRef};
-use schemify_core::schemify::Command;
+use schemify_editor::handler::{App, ObjectRef};
+use schemify_editor::schemify::Command;
 
 use schemify_marketplace::Marketplace;
 

@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use eframe::egui::{self, Color32, FontId, Painter, Pos2, Stroke,
     StrokeKind};
 
-use schemify_core::handler::{App, ObjectRef};
-use schemify_core::schemify::{self as prim, DeviceKind, InstanceFlags, PinDirection,
+use schemify_editor::handler::{App, ObjectRef};
+use schemify_editor::schemify::{self as prim, DeviceKind, InstanceFlags, PinDirection,
     Tool};
 use schemify_plugins::{MarkerKind, OverlayLayer, OverlayShape};
 

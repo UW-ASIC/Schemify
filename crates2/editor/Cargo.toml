@@ -1,13 +1,13 @@
 [package]
-name = "schemify-core"
+name = "schemify-editor"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-schemify-wave = { path = "../../crates2/wave" }
-schemify-optimizer = { path = "../../crates2/optimizer" }
-schemify-schematic = { path = "../../crates2/schematic" }
-schemify-sim = { path = "../../crates2/sim" }
+schemify-wave = { path = "../wave" }
+schemify-optimizer = { path = "../optimizer" }
+schemify-schematic = { path = "../schematic" }
+schemify-sim = { path = "../sim" }
 lasso = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

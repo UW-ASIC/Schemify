@@ -4,8 +4,8 @@
 
 use eframe::egui;
 
-use schemify_core::handler::ViewMode;
-use schemify_core::schemify::{Command, Tool};
+use schemify_editor::handler::ViewMode;
+use schemify_editor::schemify::{Command, Tool};
 
 /// Commands that can originate from a keybind. GUI-only variants are
 /// executed by the display crate; `Dispatch` goes straight to the core.

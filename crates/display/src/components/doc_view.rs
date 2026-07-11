@@ -2,8 +2,8 @@
 
 use eframe::egui;
 
-use schemify_core::handler::App;
-use schemify_core::schemify::Command;
+use schemify_editor::handler::App;
+use schemify_editor::schemify::Command;
 
 
 use crate::state::GuiState;
@@ -40,7 +40,7 @@ pub fn doc_view(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
             // Live value refs: {{R1}} / {{R1.value}} re-expand every
             // frame, so schematic edits show up immediately. Expansion
             // runs before math conversion, so refs inside $...$ work.
-            let rendered = schemify_core::handler::expand_doc_vars(
+            let rendered = schemify_editor::handler::expand_doc_vars(
                 &gui.doc_buf,
                 app.schematic(),
                 &app.state.interner,

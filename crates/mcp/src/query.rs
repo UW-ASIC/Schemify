@@ -8,8 +8,8 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 
-use schemify_core::handler::{self, App, Origin, ViewMode};
-use schemify_core::schemify::{Color, DeviceKind, NetConnKind};
+use schemify_editor::handler::{self, App, Origin, ViewMode};
+use schemify_editor::schemify::{Color, DeviceKind, NetConnKind};
 
 // ════════════════════════════════════════════════════════════
 // Queries
@@ -268,7 +268,7 @@ pub(crate) fn save_path(app: &App, params: &Value) -> Result<PathBuf> {
     }
 }
 
-pub(crate) use schemify_core::marshal::{f64_or_si, f64_vec, num, opt_f64, opt_f64_vec, opt_num, req_bool, req_str, target_str};
+pub(crate) use schemify_editor::marshal::{f64_or_si, f64_vec, num, opt_f64, opt_f64_vec, opt_num, req_bool, req_str, target_str};
 
 /// Plugin id for marketplace methods: `id` preferred, `name` accepted
 /// for backwards compatibility.
@@ -300,7 +300,7 @@ pub(crate) fn view_mode_name(mode: ViewMode) -> &'static str {
 // viewer through these + dispatched Wave* commands (no embedded assistant).
 // ════════════════════════════════════════════════════════════
 
-pub(crate) fn wave_of(app: &App) -> Result<&schemify_core::wave::WaveState> {
+pub(crate) fn wave_of(app: &App) -> Result<&schemify_editor::wave::WaveState> {
     app.state
         .wave
         .as_deref()
@@ -384,9 +384,9 @@ pub(crate) fn query_traces(app: &App) -> Result<Value> {
                 "color": color_hex(w.trace_color(i)),
                 "width": t.style.width,
                 "line_style": match t.style.line_style {
-                    schemify_core::wave::LineStyle::Solid => "solid",
-                    schemify_core::wave::LineStyle::Dash => "dash",
-                    schemify_core::wave::LineStyle::Dot => "dot",
+                    schemify_editor::wave::LineStyle::Solid => "solid",
+                    schemify_editor::wave::LineStyle::Dash => "dash",
+                    schemify_editor::wave::LineStyle::Dot => "dot",
                 },
                 "visible": t.style.visible,
             })

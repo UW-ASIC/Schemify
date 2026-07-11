@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 
 use eframe::egui;
 
-use schemify_core::handler::{App, ViewMode};
-use schemify_core::schemify::{Command, Tool};
+use schemify_editor::handler::{App, ViewMode};
+use schemify_editor::schemify::{Command, Tool};
 
 use crate::components;
 use crate::keybinds::{self, KeyCommand};
