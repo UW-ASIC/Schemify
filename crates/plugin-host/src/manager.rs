@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use schemify_plugin_api::protocol::*;
 
-use crate::decode::{handle_notification, handle_request, negotiate, NegotiatedCapabilities};
+use crate::decode::{handle_notification, handle_request, negotiate, LogLevel, NegotiatedCapabilities};
 use crate::manifest::{ManifestError, PluginManifest};
 use crate::transport::{SubprocessTransport, TransportError};
 
@@ -17,9 +17,7 @@ use crate::transport::{SubprocessTransport, TransportError};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PluginLifecycle {
     Discovered,
-    Starting,
     Running,
-    Stopping,
     Stopped,
     Error,
 }
@@ -49,7 +47,7 @@ pub enum PluginHostAction {
     },
     Log {
         plugin_id: String,
-        level: String,
+        level: LogLevel,
         message: String,
     },
     QueryInstances {
@@ -105,12 +103,9 @@ pub enum PluginError {
     /// Operation requires the plugin to be running.
     #[error("plugin {0} is not running")]
     NotRunning(String),
-    /// Plugin is already running or starting.
+    /// Plugin is already running.
     #[error("plugin {0} is already running")]
     AlreadyRunning(String),
-    /// Plugin is mid-shutdown.
-    #[error("plugin {0} is stopping")]
-    Stopping(String),
 }
 
 /// Per-plugin runtime slot, keyed by plugin id.
@@ -126,7 +121,6 @@ struct PluginSlot {
 /// Manages discovery, lifecycle, and IPC for all plugins.
 pub struct PluginManager {
     plugins: HashMap<String, PluginSlot>,
-    next_rpc_id: u32,
     host_caps: HostCapabilities,
     scan_dirs: Vec<PathBuf>,
     /// Max messages drained per plugin per tick.
@@ -137,7 +131,6 @@ impl PluginManager {
     pub fn new() -> Self {
         Self {
             plugins: HashMap::new(),
-            next_rpc_id: 1,
             host_caps: HostCapabilities::default(),
             scan_dirs: Vec::new(),
             max_drain: 16,
@@ -209,10 +202,6 @@ impl PluginManager {
         self.plugins.keys().map(String::as_str)
     }
 
-    pub fn plugin_count(&self) -> usize {
-        self.plugins.len()
-    }
-
     pub fn state(&self, id: &str) -> Option<PluginLifecycle> {
         self.plugins.get(id).map(|s| s.state)
     }
@@ -224,10 +213,6 @@ impl PluginManager {
     /// Error message for a plugin in Error state.
     pub fn error_msg(&self, id: &str) -> Option<&str> {
         self.plugins.get(id).and_then(|s| s.error_msg.as_deref())
-    }
-
-    pub fn capabilities(&self, id: &str) -> Option<NegotiatedCapabilities> {
-        self.plugins.get(id).map(|s| s.caps)
     }
 
     /// Remove a plugin from the manager entirely (after uninstall).
@@ -259,15 +244,11 @@ impl PluginManager {
 
         match slot.state {
             PluginLifecycle::Discovered | PluginLifecycle::Stopped | PluginLifecycle::Error => {}
-            PluginLifecycle::Running | PluginLifecycle::Starting => {
+            PluginLifecycle::Running => {
                 return Err(PluginError::AlreadyRunning(id.to_owned()));
-            }
-            PluginLifecycle::Stopping => {
-                return Err(PluginError::Stopping(id.to_owned()));
             }
         }
 
-        slot.state = PluginLifecycle::Starting;
         slot.error_msg = None;
 
         let fail = |slot: &mut PluginSlot, err: PluginError| {
@@ -308,7 +289,6 @@ impl PluginManager {
         if slot.state != PluginLifecycle::Running {
             return Err(PluginError::NotRunning(id.to_owned()));
         }
-        slot.state = PluginLifecycle::Stopping;
         if let Some(ref mut t) = slot.transport {
             if let Ok(msg) = notification(methods::SHUTDOWN, None) {
                 let _ = t.send(&msg);
@@ -332,10 +312,7 @@ impl PluginManager {
                 t.stop();
             }
             slot.transport = None;
-            if matches!(
-                slot.state,
-                PluginLifecycle::Running | PluginLifecycle::Starting | PluginLifecycle::Stopping
-            ) {
+            if slot.state == PluginLifecycle::Running {
                 slot.state = PluginLifecycle::Stopped;
             }
         }
@@ -383,7 +360,7 @@ impl PluginManager {
                             Ok(None) => {}
                             Err(e) => actions.push(PluginHostAction::Log {
                                 plugin_id: id.clone(),
-                                level: "error".into(),
+                                level: LogLevel::Error,
                                 message: e,
                             }),
                         }
@@ -468,20 +445,6 @@ impl PluginManager {
         let line = error_response(request_id, code, message)?;
         self.send_line(id, line)
     }
-
-    /// Send a request to a plugin; returns the request id.
-    pub fn request(
-        &mut self,
-        id: &str,
-        method: &str,
-        params: Option<Value>,
-    ) -> Result<u32, PluginError> {
-        let rpc_id = self.next_rpc_id;
-        self.next_rpc_id = self.next_rpc_id.wrapping_add(1);
-        let line = request(rpc_id, method, params)?;
-        self.send_line(id, line)?;
-        Ok(rpc_id)
-    }
 }
 
 impl Default for PluginManager {
@@ -532,13 +495,6 @@ keybind = "Ctrl+Shift+P"
         assert_eq!(m.plugin.version, "1.0.0");
         assert!(m.capabilities.panels);
         assert!(!m.capabilities.overlays);
-        assert_eq!(m.panels.panel.len(), 1);
-        assert_eq!(m.panels.panel[0].slot, "RightSidebar");
-        assert_eq!(m.commands.command.len(), 1);
-        assert_eq!(
-            m.commands.command[0].keybind.as_deref(),
-            Some("Ctrl+Shift+P")
-        );
     }
 
     #[test]
@@ -549,8 +505,6 @@ keybind = "Ctrl+Shift+P"
         .unwrap();
         assert_eq!(m.plugin.id, "bare");
         assert!(!m.capabilities.panels);
-        assert!(m.panels.panel.is_empty());
-        assert!(m.commands.command.is_empty());
     }
 
     #[test]
@@ -793,7 +747,7 @@ listen = ["pre_save"]
         )
         .unwrap();
         match action {
-            Some(PluginHostAction::Log { level, .. }) => assert_eq!(level, "info"),
+            Some(PluginHostAction::Log { level, .. }) => assert_eq!(level, LogLevel::Info),
             other => panic!("expected Log, got {other:?}"),
         }
     }
@@ -939,7 +893,7 @@ listen = ["pre_save"]
         let mut mgr = PluginManager::new();
         let errors = mgr.discover(&tmp);
         assert_eq!(errors.len(), 1);
-        assert_eq!(mgr.plugin_count(), 0);
+        assert_eq!(mgr.plugins.len(), 0);
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -961,7 +915,7 @@ listen = ["pre_save"]
         mgr.add_scan_dir(dir_b);
         let errors = mgr.scan_directories();
         assert!(errors.is_empty());
-        assert_eq!(mgr.plugin_count(), 2);
+        assert_eq!(mgr.plugins.len(), 2);
 
         let _ = fs::remove_dir_all(&base);
     }

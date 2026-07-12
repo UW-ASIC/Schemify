@@ -1,8 +1,8 @@
 [workspace]
 members = [
+    "crates/agent",
     "crates/editor",
     "crates/gui",
-    "crates/mcp",
     "crates/net2schem",
     "crates/optimizer",
     "crates/plugin-api",
@@ -32,6 +32,7 @@ lasso = "0.7"
 rustc-hash = "2"
 toml = "0.8"
 cktimg = { git = "https://github.com/OmarSiwy/cktImg" }
+cktimg-svg = { git = "https://github.com/OmarSiwy/cktImg" } # dev-only: fixture gallery reference renders
 
 [package]
 name = "schemify"
@@ -46,7 +47,7 @@ path = "src/main.rs"
 schemify-editor = { path = "crates/editor" }
 schemify-net2schem = { path = "crates/net2schem" }
 schemify-gui = { path = "crates/gui" }
-schemify-mcp = { path = "crates/mcp" }
+schemify-agent = { path = "crates/agent" }
 schemify-plugin-host = { path = "crates/plugin-host" }
 clap = { version = "4", features = ["derive"] }
 serde_json = { workspace = true }

@@ -32,24 +32,6 @@ pub struct ManifestCapabilities {
     pub optimizer: bool,
 }
 
-/// A panel declared in the manifest.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ManifestPanel {
-    pub name: String,
-    pub slot: String,
-    #[serde(default)]
-    pub priority: i32,
-}
-
-/// A command declared in the manifest.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ManifestCommand {
-    pub name: String,
-    #[serde(default)]
-    pub description: String,
-    pub keybind: Option<String>,
-}
-
 /// Top-level [plugin] section.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ManifestPlugin {
@@ -61,31 +43,16 @@ pub struct ManifestPlugin {
     pub entry: String,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct ManifestPanels {
-    #[serde(default)]
-    pub panel: Vec<ManifestPanel>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct ManifestCommands {
-    #[serde(default)]
-    pub command: Vec<ManifestCommand>,
-}
-
 /// Full plugin.toml manifest.
 ///
-/// Unknown keys (legacy `[sandbox]`, `[events]`, `runtime`, `api_version`)
-/// are ignored by serde, so old manifests still parse.
+/// Unknown keys (legacy `[sandbox]`, `[events]`, `runtime`, `api_version`,
+/// declarative `[panels]`/`[commands]` — panels and commands register at
+/// runtime via RPC) are ignored by serde, so old manifests still parse.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PluginManifest {
     pub plugin: ManifestPlugin,
     #[serde(default)]
     pub capabilities: ManifestCapabilities,
-    #[serde(default)]
-    pub panels: ManifestPanels,
-    #[serde(default)]
-    pub commands: ManifestCommands,
 }
 
 /// Validate a plugin id: `[a-z0-9][a-z0-9-]*[a-z0-9]`, 3-64 chars.

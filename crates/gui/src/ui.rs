@@ -34,6 +34,12 @@ pub struct SchemifyGui {
     /// shared with a headful MCP server when one runs.
     service: Arc<Mutex<PluginService>>,
     pub plugins: PluginHost,
+    /// Live agent session runtime (event channel + kill handle).
+    #[cfg(not(target_arch = "wasm32"))]
+    agent_rt: crate::agent_view::AgentRuntime,
+    /// Unix socket where this process serves its MCP tools to agents.
+    #[cfg(not(target_arch = "wasm32"))]
+    mcp_socket: std::path::PathBuf,
 }
 
 impl SchemifyGui {
@@ -47,6 +53,26 @@ impl SchemifyGui {
         if let (Ok(mut svc), Ok(guard)) = (service.lock(), app.lock()) {
             plugins.refresh(&mut svc.manager, &guard.state.project_dir);
         }
+        // Serve this process's MCP tools on a unix socket so spawned agent
+        // CLIs (assistant panel) can drive the live App. Direct sink: the
+        // socket thread dispatches through the shared mutex.
+        #[cfg(not(target_arch = "wasm32"))]
+        let mcp_socket = {
+            use schemify_agent::{protocol::McpToolServer, socket, McpServer, Sink};
+            let path = socket::default_socket_path();
+            let srv = McpToolServer::new(McpServer::new(
+                Arc::clone(&app),
+                Sink::Direct,
+                Arc::clone(&service),
+            ));
+            let p = path.clone();
+            std::thread::spawn(move || {
+                if let Err(e) = socket::serve(srv, &p) {
+                    log::error!("agent mcp socket: {e}");
+                }
+            });
+            path
+        };
         Self {
             app,
             gui: GuiState::default(),
@@ -54,6 +80,10 @@ impl SchemifyGui {
             applied_dark: None,
             service,
             plugins,
+            #[cfg(not(target_arch = "wasm32"))]
+            agent_rt: crate::agent_view::AgentRuntime::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            mcp_socket,
         }
     }
 
@@ -112,6 +142,10 @@ impl eframe::App for SchemifyGui {
 
         // Plugin panels claim side/bottom space before the CentralPanel.
         components::plugin_panels::show_panels(ui, &mut self.plugins, &self.gui.theme);
+
+        // AI assistant chat panel (agents drive the app via the MCP socket).
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::agent_view::panel(ui, app, &mut self.gui, &mut self.agent_rt, &self.mcp_socket);
 
         // Central region: welcome / doc view / canvas.
         egui::CentralPanel::default().show(ui, |ui| {

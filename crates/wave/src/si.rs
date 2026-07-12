@@ -34,22 +34,21 @@ pub fn parse_si(s: &str) -> Option<f64> {
     if tail.is_empty() {
         return Some(num);
     }
-    let mult = suffix_multiplier(tail)?;
-    Some(num * mult)
+    Some(num * suffix_multiplier(tail))
 }
 
 /// Multiplier for a SPICE suffix (with possible trailing unit letters).
-fn suffix_multiplier(tail: &str) -> Option<f64> {
+fn suffix_multiplier(tail: &str) -> f64 {
     let t = tail.to_ascii_lowercase();
     // `meg` / `mil` are the only multi-letter suffixes; check them first so
     // `meg` doesn't parse as milli.
     if t.starts_with("meg") {
-        return Some(1e6);
+        return 1e6;
     }
     if t.starts_with("mil") {
-        return Some(25.4e-6);
+        return 25.4e-6;
     }
-    let mult = match t.as_bytes()[0] {
+    match t.as_bytes()[0] {
         b'f' => 1e-15,
         b'p' => 1e-12,
         b'n' => 1e-9,
@@ -60,8 +59,7 @@ fn suffix_multiplier(tail: &str) -> Option<f64> {
         b't' => 1e12,
         // Bare unit letter ("10V") — no scaling.
         _ => 1.0,
-    };
-    Some(mult)
+    }
 }
 
 /// Format with an engineering prefix: `3.3e-9` → `"3.3n"`, `1.2e4` → `"12k"`.

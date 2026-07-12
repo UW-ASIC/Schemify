@@ -23,12 +23,12 @@ const UNEVALUATED: f64 = f64::MAX;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Phase {
     /// Evaluating the initial simplex; `next` is the vertex awaiting a score.
-    BuildingSimplex { next: u8 },
+    BuildingSimplex { next: u32 },
     Reflecting,
     Expanding,
     Contracting { outside: bool },
     /// Re-evaluating shrunk vertices one at a time; `next` is the row index.
-    Shrinking { next: u8 },
+    Shrinking { next: u32 },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -103,7 +103,7 @@ impl NelderMead {
                 let next = next as usize + 1;
                 if next <= n {
                     self.candidate = self.row(next).to_vec();
-                    self.phase = Phase::BuildingSimplex { next: next as u8 };
+                    self.phase = Phase::BuildingSimplex { next: next as u32 };
                 } else {
                     self.sort();
                     self.begin_iteration();
@@ -124,7 +124,7 @@ impl NelderMead {
                     self.candidate = xe;
                     self.phase = Phase::Expanding;
                 } else if score < self.fvals[n - 1] {
-                    let point = self.candidate.clone();
+                    let point = std::mem::take(&mut self.candidate);
                     self.replace_worst(&point, score);
                 } else {
                     self.reflected = self.candidate.clone();
@@ -149,12 +149,11 @@ impl NelderMead {
             Phase::Expanding => {
                 // Keep whichever of expansion/reflection scored lower.
                 if score < self.f_reflected {
-                    let point = self.candidate.clone();
+                    let point = std::mem::take(&mut self.candidate);
                     self.replace_worst(&point, score);
                 } else {
-                    let point = self.reflected.clone();
-                    let f = self.f_reflected;
-                    self.replace_worst(&point, f);
+                    let point = std::mem::take(&mut self.reflected);
+                    self.replace_worst(&point, self.f_reflected);
                 }
             }
             Phase::Contracting { outside } => {
@@ -164,7 +163,7 @@ impl NelderMead {
                     score < self.fvals[n]
                 };
                 if accept {
-                    let point = self.candidate.clone();
+                    let point = std::mem::take(&mut self.candidate);
                     self.replace_worst(&point, score);
                 } else {
                     // Contraction failed: shrink everything toward the best
@@ -185,7 +184,7 @@ impl NelderMead {
                 let next = next as usize + 1;
                 if next <= n {
                     self.candidate = self.row(next).to_vec();
-                    self.phase = Phase::Shrinking { next: next as u8 };
+                    self.phase = Phase::Shrinking { next: next as u32 };
                 } else {
                     self.sort();
                     self.begin_iteration();

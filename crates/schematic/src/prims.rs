@@ -57,13 +57,8 @@ pub struct PrimEntry {
     pub kind_name: &'static str,
     pub kind: DeviceKind,
     pub prefix: u8,
-    pub pins: Vec<&'static str>,
     pub params: Vec<(&'static str, &'static str)>,
-    pub model_keyword: Option<&'static str>,
-    pub spice_format: Option<&'static str>,
-    pub block_type: &'static str,
     pub non_electrical: bool,
-    pub injected_net: Option<&'static str>,
     // Drawing geometry
     pub segments: Vec<DrawSeg>,
     pub circles: Vec<DrawCircle>,
@@ -90,6 +85,11 @@ pub static PRIMITIVES: LazyLock<Vec<PrimEntry>> = LazyLock::new(build_prim_table
 /// symbols for project `.chn` subcircuits. Entries are leaked to `'static`
 /// so the same lookup paths serve built-in and runtime symbols; a project
 /// reload leaks the previous slice (a few KB, lifetime = program).
+///
+/// Deliberately process-global despite lib.rs's "no App state" claim: the
+/// pdk-switcher plugin's `reload_project_config` action swaps prims at
+/// runtime via the editor's `register_runtime`, and `resolve_connectivity`
+/// reads it implicitly through `find_symbol`.
 static RUNTIME: RwLock<&'static [PrimEntry]> = RwLock::new(&[]);
 
 /// Replace the runtime prim set (called on project config reload).
@@ -124,10 +124,6 @@ pub fn find_symbol(symbol: &str, kind: DeviceKind) -> Option<&'static PrimEntry>
     find_by_kind(kind)
 }
 
-pub fn prim_count() -> usize {
-    PRIMITIVES.len()
-}
-
 /// Parse a runtime `.chn_prim` source. The caller leaks the file content to
 /// `'static` (registry entries live for the program). Names that don't match
 /// a built-in [`DeviceKind`] netlist as subcircuit instances.
@@ -136,7 +132,6 @@ pub fn parse_chn_prim(src: &'static str) -> Option<PrimEntry> {
         src,
         kind_override: None,
         non_electrical: false,
-        injected_net: None,
     });
     if entry.kind_name.is_empty() {
         return None;
@@ -195,13 +190,8 @@ pub fn box_symbol(name: &'static str, pins: &[(&'static str, bool)]) -> PrimEntr
         kind_name: name,
         kind: DeviceKind::Subckt,
         prefix: b'X',
-        pins: pins.iter().map(|&(p, _)| p).collect(),
         params: Vec::new(),
-        model_keyword: None,
-        spice_format: None,
-        block_type: "subckt",
         non_electrical: false,
-        injected_net: None,
         segments,
         circles: Vec::new(),
         arcs: Vec::new(),
@@ -226,7 +216,6 @@ struct EmbeddedPrim {
     src: &'static str,
     kind_override: Option<&'static str>,
     non_electrical: bool,
-    injected_net: Option<&'static str>,
 }
 
 fn build_prim_table() -> Vec<PrimEntry> {
@@ -267,41 +256,13 @@ fn build_prim_table() -> Vec<PrimEntry> {
         ep(include_str!("../primitives/tline.chn_prim")),
         ep(include_str!("../primitives/coupling.chn_prim")),
         // Non-electrical / UI
-        ep_special(
-            include_str!("../primitives/gnd.chn_prim"),
-            true,
-            Some("0"),
-        ),
-        ep_special(
-            include_str!("../primitives/vdd.chn_prim"),
-            true,
-            Some("VDD"),
-        ),
-        ep_special(
-            include_str!("../primitives/lab_pin.chn_prim"),
-            true,
-            None,
-        ),
-        ep_special(
-            include_str!("../primitives/input_pin.chn_prim"),
-            true,
-            None,
-        ),
-        ep_special(
-            include_str!("../primitives/output_pin.chn_prim"),
-            true,
-            None,
-        ),
-        ep_special(
-            include_str!("../primitives/inout_pin.chn_prim"),
-            true,
-            None,
-        ),
-        ep_special(
-            include_str!("../primitives/probe.chn_prim"),
-            true,
-            None,
-        ),
+        ep_special(include_str!("../primitives/gnd.chn_prim")),
+        ep_special(include_str!("../primitives/vdd.chn_prim")),
+        ep_special(include_str!("../primitives/lab_pin.chn_prim")),
+        ep_special(include_str!("../primitives/input_pin.chn_prim")),
+        ep_special(include_str!("../primitives/output_pin.chn_prim")),
+        ep_special(include_str!("../primitives/inout_pin.chn_prim")),
+        ep_special(include_str!("../primitives/probe.chn_prim")),
         // Digital / HDL blocks
         ep(include_str!("../primitives/digital_block.chn_prim")),
         ep(include_str!("../primitives/verilog_a_block.chn_prim")),
@@ -316,7 +277,6 @@ fn ep(src: &'static str) -> EmbeddedPrim {
         src,
         kind_override: None,
         non_electrical: false,
-        injected_net: None,
     }
 }
 
@@ -325,20 +285,14 @@ fn ep_override(src: &'static str, kind: &'static str) -> EmbeddedPrim {
         src,
         kind_override: Some(kind),
         non_electrical: false,
-        injected_net: None,
     }
 }
 
-fn ep_special(
-    src: &'static str,
-    non_electrical: bool,
-    injected_net: Option<&'static str>,
-) -> EmbeddedPrim {
+fn ep_special(src: &'static str) -> EmbeddedPrim {
     EmbeddedPrim {
         src,
         kind_override: None,
-        non_electrical,
-        injected_net,
+        non_electrical: true,
     }
 }
 
@@ -360,13 +314,8 @@ fn parse_prim(meta: &EmbeddedPrim) -> PrimEntry {
         kind_name: "",
         kind: DeviceKind::Unknown,
         prefix: 0,
-        pins: Vec::new(),
         params: Vec::new(),
-        model_keyword: None,
-        spice_format: None,
-        block_type: "",
         non_electrical: meta.non_electrical,
-        injected_net: meta.injected_net,
         segments: Vec::new(),
         circles: Vec::new(),
         arcs: Vec::new(),
@@ -375,6 +324,8 @@ fn parse_prim(meta: &EmbeddedPrim) -> PrimEntry {
         pin_positions: Vec::new(),
     };
 
+    // Names the netlist role for kind dispatch below; not stored on the entry.
+    let mut block_type = "";
     let mut state = PrimState::Top;
 
     for raw_line in src.lines() {
@@ -412,14 +363,13 @@ fn parse_prim(meta: &EmbeddedPrim) -> PrimEntry {
             }
             continue;
         }
-        if let Some(rest) = line.strip_prefix("spice_format:") {
+        if line.starts_with("spice_format:") {
             state = PrimState::Top;
-            entry.spice_format = Some(rest.trim());
             continue;
         }
         if let Some(rest) = line.strip_prefix("block_type:") {
             state = PrimState::Top;
-            entry.block_type = rest.trim();
+            block_type = rest.trim();
             continue;
         }
         if line.starts_with("spice_lib:") {
@@ -482,12 +432,9 @@ fn parse_prim(meta: &EmbeddedPrim) -> PrimEntry {
         // Data item parsing
         match state {
             PrimState::Top | PrimState::Drawing => {}
-            PrimState::Pins => {
-                let tok = first_token(line);
-                if !tok.is_empty() {
-                    entry.pins.push(tok);
-                }
-            }
+            // Netlist pin order comes from pin_positions; the pins section
+            // only carries directions, which nothing consumes yet.
+            PrimState::Pins => {}
             PrimState::Params => {
                 if let Some(eq) = line.find('=') {
                     let k = line[..eq].trim();
@@ -524,17 +471,9 @@ fn parse_prim(meta: &EmbeddedPrim) -> PrimEntry {
         }
     }
 
-    // Derive model_keyword from "model" param
-    for &(k, v) in &entry.params {
-        if k == "model" {
-            entry.model_keyword = Some(v);
-            break;
-        }
-    }
-
     // block_type names the netlist role directly and wins over name-based
     // detection, so user prims dispatch correctly whatever their SYMBOL name.
-    entry.kind = match entry.block_type {
+    entry.kind = match block_type {
         "verilog_a" => DeviceKind::Hdl,
         "digital" => DeviceKind::DigitalInstance,
         "lib" | "subckt" => DeviceKind::Subckt,
@@ -644,14 +583,6 @@ fn parse_prim_text(s: &'static str) -> Option<DrawText> {
     })
 }
 
-fn first_token(s: &'static str) -> &'static str {
-    let end = s
-        .bytes()
-        .position(|b| b == b' ' || b == b'\t')
-        .unwrap_or(s.len());
-    &s[..end]
-}
-
 // ====================================================
 // .chn Reader (line-by-line state machine; graceful degrade —
 // malformed fields fall back to defaults and are reported as warnings)
@@ -665,17 +596,18 @@ mod tests {
 
     #[test]
     fn primitives_load_count() {
-        assert_eq!(prim_count(), 36);
+        assert_eq!(PRIMITIVES.len(), 36);
         for p in PRIMITIVES.iter() {
             assert!(!p.kind_name.is_empty(), "prim missing kind_name");
             assert!(p.has_drawing(), "{} has no drawing", p.kind_name);
         }
         let nmos = find_by_name("nmos4").expect("nmos4 not found");
         assert_eq!(nmos.prefix, b'M');
-        assert_eq!(nmos.pins, ["d", "g", "s", "b"]);
-        assert_eq!(nmos.model_keyword, Some("nch"));
+        let pin_names: Vec<_> = nmos.pin_positions.iter().map(|p| p.name).collect();
+        assert_eq!(pin_names, ["d", "g", "s", "b"]);
+        assert!(nmos.params.iter().any(|&(k, v)| k == "model" && v == "nch"));
         let g = find_by_name("gnd").expect("gnd not found");
         assert!(g.non_electrical);
-        assert_eq!(g.injected_net, Some("0"));
+        assert_eq!(g.kind.injected_net(), Some("0"));
     }
 }

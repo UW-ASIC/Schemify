@@ -144,7 +144,6 @@
         writer: Box<dyn Write + Send>,
         next_id: u32,
         deferred: VecDeque<IncomingMessage>,
-        initialized: Option<InitializeEvent>,
     }
 
     impl PluginRuntime {
@@ -155,7 +154,6 @@
                 writer: Box::new(io::stdout()),
                 next_id: 1,
                 deferred: VecDeque::new(),
-                initialized: None,
             }
         }
 
@@ -163,10 +161,7 @@
         pub fn run<P: Plugin>(&mut self, plugin: &mut P) -> Result<(), RuntimeError> {
             loop {
                 match self.read_event()? {
-                    HostEvent::Initialize(event) => {
-                        self.initialized = Some(event.clone());
-                        plugin.on_initialize(self, event)?;
-                    }
+                    HostEvent::Initialize(event) => plugin.on_initialize(self, event)?,
                     HostEvent::Shutdown => {
                         plugin.on_shutdown(self)?;
                         return Ok(());
@@ -182,11 +177,6 @@
                     }
                 }
             }
-        }
-
-        /// The initialize event, if received.
-        pub fn initialized(&self) -> Option<&InitializeEvent> {
-            self.initialized.as_ref()
         }
 
         // ── Host API: notifications ────────────────────────────────────────
@@ -446,10 +436,4 @@
             methods::UI_ACTION => HostEvent::UiAction(serde_json::from_value(payload())?),
             _ => HostEvent::Notification { method, params },
         })
-    }
-
-    impl Default for PluginRuntime {
-        fn default() -> Self {
-            Self::stdio()
-        }
     }

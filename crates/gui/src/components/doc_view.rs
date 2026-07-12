@@ -74,7 +74,8 @@ pub fn doc_view(ui: &mut egui::Ui, app: &mut App, gui: &mut GuiState) {
 /// LaTeX → PNG render cache; `Err` keeps the parse error for display.
 pub type MathCache = std::collections::HashMap<u64, Result<std::sync::Arc<[u8]>, String>>;
 
-fn render_simple_markdown(ui: &mut egui::Ui, cache: &mut MathCache, text: &str) {
+/// Simple markdown + `$…$`/`$$…$$` math renderer (doc view, agent panel).
+pub fn render_simple_markdown(ui: &mut egui::Ui, cache: &mut MathCache, text: &str) {
     let mut in_code_block = false;
     let mut math_block: Option<String> = None;
     for line in text.lines() {
@@ -135,7 +136,7 @@ fn render_simple_markdown(ui: &mut egui::Ui, cache: &mut MathCache, text: &str) 
 
 /// Render `$…$` segments of a paragraph line inline with the text.
 fn math_line_wrapped(ui: &mut egui::Ui, cache: &mut MathCache, line: &str) {
-    if !line.contains('$') {
+    if !line.contains('$') && !line.contains("**") && !line.contains('`') {
         ui.label(line);
         return;
     }
@@ -147,22 +148,56 @@ fn math_line(ui: &mut egui::Ui, cache: &mut MathCache, line: &str) {
     let mut rest = line;
     loop {
         let Some(i) = rest.find('$') else {
-            if !rest.is_empty() {
-                ui.label(rest);
-            }
+            styled_text(ui, rest);
             return;
         };
         let after = &rest[i + 1..];
         let Some(j) = after.find('$') else {
             // Unpaired $: literal.
-            ui.label(rest);
+            styled_text(ui, rest);
             return;
         };
         if i > 0 {
-            ui.label(&rest[..i]);
+            styled_text(ui, &rest[..i]);
         }
         math_image(ui, cache, after[..j].trim(), false);
         rest = &after[j + 1..];
+    }
+}
+
+/// Inline `**bold**` and `` `code` `` runs within a text segment.
+/// Unpaired markers stay literal; no nesting.
+fn styled_text(ui: &mut egui::Ui, s: &str) {
+    let mut rest = s;
+    while !rest.is_empty() {
+        let bold = rest.find("**").and_then(|i| {
+            rest[i + 2..]
+                .find("**")
+                .map(|j| (i, i + 2 + j + 2, i + 2..i + 2 + j, true))
+        });
+        let code = rest.find('`').and_then(|i| {
+            rest[i + 1..]
+                .find('`')
+                .map(|j| (i, i + 1 + j + 1, i + 1..i + 1 + j, false))
+        });
+        let earliest = match (bold, code) {
+            (Some(b), Some(c)) => Some(if b.0 <= c.0 { b } else { c }),
+            (b, c) => b.or(c),
+        };
+        let Some((start, end, span, is_bold)) = earliest else {
+            ui.label(rest);
+            return;
+        };
+        if start > 0 {
+            ui.label(&rest[..start]);
+        }
+        let text = &rest[span];
+        if is_bold {
+            ui.label(egui::RichText::new(text).strong());
+        } else {
+            ui.label(egui::RichText::new(text).monospace());
+        }
+        rest = &rest[end..];
     }
 }
 

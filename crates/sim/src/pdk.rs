@@ -81,13 +81,6 @@ pub struct LoadedPdk {
     pub cells: HashMap<String, PdkCell>,
 }
 
-impl LoadedPdk {
-    /// Cell mapping for a primitive name ("nmos4", "res", ...).
-    pub fn cell(&self, primitive: &str) -> Option<&PdkCell> {
-        self.cells.get(primitive)
-    }
-}
-
 #[derive(thiserror::Error, Debug)]
 pub enum PdkError {
     #[error("PDK '{0}' not found (no pdk_path in Config.toml and no $PDK_ROOT/{0})")]
@@ -101,7 +94,7 @@ pub enum PdkError {
 }
 
 /// Locate the PDK root: explicit `pdk_path` wins, else `$PDK_ROOT/<name>`.
-pub fn find_pdk_dir(name: &str, explicit: Option<&Path>) -> Option<PathBuf> {
+fn find_pdk_dir(name: &str, explicit: Option<&Path>) -> Option<PathBuf> {
     if let Some(p) = explicit {
         if p.is_dir() {
             return Some(p.to_path_buf());
@@ -249,7 +242,7 @@ mod tests {
             Some(Path::new("/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice"))
         );
 
-        let nmos = loaded.cell("nmos4").expect("nmos4 cell");
+        let nmos = loaded.cells.get("nmos4").expect("nmos4 cell");
         assert_eq!(nmos.model, "sky130_fd_pr__nfet_01v8");
         assert_eq!(nmos.prefix, 'X');
         assert_eq!(nmos.pin_order, ["d", "g", "s", "b"]);
@@ -269,7 +262,7 @@ mod tests {
         let m: PdkManifest = toml::from_str(GF180MCU).expect("gf180 manifest parses");
         let loaded = resolve_pdk(m, PathBuf::from("/pdk/gf180mcuD"));
         assert_eq!(loaded.default_corner, "typical");
-        assert!(loaded.cell("pmos4").is_some());
+        assert!(loaded.cells.contains_key("pmos4"));
     }
 
     #[test]
@@ -287,8 +280,8 @@ mod tests {
         let loaded = resolve_pdk(m, PathBuf::from("/pdk/ihp-sg13g2"));
         assert_eq!(loaded.default_corner, "mos_tt");
         assert_eq!(loaded.corners.len(), 5);
-        assert!(loaded.cell("nmos4").is_some());
-        assert!(loaded.cell("npn").is_some());
+        assert!(loaded.cells.contains_key("nmos4"));
+        assert!(loaded.cells.contains_key("npn"));
     }
 
     #[test]
@@ -312,7 +305,7 @@ nmos4 = { model = "acme_nch", prefix = "M", params = { L = "0.09" } }
             loaded.includes,
             [PathBuf::from("/foundry/acme90/models/extra.spice")]
         );
-        let cell = loaded.cell("nmos4").expect("mapped");
+        let cell = loaded.cells.get("nmos4").expect("mapped");
         assert_eq!(cell.prefix, 'M');
     }
 }

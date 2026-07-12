@@ -9,3 +9,6 @@ cktimg = { workspace = true }
 lasso = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+
+[dev-dependencies]
+cktimg-svg = { workspace = true }

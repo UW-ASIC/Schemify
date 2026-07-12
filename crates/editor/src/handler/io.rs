@@ -78,6 +78,13 @@ impl App {
         }
     }
 
+    /// Serialize any open document to `.chn` text (agent checkpoints,
+    /// exports). None if the index is out of range or writing fails.
+    pub fn document_text(&self, idx: usize) -> Option<String> {
+        let doc = self.state.documents.get(idx)?;
+        prim::write_chn(&doc.schematic, &self.state.interner)
+    }
+
     pub fn open_from_content(&mut self, name: &str, content: &str) {
         let (schematic, _) = self.read_chn_reported(content);
         let (stem, kind) = DocKind::split_name(name);
@@ -214,12 +221,11 @@ impl App {
         // Replace existing pins.
         doc.schematic.pins.clear();
         doc.schematic.pins.reserve(label_data.len());
-        for (i, &(name, x, y, dir)) in label_data.iter().enumerate() {
+        for &(name, x, y, dir) in &label_data {
             doc.schematic.pins.push(Pin {
                 name,
                 x,
                 y,
-                number: i as u32,
                 width: 1,
                 direction: dir,
             });
@@ -334,7 +340,9 @@ impl App {
             let Ok(content) = std::fs::read_to_string(&path) else {
                 continue;
             };
-            let mut sch = prim::read_chn(&content, &mut self.state.interner);
+            // Warnings deliberately discarded: project-scan preload, not a
+            // user-initiated open (that path reports via read_chn_reported).
+            let (mut sch, _) = prim::read_chn_report(&content, &mut self.state.interner);
             let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
                 continue;
             };

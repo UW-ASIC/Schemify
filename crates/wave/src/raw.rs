@@ -50,7 +50,6 @@ pub fn parse_raw(bytes: &[u8]) -> Result<Vec<RawPlot>, RawError> {
 
 #[derive(Default)]
 struct Header {
-    title: String,
     plotname: String,
     command: String,
     flags: String,
@@ -69,7 +68,6 @@ fn parse_one_plot(rd: &mut Reader) -> Result<Option<RawPlot>, RawError> {
     let ltspice = h.command.to_ascii_lowercase().contains("ltspice")
         || h.command.to_ascii_lowercase().contains("linear technology");
     let n = h.n_points as usize;
-    let nv = h.n_vars as usize;
 
     let (re, im) = if h.binary {
         parse_binary(rd, &h, complex, fastaccess, ltspice)?
@@ -78,7 +76,6 @@ fn parse_one_plot(rd: &mut Reader) -> Result<Option<RawPlot>, RawError> {
     };
 
     let mut plot = RawPlot {
-        title: h.title,
         plotname: h.plotname,
         complex,
         variables: h.variables,
@@ -91,7 +88,7 @@ fn parse_one_plot(rd: &mut Reader) -> Result<Option<RawPlot>, RawError> {
     // LTspice compresses transient files by flagging non-essential points
     // with a negative time value; consumers take |t|.
     if ltspice && !plot.variables.is_empty() && plot.variables[0].kind == VarKind::Time {
-        for x in &mut plot.re[..n.min(nv * n)] {
+        for x in &mut plot.re[..n] {
             *x = x.abs();
         }
     }
@@ -117,9 +114,7 @@ fn parse_header(rd: &mut Reader) -> Result<Option<Header>, RawError> {
         }
         seen_any = true;
         let lower = trimmed.to_ascii_lowercase();
-        if let Some(v) = value_of(trimmed, "title:") {
-            h.title = v.to_string();
-        } else if let Some(v) = value_of(trimmed, "plotname:") {
+        if let Some(v) = value_of(trimmed, "plotname:") {
             h.plotname = v.to_string();
         } else if let Some(v) = value_of(trimmed, "command:") {
             h.command = v.to_string();
@@ -270,11 +265,10 @@ fn parse_binary(
 ) -> Result<(Vec<f64>, Vec<f64>), RawError> {
     let n = h.n_points as usize;
     let nv = h.n_vars as usize;
-    let avail = rd.remaining_bytes().len();
 
     if complex {
         let expected = n * nv * 16;
-        let data = rd.take_bytes(expected, avail)?;
+        let data = rd.take_bytes(expected)?;
         let mut re = vec![0.0f64; nv * n];
         let mut im = vec![0.0f64; nv * n];
         // Row-major pairs → column-major split.
@@ -290,10 +284,11 @@ fn parse_binary(
 
     let all_f64 = n * nv * 8;
     let mixed = n * (8 + (nv - 1) * 4); // LTspice: scale f64 + data f32
+    let avail = rd.bytes.len() - rd.pos; // size heuristic: f32 vs f64 data
 
     let mut re = vec![0.0f64; nv * n];
     if ltspice && avail >= mixed && (avail < all_f64 || nv == 1) {
-        let data = rd.take_bytes(mixed, avail)?;
+        let data = rd.take_bytes(mixed)?;
         if fastaccess {
             // Column-major: scale column f64, then each data column f32.
             for p in 0..n {
@@ -319,7 +314,7 @@ fn parse_binary(
         }
     } else {
         // ngspice (or LTspice double-precision): row-major f64.
-        let data = rd.take_bytes(all_f64, avail)?;
+        let data = rd.take_bytes(all_f64)?;
         for p in 0..n {
             for v in 0..nv {
                 re[v * n + p] = f64_le(&data[(p * nv + v) * 8..]);
@@ -399,13 +394,9 @@ impl<'a> Reader<'a> {
         Some(out)
     }
 
-    /// Bytes from the current position to EOF (binary section).
-    fn remaining_bytes(&self) -> &'a [u8] {
-        &self.bytes[self.pos..]
-    }
-
-    /// Consume exactly `want` bytes; error if fewer than `want` available.
-    fn take_bytes(&mut self, want: usize, avail: usize) -> Result<&'a [u8], RawError> {
+    /// Consume exactly `want` bytes; error if fewer available.
+    fn take_bytes(&mut self, want: usize) -> Result<&'a [u8], RawError> {
+        let avail = self.bytes.len() - self.pos;
         if avail < want {
             return Err(RawError::Truncated {
                 expected: want,

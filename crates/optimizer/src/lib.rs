@@ -112,7 +112,8 @@ pub struct Optimizer {
     params_flat: Vec<f64>,
     objectives_flat: Vec<f64>,
     scores: Vec<f64>,
-    /// Precomputed candidate served by `suggest`. None iff no params.
+    /// Precomputed candidate served by `suggest` under Random; None for
+    /// NelderMead (the simplex owns its candidate) or when no params.
     pending: Option<Vec<f64>>,
     /// Nelder-Mead state machine; None unless that algorithm is active.
     nm: Option<NelderMead>,
@@ -137,10 +138,6 @@ impl Optimizer {
 
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    pub fn set_name(&mut self, name: impl Into<String>) {
-        self.name = name.into();
     }
 
     pub fn algorithm(&self) -> Algorithm {
@@ -220,14 +217,19 @@ impl Optimizer {
     /// The pending candidate to evaluate next. Pure read: no state is
     /// touched, so it is safe under a shared lock. None if no params.
     pub fn suggest(&self) -> Option<&[f64]> {
-        self.pending.as_deref()
+        match self.algorithm {
+            Algorithm::Random => self.pending.as_deref(),
+            Algorithm::NelderMead => self.nm.as_ref().map(|nm| nm.candidate()),
+        }
     }
 
     /// Record measured objective values for the pending candidate, advance
     /// the algorithm, and precompute the next pending candidate.
     /// Returns the (lower-is-better) score.
     pub fn report(&mut self, measured: &[f64]) -> Result<f64, OptError> {
-        let candidate = self.pending.clone().ok_or(OptError::NoParams)?;
+        if self.params.is_empty() {
+            return Err(OptError::NoParams);
+        }
         if measured.len() != self.objectives.len() {
             return Err(OptError::DimMismatch {
                 expected: self.objectives.len(),
@@ -235,17 +237,20 @@ impl Optimizer {
             });
         }
         let score = score_of(&self.objectives, measured);
-        self.params_flat.extend_from_slice(&candidate);
-        self.objectives_flat.extend_from_slice(measured);
-        self.scores.push(score);
         match self.algorithm {
-            Algorithm::Random => self.pending = Some(self.sample_uniform()),
+            Algorithm::Random => {
+                let candidate = self.pending.take().ok_or(OptError::NoParams)?;
+                self.params_flat.extend_from_slice(&candidate);
+                self.pending = Some(self.sample_uniform());
+            }
             Algorithm::NelderMead => {
-                let nm = self.nm.as_mut().expect("nm state exists while pending");
+                let nm = self.nm.as_mut().ok_or(OptError::NoParams)?;
+                self.params_flat.extend_from_slice(nm.candidate());
                 nm.tell(score);
-                self.pending = Some(nm.candidate().to_vec());
             }
         }
+        self.objectives_flat.extend_from_slice(measured);
+        self.scores.push(score);
         Ok(score)
     }
 
@@ -319,15 +324,9 @@ impl Optimizer {
     pub fn to_json(&self) -> serde_json::Value {
         let mut v = serde_json::to_value(self).expect("optimizer state is plain data");
         v["n_evals"] = self.n_evals().into();
-        v["best"] = match self.best() {
-            Some(e) => serde_json::json!({
-                "index": e.index,
-                "params": e.params,
-                "objectives": e.objectives,
-                "score": e.score,
-            }),
-            None => serde_json::Value::Null,
-        };
+        v["best"] = self.best().map_or(serde_json::Value::Null, |e| {
+            serde_json::to_value(e).expect("evaluation is plain data")
+        });
         v
     }
 
@@ -351,9 +350,8 @@ impl Optimizer {
                 );
             }
             Algorithm::NelderMead => {
-                let nm = NelderMead::new(&self.params);
-                self.pending = Some(nm.candidate().to_vec());
-                self.nm = Some(nm);
+                self.pending = None;
+                self.nm = Some(NelderMead::new(&self.params));
             }
         }
     }

@@ -22,11 +22,6 @@ pub fn emit_pyspice(ir: &CircuitIR) -> String {
         let _ = writeln!(buf, "{var}.subcircuit(sub_{})", pyid(&sc.name));
     }
 
-    if let Some(tb) = &ir.testbench {
-        let _ = writeln!(buf);
-        emit_testbench(&mut buf, tb, var);
-    }
-
     buf
 }
 
@@ -330,44 +325,6 @@ fn emit_body(buf: &mut String, sc: &Subcircuit, var: &str) {
     }
 }
 
-fn emit_testbench(buf: &mut String, tb: &Testbench, var: &str) {
-    let _ = writeln!(buf, "sim = {var}.simulator()");
-
-    for analysis in &tb.analyses {
-        match analysis {
-            Analysis::Transient {
-                step, stop, start, ..
-            } => {
-                let s = start.unwrap_or(0.0);
-                let _ = writeln!(buf, "sim.transient({step}, {stop}, {s})");
-            }
-            Analysis::Dc { sweeps } => {
-                for sweep in sweeps {
-                    let _ = writeln!(
-                        buf,
-                        "sim.dc({:?}, {}, {}, {})",
-                        sweep.source, sweep.start, sweep.stop, sweep.step
-                    );
-                }
-            }
-            Analysis::Ac {
-                variation,
-                points,
-                start,
-                stop,
-            } => {
-                let _ = writeln!(buf, "sim.ac({variation:?}, {points}, {start}, {stop})");
-            }
-            Analysis::Op => {
-                let _ = writeln!(buf, "sim.operating_point()");
-            }
-            _ => {
-                let _ = writeln!(buf, "# unsupported analysis: {analysis:?}");
-            }
-        }
-    }
-}
-
 fn emit_params(buf: &mut String, params: &[(String, String)]) {
     for (k, v) in params {
         let pv = spice_param_to_python(v);
@@ -376,33 +333,9 @@ fn emit_params(buf: &mut String, params: &[(String, String)]) {
 }
 
 fn spice_param_to_python(s: &str) -> String {
-    if let Ok(v) = s.parse::<f64>() {
-        return format!("{v}");
-    }
-    let lower = s.to_ascii_lowercase();
-    let (num_part, mult) = if let Some(n) = lower.strip_suffix("meg") {
-        (n, 1e6)
-    } else if lower.len() > 1 {
-        let last = lower.as_bytes()[lower.len() - 1];
-        match last {
-            b't' => (&s[..s.len() - 1], 1e12),
-            b'g' => (&s[..s.len() - 1], 1e9),
-            b'k' => (&s[..s.len() - 1], 1e3),
-            b'm' => (&s[..s.len() - 1], 1e-3),
-            b'u' => (&s[..s.len() - 1], 1e-6),
-            b'n' => (&s[..s.len() - 1], 1e-9),
-            b'p' => (&s[..s.len() - 1], 1e-12),
-            b'f' => (&s[..s.len() - 1], 1e-15),
-            b'a' => (&s[..s.len() - 1], 1e-18),
-            _ => return format!("{s:?}"),
-        }
-    } else {
-        return format!("{s:?}");
-    };
-    if let Ok(v) = num_part.parse::<f64>() {
-        format!("{}", v * mult)
-    } else {
-        format!("{s:?}")
+    match crate::ir_emit::parse_spice_number(s) {
+        Some(v) => format!("{v}"),
+        None => format!("{s:?}"),
     }
 }
 

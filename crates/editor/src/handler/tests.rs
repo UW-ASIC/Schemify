@@ -191,10 +191,9 @@ use crate::schemify::*;
             y1: 0,
         });
 
+        // Two wires sharing an endpoint resolve to a single net.
         let conn = app.connectivity();
-        assert_eq!(conn.nets.len(), 1);
-        assert_eq!(conn.point_to_net.get(&(0, 0)), Some(&0));
-        assert_eq!(conn.point_to_net.get(&(200, 0)), Some(&0));
+        assert_eq!(conn.net_names.len(), 1);
     }
 
     #[test]
@@ -206,7 +205,7 @@ use crate::schemify::*;
             x1: 100,
             y1: 0,
         });
-        assert_eq!(app.connectivity().nets.len(), 1);
+        assert_eq!(app.connectivity().net_names.len(), 1);
 
         // Disconnected second wire must show up after the mutation bumps
         // the generation past the cached one.
@@ -216,7 +215,7 @@ use crate::schemify::*;
             x1: 600,
             y1: 500,
         });
-        assert_eq!(app.connectivity().nets.len(), 2);
+        assert_eq!(app.connectivity().net_names.len(), 2);
     }
 
     #[test]
@@ -234,7 +233,7 @@ use crate::schemify::*;
             x1: 100,
             y1: 0,
         });
-        assert_eq!(app.connectivity().nets.len(), 1);
+        assert_eq!(app.connectivity().net_names.len(), 1);
     }
 
     #[test]
@@ -346,7 +345,7 @@ use crate::schemify::*;
             flip: false,
         });
         let conn = app.connectivity();
-        assert_eq!(conn.nets.len(), 1);
+        assert_eq!(conn.net_names.len(), 1);
         assert_eq!(conn.net_names[0], "VOUT");
     }
 

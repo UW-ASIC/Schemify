@@ -8,6 +8,7 @@
 //! Evaluation is complex-domain throughout (AC data); functions operate
 //! per sweep step so `diff`/`fft` never leak across step boundaries.
 
+use crate::data::RawPlot;
 use crate::si::parse_si;
 use core::ops::Range;
 use rustfft::{num_complex::Complex64, FftPlanner};
@@ -23,8 +24,8 @@ pub enum ExprError {
     Eof,
     #[error("unknown signal `{0}`")]
     UnknownSignal(String),
-    #[error("function `{0}` expects {1} argument(s)")]
-    Arity(&'static str, usize),
+    #[error("function `{0}` requires a signal argument")]
+    Arity(&'static str),
     #[error("length mismatch between operands")]
     LengthMismatch,
     #[error("fft requires at least 2 points per step")]
@@ -313,25 +314,14 @@ impl Parser {
 // Evaluation
 // ════════════════════════════════════════════════════════════
 
-/// Resolves signal names to columns. Implemented by the app over `RawPlot`.
-pub trait SignalSource {
-    /// (re, im) columns; `im` is `None` for real data.
-    fn signal(&self, name: &str) -> Option<(&[f64], Option<&[f64]>)>;
-    /// The sweep scale column (column 0).
-    fn scale(&self) -> &[f64];
-    /// Sweep step ranges over point indices.
-    fn steps(&self) -> &[Range<u32>];
-}
-
-/// Evaluated column. `x`/`steps` are `Some` only when the function changed
-/// the domain (currently just `fft`: x becomes frequency bins).
+/// Evaluated column. `domain` is `Some` only when the function changed the
+/// domain (currently just `fft`): new x column plus remapped step ranges.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvalResult {
     pub re: Vec<f64>,
     /// Empty when the result is purely real.
     pub im: Vec<f64>,
-    pub x: Option<Vec<f64>>,
-    pub steps: Option<Vec<Range<u32>>>,
+    pub domain: Option<(Vec<f64>, Vec<Range<u32>>)>,
 }
 
 impl EvalResult {
@@ -346,31 +336,29 @@ enum Value {
     Col(EvalResult),
 }
 
-pub fn eval(expr: &Expr, src: &dyn SignalSource) -> Result<EvalResult, ExprError> {
+pub fn eval(expr: &Expr, src: &RawPlot) -> Result<EvalResult, ExprError> {
     match eval_value(expr, src)? {
         Value::Col(c) => Ok(c),
         // A constant expression: single-point column.
         Value::Scalar(re, im) => Ok(EvalResult {
             re: vec![re],
             im: if im != 0.0 { vec![im] } else { vec![] },
-            x: None,
-            steps: None,
+            domain: None,
         }),
     }
 }
 
-fn eval_value(expr: &Expr, src: &dyn SignalSource) -> Result<Value, ExprError> {
+fn eval_value(expr: &Expr, src: &RawPlot) -> Result<Value, ExprError> {
     match expr {
         Expr::Num(v) => Ok(Value::Scalar(*v, 0.0)),
         Expr::Signal(name) => {
-            let (re, im) = src
-                .signal(name)
+            let v = src
+                .find_var(name)
                 .ok_or_else(|| ExprError::UnknownSignal(name.clone()))?;
             Ok(Value::Col(EvalResult {
-                re: re.to_vec(),
-                im: im.map(<[f64]>::to_vec).unwrap_or_default(),
-                x: None,
-                steps: None,
+                re: src.col(v).to_vec(),
+                im: if src.complex { src.col_im(v).to_vec() } else { vec![] },
+                domain: None,
             }))
         }
         Expr::Neg(e) => {
@@ -448,8 +436,7 @@ fn eval_bin(op: BinOp, a: Value, b: Value) -> Result<Value, ExprError> {
             Col(EvalResult {
                 re,
                 im,
-                x: a.x.or(b.x),
-                steps: a.steps.or(b.steps),
+                domain: a.domain.or(b.domain),
             })
         }
     })
@@ -477,7 +464,7 @@ fn map_col(op: BinOp, mut c: EvalResult, sr: f64, si: f64, flip: bool) -> EvalRe
     c
 }
 
-fn eval_call(f: Func, arg: &Expr, src: &dyn SignalSource) -> Result<Value, ExprError> {
+fn eval_call(f: Func, arg: &Expr, src: &RawPlot) -> Result<Value, ExprError> {
     let v = eval_value(arg, src)?;
     // Scalars: only the pointwise functions make sense.
     let mut c = match v {
@@ -495,7 +482,7 @@ fn eval_call(f: Func, arg: &Expr, src: &dyn SignalSource) -> Result<Value, ExprE
                 Func::Sin => Value::Scalar(re.sin(), 0.0),
                 Func::Cos => Value::Scalar(re.cos(), 0.0),
                 Func::Tan => Value::Scalar(re.tan(), 0.0),
-                Func::Diff | Func::Fft => return Err(ExprError::Arity(f.name(), 1)),
+                Func::Diff | Func::Fft => return Err(ExprError::Arity(f.name())),
             });
         }
         Value::Col(c) => c,
@@ -549,10 +536,10 @@ fn eval_call(f: Func, arg: &Expr, src: &dyn SignalSource) -> Result<Value, ExprE
             // Successive difference per sweep step, same length:
             // d[i] = y[i] - y[i-1], d[first] = d[first+1] (so
             // diff(V)/diff(time) yields a sane derivative everywhere).
-            let steps: Vec<Range<u32>> = c
-                .steps
-                .clone()
-                .unwrap_or_else(|| src.steps().to_vec());
+            let steps: Vec<Range<u32>> = match &c.domain {
+                Some((_, s)) => s.clone(),
+                None => src.steps.clone(),
+            };
             diff_in_place(&mut c.re, &steps);
             if !c.im.is_empty() {
                 diff_in_place(&mut c.im, &steps);
@@ -588,9 +575,12 @@ fn diff_in_place(y: &mut [f64], steps: &[Range<u32>]) {
 /// step length), transform, keep the positive half as magnitude+phase
 /// (complex output). X becomes frequency bins. Steps are remapped to the
 /// concatenated output ranges.
-fn fft_col(c: &EvalResult, src: &dyn SignalSource) -> Result<EvalResult, ExprError> {
+fn fft_col(c: &EvalResult, src: &RawPlot) -> Result<EvalResult, ExprError> {
     let x = src.scale();
-    let steps: Vec<Range<u32>> = c.steps.clone().unwrap_or_else(|| src.steps().to_vec());
+    let steps: Vec<Range<u32>> = match &c.domain {
+        Some((_, s)) => s.clone(),
+        None => src.steps.clone(),
+    };
     if c.re.len() != x.len() {
         return Err(ExprError::LengthMismatch);
     }
@@ -637,8 +627,7 @@ fn fft_col(c: &EvalResult, src: &dyn SignalSource) -> Result<EvalResult, ExprErr
     Ok(EvalResult {
         re: out_re,
         im: out_im,
-        x: Some(out_x),
-        steps: Some(out_steps),
+        domain: Some((out_x, out_steps)),
     })
 }
 
@@ -664,37 +653,34 @@ fn lerp_at(xs: &[f64], ys: &[f64], t: f64) -> f64 {
 mod tests {
     use super::*;
 
-    struct TestSrc {
-        time: Vec<f64>,
-        vout: Vec<f64>,
-        vin: Vec<f64>,
-        steps: Vec<Range<u32>>,
-    }
+    use crate::data::{VarKind, Variable};
 
-    impl SignalSource for TestSrc {
-        fn signal(&self, name: &str) -> Option<(&[f64], Option<&[f64]>)> {
-            match name.to_ascii_lowercase().as_str() {
-                "time" => Some((&self.time, None)),
-                "v(out)" => Some((&self.vout, None)),
-                "v(in)" => Some((&self.vin, None)),
-                _ => None,
-            }
-        }
-        fn scale(&self) -> &[f64] {
-            &self.time
-        }
-        fn steps(&self) -> &[Range<u32>] {
-            &self.steps
+    /// Real plot with columns time, v(out), v(in).
+    fn plot(time: Vec<f64>, vout: Vec<f64>, vin: Vec<f64>, steps: Vec<Range<u32>>) -> RawPlot {
+        let n = time.len() as u32;
+        RawPlot {
+            plotname: String::new(),
+            complex: false,
+            variables: ["time", "v(out)", "v(in)"]
+                .map(|name| Variable {
+                    name: name.into(),
+                    kind: VarKind::Other,
+                })
+                .into(),
+            n_points: n,
+            re: [time, vout, vin].concat(),
+            im: vec![],
+            steps,
         }
     }
 
-    fn src() -> TestSrc {
-        TestSrc {
-            time: vec![0.0, 1.0, 2.0, 3.0],
-            vout: vec![2.0, 4.0, 6.0, 8.0],
-            vin: vec![1.0, 2.0, 3.0, 4.0],
-            steps: vec![0..4],
-        }
+    fn src() -> RawPlot {
+        plot(
+            vec![0.0, 1.0, 2.0, 3.0],
+            vec![2.0, 4.0, 6.0, 8.0],
+            vec![1.0, 2.0, 3.0, 4.0],
+            vec![0..4],
+        )
     }
 
     #[test]
@@ -734,12 +720,12 @@ mod tests {
 
     #[test]
     fn diff_respects_steps() {
-        let s = TestSrc {
-            time: vec![0.0, 1.0, 0.0, 1.0],
-            vout: vec![0.0, 10.0, 100.0, 110.0],
-            vin: vec![0.0; 4],
-            steps: vec![0..2, 2..4],
-        };
+        let s = plot(
+            vec![0.0, 1.0, 0.0, 1.0],
+            vec![0.0, 10.0, 100.0, 110.0],
+            vec![0.0; 4],
+            vec![0..2, 2..4],
+        );
         let e = parse_expr("diff(v(out))").unwrap();
         let r = eval(&e, &s).unwrap();
         // No 90-unit spike across the step boundary.
@@ -768,15 +754,10 @@ mod tests {
             .iter()
             .map(|t| (2.0 * std::f64::consts::PI * 8.0 * t).sin())
             .collect();
-        let s = TestSrc {
-            time,
-            vout,
-            vin: vec![0.0; n],
-            steps: vec![0..n as u32],
-        };
+        let s = plot(time, vout, vec![0.0; n], vec![0..n as u32]);
         let e = parse_expr("mag(fft(v(out)))").unwrap();
         let r = eval(&e, &s).unwrap();
-        let x = r.x.unwrap();
+        let (x, _) = r.domain.unwrap();
         let peak = r
             .re
             .iter()
@@ -790,27 +771,19 @@ mod tests {
 
     #[test]
     fn complex_ac_db_phase() {
-        struct AcSrc {
-            f: Vec<f64>,
-            re: Vec<f64>,
-            im: Vec<f64>,
-            steps: Vec<Range<u32>>,
-        }
-        impl SignalSource for AcSrc {
-            fn signal(&self, name: &str) -> Option<(&[f64], Option<&[f64]>)> {
-                (name.eq_ignore_ascii_case("v(out)")).then_some((&self.re[..], Some(&self.im[..])))
-            }
-            fn scale(&self) -> &[f64] {
-                &self.f
-            }
-            fn steps(&self) -> &[Range<u32>] {
-                &self.steps
-            }
-        }
-        let s = AcSrc {
-            f: vec![1.0, 10.0],
-            re: vec![0.0, 1.0],
-            im: vec![1.0, -1.0],
+        // Columns: frequency, v(out); im has a (zero) column per variable.
+        let s = RawPlot {
+            plotname: String::new(),
+            complex: true,
+            variables: ["frequency", "v(out)"]
+                .map(|name| Variable {
+                    name: name.into(),
+                    kind: VarKind::Other,
+                })
+                .into(),
+            n_points: 2,
+            re: vec![1.0, 10.0, 0.0, 1.0],
+            im: vec![0.0, 0.0, 1.0, -1.0],
             steps: vec![0..2],
         };
         let r = eval(&parse_expr("db(v(out))").unwrap(), &s).unwrap();

@@ -250,7 +250,7 @@ pub(crate) fn render_buses(painter: &Painter, app: &App, vp: &CanvasViewport, th
     for ripper in &sch.bus_rippers {
         let p = vp.w2p(ripper.x, ripper.y);
         let stub = ripper.stub_len as f32 * vp.zoom;
-        let (dx, dy) = match ripper.direction & 0x03 {
+        let (dx, dy) = match ripper.direction {
             0 => (stub, 0.0),
             1 => (0.0, -stub),
             2 => (-stub, 0.0),
@@ -280,7 +280,15 @@ pub(crate) fn draw_prim_geometry(painter: &Painter, entry: &prim::PrimEntry, ori
     for a in &entry.arcs {
         let radius_px = a.r as f32 * zoom;
         if radius_px > 0.5 {
-            stroke_arc(painter, tp(a.cx, a.cy), radius_px, a.start as f32, a.sweep as f32, stroke);
+            // Angles follow the point transform: flip mirrors (θ → 180−θ,
+            // sweep reversed), then each rotation step subtracts 90°.
+            let (mut start, mut sweep) = (a.start as f32, a.sweep as f32);
+            if flags.flip() {
+                start = 180.0 - start;
+                sweep = -sweep;
+            }
+            start -= 90.0 * flags.rotation() as f32;
+            stroke_arc(painter, tp(a.cx, a.cy), radius_px, start, sweep, stroke);
         }
     }
     for r in &entry.rects {
@@ -404,7 +412,6 @@ pub(crate) fn render_instances(painter: &Painter, app: &App, vp: &CanvasViewport
             }
             let origin = vp.w2p(insts.x[i], insts.y[i]);
             let flags = insts.flags[i];
-            let po = insts.param_offset[i];
 
             for dt in &entry.texts {
                 if dt.content == "@name" || !dt.content.starts_with('@') {
@@ -413,6 +420,8 @@ pub(crate) fn render_instances(painter: &Painter, app: &App, vp: &CanvasViewport
                 let label = dt.content[1..] // strip leading @
                     .split('/')
                     .map(|part| {
+                        // "@w/@l": each part carries its own @ prefix.
+                        let part = part.strip_prefix('@').unwrap_or(part);
                         props
                             .iter()
                             .find(|p| app.resolve(p.key) == part)
@@ -422,10 +431,7 @@ pub(crate) fn render_instances(painter: &Painter, app: &App, vp: &CanvasViewport
                     .collect::<Vec<_>>()
                     .join("/");
 
-                let (tx, ty) = flags.transform_point(
-                    dt.x as i32 + po[0] as i32,
-                    dt.y as i32 + po[1] as i32,
-                );
+                let (tx, ty) = flags.transform_point(dt.x as i32, dt.y as i32);
                 let pos = Pos2::new(
                     origin.x + tx as f32 * vp.zoom,
                     origin.y + ty as f32 * vp.zoom,

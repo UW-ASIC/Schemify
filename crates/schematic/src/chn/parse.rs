@@ -4,10 +4,6 @@ use lasso::Rodeo;
 
 use crate::*;
 
-pub fn read_chn(data: &str, interner: &mut Rodeo) -> Schematic {
-    read_chn_report(data, interner).0
-}
-
 /// Parse a CHN file, also returning non-fatal warnings (malformed values,
 /// skipped sections) with 1-based line numbers. Parsing never fails outright:
 /// malformed fields fall back to defaults, but each fallback is reported here
@@ -103,12 +99,10 @@ enum Section {
     Params,
     Instances,
     TypeTable,
-    Nets,
     Wires,
     Buses,
     BusRippers,
     Drawing,
-    Includes,
     Analyses,
     Measures,
     CodeBlock,
@@ -152,7 +146,6 @@ fn parse_chn(s: &mut Schematic, data: &str, int: &mut Rodeo, w: &mut Warnings) {
     let mut pyspice_buf = String::new();
     let mut doc_buf = String::new();
     let mut code_buf = String::new();
-    let mut _version: u8 = 1;
 
     for (lineno, raw) in data.lines().enumerate() {
         w.line = lineno as u32 + 1;
@@ -214,12 +207,8 @@ fn parse_chn(s: &mut Schematic, data: &str, int: &mut Rodeo, w: &mut Warnings) {
         if indent == 0 {
             if trimmed.starts_with("chn_prim") {
                 s.stype = SchematicType::Primitive;
-                _version = parse_header_version(trimmed);
             } else if trimmed.starts_with("chn_testbench") {
                 s.stype = SchematicType::Testbench;
-                _version = parse_header_version(trimmed);
-            } else if trimmed.starts_with("chn ") || trimmed == "chn" {
-                _version = parse_header_version(trimmed);
             } else if let Some(rest) = trimmed.strip_prefix("SYMBOL ") {
                 s.name = rest.trim().to_string();
                 s.stype = SchematicType::Symbol;
@@ -295,12 +284,10 @@ fn parse_chn(s: &mut Schematic, data: &str, int: &mut Rodeo, w: &mut Warnings) {
                 "pins" => Section::Pins,
                 "params" | "parameters" => Section::Params,
                 "instances" => Section::Instances,
-                "nets" | "connections" => Section::Nets,
                 "wires" => Section::Wires,
                 "buses" => Section::Buses,
                 "bus_rippers" => Section::BusRippers,
                 "drawing" => Section::Drawing,
-                "includes" => Section::Includes,
                 "analyses" => Section::Analyses,
                 "measures" | "measurements" => Section::Measures,
                 "code" | "code_block" | "spice_code" => Section::CodeBlock,
@@ -409,7 +396,6 @@ fn parse_pin(s: &mut Schematic, line: &str, int: &mut Rodeo, w: &mut Warnings) {
         name: int.get_or_intern(name),
         x,
         y,
-        number: s.pins.len() as u32,
         width,
         direction,
     });
@@ -502,15 +488,12 @@ fn parse_instance(s: &mut Schematic, line: &str, int: &mut Rodeo, w: &mut Warnin
     s.instances.push(Instance {
         name: int.get_or_intern(name),
         symbol: int.get_or_intern(symbol),
-        spice_line: int.get_or_intern(""),
         x,
         y,
         kind,
         flags: InstanceFlags::new(rotation, flip),
         prop_start,
         prop_count,
-        name_offset: [0, 0],
-        param_offset: [0, 0],
     });
 }
 
@@ -556,15 +539,12 @@ fn parse_type_table_row(
     s.instances.push(Instance {
         name: int.get_or_intern(name),
         symbol: int.get_or_intern(&tt.symbol),
-        spice_line: int.get_or_intern(""),
         x,
         y,
         kind: tt.kind,
         flags: InstanceFlags::new(rotation, flip),
         prop_start,
         prop_count,
-        name_offset: [0, 0],
-        param_offset: [0, 0],
     });
 }
 
@@ -655,7 +635,8 @@ fn parse_bus_ripper(s: &mut Schematic, line: &str, w: &mut Warnings) {
     let mut stub_len: i16 = 20;
     for attr in tok {
         if let Some(v) = attr.strip_prefix("dir=") {
-            direction = w.num("ripper dir", v, 0);
+            // Valid domain is 0-3; mask once at the parse boundary.
+            direction = w.num::<u8>("ripper dir", v, 0) & 0x03;
         } else if let Some(v) = attr.strip_prefix("stub=") {
             stub_len = w.num("ripper stub", v, 20);
         }
@@ -946,14 +927,6 @@ fn flush_plugin_ml(s: &mut Schematic, pml: &mut PluginMLState, int: &mut Rodeo) 
 }
 
 // ── Reader helpers ──────────────────────────────────────────────────────────
-
-/// Extract the version number from a header line like "chn 2" or "chn_prim 1".
-fn parse_header_version(line: &str) -> u8 {
-    line.split_whitespace()
-        .last()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(1)
-}
 
 fn indent_level(line: &str) -> usize {
     let spaces = line.len() - line.trim_start().len();

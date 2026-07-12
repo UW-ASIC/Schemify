@@ -21,12 +21,6 @@ pub fn emit_spice(ir: &CircuitIR) -> String {
     // Top-level body
     emit_spice_body(&mut buf, &ir.top);
 
-    // Testbench
-    if let Some(tb) = &ir.testbench {
-        let _ = writeln!(buf);
-        emit_spice_analyses(&mut buf, tb);
-    }
-
     let _ = writeln!(buf, ".end");
     buf
 }
@@ -153,44 +147,27 @@ fn emit_spice_component(buf: &mut String, comp: &Component) {
             np,
             nm,
             value,
-            waveform,
         }
         | Component::CurrentSource {
             name,
             np,
             nm,
             value,
-            waveform,
         } => {
             let prefix = if matches!(comp, Component::VoltageSource { .. }) {
                 'V'
             } else {
                 'I'
             };
-            let _ = write!(buf, "{prefix}{name} {np} {nm} {}", spice_val(value));
-            if let Some(wf) = waveform {
-                let _ = write!(buf, " {}", spice_waveform(wf));
-            }
-            let _ = writeln!(buf);
+            let _ = writeln!(buf, "{prefix}{name} {np} {nm} {}", spice_val(value));
         }
         Component::BehavioralVoltage {
             name,
             np,
             nm,
             expression,
-        }
-        | Component::BehavioralCurrent {
-            name,
-            np,
-            nm,
-            expression,
         } => {
-            let qty = if matches!(comp, Component::BehavioralVoltage { .. }) {
-                'V'
-            } else {
-                'I'
-            };
-            let _ = writeln!(buf, "B{name} {np} {nm} {qty}={{{expression}}}");
+            let _ = writeln!(buf, "B{name} {np} {nm} V={{{expression}}}");
         }
         Component::Mosfet {
             name,
@@ -321,188 +298,8 @@ fn emit_spice_component(buf: &mut String, comp: &Component) {
         } => {
             let _ = writeln!(buf, "T{name} {inp} {inm} {outp} {outm} Z0={z0} TD={td}");
         }
-        Component::Xspice {
-            name,
-            connections,
-            model,
-        } => {
-            let conns = connections.join(" ");
-            let _ = writeln!(buf, "A{name} {conns} {model}");
-        }
         Component::RawSpice { line } => {
             let _ = writeln!(buf, "{line}");
-        }
-    }
-}
-
-/// Emit testbench directives: options, temperature, stimulus, analyses,
-/// saves, measures, initial conditions, node sets, and step parameters.
-fn emit_spice_analyses(buf: &mut String, tb: &Testbench) {
-    for (k, v) in &tb.options.portable {
-        let _ = writeln!(buf, ".option {k}={v}");
-    }
-    if let Some(temp) = tb.temperature {
-        let _ = writeln!(buf, ".temp {temp}");
-    }
-    if !tb.initial_conditions.is_empty() {
-        let ics: Vec<String> = tb
-            .initial_conditions
-            .iter()
-            .map(|(node, val)| format!("V({node})={val}"))
-            .collect();
-        let _ = writeln!(buf, ".ic {}", ics.join(" "));
-    }
-    for (node, val) in &tb.node_sets {
-        let _ = writeln!(buf, ".nodeset V({node})={val}");
-    }
-    for comp in &tb.stimulus {
-        emit_spice_component(buf, comp);
-    }
-    for analysis in &tb.analyses {
-        emit_spice_analysis(buf, analysis);
-    }
-    for s in &tb.saves {
-        let _ = writeln!(buf, ".save {s}");
-    }
-    for m in &tb.measures {
-        let _ = writeln!(buf, ".meas {m}");
-    }
-    for sp in &tb.step_params {
-        let sweep = sp.sweep_type.as_deref().unwrap_or("lin");
-        let _ = writeln!(
-            buf,
-            ".step {sweep} {} {} {} {}",
-            sp.param, sp.start, sp.stop, sp.step
-        );
-    }
-    for line in &tb.extra_lines {
-        let _ = writeln!(buf, "{line}");
-    }
-}
-
-/// Emit a single analysis directive.
-fn emit_spice_analysis(buf: &mut String, analysis: &Analysis) {
-    match analysis {
-        Analysis::Op => {
-            let _ = writeln!(buf, ".op");
-        }
-        Analysis::Dc { sweeps } => {
-            let _ = write!(buf, ".dc");
-            for sweep in sweeps {
-                let _ = write!(
-                    buf,
-                    " {} {} {} {}",
-                    sweep.source, sweep.start, sweep.stop, sweep.step
-                );
-            }
-            let _ = writeln!(buf);
-        }
-        Analysis::Ac {
-            variation,
-            points,
-            start,
-            stop,
-        } => {
-            let _ = writeln!(buf, ".ac {variation} {points} {start} {stop}");
-        }
-        Analysis::Transient {
-            step,
-            stop,
-            start,
-            max_step,
-            uic,
-        } => {
-            let _ = write!(buf, ".tran {step} {stop}");
-            if let Some(s) = start {
-                let _ = write!(buf, " {s}");
-            }
-            if let Some(ms) = max_step {
-                if start.is_none() {
-                    let _ = write!(buf, " 0");
-                }
-                let _ = write!(buf, " {ms}");
-            }
-            if *uic {
-                let _ = write!(buf, " UIC");
-            }
-            let _ = writeln!(buf);
-        }
-        Analysis::Noise {
-            output,
-            reference,
-            source,
-            variation,
-            points,
-            start,
-            stop,
-            points_per_summary,
-        } => {
-            let _ = write!(
-                buf,
-                ".noise V({output},{reference}) {source} {variation} {points} {start} {stop}"
-            );
-            if let Some(pps) = points_per_summary {
-                let _ = write!(buf, " {pps}");
-            }
-            let _ = writeln!(buf);
-        }
-        Analysis::Tf { output, source } => {
-            let _ = writeln!(buf, ".tf {output} {source}");
-        }
-        Analysis::Sensitivity { output, ac } => {
-            let _ = write!(buf, ".sens {output}");
-            if let Some(ac_params) = ac {
-                let _ = write!(
-                    buf,
-                    " AC {} {} {} {}",
-                    ac_params.variation, ac_params.points, ac_params.start, ac_params.stop
-                );
-            }
-            let _ = writeln!(buf);
-        }
-        Analysis::PoleZero {
-            node1,
-            node2,
-            node3,
-            node4,
-            tf_type,
-            pz_type,
-        } => {
-            let _ = writeln!(
-                buf,
-                ".pz {node1} {node2} {node3} {node4} {tf_type} {pz_type}"
-            );
-        }
-        Analysis::Distortion {
-            variation,
-            points,
-            start,
-            stop,
-            f2overf1,
-        } => {
-            let _ = write!(buf, ".disto {variation} {points} {start} {stop}");
-            if let Some(ratio) = f2overf1 {
-                let _ = write!(buf, " {ratio}");
-            }
-            let _ = writeln!(buf);
-        }
-        Analysis::Fourier {
-            fundamental,
-            outputs,
-            num_harmonics,
-        } => {
-            let _ = write!(buf, ".four {fundamental}");
-            if let Some(nh) = num_harmonics {
-                let _ = write!(buf, " {nh}");
-            }
-            for o in outputs {
-                let _ = write!(buf, " {o}");
-            }
-            let _ = writeln!(buf);
-        }
-        // Vendor-specific and non-standard analyses get a comment
-        _ => {
-            let _ = writeln!(buf, "* unsupported analysis: {analysis:?}");
         }
     }
 }
@@ -513,67 +310,6 @@ fn spice_val(v: &IrValue) -> String {
         IrValue::Numeric { value } => format!("{value}"),
         IrValue::Expression { expr } => format!("{{{expr}}}"),
         IrValue::Raw { text } => text.clone(),
-    }
-}
-
-/// Format an `IrWaveform` as a SPICE waveform specification.
-fn spice_waveform(wf: &IrWaveform) -> String {
-    match wf {
-        IrWaveform::Sin {
-            offset,
-            amplitude,
-            frequency,
-            delay,
-            damping,
-            phase,
-        } => {
-            format!("SIN({offset} {amplitude} {frequency} {delay} {damping} {phase})")
-        }
-        IrWaveform::Pulse {
-            initial,
-            pulsed,
-            delay,
-            rise_time,
-            fall_time,
-            pulse_width,
-            period,
-        } => {
-            format!(
-                "PULSE({initial} {pulsed} {delay} {rise_time} {fall_time} {pulse_width} {period})"
-            )
-        }
-        IrWaveform::Pwl { values } => {
-            let pairs: Vec<String> = values.iter().map(|(t, v)| format!("{t} {v}")).collect();
-            format!("PWL({})", pairs.join(" "))
-        }
-        IrWaveform::Exp {
-            initial,
-            pulsed,
-            rise_delay,
-            rise_tau,
-            fall_delay,
-            fall_tau,
-        } => {
-            format!("EXP({initial} {pulsed} {rise_delay} {rise_tau} {fall_delay} {fall_tau})")
-        }
-        IrWaveform::Sffm {
-            offset,
-            amplitude,
-            carrier_freq,
-            modulation_index,
-            signal_freq,
-        } => {
-            format!("SFFM({offset} {amplitude} {carrier_freq} {modulation_index} {signal_freq})")
-        }
-        IrWaveform::Am {
-            amplitude,
-            offset,
-            modulating_freq,
-            carrier_freq,
-            delay,
-        } => {
-            format!("AM({amplitude} {offset} {modulating_freq} {carrier_freq} {delay})")
-        }
     }
 }
 

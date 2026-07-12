@@ -335,6 +335,10 @@ pub fn menu_bar(
                     cmds.push(Command::OpenFileExplorer);
 
                 }
+                #[cfg(not(target_arch = "wasm32"))]
+                if tog(ui, "AI Assistant", "", gui.agent.open) {
+                    gui.agent.open = !gui.agent.open;
+                }
             });
 
             // ── Place ──

@@ -1,4 +1,5 @@
-//! Schemify MCP server — transport/runtime-agnostic JSON-RPC 2.0 library.
+//! Schemify app server — transport/runtime-agnostic JSON-RPC 2.0 library
+//! (old `schemify-mcp` crate; [`crate::protocol`] adapts it to real MCP).
 //!
 //! `McpServer` owns a shared `Arc<Mutex<App>>` (uniform across headless and
 //! headful wiring) plus a command [`Sink`]: `Direct` dispatches mutations into
@@ -57,9 +58,9 @@ pub struct McpServer {
 }
 
 /// JSON-RPC error (code + message). `anyhow::Error` converts to -32603.
-struct RpcErr {
-    code: i32,
-    message: String,
+pub(crate) struct RpcErr {
+    pub(crate) code: i32,
+    pub(crate) message: String,
 }
 
 impl From<anyhow::Error> for RpcErr {
@@ -168,7 +169,7 @@ impl McpServer {
         }
     }
 
-    fn handle_method(&mut self, method: &str, params: &Value) -> Result<Value, RpcErr> {
+    pub(crate) fn handle_method(&mut self, method: &str, params: &Value) -> Result<Value, RpcErr> {
         let result = match method {
             "ping" => json!({"ok": true}),
             "session/reset" => {
@@ -187,6 +188,16 @@ impl McpServer {
                 let content = req_str(params, "content")?;
                 self.lock_app()?.open_from_content(&name, &content);
                 json!({"ok": true})
+            }
+            "session/import_netlist" => {
+                let content = req_str(params, "content")?;
+                let name = params
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("imported")
+                    .to_string();
+                let mut app = self.lock_app()?;
+                import_netlist_source(&mut app, &content, &name, "inline netlist")?
             }
             "session/save" => {
                 let mut app = self.lock_app()?;
@@ -214,7 +225,13 @@ impl McpServer {
             }
             "session/dispatch" | "document/dispatch" => {
                 let payload = params.get("command").unwrap_or(params);
-                let cmd = command_from_json(payload)?;
+                // Models sometimes JSON-encode the command object into a
+                // string; unwrap that. Bare unit-variant strings ("ZoomIn")
+                // don't parse as JSON and pass through untouched.
+                let unwrapped = payload
+                    .as_str()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok());
+                let cmd = command_from_json(unwrapped.as_ref().unwrap_or(payload))?;
                 // Commands handled at the MCP level (core handler stubs them).
                 match &cmd {
                     Command::ImportSpice { path } => {
@@ -266,6 +283,17 @@ impl McpServer {
             "query/view" => {
                 let mut app = self.lock_app()?;
                 query_view(&mut app)
+            }
+            // The dispatch command reference, verbatim from the agent skill.
+            "query/commands" => json!({"reference": include_str!("../../skill/REFERENCE.md")}),
+            "query/files" => {
+                let dir = self.lock_app()?.state.project_dir.clone();
+                if dir.as_os_str().is_empty() {
+                    json!({"files": [],
+                        "note": "no project dir set — call session_set_project_dir first"})
+                } else {
+                    json!({"project_dir": dir, "files": list_workspace_files(&dir)})
+                }
             }
             "query/netlist" => json!(emit_pyspice(&self.lock_app()?.build_circuit_ir())),
             "query/documentation" => {
@@ -543,31 +571,111 @@ fn import_spice(app: &mut App, path: &str) -> Result<Value> {
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| "imported".to_string());
+    import_netlist_source(app, &source, &top_name, path)
+}
 
-    let circuit = schemify_net2schem::netlist_to_circuit(&source)?;
-
-    let mut opened = Vec::new();
-    for sub in circuit.subcircuits.values() {
-        let sch = schematic_from_subcircuit(sub, &mut app.state.interner);
-        push_imported_doc(app, sch, &sub.name);
-        opened.push(sub.name.clone());
+fn import_netlist_source(app: &mut App, source: &str, top_name: &str, origin: &str) -> Result<Value> {
+    // A lone .subckt is a cell definition: inline its body and turn its
+    // ports into directional pins (PININFO refines, else inout).
+    let unwrapped = schemify_net2schem::unwrap_lone_subckt(source);
+    let (source, top_name) = match &unwrapped {
+        Some((inlined, cell)) => (
+            inlined.as_str(),
+            // Keep the caller's document name unless it's the default.
+            if top_name == "imported" { cell.as_str() } else { top_name },
+        ),
+        None => (source, top_name),
+    };
+    // Pick up cells saved earlier in this session: X masters resolve against
+    // the on-disk project library, so refresh it before building host symbols.
+    if !app.state.project_dir.as_os_str().is_empty() {
+        app.reload_project_config();
     }
-    let sch = schematic_from_subcircuit(&circuit.top, &mut app.state.interner);
-    push_imported_doc(app, sch, &top_name);
-    opened.push(top_name);
+
+    // Project symbols (the box symbols generated for project `.chn` cells)
+    // register as runtime DUT classes: a testbench `X` master naming one
+    // places as a box device instead of being skipped as an undefined
+    // subckt. Pin direction mirrors the box layout: left edge (x < 0) is
+    // Input, everything else Inout.
+    let symbols: Vec<schemify_net2schem::HostSymbol> = app
+        .state
+        .library
+        .project_symbols
+        .iter()
+        .filter_map(|(name, _)| schemify_editor::schemify::find_by_name(name))
+        .map(|e| schemify_net2schem::HostSymbol {
+            name: e.kind_name.to_string(),
+            pins: e
+                .pin_positions
+                .iter()
+                .map(|p| {
+                    let dir = if p.x < 0 {
+                        schemify_net2schem::ir::PinDir::Input
+                    } else {
+                        schemify_net2schem::ir::PinDir::Inout
+                    };
+                    (p.name.to_string(), dir)
+                })
+                .collect(),
+        })
+        .collect();
+
+    let circuit = schemify_net2schem::cktimg::netlist_to_circuit_with(source, &symbols)?;
+
+    // Multiple .subckts with no top-level instances still produce an empty
+    // top — fail loudly instead of opening a blank document. (A single
+    // .subckt was already unwrapped above.)
+    if circuit.top.instances.is_empty() {
+        anyhow::bail!(
+            "netlist has no top-level instances — import one .subckt per call \
+             (its ports become pins), or instantiate them (e.g. `X1 in out 0 myfilter`)"
+        );
+    }
+
+    // cktimg flattens .subckts: one top-level document.
+    // *.PININFO comments turn named nets into directional port pins.
+    let ports = schemify_net2schem::emit::parse_pininfo(source);
+    let mut opened = Vec::new();
+    let sch = schematic_from_subcircuit(&circuit.top, &mut app.state.interner, &ports);
+    push_imported_doc(app, sch, top_name);
+    opened.push(top_name.to_string());
 
     // Parse report: netlist lines the importer could not represent.
     let skipped: Vec<String> = circuit.diagnostics.iter().map(|d| d.to_string()).collect();
     app.state.status_msg = if skipped.is_empty() {
-        format!("Imported {} document(s) from {path}", opened.len())
+        format!("Imported {} document(s) from {origin}", opened.len())
     } else {
         format!(
-            "Imported {} document(s) from {path} ({} line(s) skipped)",
+            "Imported {} document(s) from {origin} ({} line(s) skipped)",
             opened.len(),
             skipped.len()
         )
     };
     Ok(json!({"ok": true, "documents": opened, "skipped_lines": skipped}))
+}
+
+/// Schematic/netlist/waveform files under the project dir (depth ≤ 3,
+/// hidden and build dirs skipped).
+fn list_workspace_files(dir: &Path) -> Vec<Value> {
+    const EXTS: &[&str] = &[".chn", ".chn_tb", ".chn_prim", ".spice", ".cir", ".raw"];
+    let mut out = Vec::new();
+    let mut stack = vec![(dir.to_path_buf(), 0u8)];
+    while let Some((d, depth)) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&d) else { continue };
+        for e in entries.flatten() {
+            let p = e.path();
+            let name = e.file_name().to_string_lossy().into_owned();
+            if p.is_dir() {
+                if depth < 3 && !name.starts_with('.') && name != "target" {
+                    stack.push((p, depth + 1));
+                }
+            } else if EXTS.iter().any(|x| name.ends_with(x)) {
+                out.push(json!({"name": name, "path": p}));
+            }
+        }
+    }
+    out.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+    out
 }
 
 fn push_imported_doc(app: &mut App, schematic: schemify_editor::schemify::Schematic, name: &str) {

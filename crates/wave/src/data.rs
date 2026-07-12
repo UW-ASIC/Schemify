@@ -21,7 +21,7 @@ pub enum VarKind {
 }
 
 impl VarKind {
-    pub fn from_type_str(s: &str) -> Self {
+    pub(crate) fn from_type_str(s: &str) -> Self {
         let s = s.trim();
         if s.eq_ignore_ascii_case("time") {
             VarKind::Time
@@ -61,7 +61,6 @@ pub struct Variable {
 /// ngspice appends one block per `.step` or per analysis command).
 #[derive(Debug, Clone)]
 pub struct RawPlot {
-    pub title: String,
     pub plotname: String,
     /// AC analysis: every column has a matching imaginary column in `im`.
     pub complex: bool,
@@ -80,14 +79,14 @@ pub struct RawPlot {
 impl RawPlot {
     /// Real column for variable `v`.
     #[inline]
-    pub fn col(&self, v: usize) -> &[f64] {
+    pub(crate) fn col(&self, v: usize) -> &[f64] {
         let n = self.n_points as usize;
         &self.re[v * n..(v + 1) * n]
     }
 
     /// Imaginary column for variable `v`. Panics if `!complex`.
     #[inline]
-    pub fn col_im(&self, v: usize) -> &[f64] {
+    pub(crate) fn col_im(&self, v: usize) -> &[f64] {
         let n = self.n_points as usize;
         &self.im[v * n..(v + 1) * n]
     }
@@ -100,15 +99,10 @@ impl RawPlot {
 
     /// Case-insensitive variable lookup. `.raw` tools disagree on case
     /// (`V(out)` vs `v(out)`), so lookups never compare case-sensitively.
-    pub fn find_var(&self, name: &str) -> Option<usize> {
+    pub(crate) fn find_var(&self, name: &str) -> Option<usize> {
         self.variables
             .iter()
             .position(|v| v.name.eq_ignore_ascii_case(name))
-    }
-
-    /// Imaginary column when complex, else `None` — for `SignalSource`.
-    fn signal_cols(&self, v: usize) -> (&[f64], Option<&[f64]>) {
-        (self.col(v), self.complex.then(|| self.col_im(v)))
     }
 
     /// Detect sweep steps: the scale variable restarting (x[i] < x[i-1])
@@ -126,19 +120,5 @@ impl RawPlot {
         }
         steps.push(start..scale.len() as u32);
         self.steps = steps;
-    }
-}
-
-impl crate::expr::SignalSource for RawPlot {
-    fn signal(&self, name: &str) -> Option<(&[f64], Option<&[f64]>)> {
-        self.find_var(name).map(|v| self.signal_cols(v))
-    }
-
-    fn scale(&self) -> &[f64] {
-        RawPlot::scale(self)
-    }
-
-    fn steps(&self) -> &[Range<u32>] {
-        &self.steps
     }
 }

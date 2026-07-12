@@ -287,7 +287,7 @@ impl WaveState {
     /// The X column a trace plots against (fft overrides the file scale).
     pub fn trace_x<'a>(&'a self, t: &'a Trace) -> Option<&'a [f64]> {
         let cached = t.cached.as_ref()?;
-        if let Some(x) = &cached.x {
+        if let Some((x, _)) = &cached.domain {
             return Some(x);
         }
         Some(self.block(t.file, t.block).ok()?.scale())
@@ -296,7 +296,7 @@ impl WaveState {
     /// Step ranges for a trace (fft remaps them).
     pub fn trace_steps<'a>(&'a self, t: &'a Trace) -> Option<&'a [std::ops::Range<u32>]> {
         let cached = t.cached.as_ref()?;
-        if let Some(s) = &cached.steps {
+        if let Some((_, s)) = &cached.domain {
             return Some(s);
         }
         Some(&self.block(t.file, t.block).ok()?.steps)

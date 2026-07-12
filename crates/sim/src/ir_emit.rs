@@ -2,23 +2,15 @@
 //! that emits netlist components. Adding a device kind = add its arm here
 //! (plus the spec row in `schemify::device`).
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use lasso::Rodeo;
 
 use crate::pdk::{LoadedPdk, PdkCell};
 use schemify_schematic::resolve_connectivity;
-use schemify_schematic::{DeviceKind, Schematic};
+use schemify_schematic::{DeviceKind, PinDirection, Schematic};
 use crate as ir;
-
-/// PDK cell for a device kind: the manifest keys cells by primitive name
-/// ("nmos4", "res", ...), so map by parsing the key back to a kind.
-fn pdk_cell_for_kind(pdk: &LoadedPdk, kind: DeviceKind) -> Option<&PdkCell> {
-    pdk.cells
-        .iter()
-        .find(|(k, _)| DeviceKind::from_name(k) == kind)
-        .map(|(_, c)| c)
-}
 
 /// Convert a Schematic into a CircuitIR.
 ///
@@ -31,6 +23,17 @@ fn pdk_cell_for_kind(pdk: &LoadedPdk, kind: DeviceKind) -> Option<&PdkCell> {
 /// into the top subcircuit.
 pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>) -> ir::CircuitIR {
     let conn = resolve_connectivity(sch, interner);
+
+    // The manifest keys cells by primitive name ("nmos4", "res", ...); map
+    // once to DeviceKind so the per-instance lookup below is O(1).
+    let kind_cells: HashMap<DeviceKind, &PdkCell> = pdk
+        .map(|p| {
+            p.cells
+                .iter()
+                .map(|(k, c)| (DeviceKind::from_name(k), c))
+                .collect()
+        })
+        .unwrap_or_default();
 
     let mut components: Vec<ir::Component> = Vec::new();
     let mut instances: Vec<ir::Instance> = Vec::new();
@@ -69,7 +72,7 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
             })
             .collect();
 
-        let pdk_cell = pdk.and_then(|p| pdk_cell_for_kind(p, kind));
+        let pdk_cell = kind_cells.get(&kind).copied();
 
         // PDK default params fill in whatever the instance doesn't set.
         if let Some(cell) = pdk_cell {
@@ -82,13 +85,8 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
 
         let net = |pin_idx: usize| -> String {
             pins.get(pin_idx)
-                .and_then(|pc| {
-                    if pc.net_idx == usize::MAX {
-                        None
-                    } else {
-                        conn.net_names.get(pc.net_idx)
-                    }
-                })
+                .and_then(|pc| pc.net_idx)
+                .and_then(|ni| conn.net_names.get(ni as usize))
                 .cloned()
                 .unwrap_or_else(|| "?".to_owned())
         };
@@ -259,7 +257,6 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
                     np: net(0),
                     nm: net(1),
                     value: value_or_default("0"),
-                    waveform: None,
                 });
             }
             DeviceKind::Isource => {
@@ -268,7 +265,6 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
                     np: net(0),
                     nm: net(1),
                     value: value_or_default("0"),
-                    waveform: None,
                 });
             }
 
@@ -463,7 +459,6 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
                     np: net(0),
                     nm: net(1),
                     value: ir::IrValue::Numeric { value: 0.0 },
-                    waveform: None,
                 });
             }
 
@@ -493,35 +488,7 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
         }
     }
 
-    // Model definitions: parse ".model name TYPE(params)" into structured defs.
-    let mut models: Vec<ir::ModelDef> = Vec::with_capacity(sch.model_defs.len());
-    for m in &sch.model_defs {
-        let parts: Vec<&str> = m.body.splitn(3, ' ').collect();
-        let (model_kind, model_params) = if parts.len() >= 3 {
-            let kind_and_params = parts[2];
-            if let Some(paren) = kind_and_params.find('(') {
-                let kind = kind_and_params[..paren].to_owned();
-                let param_str = kind_and_params[paren + 1..].trim_end_matches(')');
-                let params: Vec<(String, String)> = param_str
-                    .split_whitespace()
-                    .filter_map(|kv| {
-                        let eq = kv.find('=')?;
-                        Some((kv[..eq].to_owned(), kv[eq + 1..].to_owned()))
-                    })
-                    .collect();
-                (kind, params)
-            } else {
-                (kind_and_params.to_owned(), vec![])
-            }
-        } else {
-            (String::new(), vec![])
-        };
-        models.push(ir::ModelDef {
-            name: m.name.clone(),
-            kind: model_kind,
-            parameters: model_params,
-        });
-    }
+    let mut models: Vec<ir::ModelDef> = Vec::new();
 
     // Verilog-A instances need a model card binding the OSDI module
     // (`.model <name> <module>`); auto-emit one per module unless the
@@ -539,7 +506,6 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
     // PDK model library: corner-sectioned .lib plus plain includes.
     let mut includes = vec![];
     let mut libs = vec![];
-    let mut model_libraries = vec![];
     if let Some(p) = pdk {
         let corner = if sch.sim_corner.is_empty() {
             p.default_corner.clone()
@@ -548,13 +514,7 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
         };
         if let Some(lib) = &p.lib_path {
             let path = lib.to_string_lossy().into_owned();
-            libs.push((path.clone(), corner.clone()));
-            model_libraries.push(ir::ModelLibrary {
-                name: p.name.clone(),
-                path,
-                corner: Some(corner),
-                backend_paths: Default::default(),
-            });
+            libs.push((path, corner));
         }
         for inc in &p.includes {
             includes.push(inc.to_string_lossy().into_owned());
@@ -575,9 +535,7 @@ pub fn to_circuit_ir(sch: &Schematic, interner: &Rodeo, pdk: Option<&LoadedPdk>)
 
     ir::CircuitIR {
         top,
-        testbench: None,
         subcircuit_defs: vec![],
-        model_libraries,
     }
 }
 
@@ -600,7 +558,11 @@ pub fn to_circuit_ir_with_children(
             .iter()
             .map(|p| ir::Port {
                 name: interner.resolve(&p.name).to_owned(),
-                direction: ir::PortDirection::InOut,
+                direction: match p.direction {
+                    PinDirection::Input => ir::PortDirection::Input,
+                    PinDirection::Output => ir::PortDirection::Output,
+                    _ => ir::PortDirection::InOut,
+                },
             })
             .collect();
 
@@ -645,11 +607,11 @@ fn strip_spice_prefix(name: &str, kind: DeviceKind) -> String {
     name.to_owned()
 }
 
-/// Parse a SPICE value literal: plain number, SI suffix (1k, 10u, 1meg, ...),
-/// expression, or raw text.
-fn parse_value(s: &str) -> ir::IrValue {
+/// Parse a SPICE numeric literal: plain number or SI suffix
+/// (1k, 10u, 1meg, 1mil, ...). Returns `None` for anything else.
+pub(crate) fn parse_spice_number(s: &str) -> Option<f64> {
     if let Ok(v) = s.parse::<f64>() {
-        return ir::IrValue::Numeric { value: v };
+        return Some(v);
     }
     let s_lower = s.to_ascii_lowercase();
     let (num_part, multiplier) = if let Some(n) = s_lower.strip_suffix("meg") {
@@ -657,43 +619,34 @@ fn parse_value(s: &str) -> ir::IrValue {
     } else if let Some(n) = s_lower.strip_suffix("mil") {
         (n, 25.4e-6)
     } else if s_lower.len() > 1 {
-        let last = s_lower.as_bytes()[s_lower.len() - 1];
-        let mult = match last {
-            b't' => Some(1e12),
-            b'g' => Some(1e9),
-            b'k' => Some(1e3),
-            b'm' => Some(1e-3),
-            b'u' => Some(1e-6),
-            b'n' => Some(1e-9),
-            b'p' => Some(1e-12),
-            b'f' => Some(1e-15),
-            b'a' => Some(1e-18),
-            _ => None,
+        let mult = match s_lower.as_bytes()[s_lower.len() - 1] {
+            b't' => 1e12,
+            b'g' => 1e9,
+            b'k' => 1e3,
+            b'm' => 1e-3,
+            b'u' => 1e-6,
+            b'n' => 1e-9,
+            b'p' => 1e-12,
+            b'f' => 1e-15,
+            b'a' => 1e-18,
+            _ => return None,
         };
-        match mult {
-            Some(m) => (&s[..s.len() - 1], m),
-            None => (s, 1.0),
-        }
+        (&s_lower[..s_lower.len() - 1], mult)
     } else {
-        (s, 1.0)
+        return None;
     };
+    num_part.parse::<f64>().ok().map(|v| v * multiplier)
+}
 
-    if multiplier != 1.0 {
-        if let Ok(v) = num_part.parse::<f64>() {
-            return ir::IrValue::Numeric {
-                value: v * multiplier,
-            };
-        }
+/// Parse a SPICE value literal: plain number, SI suffix (1k, 10u, 1meg, ...),
+/// expression, or raw text.
+fn parse_value(s: &str) -> ir::IrValue {
+    if let Some(v) = parse_spice_number(s) {
+        return ir::IrValue::Numeric { value: v };
     }
-
     if s.contains('{') || s.contains('+') || s.contains('*') || s.contains('/') {
         ir::IrValue::Expression { expr: s.to_owned() }
     } else {
         ir::IrValue::Raw { text: s.to_owned() }
     }
 }
-
-// ════════════════════════════════════════════════════════════
-// Tests
-// ════════════════════════════════════════════════════════════
-

@@ -34,15 +34,8 @@ mod tests {
             np: "in".into(),
             nm: "0".into(),
             value: IrValue::numeric(5.0),
-            waveform: None,
         });
-        let mut ir = CircuitIR::with_top(top);
-        ir.testbench = Some(Testbench {
-            dut: "voltage_divider".into(),
-            analyses: vec![Analysis::Op],
-            ..Testbench::default()
-        });
-        ir
+        CircuitIR::with_top(top)
     }
 
     #[test]
@@ -73,8 +66,6 @@ mod tests {
         assert!(py.contains(r#"ckt = Circuit("voltage_divider")"#));
         assert!(py.contains(r#"ckt.R(name="R1", positive="in", negative="out", value=10000)"#));
         assert!(py.contains(r#"ckt.V(name="V1", positive="in", negative="0", value=5)"#));
-        assert!(py.contains("sim = ckt.simulator()"));
-        assert!(py.contains("sim.operating_point()"));
     }
 
     /// End-to-end smoke for the sim runner's netlist path: python
@@ -93,8 +84,7 @@ mod tests {
             return;
         }
 
-        let mut ir = divider_ir();
-        ir.testbench = None; // the runner splices directives itself
+        let ir = divider_ir();
 
         let dir = std::env::temp_dir().join("schemify_sim_test");
         std::fs::create_dir_all(&dir).unwrap();
@@ -156,7 +146,6 @@ mod tests {
             np: "a".into(),
             nm: "0".into(),
             value: IrValue::numeric(0.001),
-            waveform: None,
         });
         let py = emit_pyspice(&CircuitIR::with_top(top));
         assert!(py.contains(r#"ckt.C(name="C1", positive="a", negative="0", value=0.000000001)"#));
@@ -216,45 +205,7 @@ mod tests {
         assert!(sp.starts_with("* voltage_divider\n"));
         assert!(sp.contains("RR1 in out 10000\n"));
         assert!(sp.contains("VV1 in 0 5\n"));
-        assert!(sp.contains(".op\n"));
         assert!(sp.ends_with(".end\n"));
-    }
-
-    #[test]
-    fn spice_waveforms_and_analyses() {
-        let mut top = Subcircuit::new("tb");
-        top.components.push(Component::VoltageSource {
-            name: "in".into(),
-            np: "a".into(),
-            nm: "0".into(),
-            value: IrValue::numeric(0.0),
-            waveform: Some(IrWaveform::Pulse {
-                initial: 0.0,
-                pulsed: 3.3,
-                delay: 0.0,
-                rise_time: 1e-9,
-                fall_time: 1e-9,
-                pulse_width: 5e-6,
-                period: 1e-5,
-            }),
-        });
-        let mut ir = CircuitIR::with_top(top);
-        ir.testbench = Some(Testbench {
-            dut: "tb".into(),
-            analyses: vec![Analysis::Transient {
-                step: 1e-9,
-                stop: 1e-5,
-                start: None,
-                max_step: None,
-                uic: true,
-            }],
-            saves: vec!["V(a)".into()],
-            ..Testbench::default()
-        });
-        let sp = emit_spice(&ir);
-        assert!(sp.contains("Vin a 0 0 PULSE(0 3.3 0 0.000000001 0.000000001 0.000005 0.00001)"));
-        assert!(sp.contains(".tran 0.000000001 0.00001 UIC\n"));
-        assert!(sp.contains(".save V(a)\n"));
     }
 
     #[test]
@@ -292,12 +243,6 @@ mod tests {
             nm: "0".into(),
             expression: "V(x)*2".into(),
         });
-        top.components.push(Component::BehavioralCurrent {
-            name: "2".into(),
-            np: "a".into(),
-            nm: "0".into(),
-            expression: "I(V1)".into(),
-        });
         top.components.push(Component::Jfet {
             name: "1".into(),
             nd: "d".into(),
@@ -316,7 +261,6 @@ mod tests {
         });
         let sp = emit_spice(&CircuitIR::with_top(top));
         assert!(sp.contains("B1 a 0 V={V(x)*2}\n"));
-        assert!(sp.contains("B2 a 0 I={I(V1)}\n"));
         assert!(sp.contains("J1 d g s jm\n"));
         assert!(sp.contains("Z2 d g s zm\n"));
     }

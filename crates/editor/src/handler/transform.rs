@@ -163,15 +163,12 @@ pub(crate) fn instance_at(sch: &Schematic, i: usize) -> Instance {
     Instance {
         name: v.name[i],
         symbol: v.symbol[i],
-        spice_line: v.spice_line[i],
         x: v.x[i],
         y: v.y[i],
         kind: v.kind[i],
         flags: v.flags[i],
         prop_start: v.prop_start[i],
         prop_count: v.prop_count[i],
-        name_offset: v.name_offset[i],
-        param_offset: v.param_offset[i],
     }
 }
 

@@ -1,7 +1,6 @@
 //! Simulation support: circuit IR (JSON contract with pyspice_rs),
 //! IR emission from schematics, code generation (PySpice scripts and
-//! SPICE netlists), PDK manifests, stimulus files, and the external
-//! simulator runner.
+//! SPICE netlists), PDK manifests, and the external simulator runner.
 
 pub mod codegen;
 pub mod ir;
@@ -9,7 +8,6 @@ pub mod ir_emit;
 pub mod pdk;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod runner;
-pub mod stimulus;
 
 pub use ir::*;
 pub use ir_emit::{to_circuit_ir, to_circuit_ir_with_children};
@@ -18,14 +16,18 @@ pub use ir_emit::{to_circuit_ir, to_circuit_ir_with_children};
 pub mod pyspice {
     use std::path::{Path, PathBuf};
 
-    /// Returns the path to the bundled `pyspice_rs` Python module directory,
-    /// or `None` if PySpice was not available at build time
-    /// (`PYSPICE_BUNDLE_DIR` unset).
-    pub fn module_dir() -> Option<&'static Path> {
-        option_env!("PYSPICE_BUNDLE_DIR").map(Path::new)
+    /// Returns the path to the `pyspice_rs` Python module directory:
+    /// the dir bundled at build time (`PYSPICE_BUNDLE_DIR`, release nix
+    /// builds), else the runtime devshell dir (`PYSPICE_MODULE_DIR`, so
+    /// plain `cargo run` inside `nix develop` can simulate too).
+    pub fn module_dir() -> Option<PathBuf> {
+        if let Some(dir) = option_env!("PYSPICE_BUNDLE_DIR") {
+            return Some(Path::new(dir).to_path_buf());
+        }
+        std::env::var_os("PYSPICE_MODULE_DIR").map(PathBuf::from)
     }
 
-    /// Returns whether PySpice support was compiled in.
+    /// Returns whether PySpice support is available (bundled or devshell).
     pub fn is_available() -> bool {
         module_dir().is_some()
     }
@@ -34,7 +36,8 @@ pub mod pyspice {
     /// Prepends the bundled dir to any existing `PYTHONPATH`.
     /// Returns `None` if PySpice is not available.
     pub fn python_path() -> Option<String> {
-        let bundled = module_dir()?.to_string_lossy();
+        let dir = module_dir()?;
+        let bundled = dir.to_string_lossy();
         Some(match std::env::var("PYTHONPATH") {
             Ok(existing) if !existing.is_empty() => format!("{bundled}:{existing}"),
             _ => bundled.into_owned(),

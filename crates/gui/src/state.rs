@@ -339,6 +339,10 @@ pub struct GuiState {
 
     // Marketplace dialog scratch
     pub marketplace: MarketplaceDialogState,
+
+    // AI assistant panel (channel/runtime lives on SchemifyGui, not here)
+    #[cfg(not(target_arch = "wasm32"))]
+    pub agent: crate::agent_view::AgentPanelState,
 }
 
 // ════════════════════════════════════════════════════════════

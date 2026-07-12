@@ -96,14 +96,23 @@ struct SetStatusParams {
     message: String,
 }
 
-fn default_info() -> String {
-    "info".into()
+/// Plugin log severity, parsed once at the decode boundary. Unknown level
+/// strings fall back to `Info`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    Debug,
+    Warn,
+    Error,
+    #[default]
+    #[serde(other)]
+    Info,
 }
 
 #[derive(Deserialize)]
 struct LogParams {
-    #[serde(default = "default_info")]
-    level: String,
+    #[serde(default)]
+    level: LogLevel,
     message: String,
 }
 

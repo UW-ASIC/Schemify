@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use super::{DownloadEntry, InstalledPlugin, MarketplaceError};
+use super::{DownloadEntry, MarketplaceError};
 
 pub fn download_and_verify(
     entry: &DownloadEntry,
@@ -128,20 +128,6 @@ pub fn remove_plugin(plugins_dir: &Path, id: &str) -> Result<(), MarketplaceErro
     }
     std::fs::remove_dir_all(&dir)?;
     Ok(())
-}
-
-pub fn make_installed_record(
-    id: &str,
-    name: &str,
-    version: &str,
-    sha256: &str,
-) -> InstalledPlugin {
-    InstalledPlugin {
-        id: id.to_owned(),
-        name: name.to_owned(),
-        version: version.to_owned(),
-        tarball_sha256: sha256.to_owned(),
-    }
 }
 
 fn hex_sha256(data: &[u8]) -> String {

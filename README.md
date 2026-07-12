@@ -95,7 +95,7 @@ Example — size R2 of a voltage divider until V(out) = 2 V:
 | `crates/plugin-api`   | Plugin wire protocol + Rust guest SDK (all a plugin binary needs)             |
 | `crates/plugin-host`  | Plugin manager (subprocess JSON-RPC) + marketplace client                     |
 | `crates/gui`          | GUI (eframe/egui)                                                             |
-| `crates/mcp`          | JSON-RPC server (shared command marshaling lives in `crates/editor`)          |
+| `crates/agent`        | Headless agent driver (claude-code/codex) + MCP server agents drive the app with |
 | `plugins/`            | First-party plugins (theme-registry, pdk-switcher, gmid-lut, pdk-mapper) + marketplace `index.json` |
 
 ## Backend Selection for Rendering:

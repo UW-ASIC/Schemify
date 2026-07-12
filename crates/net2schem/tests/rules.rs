@@ -16,12 +16,10 @@ use std::process::Command;
 
 use lasso::Rodeo;
 
-use schemify_net2schem::emit::{
-    self, pin_position, SchemifyBackend, Severity, ValidationError,
+use schemify_net2schem::emit::{self, pin_position, Severity, ValidationError};
+use schemify_net2schem::ir::{
+    is_ground_name, is_power_name, NetClass, PinDir, Primitive, Subcircuit, Wire,
 };
-use schemify_net2schem::ir::{NetClass, PinDir, Primitive, Subcircuit, Wire};
-use schemify_net2schem::route::{classify_nets, NetStrategy};
-use schemify_net2schem::shared::{is_ground_name, is_power_name};
 
 // ===========================================================================
 // Per-category test entry points
@@ -100,7 +98,6 @@ fn run_category(category: &str) {
         dir.display()
     );
 
-    let backend = SchemifyBackend::new("");
     let mut violations: Vec<String> = Vec::new();
 
     for fixture in &fixtures {
@@ -133,16 +130,11 @@ fn run_category(category: &str) {
             t_gen, t_layout
         );
 
-        // Check top + every subcircuit definition (sorted for stable output).
-        let mut scopes: Vec<(String, &Subcircuit)> = vec![("top".to_string(), &circuit.top)];
-        let mut sub_names: Vec<&String> = circuit.subcircuits.keys().collect();
-        sub_names.sort();
-        for name in sub_names {
-            scopes.push((format!("subckt {name}"), &circuit.subcircuits[name]));
-        }
+        // cktimg flattens .subckts: a single top-level scope.
+        let scopes: Vec<(String, &Subcircuit)> = vec![("top".to_string(), &circuit.top)];
 
         for (scope, sub) in scopes {
-            for v in check_subcircuit(sub, &backend) {
+            for v in check_subcircuit(sub) {
                 violations.push(format!("{fname} [{scope}] {v}"));
             }
         }
@@ -182,7 +174,8 @@ fn run_category(category: &str) {
     }
 
     panic!(
-        "category '{category}': {} schematic-rule violations across {} fixtures\nper-rule: {}\n\n{body}",
+        "category '{category}': {} schematic-rule violations across {} fixtures\nper-rule: {}\n\n{body}\n\n\
+         inspect visually: cargo visualize-net2schem {category}  (side-by-side cktImg reference vs adapter output)",
         violations.len(),
         fixtures.len(),
         count_summary.join("  "),
@@ -216,16 +209,15 @@ fn generate_netlist(fixture: &Path, pyspice_dir: &str) -> Result<String, String>
 }
 
 /// Run all rules on one laid-out subcircuit, collecting violations.
-fn check_subcircuit(sub: &Subcircuit, backend: &SchemifyBackend) -> Vec<String> {
+fn check_subcircuit(sub: &Subcircuit) -> Vec<String> {
     let mut out = Vec::new();
     rule_r1_to_r4_and_r7(sub, &mut out);
-    rule_r5_pin_connectivity(sub, backend, &mut out);
-    rule_r6_wire_clearance(sub, backend, &mut out);
-    rule_r8_connectivity_roundtrip(sub, backend, &mut out);
-    rule_q1_signal_flow(sub, backend, &mut out);
-    rule_q2_power_orientation(sub, backend, &mut out);
+    rule_r5_pin_connectivity(sub, &mut out);
+    rule_r6_wire_clearance(sub, &mut out);
+    rule_r8_connectivity_roundtrip(sub, &mut out);
+    rule_q1_signal_flow(sub, &mut out);
+    rule_q2_power_orientation(sub, &mut out);
     rule_q4_wire_crossings(sub, &mut out);
-    rule_q5_wire_vs_label(sub, backend, &mut out);
     out
 }
 
@@ -283,7 +275,6 @@ fn rule_r1_to_r4_and_r7(sub: &Subcircuit, out: &mut Vec<String>) {
     emit::check_grid_alignment(sub, &mut errs);
     push_all("R2", std::mem::take(&mut errs), out);
 
-    emit::check_rotation_values(sub, &mut errs);
     push_all("R3", std::mem::take(&mut errs), out);
 
     emit::check_wire_orthogonality(sub, &mut errs);
@@ -308,11 +299,11 @@ fn rule_r1_to_r4_and_r7(sub: &Subcircuit, out: &mut Vec<String>) {
 // R5 — every connected pin sits exactly on a same-net wire or label
 // ===========================================================================
 
-fn rule_r5_pin_connectivity(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut Vec<String>) {
+fn rule_r5_pin_connectivity(sub: &Subcircuit, out: &mut Vec<String>) {
     for inst in &sub.instances {
         for (pi, pin) in inst.pins.iter().enumerate() {
             let Some(net_id) = pin.net_idx else { continue };
-            let pos = pin_position(backend, inst, pi);
+            let pos = pin_position(inst, pi);
 
             let wired = sub
                 .wires
@@ -370,7 +361,7 @@ fn rule_r5_pin_connectivity(sub: &Subcircuit, backend: &SchemifyBackend, out: &m
 /// (grid-snapped) endpoints coincide with pin positions of the SAME instance
 /// on that net. These stubs are exempt from Q5's "Label nets carry no wires"
 /// and from R6 clearance.
-fn is_power_stub_wire(sub: &Subcircuit, backend: &SchemifyBackend, w: &Wire) -> bool {
+fn is_power_stub_wire(sub: &Subcircuit, w: &Wire) -> bool {
     let Some(net) = sub.nets.get(w.net_idx.index()) else {
         return false;
     };
@@ -388,7 +379,7 @@ fn is_power_stub_wire(sub: &Subcircuit, backend: &SchemifyBackend, w: &Wire) -> 
     let mut per_inst: HashMap<u32, (bool, bool)> = HashMap::new();
     for pr in &net.pins {
         let inst = &sub[pr.instance_idx];
-        let p = pin_position(backend, inst, pr.pin_idx.index());
+        let p = pin_position(inst, pr.pin_idx.index());
         let p = (snap(p.0), snap(p.1));
         let entry = per_inst.entry(pr.instance_idx.0).or_default();
         if p == a {
@@ -417,7 +408,7 @@ struct InstBody {
 /// Per-instance body bbox from transformed pin positions (plus origin).
 /// Zero-extent dimensions are widened to one grid (±10) so two-terminal
 /// devices (whose pins are collinear) still have a body interior.
-fn instance_bodies(sub: &Subcircuit, backend: &SchemifyBackend) -> Vec<InstBody> {
+fn instance_bodies(sub: &Subcircuit) -> Vec<InstBody> {
     sub.instances
         .iter()
         .map(|inst| {
@@ -426,7 +417,7 @@ fn instance_bodies(sub: &Subcircuit, backend: &SchemifyBackend) -> Vec<InstBody>
             let mut y_min = inst.y;
             let mut y_max = inst.y;
             for pi in 0..inst.pins.len() {
-                let (px, py) = pin_position(backend, inst, pi);
+                let (px, py) = pin_position(inst, pi);
                 x_min = x_min.min(px);
                 x_max = x_max.max(px);
                 y_min = y_min.min(py);
@@ -477,15 +468,15 @@ fn seg_enters_open_rect(a: Pt, b: Pt, body: &InstBody) -> bool {
     }
 }
 
-fn rule_r6_wire_clearance(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut Vec<String>) {
-    let bodies = instance_bodies(sub, backend);
+fn rule_r6_wire_clearance(sub: &Subcircuit, out: &mut Vec<String>) {
+    let bodies = instance_bodies(sub);
 
     // Pin position -> set of nets connected there (plus an example pin name).
     let mut pin_map: HashMap<Pt, (HashSet<u32>, String)> = HashMap::new();
     for inst in &sub.instances {
         for (pi, pin) in inst.pins.iter().enumerate() {
             let Some(net_id) = pin.net_idx else { continue };
-            let pos = pin_position(backend, inst, pi);
+            let pos = pin_position(inst, pi);
             let entry = pin_map
                 .entry(pos)
                 .or_insert_with(|| (HashSet::new(), format!("{}.{pi}", inst.name)));
@@ -495,7 +486,7 @@ fn rule_r6_wire_clearance(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut
 
     for (wi, w) in sub.wires.iter().enumerate() {
         // Sanctioned same-instance source→bulk rail stubs are exempt.
-        if is_power_stub_wire(sub, backend, w) {
+        if is_power_stub_wire(sub, w) {
             continue;
         }
         let a = (w.x1, w.y1);
@@ -543,7 +534,6 @@ type Partition = BTreeSet<BTreeSet<PinKey>>;
 
 fn rule_r8_connectivity_roundtrip(
     sub: &Subcircuit,
-    backend: &SchemifyBackend,
     out: &mut Vec<String>,
 ) {
     // Original partition: each net -> set of (instance_name, pin_index).
@@ -583,10 +573,10 @@ fn rule_r8_connectivity_roundtrip(
         }
     }
     let mut rodeo = Rodeo::default();
-    let sch = emit::schematic_from_subcircuit(sub, &mut rodeo);
+    let sch = emit::schematic_from_subcircuit(sub, &mut rodeo, &Default::default());
     let rt = emit::subcircuit_from_schematic_with_symbols(&sch, &rodeo, &subckt_pin_counts);
 
-    let groups = geometric_partition(&rt, backend);
+    let groups = geometric_partition(&rt);
 
     // Restrict roundtrip groups to pins present in the original universe
     // (the reverse adapter synthesizes default pin lists per device kind).
@@ -613,7 +603,7 @@ fn rule_r8_connectivity_roundtrip(
     // layout (router/placer collision) — report the witnessing cross-net
     // contact so the defect is actionable. Otherwise the adapter itself
     // altered connectivity. Both cases stay hard R8 violations.
-    let orig_geo = restrict(geometric_partition(sub, backend));
+    let orig_geo = restrict(geometric_partition(sub));
     let cause = if orig_geo == roundtrip {
         "layout"
     } else {
@@ -631,7 +621,7 @@ fn rule_r8_connectivity_roundtrip(
     }
 
     let contacts = if cause == "layout" {
-        cross_net_contacts(sub, backend)
+        cross_net_contacts(sub)
     } else {
         Vec::new()
     };
@@ -691,7 +681,6 @@ fn rule_r8_connectivity_roundtrip(
 /// Returns (net_a, net_b, description) with net_a < net_b, deduplicated.
 fn cross_net_contacts(
     sub: &Subcircuit,
-    backend: &SchemifyBackend,
 ) -> Vec<(usize, usize, String)> {
     let net_name = |ni: usize| sub.nets[ni].name.as_str();
     let mut seen: BTreeSet<(usize, usize, String)> = BTreeSet::new();
@@ -707,7 +696,7 @@ fn cross_net_contacts(
             let Some(inst) = sub.instances.get(pr.instance_idx.index()) else {
                 continue;
             };
-            let pos = pin_position(backend, inst, pr.pin_idx.index());
+            let pos = pin_position(inst, pr.pin_idx.index());
             pins.push((inst.name.clone(), pr.pin_idx.index(), pos, ni));
         }
     }
@@ -850,14 +839,14 @@ impl Dsu {
 /// Recover net groupings of instance pins purely from geometry:
 /// wires touching wires (shared endpoint or T-junction), pins on wires,
 /// labels on pins/wires, labels unified by name, stacked pins.
-fn geometric_partition(sub: &Subcircuit, backend: &SchemifyBackend) -> Vec<BTreeSet<PinKey>> {
+fn geometric_partition(sub: &Subcircuit) -> Vec<BTreeSet<PinKey>> {
     // Node layout: [pins..][wires..][label names..]
     let mut pins: Vec<(PinKey, Pt)> = Vec::new();
     for inst in &sub.instances {
         for pi in 0..inst.pins.len() {
             pins.push((
                 (inst.name.clone(), pi),
-                pin_position(backend, inst, pi),
+                pin_position(inst, pi),
             ));
         }
     }
@@ -942,7 +931,7 @@ fn geometric_partition(sub: &Subcircuit, backend: &SchemifyBackend) -> Vec<BTree
 // Q1 — signal flow: inputs left of outputs
 // ===========================================================================
 
-fn rule_q1_signal_flow(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut Vec<String>) {
+fn rule_q1_signal_flow(sub: &Subcircuit, out: &mut Vec<String>) {
     if sub.ports.is_empty() {
         return;
     }
@@ -962,7 +951,7 @@ fn rule_q1_signal_flow(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut Ve
             .filter_map(|pr| {
                 sub.instances
                     .get(pr.instance_idx.index())
-                    .map(|inst| pin_position(backend, inst, pr.pin_idx.index()).0)
+                    .map(|inst| pin_position(inst, pr.pin_idx.index()).0)
             })
             .collect();
         if xs.is_empty() {
@@ -1005,7 +994,7 @@ fn rule_q1_signal_flow(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut Ve
 //      y grows downward through layers per place.rs power DAG)
 // ===========================================================================
 
-fn rule_q2_power_orientation(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut Vec<String>) {
+fn rule_q2_power_orientation(sub: &Subcircuit, out: &mut Vec<String>) {
     let pin_ys = |class: NetClass| -> Vec<i32> {
         sub.nets
             .iter()
@@ -1014,7 +1003,7 @@ fn rule_q2_power_orientation(sub: &Subcircuit, backend: &SchemifyBackend, out: &
             .filter_map(|pr| {
                 sub.instances
                     .get(pr.instance_idx.index())
-                    .map(|inst| pin_position(backend, inst, pr.pin_idx.index()).1)
+                    .map(|inst| pin_position(inst, pr.pin_idx.index()).1)
             })
             .collect()
     };
@@ -1070,56 +1059,5 @@ fn rule_q4_wire_crossings(sub: &Subcircuit, out: &mut Vec<String>) {
             "Q4: {crossings} wire crossings between different nets exceeds threshold {threshold} ({} wires total)",
             sub.wires.len()
         ));
-    }
-}
-
-// ===========================================================================
-// Q5 — routed output matches classify_nets strategy
-// ===========================================================================
-
-fn rule_q5_wire_vs_label(sub: &Subcircuit, backend: &SchemifyBackend, out: &mut Vec<String>) {
-    let strategies = classify_nets(sub, backend);
-
-    for (ni, strategy) in strategies.iter().enumerate() {
-        let net = &sub.nets[ni];
-        if net.pins.is_empty() {
-            continue;
-        }
-        let has_wire = sub.wires.iter().any(|w| w.net_idx.index() == ni);
-        let has_label = sub.labels.iter().any(|l| l.net_idx.index() == ni);
-
-        match strategy {
-            NetStrategy::Wire => {
-                if net.pins.len() >= 2 && !has_wire {
-                    out.push(format!(
-                        "Q5: net '{}' ({} pins) classified Wire but routed with no wire segments (labels present: {has_label})",
-                        net.name,
-                        net.pins.len()
-                    ));
-                }
-            }
-            NetStrategy::Label => {
-                if !has_label {
-                    out.push(format!(
-                        "Q5: net '{}' ({} pins) classified Label but has no labels",
-                        net.name,
-                        net.pins.len()
-                    ));
-                }
-                // Same-instance source→bulk rail stubs are sanctioned wires
-                // on Label-strategy power/ground nets.
-                let has_nonstub_wire = sub
-                    .wires
-                    .iter()
-                    .any(|w| w.net_idx.index() == ni && !is_power_stub_wire(sub, backend, w));
-                if has_nonstub_wire {
-                    out.push(format!(
-                        "Q5: net '{}' ({} pins) classified Label but was routed with wires",
-                        net.name,
-                        net.pins.len()
-                    ));
-                }
-            }
-        }
     }
 }

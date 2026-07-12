@@ -13,10 +13,9 @@ use std::collections::HashMap;
 
 /// Where a panel is placed. Wire type for the `panels/register` slot field.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[repr(u8)]
 pub enum PanelLayout {
     #[default]
-    Overlay = 0,
+    Overlay,
     LeftSidebar,
     RightSidebar,
     BottomBar,
@@ -36,9 +35,7 @@ pub enum ThemeColor {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ThemeValue {
     Color([u8; 4]),
-    Float(f32),
     Bool(bool),
-    Int(i32),
 }
 
 /// Flat map of named theme tokens (payload of `state/theme_changed`).
@@ -356,8 +353,6 @@ pub mod methods {
 }
 
 // JSON-RPC 2.0 error codes.
-pub const PARSE_ERROR: i32 = -32700;
-pub const INVALID_REQUEST: i32 = -32600;
 pub const METHOD_NOT_FOUND: i32 = -32601;
 pub const INVALID_PARAMS: i32 = -32602;
 pub const INTERNAL_ERROR: i32 = -32603;
@@ -399,8 +394,6 @@ pub fn error_response(id: u32, code: i32, message: &str) -> Result<String, serde
 pub struct ErrorInfo {
     pub code: i32,
     pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
 }
 
 /// Parsed incoming JSON-RPC message.
@@ -500,8 +493,6 @@ pub struct InitializeEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandInvocation {
     pub command: String,
-    #[serde(default)]
-    pub command_id: Option<String>,
 }
 
 /// Payload of `ui/action`.

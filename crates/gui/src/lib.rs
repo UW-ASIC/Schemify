@@ -10,6 +10,8 @@
 //! * [`keybinds`] — keybind table → `KeyCommand`
 //! * [`state`] — GUI-side state (theme, dialog scratch)
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod agent_view;
 pub mod canvas;
 pub mod components;
 pub mod handler;

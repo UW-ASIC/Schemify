@@ -9,7 +9,7 @@ use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 
 use schemify_editor::handler::{self, App, Origin, ViewMode};
-use schemify_editor::schemify::{Color, DeviceKind, NetConnKind};
+use schemify_editor::schemify::{Color, DeviceKind};
 
 // ════════════════════════════════════════════════════════════
 // Queries
@@ -87,7 +87,6 @@ pub(crate) fn query_view(app: &mut App) -> Value {
 
     let connectivity = app.connectivity();
     let net_names = &connectivity.net_names;
-    let nets = &connectivity.nets;
     let conns = &connectivity.instance_connections;
 
     let is_device = |name: &str, k: DeviceKind| !k.is_non_electrical() && !name.starts_with('.');
@@ -97,7 +96,7 @@ pub(crate) fn query_view(app: &mut App) -> Value {
     let _ = writeln!(
         buf,
         "{sch_name} | {device_count} devices, {wire_count} wires, {} nets",
-        nets.len()
+        net_names.len()
     );
 
     // Ports
@@ -128,7 +127,11 @@ pub(crate) fn query_view(app: &mut App) -> Value {
             .map(|cs| {
                 cs.iter()
                     .map(|c| {
-                        let net = net_names.get(c.net_idx).map(String::as_str).unwrap_or("?");
+                        let net = c
+                            .net_idx
+                            .and_then(|ni| net_names.get(ni as usize))
+                            .map(String::as_str)
+                            .unwrap_or("?");
                         format!("{}={}", c.pin_name, net)
                     })
                     .collect::<Vec<_>>()
@@ -145,22 +148,22 @@ pub(crate) fn query_view(app: &mut App) -> Value {
     // Per-net device-pin endpoints ("net" -> ["inst.pin", ...]), skipping
     // labels/supply symbols. Used for both the nets section and warnings.
     let mut net_device_pins: BTreeMap<&str, Vec<String>> = BTreeMap::new();
-    for (idx, net) in nets.iter().enumerate() {
-        let nname = net_names.get(idx).map(String::as_str).unwrap_or("?");
-        for ep in &net.connections {
-            if let NetConnKind::InstancePin {
-                instance_idx,
-                pin_name,
-            } = &ep.kind
-            {
-                let (iname, _, ikind) = &inst_info[*instance_idx];
-                if is_device(iname, *ikind) {
-                    let entry = net_device_pins.entry(nname).or_default();
-                    let tag = format!("{iname}.{pin_name}");
-                    if !entry.contains(&tag) {
-                        entry.push(tag);
-                    }
-                }
+    for (i, (iname, _, ikind)) in inst_info.iter().enumerate() {
+        if !is_device(iname, *ikind) {
+            continue;
+        }
+        let Some(cs) = conns.get(i) else { continue };
+        for c in cs {
+            let Some(nname) = c
+                .net_idx
+                .and_then(|ni| net_names.get(ni as usize))
+            else {
+                continue;
+            };
+            let entry = net_device_pins.entry(nname.as_str()).or_default();
+            let tag = format!("{iname}.{}", c.pin_name);
+            if !entry.contains(&tag) {
+                entry.push(tag);
             }
         }
     }
@@ -189,8 +192,8 @@ pub(crate) fn query_view(app: &mut App) -> Value {
             continue;
         }
         for pin in cs.iter().filter(|c| {
-            net_names
-                .get(c.net_idx)
+            c.net_idx
+                .and_then(|ni| net_names.get(ni as usize))
                 .is_none_or(|n| n.is_empty() || n == "?")
         }) {
             let hint = pin_connection_hint(*kind, pin.pin_name, &merged);
@@ -201,8 +204,23 @@ pub(crate) fn query_view(app: &mut App) -> Value {
             }
         }
     }
+    // Nets terminated by a label/supply symbol (lab_pin, gnd, vdd) are
+    // intentional single-device nets (ports, rails) — not stubs.
+    let terminated: std::collections::HashSet<&str> = inst_info
+        .iter()
+        .enumerate()
+        .filter(|(_, (iname, _, ikind))| !is_device(iname, *ikind))
+        .filter_map(|(i, _)| conns.get(i))
+        .flatten()
+        .filter_map(|c| c.net_idx.and_then(|ni| net_names.get(ni as usize)))
+        .map(String::as_str)
+        .collect();
     for (nname, eps) in &net_device_pins {
-        if eps.len() == 1 && !nname.is_empty() && *nname != "?" {
+        if eps.len() == 1
+            && !nname.is_empty()
+            && *nname != "?"
+            && !terminated.contains(nname)
+        {
             warnings.push(format!(
                 "net '{nname}' only connects to {} — stub or missing wire",
                 eps[0]

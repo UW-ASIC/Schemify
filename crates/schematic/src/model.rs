@@ -1,7 +1,7 @@
 //! Schematic document model: SoA instance/wire/bus tables, geometry
 //! primitives, property pool, connectivity result types.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use soa_derive::StructOfArray;
 
@@ -136,53 +136,20 @@ impl Default for Color {
 
 #[derive(Debug, Clone, Default)]
 pub struct Connectivity {
-    /// All resolved nets
-    pub nets: Vec<Net>,
-    /// Point (x,y) -> net index
-    pub point_to_net: HashMap<(i32, i32), usize>,
     /// Per-instance: pin connections (instance_idx -> connections)
     pub instance_connections: Vec<Vec<PinConnection>>,
-    /// Net index -> resolved name (parallel to nets)
+    /// Net index -> resolved name
     pub net_names: Vec<String>,
     /// Instance indices of LabPins with conflicting net names on the same net
     pub label_conflicts: HashSet<usize>,
-}
-
-/// A resolved net. Its name lives in `Connectivity::net_names` at the same
-/// index (single owned copy; avoids duplicating name strings per net).
-#[derive(Debug, Clone)]
-pub struct Net {
-    pub connections: Vec<NetEndpoint>,
-}
-
-#[derive(Debug, Clone)]
-pub struct NetEndpoint {
-    pub x: i32,
-    pub y: i32,
-    pub kind: NetConnKind,
-}
-
-#[derive(Debug, Clone)]
-pub enum NetConnKind {
-    WireEndpoint {
-        wire_idx: usize,
-    },
-    InstancePin {
-        instance_idx: usize,
-        /// Borrowed from the static primitive pin tables (`PinPos::name`).
-        pin_name: &'static str,
-    },
-    Label {
-        /// Interned label name; resolve via the interner at display/export time.
-        name: Sym,
-    },
 }
 
 #[derive(Debug, Clone)]
 pub struct PinConnection {
     /// Borrowed from the static primitive pin tables (`PinPos::name`).
     pub pin_name: &'static str,
-    pub net_idx: usize,
+    /// Index into `Connectivity::net_names`; `None` = unconnected pin.
+    pub net_idx: Option<u32>,
     pub x: i32,
     pub y: i32,
 }
@@ -305,8 +272,6 @@ pub struct Schematic {
 
     // Shared property pool (instances index into this via prop_start/prop_count)
     pub properties: Vec<Property>,
-    pub model_defs: Vec<ModelDef>,
-    pub globals: Vec<String>,
 
     // Symbol-level properties (params, annotations, metadata)
     pub sym_properties: Vec<Property>,
@@ -318,9 +283,6 @@ pub struct Schematic {
     pub spice_body: String,
     pub pyspice_source: String,
     pub documentation: String,
-    pub measurements_decl: String,
-
-    pub skip_toplevel_code: bool,
 
     // Testbench stimulus config (zero-cost defaults for non-testbench)
     pub stimulus_lang: StimulusLang,
@@ -394,7 +356,6 @@ impl Schematic {
 pub struct Instance {
     pub name: Sym,
     pub symbol: Sym,
-    pub spice_line: Sym,
     pub x: i32,
     pub y: i32,
     pub kind: DeviceKind,
@@ -403,10 +364,6 @@ pub struct Instance {
     pub prop_start: u32,
     /// Number of properties for this instance
     pub prop_count: u16,
-    /// Label offset from position
-    pub name_offset: [i16; 2],
-    /// Parameter display offset
-    pub param_offset: [i16; 2],
 }
 
 // ====================================================
@@ -480,7 +437,6 @@ pub struct Pin {
     pub name: Sym,
     pub x: i32,
     pub y: i32,
-    pub number: u32,
     pub width: u8,
     pub direction: PinDirection,
 }
@@ -558,12 +514,6 @@ pub struct Polygon {
 pub struct Property {
     pub key: Sym,
     pub value: Sym,
-}
-
-#[derive(Debug, Clone)]
-pub struct ModelDef {
-    pub name: String,
-    pub body: String,
 }
 
 // ====================================================

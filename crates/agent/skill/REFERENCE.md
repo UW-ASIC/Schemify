@@ -146,3 +146,36 @@ Valid tools: `select`, `wire`, `bus`, `busripper`, `move`, `pan`, `line`, `rect`
 **SetSimBackend**: `{"SetSimBackend": "ngspice"}`
 
 **SetSimCorner**: `{"SetSimCorner": "tt"}`
+
+### Waveform viewer
+
+Active when a wave tab is open (`RunSim` auto-opens the result rawfile).
+
+**WaveOpen**: `{"WaveOpen": {"path": "/tmp/circuit.raw"}}`
+
+**WaveAddTrace**: `{"WaveAddTrace": {"expr": "db(v(out)/v(in))", "block": 0}}`
+— `file`/`pane` optional (default: last-opened file, active pane).
+Expressions: `v(net)`, `i(dev)`, `db()`, `mag()`, `ph()`, arithmetic.
+
+**WaveRemoveTrace**: `{"WaveRemoveTrace": 0}` · **WaveClearTraces** (unit)
+
+**WaveSetCursor**: `{"WaveSetCursor": {"cursor": 0, "x": 1000.0, "visible": true}}` (0=A, 1=B)
+
+**WaveSetXLog**: `{"WaveSetXLog": true}` ·
+**WaveSetXRange**: `{"WaveSetXRange": {"min": 1.0, "max": 1e6}}` ·
+**WaveZoomFit** (unit) · **WaveReload** (unit)
+
+**WaveExportCsv**: `{"WaveExportCsv": {"path": "/tmp/out.csv"}}`
+
+### Project
+
+**ReloadProjectConfig** (unit) — re-read Config.toml, re-resolve the PDK,
+and re-register project `.chn` cells as placeable symbols. Run after saving
+a new cell if you plan to `PlaceDevice` it (netlist_to_schematic refreshes
+automatically).
+
+**PluginsRefresh** (unit) — rescan plugin directories.
+
+### Optimizers
+
+Use the dedicated `optimizer_*` MCP tools instead of dispatch commands.

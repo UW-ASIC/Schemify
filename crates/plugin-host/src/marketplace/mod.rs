@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-pub use registry::Registry;
+use registry::Registry;
 
 const DEFAULT_REGISTRY_URL: &str =
     "https://raw.githubusercontent.com/UW-ASIC/Schemify/master/plugins/index.json";
@@ -46,8 +46,6 @@ pub struct RegistryEntry {
     #[serde(default)]
     pub capabilities: Vec<String>,
     #[serde(default)]
-    pub min_schemify_version: Option<String>,
-    #[serde(default)]
     pub homepage: Option<String>,
     #[serde(default)]
     pub downloads: HashMap<String, DownloadEntry>,
@@ -55,7 +53,6 @@ pub struct RegistryEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistryIndex {
-    pub schema_version: u32,
     pub updated_at: String,
     pub plugins: Vec<RegistryEntry>,
 }
@@ -106,10 +103,6 @@ impl InstalledDb {
     fn upsert(&mut self, record: InstalledPlugin) {
         self.remove(&record.id);
         self.plugins.push(record);
-    }
-
-    fn ids(&self) -> Vec<String> {
-        self.plugins.iter().map(|p| p.id.clone()).collect()
     }
 }
 
@@ -189,11 +182,6 @@ impl Marketplace {
         }
     }
 
-    pub fn with_registry_url(mut self, url: String) -> Self {
-        self.registry = Registry::new(url, self.cache_dir.clone());
-        self
-    }
-
     pub fn target_triple(&self) -> &str {
         &self.target_triple
     }
@@ -205,7 +193,7 @@ impl Marketplace {
     }
 
     pub fn search(&self, query: &str) -> Vec<SearchResult> {
-        self.registry.search(query, &self.installed.ids())
+        self.registry.search(query, &self.installed.plugins)
     }
 
     // ── Install ───────────────────────────────────────────────────────────
@@ -236,13 +224,12 @@ impl Marketplace {
         install::validate_extracted(&plugin_root, Some(id))?;
         install::place_plugin(&plugin_root, &self.plugins_dir, id)?;
 
-        let record = install::make_installed_record(
-            id,
-            &entry.name,
-            &entry.version,
-            &download.sha256,
-        );
-        self.installed.upsert(record);
+        self.installed.upsert(InstalledPlugin {
+            id: id.to_owned(),
+            name: entry.name.clone(),
+            version: entry.version.clone(),
+            tarball_sha256: download.sha256.clone(),
+        });
         self.save_db()?;
 
         if extract_dir.exists() {
@@ -260,13 +247,12 @@ impl Marketplace {
 
         let sha256 = install::sha256_file(path)?;
         let manifest = crate::manifest::PluginManifest::load(&self.plugins_dir.join(&id).join("plugin.toml"))?;
-        let record = install::make_installed_record(
-            &id,
-            &manifest.plugin.name,
-            &manifest.plugin.version,
-            &sha256,
-        );
-        self.installed.upsert(record);
+        self.installed.upsert(InstalledPlugin {
+            id: id.clone(),
+            name: manifest.plugin.name.clone(),
+            version: manifest.plugin.version.clone(),
+            tarball_sha256: sha256,
+        });
         self.save_db()?;
 
         if extract_dir.exists() {

@@ -12,7 +12,7 @@ use std::path::Path;
 use schemify_editor::config::global_plugins_dir;
 use schemify_editor::handler::App;
 use schemify_plugin_host::{
-    methods, CommandRegistration, OverlayLayer, PanelRegistration, PluginHostAction,
+    methods, CommandRegistration, LogLevel, OverlayLayer, PanelRegistration, PluginHostAction,
     PluginLifecycle, PluginManager, ThemeOverride, WidgetNode, INTERNAL_ERROR,
 };
 use serde_json::{json, Value};
@@ -29,7 +29,7 @@ pub struct PanelEntry {
 /// One host-side log line from a plugin.
 pub struct LogEntry {
     pub plugin_id: String,
-    pub level: String,
+    pub level: LogLevel,
     pub message: String,
 }
 
@@ -85,7 +85,7 @@ impl PluginHost {
             manager.add_scan_dir(project_dir.join("plugins"));
         }
         for err in manager.scan_directories() {
-            self.push_log("host", "error", err.to_string());
+            self.push_log("host", LogLevel::Error, err.to_string());
         }
 
         let ids: Vec<String> = manager.plugin_ids().map(str::to_owned).collect();
@@ -99,7 +99,7 @@ impl PluginHost {
                 )
             ) {
                 if let Err(e) = manager.start(id) {
-                    self.push_log(id, "error", e.to_string());
+                    self.push_log(id, LogLevel::Error, e.to_string());
                 }
             }
         }
@@ -136,13 +136,13 @@ impl PluginHost {
         }
         for (tag, _payload) in std::mem::take(&mut app.state.pending_plugin_commands) {
             let Some((plugin_id, command)) = tag.split_once(':') else {
-                self.push_log("host", "warn", format!("bad plugin command tag: {tag}"));
+                self.push_log("host", LogLevel::Warn, format!("bad plugin command tag: {tag}"));
                 continue;
             };
             let params = json!({ "command": command });
             if let Err(e) = manager.notify(plugin_id, methods::COMMAND_INVOKE, Some(params))
             {
-                self.push_log(plugin_id, "error", e.to_string());
+                self.push_log(plugin_id, LogLevel::Error, e.to_string());
             }
         }
 
@@ -169,7 +169,7 @@ impl PluginHost {
             let params = json!({ "action": ua.action, "payload": ua.payload });
             if let Err(e) = manager.notify(&ua.plugin_id, methods::UI_ACTION, Some(params))
             {
-                self.push_log(&ua.plugin_id, "error", e.to_string());
+                self.push_log(&ua.plugin_id, LogLevel::Error, e.to_string());
             }
         }
     }
@@ -267,7 +267,7 @@ impl PluginHost {
                 match schemify_editor::marshal::command_from_json(&cmd_value) {
                     Ok(cmd) => app.dispatch(cmd).or_status(app),
                     Err(e) => {
-                        self.push_log(&plugin_id, "error", format!("dispatch failed: {e}"))
+                        self.push_log(&plugin_id, LogLevel::Error, format!("dispatch failed: {e}"))
                     }
                 }
             }
@@ -278,7 +278,7 @@ impl PluginHost {
                 plugin_id,
                 level,
                 message,
-            } => self.push_log(&plugin_id, &level, message),
+            } => self.push_log(&plugin_id, level, message),
             A::QueryInstances {
                 plugin_id,
                 request_id,
@@ -442,18 +442,19 @@ impl PluginHost {
         }
     }
 
-    fn push_log(&mut self, plugin_id: &str, level: &str, message: String) {
+    fn push_log(&mut self, plugin_id: &str, level: LogLevel, message: String) {
         match level {
-            "error" => log::error!("[plugin {plugin_id}] {message}"),
-            "warn" => log::warn!("[plugin {plugin_id}] {message}"),
-            _ => log::info!("[plugin {plugin_id}] {message}"),
+            LogLevel::Error => log::error!("[plugin {plugin_id}] {message}"),
+            LogLevel::Warn => log::warn!("[plugin {plugin_id}] {message}"),
+            LogLevel::Info => log::info!("[plugin {plugin_id}] {message}"),
+            LogLevel::Debug => log::debug!("[plugin {plugin_id}] {message}"),
         }
         if self.logs.len() >= LOG_CAP {
             self.logs.remove(0);
         }
         self.logs.push(LogEntry {
             plugin_id: plugin_id.to_owned(),
-            level: level.to_owned(),
+            level,
             message,
         });
     }

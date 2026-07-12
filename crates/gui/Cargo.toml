@@ -21,5 +21,7 @@ ratex-layout = "0.1.11"
 ratex-types = "0.1.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+schemify-agent = { path = "../agent" }
+flate2 = "1"
 rfd = "0.15"
 image = { version = "0.25", default-features = false, features = ["png"] }

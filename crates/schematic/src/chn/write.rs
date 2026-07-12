@@ -461,15 +461,12 @@ mod tests {
         sch.instances.push(Instance {
             name: int.get_or_intern("M1"),
             symbol: int.get_or_intern("nmos4"),
-            spice_line: int.get_or_intern(""),
             x: 100,
             y: -40,
             kind: DeviceKind::Nmos4,
             flags: InstanceFlags::new(1, true),
             prop_start,
             prop_count: 2,
-            name_offset: [0, 0],
-            param_offset: [0, 0],
         });
 
         // Named + colored wire, plain wire
@@ -627,7 +624,7 @@ mod tests {
         };
         let chn = write_chn(&sch, &int).expect("write failed");
         let mut int2 = Rodeo::default();
-        let sch2 = read_chn(&chn, &mut int2);
+        let (sch2, _) = read_chn_report(&chn, &mut int2);
         assert_eq!(sch2.stype, SchematicType::Testbench);
         assert_eq!(sch2.name, "tb_amp");
         assert_eq!(sch2.stimulus_lang, StimulusLang::Xyce);

@@ -400,7 +400,6 @@ impl App {
             } => {
                 let sym = self.state.interner.get_or_intern(&symbol_path);
                 let name_sym = self.state.interner.get_or_intern(&name);
-                let empty = self.state.interner.get_or_intern("");
 
                 // Aliases ("res", "cap", …) have no prim entry of their own;
                 // fall back to the kind-name table so live placement agrees
@@ -414,7 +413,7 @@ impl App {
                 // the document mutably).
                 let mut init_props: Vec<Property> = Vec::new();
                 if kind.is_power() {
-                    let net_val = entry.and_then(|p| p.injected_net).unwrap_or("0");
+                    let net_val = kind.injected_net().unwrap_or("0");
                     init_props.push(Property {
                         key: self.state.interner.get_or_intern("net"),
                         value: self.state.interner.get_or_intern(net_val),
@@ -438,15 +437,12 @@ impl App {
                 doc.schematic.instances.push(Instance {
                     name: name_sym,
                     symbol: sym,
-                    spice_line: empty,
                     x,
                     y,
                     kind,
                     flags: InstanceFlags::new(rotation, flip),
                     prop_start,
                     prop_count,
-                    name_offset: [0, 0],
-                    param_offset: [0, 0],
                 });
             }
 
@@ -683,7 +679,8 @@ impl App {
                         bit,
                         x,
                         y,
-                        direction,
+                        // Valid domain is 0-3; mask at the command boundary.
+                        direction: direction & 0x03,
                         stub_len: 20,
                     });
             }

@@ -2,9 +2,10 @@
 //! `soa_derive`), embedded `.chn_prim` primitive table, the `.chn`
 //! reader/writer, and wire/label/bus connectivity resolution.
 //!
-//! Pure data + transforms: no App state, no I/O beyond format parsing,
-//! no UI. Everything downstream (editor, sim, net2schem, gui, mcp)
-//! builds on this crate.
+//! Pure data + transforms: no I/O beyond format parsing, no UI. One piece
+//! of process-global state: the runtime prim registry (`prims::RUNTIME`),
+//! swapped on project config reload. Everything downstream (editor, sim,
+//! net2schem, gui, mcp) builds on this crate.
 
 pub mod chn;
 pub mod connectivity;

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use super::{MarketplaceError, RegistryIndex, SearchResult};
+use super::{InstalledPlugin, MarketplaceError, RegistryIndex, SearchResult};
 
 const INDEX_CACHE_FILE: &str = "registry/index.json";
 
@@ -17,10 +17,6 @@ impl Registry {
             cache_dir,
             index: None,
         }
-    }
-
-    pub fn index(&self) -> Option<&RegistryIndex> {
-        self.index.as_ref()
     }
 
     pub fn fetch(&mut self) -> Result<&RegistryIndex, MarketplaceError> {
@@ -46,11 +42,7 @@ impl Registry {
         Ok(self.index.as_ref().unwrap())
     }
 
-    pub fn search(
-        &self,
-        query: &str,
-        installed_ids: &[String],
-    ) -> Vec<SearchResult> {
+    pub fn search(&self, query: &str, installed: &[InstalledPlugin]) -> Vec<SearchResult> {
         let Some(index) = &self.index else {
             return Vec::new();
         };
@@ -66,7 +58,7 @@ impl Registry {
             })
             .map(|entry| SearchResult {
                 entry: entry.clone(),
-                installed: installed_ids.contains(&entry.id),
+                installed: installed.iter().any(|p| p.id == entry.id),
             })
             .collect()
     }
@@ -95,16 +87,6 @@ impl Registry {
         Ok(Some(index))
     }
 
-    pub fn load_cached_or_empty(&mut self) -> Result<(), MarketplaceError> {
-        if self.index.is_some() {
-            return Ok(());
-        }
-        if let Some(cached) = self.load_cached()? {
-            self.index = Some(cached);
-        }
-        Ok(())
-    }
-
     pub fn find_entry(&self, id: &str) -> Option<&super::RegistryEntry> {
         self.index
             .as_ref()?
@@ -117,12 +99,20 @@ impl Registry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::marketplace::{RegistryEntry, RegistryIndex};
+    use crate::marketplace::{InstalledPlugin, RegistryEntry, RegistryIndex};
     use std::collections::HashMap;
+
+    fn installed(id: &str) -> InstalledPlugin {
+        InstalledPlugin {
+            id: id.into(),
+            name: id.into(),
+            version: "1.0.0".into(),
+            tarball_sha256: String::new(),
+        }
+    }
 
     fn sample_index() -> RegistryIndex {
         RegistryIndex {
-            schema_version: 1,
             updated_at: "2026-06-11".into(),
             plugins: vec![
                 RegistryEntry {
@@ -133,7 +123,6 @@ mod tests {
                     author: "schemify".into(),
                     license: "MIT".into(),
                     capabilities: vec!["overlays".into()],
-                    min_schemify_version: None,
                     homepage: None,
                     downloads: HashMap::new(),
                 },
@@ -145,7 +134,6 @@ mod tests {
                     author: "schemify".into(),
                     license: "MIT".into(),
                     capabilities: vec!["panels".into()],
-                    min_schemify_version: None,
                     homepage: None,
                     downloads: HashMap::new(),
                 },
@@ -173,7 +161,7 @@ mod tests {
         let mut reg = Registry::new(String::new(), dir);
         reg.index = Some(sample_index());
 
-        let results = reg.search("", &["bom-panel".into()]);
+        let results = reg.search("", &[installed("bom-panel")]);
         assert_eq!(results.len(), 2);
         assert!(results.iter().any(|r| r.entry.id == "bom-panel" && r.installed));
     }

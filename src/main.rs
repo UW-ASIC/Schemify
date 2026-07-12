@@ -9,7 +9,7 @@
 //!
 //! Commands use serde's externally-tagged JSON shape (the same wire format as
 //! the MCP `session/dispatch` method): `"ZoomIn"`, `{"CloseTab": 2}`,
-//! `{"PlaceDevice": {...}}`. One marshaler (`schemify_mcp::command_from_json`)
+//! `{"PlaceDevice": {...}}`. One marshaler (`schemify_agent::command_from_json`)
 //! serves CLI and MCP — no mirrored enum.
 
 use std::path::{Path, PathBuf};
@@ -24,7 +24,7 @@ use schemify_editor::config;
 use schemify_editor::handler::{App, DispatchResult};
 use schemify_editor::schemify::Command;
 use schemify_gui::{run_gui, run_gui_standalone};
-use schemify_mcp::{command_from_json, run_stdio, McpServer, Sink};
+use schemify_agent::{command_from_json, run_stdio, McpServer, Sink};
 use schemify_plugin_host::PluginService;
 
 /// The one place plugin runtime + marketplace get constructed (DIP wiring
@@ -73,6 +73,13 @@ enum Sub {
         #[arg(long, value_name = "MS")]
         step_delay: Option<u64>,
     },
+    /// Stdio↔socket MCP proxy for agent CLIs (spawned by claude/codex as
+    /// their MCP server; connects to a live GUI's agent socket).
+    #[command(hide = true)]
+    McpBridge {
+        /// Socket path of the live Schemify process.
+        socket: PathBuf,
+    },
     /// Export a netlist from a schematic, headless (`make netlist`-friendly).
     ExportSpice {
         /// Schematic to netlist.
@@ -99,6 +106,9 @@ fn main() -> Result<()> {
         }) => run_cli(file, save, headful, step_delay.map(Duration::from_millis), commands),
         Some(Sub::Mcp { headful, step_delay }) => {
             run_mcp(headful, step_delay.map(Duration::from_millis))
+        }
+        Some(Sub::McpBridge { socket }) => {
+            schemify_agent::socket::run_bridge(&socket).map_err(|e| anyhow::anyhow!("bridge: {e}"))
         }
         Some(Sub::ExportSpice { file, out, format }) => run_export_spice(&file, out.as_deref(), &format),
     }

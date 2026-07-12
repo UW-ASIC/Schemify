@@ -4,14 +4,11 @@
 use lasso::Rodeo;
 use rustc_hash::FxHashMap;
 
-use crate::{
-    Connectivity, DeviceKind, Net, NetConnKind, NetEndpoint, PinConnection, Schematic, Sym,
-    WireVec,
-};
+use crate::{Connectivity, DeviceKind, PinConnection, Schematic, Sym, WireVec};
 
 
-/// Resolve connectivity from schematic data: nets, point-to-net map,
-/// per-instance pin connections, resolved net names, label conflicts.
+/// Resolve connectivity from schematic data: per-instance pin connections,
+/// resolved net names, label conflicts.
 pub fn resolve_connectivity(sch: &Schematic, interner: &Rodeo) -> Connectivity {
     let wires = &sch.wires;
     let instances = &sch.instances;
@@ -128,6 +125,18 @@ pub fn resolve_connectivity(sch: &Schematic, interner: &Rodeo) -> Connectivity {
         }
     }
 
+    // Named wires name their net too (precedence arbitrated by net_name_rank,
+    // same as labels).
+    for i in 0..wires.len() {
+        if let Some(sym) = wires.net_name[i] {
+            let name = interner.resolve(&sym);
+            if !name.is_empty() {
+                let root = uf.find((wires.x0[i], wires.y0[i]));
+                upsert_root_name(&mut root_names, &mut root_to_id, root, name);
+            }
+        }
+    }
+
     // Detect conflicting LabPins: same root, different names.
     let mut label_conflicts: std::collections::HashSet<usize> = Default::default();
     for entries in labpin_per_root.values() {
@@ -165,33 +174,9 @@ pub fn resolve_connectivity(sch: &Schematic, interner: &Rodeo) -> Connectivity {
         }
     }
 
-    // Build the net list. root_to_id already maps each root to its position
-    // in root_names — exactly the net id. Names move out of root_names into
-    // net_names (single owned copy); Net itself carries only connections.
-    let mut nets: Vec<Net> = (0..root_names.len())
-        .map(|_| Net {
-            connections: Vec::new(),
-        })
-        .collect();
+    // root_to_id already maps each root to its position in root_names —
+    // exactly the net id. Names move out of root_names into net_names.
     let net_names: Vec<String> = root_names.into_iter().map(|(_, name)| name).collect();
-
-    // Wire endpoint connections + point_to_net.
-    let mut point_to_net: std::collections::HashMap<(i32, i32), usize> = Default::default();
-    point_to_net.reserve(wires.len() * 2);
-
-    for i in 0..wires.len() {
-        for (ep_x, ep_y) in [(wires.x0[i], wires.y0[i]), (wires.x1[i], wires.y1[i])] {
-            let root = uf.find((ep_x, ep_y));
-            if let Some(&nid) = root_to_id.get(&root) {
-                point_to_net.insert((ep_x, ep_y), nid);
-                nets[nid].connections.push(NetEndpoint {
-                    x: ep_x,
-                    y: ep_y,
-                    kind: NetConnKind::WireEndpoint { wire_idx: i },
-                });
-            }
-        }
-    }
 
     // Instance connections.
     let mut instance_connections: Vec<Vec<PinConnection>> = vec![Vec::new(); instances.len()];
@@ -213,65 +198,17 @@ pub fn resolve_connectivity(sch: &Schematic, interner: &Rodeo) -> Connectivity {
             let (tx, ty) = flags.transform_point(pin.x as i32, pin.y as i32);
             let abs = (inst_x + tx, inst_y + ty);
             let root = uf.find(abs);
-            let net_idx = root_to_id.get(&root).copied().unwrap_or(usize::MAX);
 
             instance_connections[i].push(PinConnection {
                 pin_name: pin.name,
-                net_idx,
+                net_idx: root_to_id.get(&root).map(|&id| id as u32),
                 x: abs.0,
                 y: abs.1,
-            });
-
-            if net_idx != usize::MAX {
-                point_to_net.insert(abs, net_idx);
-                nets[net_idx].connections.push(NetEndpoint {
-                    x: abs.0,
-                    y: abs.1,
-                    kind: NetConnKind::InstancePin {
-                        instance_idx: i,
-                        pin_name: pin.name,
-                    },
-                });
-            }
-        }
-    }
-
-    // Label connections (for display).
-    for i in 0..instances.len() {
-        let kind = instances.kind[i];
-        if !kind.is_label() {
-            continue;
-        }
-        let label_sym = instances.name[i];
-        if interner.resolve(&label_sym).is_empty() {
-            continue;
-        }
-
-        let entry = match crate::find_symbol(interner.resolve(&instances.symbol[i]), kind) {
-            Some(p) if !p.pin_positions.is_empty() => p,
-            _ => continue,
-        };
-
-        let flags = instances.flags[i];
-        let (tx, ty) = flags.transform_point(
-            entry.pin_positions[0].x as i32,
-            entry.pin_positions[0].y as i32,
-        );
-        let abs = (instances.x[i] + tx, instances.y[i] + ty);
-        let root = uf.find(abs);
-
-        if let Some(&nid) = root_to_id.get(&root) {
-            nets[nid].connections.push(NetEndpoint {
-                x: abs.0,
-                y: abs.1,
-                kind: NetConnKind::Label { name: label_sym },
             });
         }
     }
 
     Connectivity {
-        nets,
-        point_to_net,
         instance_connections,
         net_names,
         label_conflicts,
@@ -518,5 +455,22 @@ mod tests {
         assert_eq!(net_name_rank("net1"), 1);
         assert_eq!(net_name_rank("0"), 2);
         assert_eq!(net_name_rank("VDD"), 3);
+    }
+
+    #[test]
+    fn named_wire_names_its_net() {
+        let mut interner = Rodeo::default();
+        let mut sch = Schematic::default();
+        sch.wires.push(crate::Wire {
+            net_name: Some(interner.get_or_intern("VOUT")),
+            x0: 0,
+            y0: 0,
+            x1: 100,
+            y1: 0,
+            color: crate::Color::NONE,
+            thickness: 0,
+        });
+        let conn = resolve_connectivity(&sch, &interner);
+        assert_eq!(conn.net_names, vec!["VOUT"]);
     }
 }
