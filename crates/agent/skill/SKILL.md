@@ -99,6 +99,14 @@ Common symbol_path values: `res`, `capa`, `ind`, `vsource`, `isource`,
 {"ImportSpice": {"path": "/tmp/circuit.spice"}}
 ```
 
+**Testbenches over existing components:** an imported netlist may instantiate
+project components directly as blackboxes — `X1 in out vdd 0 my_amp` resolves
+against `my_amp.chn` (cell) or `my_amp.chn_prim` (symbol) and is placed with
+wires on its real pins. Subckts REQUIRE that file to exist (or a `.subckt` in
+the same netlist): an unknown master fails the import with
+`subckt(s) could not resolve: <names>` — create the component first
+(build + save the cell, or add the prim), then import the testbench.
+
 For the full command reference, see [REFERENCE.md](REFERENCE.md).
 
 ## Example: build an RC low-pass filter

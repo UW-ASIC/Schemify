@@ -147,13 +147,25 @@ fn install_geometry() {
 
 /// A host component whose pin list is only known at runtime (a project
 /// symbol, a testbench DUT). Registered with cktimg so `X` instances of it
-/// place as box devices; pin anchors follow the same box-symbol layout the
-/// app draws (`emit::subckt_box_pin_offset`).
+/// place as box devices. Pin anchors come from `offsets` when given (a
+/// project `.chn_prim` with its own symbol geometry — the app will draw
+/// that art, so wires must land on ITS pins); otherwise they follow the
+/// box-symbol layout the app draws for `.chn` cells
+/// (`emit::subckt_box_pin_offset`).
 #[derive(Clone, Debug)]
 pub struct HostSymbol {
     pub name: String,
     pub pins: Vec<(String, PinDir)>,
+    /// Schemify-frame pin anchor per pin, same order as `pins`.
+    /// `None` = generated box-symbol layout.
+    pub offsets: Option<Vec<(i32, i32)>>,
 }
+
+/// The parse-report reason cktimg gives an `X` line whose master is neither
+/// a builtin, a `.subckt` in the same netlist, nor a registered host symbol.
+/// Import surfaces these as diagnostics; callers that REQUIRE every master
+/// to resolve (the agent testbench flow) match on it.
+pub const UNRESOLVED_SUBCKT: &str = "undefined subckt / unknown master";
 
 /// Parse + place + route `src` with cktimg using Schemify geometry.
 pub fn netlist_to_circuit(src: &str) -> anyhow::Result<Circuit> {
@@ -171,8 +183,18 @@ pub fn netlist_to_circuit_with(src: &str, symbols: &[HostSymbol]) -> anyhow::Res
         if devices::is_builtin(&s.name) {
             continue;
         }
-        // Anchor layout must match emit::pin_position for Subcircuit
-        // instances exactly — both derive from subckt_box_pin_offset.
+        if let Some(offs) = &s.offsets {
+            anyhow::ensure!(
+                offs.len() == s.pins.len(),
+                "symbol '{}': {} offsets for {} pins",
+                s.name,
+                offs.len(),
+                s.pins.len()
+            );
+        }
+        // Anchors: explicit prim geometry when given, else the box-symbol
+        // layout — which must match emit::pin_position for Subcircuit
+        // instances exactly (both derive from subckt_box_pin_offset).
         let probe: Vec<Pin> = s
             .pins
             .iter()
@@ -187,8 +209,12 @@ pub fn netlist_to_circuit_with(src: &str, symbols: &[HostSymbol]) -> anyhow::Res
             .iter()
             .enumerate()
             .map(|(i, (n, dir))| {
-                let (dx, dy) = subckt_box_pin_offset(&probe, i)
-                    .ok_or_else(|| anyhow::anyhow!("symbol '{}': pin {i} out of range", s.name))?;
+                let (dx, dy) = match &s.offsets {
+                    Some(offs) => offs[i],
+                    None => subckt_box_pin_offset(&probe, i).ok_or_else(|| {
+                        anyhow::anyhow!("symbol '{}': pin {i} out of range", s.name)
+                    })?,
+                };
                 let role = if *dir == PinDir::Input {
                     TerminalRole::Gate
                 } else {
@@ -302,7 +328,7 @@ fn subcircuit_from_ir(ir: &Ir, s: &Strings) -> Subcircuit {
             y: pos.y,
             flags: InstanceFlags::new(0, false),
         };
-        fit_orientation(&mut inst, ir, pin_base, pos);
+        fit_orientation(&mut inst, ir, pin_base, pos, class);
         sub.instances.push(inst);
     }
 
@@ -351,26 +377,43 @@ fn subcircuit_from_ir(ir: &Ir, s: &Strings) -> Subcircuit {
 /// (the 3-terminal axis shift), and cktimg's orientation is orthogonal too —
 /// so for the right flags the implied origin `q_k − F(o_k)` is the same for
 /// every pin: solve for it from pin 0 and pick the flags with zero residual.
-fn fit_orientation(inst: &mut Instance, ir: &Ir, pin_base: usize, pos: ::cktimg::ir::Pt) {
+fn fit_orientation(
+    inst: &mut Instance,
+    ir: &Ir,
+    pin_base: usize,
+    pos: ::cktimg::ir::Pt,
+    class: &'static ::cktimg::devices::DeviceClass,
+) {
     let Some(phys) = ir.physical.as_ref() else {
         return;
     };
     if inst.pins.is_empty() {
         return;
     }
+    // Canonical offset of pin `slot` in the Schemify frame. Subcircuit hosts
+    // use the anchors that were REGISTERED for them (box layout or explicit
+    // `.chn_prim` geometry — `class.terminals` is exactly what we installed,
+    // raw Schemify offsets); primitives use their pin table via pin_position.
+    let canon = |inst: &mut Instance, slot: usize| -> (i32, i32) {
+        if inst.primitive == Primitive::Subcircuit {
+            let a = class.terminals[slot].at;
+            inst.flags.transform_point(a.x, a.y)
+        } else {
+            (inst.x, inst.y) = (0, 0); // pin_position with zeroed origin yields F(o_k)
+            crate::emit::pin_position(inst, slot)
+        }
+    };
     let mut best = (i64::MAX, inst.flags, (pos.x, pos.y));
     for rotation in 0..4u8 {
         for flip in [false, true] {
             inst.flags = InstanceFlags::new(rotation, flip);
-            // pin_position with a zeroed origin yields F(o_k).
-            (inst.x, inst.y) = (0, 0);
             let q0 = phys.pin_xy[pin_base];
-            let f0 = crate::emit::pin_position(inst, 0);
+            let f0 = canon(inst, 0);
             let origin = (q0.x - f0.0, q0.y - f0.1);
             let residual: i64 = (0..inst.pins.len())
                 .map(|slot| {
                     let q = phys.pin_xy[pin_base + slot];
-                    let (fx, fy) = crate::emit::pin_position(inst, slot);
+                    let (fx, fy) = canon(inst, slot);
                     ((q.x - origin.0 - fx) as i64).abs() + ((q.y - origin.1 - fy) as i64).abs()
                 })
                 .sum();
@@ -463,6 +506,56 @@ mod tests {
         assert!(c.diagnostics[0].to_string().contains("no builtin symbol"));
     }
 
+    // An X master that is neither builtin, .subckt-defined, nor a registered
+    // host symbol surfaces with the UNRESOLVED_SUBCKT reason — the hook the
+    // agent import uses to fail netlist→schematic with an actionable error.
+    #[test]
+    fn unresolved_subckt_master_reported() {
+        let c = netlist_to_circuit("R1 in out 1k\nX1 in out 0 my_missing_cell\n").unwrap();
+        assert!(
+            c.diagnostics
+                .iter()
+                .any(|d| d.message.contains(UNRESOLVED_SUBCKT)
+                    && d.message.contains("my_missing_cell")),
+            "{:?}",
+            c.diagnostics
+        );
+    }
+
+    // Explicit `.chn_prim` geometry: registered anchors override the box
+    // layout, and the imported pins land exactly on them.
+    #[test]
+    fn host_symbol_with_explicit_offsets() {
+        let dut = HostSymbol {
+            name: "my_sensor".into(),
+            pins: vec![("a".into(), PinDir::Input), ("b".into(), PinDir::Inout)],
+            offsets: Some(vec![(-10, -20), (10, 20)]),
+        };
+        let c = netlist_to_circuit_with("V1 in 0 1\nXS in out my_sensor\nRL out 0 1k\n", &[dut])
+            .unwrap();
+        let s = c
+            .top
+            .instances
+            .iter()
+            .find(|i| i.name.eq_ignore_ascii_case("xs"))
+            .expect("sensor placed");
+        assert_eq!(s.primitive, Primitive::Subcircuit);
+        // fit_orientation solved (flags, origin) against the registered
+        // anchors: whatever orientation cktimg chose, each net's wiring or
+        // label must sit exactly on flags(offset) + origin.
+        let offs = [(-10, -20), (10, 20)];
+        for (slot, off) in offs.iter().enumerate() {
+            let (rx, ry) = s.flags.transform_point(off.0, off.1);
+            let (px, py) = (s.x + rx, s.y + ry);
+            let net = s.pins[slot].net_idx.expect("pin wired");
+            let on_geom = c.top.wires.iter().any(|w| {
+                w.net_idx == net
+                    && ((w.x1 == px && w.y1 == py) || (w.x2 == px && w.y2 == py))
+            }) || c.top.labels.iter().any(|l| l.net_idx == net && l.x == px && l.y == py);
+            assert!(on_geom, "pin {slot} at ({px},{py}) has no wire/label endpoint");
+        }
+    }
+
     // A rail-named bulk on a 4-node MOS card must parse (upstream model fix).
     #[test]
     fn rail_named_bulk_parses() {
@@ -509,6 +602,7 @@ mod tests {
                 ("vdd".into(), PinDir::Inout),
                 ("vss".into(), PinDir::Inout),
             ],
+            offsets: None,
         };
         let c = netlist_to_circuit_with(
             "V1 in 0 1\nXDUT in out vdd 0 my_amp\nRL out 0 10k\nR2 vdd in 1k\n",

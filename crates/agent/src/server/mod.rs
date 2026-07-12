@@ -592,17 +592,14 @@ fn import_netlist_source(app: &mut App, source: &str, top_name: &str, origin: &s
         app.reload_project_config();
     }
 
-    // Project symbols (the box symbols generated for project `.chn` cells)
-    // register as runtime DUT classes: a testbench `X` master naming one
-    // places as a box device instead of being skipped as an undefined
-    // subckt. Pin direction mirrors the box layout: left edge (x < 0) is
-    // Input, everything else Inout.
-    let symbols: Vec<schemify_net2schem::HostSymbol> = app
-        .state
-        .library
-        .project_symbols
+    // Every project component registers as a runtime DUT class: `.chn` cells
+    // (their generated box symbols) AND `.chn_prim` symbols, each with its
+    // REAL pin anchors, so a testbench `X` master naming one places as a
+    // blackbox whose wires land on the pins the app will draw. Pin direction
+    // mirrors the layout convention: left edge (x < 0) is Input, else Inout.
+    let symbols: Vec<schemify_net2schem::HostSymbol> = schemify_editor::schemify::runtime_prims()
         .iter()
-        .filter_map(|(name, _)| schemify_editor::schemify::find_by_name(name))
+        .filter(|e| !e.non_electrical && !e.pin_positions.is_empty())
         .map(|e| schemify_net2schem::HostSymbol {
             name: e.kind_name.to_string(),
             pins: e
@@ -617,10 +614,45 @@ fn import_netlist_source(app: &mut App, source: &str, top_name: &str, origin: &s
                     (p.name.to_string(), dir)
                 })
                 .collect(),
+            offsets: Some(
+                e.pin_positions
+                    .iter()
+                    .map(|p| (p.x as i32, p.y as i32))
+                    .collect(),
+            ),
         })
         .collect();
 
     let circuit = schemify_net2schem::cktimg::netlist_to_circuit_with(source, &symbols)?;
+
+    // Subckts REQUIRE an existing project component: an X master with no
+    // matching .chn / .chn_prim must fail the whole import with an
+    // actionable message, not silently degrade to a skipped line.
+    let unresolved: Vec<&str> = circuit
+        .diagnostics
+        .iter()
+        .filter(|d| d.message.contains(schemify_net2schem::cktimg::UNRESOLVED_SUBCKT))
+        .map(|d| {
+            // "<reason>: <netlist line>" — the master is its last bare token.
+            d.message
+                .rsplit(':')
+                .next()
+                .unwrap_or("")
+                .split_whitespace()
+                .filter(|t| !t.contains('='))
+                .next_back()
+                .unwrap_or("?")
+        })
+        .collect();
+    if !unresolved.is_empty() {
+        anyhow::bail!(
+            "netlist→schematic failed: subckt(s) could not resolve: {}. Each X master \
+             must already exist in the project as <name>.chn (a schematic cell) or \
+             <name>.chn_prim (a symbol) — create the component first, then reference \
+             it in the testbench.",
+            unresolved.join(", ")
+        );
+    }
 
     // Multiple .subckts with no top-level instances still produce an empty
     // top — fail loudly instead of opening a blank document. (A single

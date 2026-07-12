@@ -135,6 +135,14 @@ Valid tools: `select`, `wire`, `bus`, `busripper`, `move`, `pan`, `line`, `rect`
 
 **ImportSpice**: `{"ImportSpice": {"path": "/tmp/circuit.spice"}}`
 
+Subckt resolution on import: every `X` master must already exist in the
+project as `<name>.chn` (schematic cell) or `<name>.chn_prim` (symbol) —
+or be a `.subckt` defined in the same netlist. Known components place as
+blackboxes wired to their real pins (`.chn` cells use their generated box
+symbol; `.chn_prim` symbols use their own pin geometry). An unknown master
+FAILS the whole import with `subckt(s) could not resolve: <names>` — create
+the component first, then re-import the testbench.
+
 ### Document metadata
 
 **SetSpiceCode**: `{"SetSpiceCode": ".param vdd=1.8"}`
