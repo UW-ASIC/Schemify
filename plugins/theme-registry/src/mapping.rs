@@ -4,7 +4,7 @@
 //! base00 bg · base03 comments · base05 fg · base08 red · base09 orange ·
 //! base0A yellow · base0B green · base0D blue.
 
-use schemify_plugins::sdk::ThemeValue;
+use schemify_plugin_api::sdk::ThemeValue;
 
 use crate::registry::Scheme;
 

@@ -9,7 +9,7 @@
 //!
 //! Commands use serde's externally-tagged JSON shape (the same wire format as
 //! the MCP `session/dispatch` method): `"ZoomIn"`, `{"CloseTab": 2}`,
-//! `{"PlaceDevice": {...}}`. One marshaler (`schemify_mcp::command_from_json`)
+//! `{"PlaceDevice": {...}}`. One marshaler (`schemify_agent::command_from_json`)
 //! serves CLI and MCP — no mirrored enum.
 
 use std::path::{Path, PathBuf};
@@ -20,10 +20,21 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
-use schemify_core::handler::{App, DispatchResult};
-use schemify_core::schemify::Command;
-use schemify_display::{run_gui, run_gui_standalone};
-use schemify_mcp::{command_from_json, run_stdio, McpServer, Sink};
+use schemify_editor::config;
+use schemify_editor::handler::{App, DispatchResult};
+use schemify_editor::schemify::Command;
+use schemify_gui::{run_gui, run_gui_standalone};
+use schemify_agent::{command_from_json, run_stdio, McpServer, Sink};
+use schemify_plugin_host::PluginService;
+
+/// The one place plugin runtime + marketplace get constructed (DIP wiring
+/// point); every frontend shares this instance.
+fn plugin_service() -> Arc<Mutex<PluginService>> {
+    Arc::new(Mutex::new(PluginService::new(
+        config::global_plugins_dir(),
+        config::cache_dir(),
+    )))
+}
 
 #[derive(Parser)]
 #[command(name = "schemify", about = "Schematic capture for circuit design")]
@@ -62,6 +73,13 @@ enum Sub {
         #[arg(long, value_name = "MS")]
         step_delay: Option<u64>,
     },
+    /// Stdio↔socket MCP proxy for agent CLIs (spawned by claude/codex as
+    /// their MCP server; connects to a live GUI's agent socket).
+    #[command(hide = true)]
+    McpBridge {
+        /// Socket path of the live Schemify process.
+        socket: PathBuf,
+    },
     /// Export a netlist from a schematic, headless (`make netlist`-friendly).
     ExportSpice {
         /// Schematic to netlist.
@@ -89,6 +107,9 @@ fn main() -> Result<()> {
         Some(Sub::Mcp { headful, step_delay }) => {
             run_mcp(headful, step_delay.map(Duration::from_millis))
         }
+        Some(Sub::McpBridge { socket }) => {
+            schemify_agent::socket::run_bridge(&socket).map_err(|e| anyhow::anyhow!("bridge: {e}"))
+        }
         Some(Sub::ExportSpice { file, out, format }) => run_export_spice(&file, out.as_deref(), &format),
     }
 }
@@ -96,7 +117,7 @@ fn main() -> Result<()> {
 /// `schemify export-spice`: load a schematic, build the circuit IR, and
 /// emit it in the requested format — no GUI, no dispatch loop.
 fn run_export_spice(file: &Path, out: Option<&Path>, format: &str) -> Result<()> {
-    use schemify_core::sim::{codegen, ir};
+    use schemify_editor::sim::{codegen, ir};
 
     let mut app = App::new();
     app.open_file(file)
@@ -187,7 +208,8 @@ fn run_cli(
     }
     drop(tx); // GUI keeps running after the queue drains; user closes it.
 
-    run_gui(app.clone(), Some(rx), step_delay).map_err(|e| anyhow::anyhow!("gui: {e}"))?;
+    run_gui(app.clone(), Some(rx), step_delay, plugin_service())
+        .map_err(|e| anyhow::anyhow!("gui: {e}"))?;
 
     if save {
         let path = file.context("--save requires --file")?;
@@ -208,8 +230,9 @@ fn run_mcp(headful: bool, step_delay: Option<Duration>) -> Result<()> {
     // (eframe requires it). Queries read the shared App; dispatches stream
     // through the channel so the GUI animates them with step-delay.
     let app = Arc::new(Mutex::new(App::new()));
+    let service = plugin_service();
     let (tx, rx) = mpsc::channel::<Command>();
-    let mut server = McpServer::new(app.clone(), Sink::Channel(tx));
+    let mut server = McpServer::new(app.clone(), Sink::Channel(tx), service.clone());
     std::thread::spawn(move || {
         if let Err(e) = run_stdio(&mut server) {
             eprintln!("mcp: {e}");
@@ -217,5 +240,5 @@ fn run_mcp(headful: bool, step_delay: Option<Duration>) -> Result<()> {
         // stdin EOF: leave the GUI up; user closes it.
     });
 
-    run_gui(app, Some(rx), step_delay).map_err(|e| anyhow::anyhow!("gui: {e}"))
+    run_gui(app, Some(rx), step_delay, service).map_err(|e| anyhow::anyhow!("gui: {e}"))
 }

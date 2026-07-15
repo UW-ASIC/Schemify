@@ -1,0 +1,14 @@
+[package]
+name = "schemify-agent"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+schemify-editor = { path = "../editor" }
+schemify-net2schem = { path = "../net2schem" }
+schemify-wave = { path = "../wave" }
+schemify-plugin-host = { path = "../plugin-host" }
+serde_json = { workspace = true }
+ureq = { version = "3", features = ["json"] }
+anyhow = { workspace = true }
+thiserror = { workspace = true }

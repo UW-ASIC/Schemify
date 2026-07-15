@@ -739,7 +739,7 @@ dependencies = [
 [[package]]
 name = "cktimg"
 version = "0.1.0"
-source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+source = "git+https://github.com/OmarSiwy/cktImg#c8d3d9e41707d0e3f7ae5a977c7d8e71bec113e6"
 dependencies = [
  "cktimg-build",
  "cktimg-config",
@@ -753,7 +753,7 @@ dependencies = [
 [[package]]
 name = "cktimg-build"
 version = "0.1.0"
-source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+source = "git+https://github.com/OmarSiwy/cktImg#c8d3d9e41707d0e3f7ae5a977c7d8e71bec113e6"
 dependencies = [
  "cktimg-config",
  "cktimg-devices",
@@ -763,7 +763,7 @@ dependencies = [
 [[package]]
 name = "cktimg-config"
 version = "0.1.0"
-source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+source = "git+https://github.com/OmarSiwy/cktImg#c8d3d9e41707d0e3f7ae5a977c7d8e71bec113e6"
 dependencies = [
  "serde",
  "toml",
@@ -772,7 +772,7 @@ dependencies = [
 [[package]]
 name = "cktimg-devices"
 version = "0.1.0"
-source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+source = "git+https://github.com/OmarSiwy/cktImg#c8d3d9e41707d0e3f7ae5a977c7d8e71bec113e6"
 dependencies = [
  "phf 0.11.3",
 ]
@@ -780,7 +780,7 @@ dependencies = [
 [[package]]
 name = "cktimg-ir"
 version = "0.1.0"
-source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+source = "git+https://github.com/OmarSiwy/cktImg#c8d3d9e41707d0e3f7ae5a977c7d8e71bec113e6"
 dependencies = [
  "serde",
  "thiserror 1.0.69",
@@ -789,11 +789,22 @@ dependencies = [
 [[package]]
 name = "cktimg-netlist"
 version = "0.1.0"
-source = "git+https://github.com/OmarSiwy/cktImg#e0a27ff5ee426d6b022d8ea68d50f38116efb6e0"
+source = "git+https://github.com/OmarSiwy/cktImg#c8d3d9e41707d0e3f7ae5a977c7d8e71bec113e6"
 dependencies = [
  "cktimg-devices",
  "cktimg-ir",
  "phf 0.11.3",
+]
+
+[[package]]
+name = "cktimg-svg"
+version = "0.1.0"
+source = "git+https://github.com/OmarSiwy/cktImg#c8d3d9e41707d0e3f7ae5a977c7d8e71bec113e6"
+dependencies = [
+ "cktimg-build",
+ "cktimg-config",
+ "cktimg-devices",
+ "cktimg-ir",
 ]
 
 [[package]]
@@ -888,6 +899,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
 dependencies = [
  "crossbeam-utils",
+]
+
+[[package]]
+name = "cookie"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ddef33a339a91ea89fb53151bd0a4689cfce27055c291dfa69945475d22c747"
+dependencies = [
+ "percent-encoding",
+ "time",
+ "version_check",
+]
+
+[[package]]
+name = "cookie_store"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15b2c103cf610ec6cae3da84a766285b42fd16aad564758459e6ecf128c75206"
+dependencies = [
+ "cookie",
+ "document-features",
+ "idna",
+ "indexmap",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "time",
+ "url",
 ]
 
 [[package]]
@@ -1000,6 +1040,12 @@ name = "data-url"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
+
+[[package]]
+name = "deranged"
+version = "0.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
 
 [[package]]
 name = "digest"
@@ -2408,6 +2454,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-conv"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "521739c6d2bac4aa25192232afe6841231376b2b26d4d9fae5ecf8ca5772e441"
+
+[[package]]
 name = "num-integer"
 version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3090,6 +3142,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "powerfmt"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3678,16 +3736,30 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "schemify-core",
- "schemify-display",
- "schemify-mcp",
+ "schemify-agent",
+ "schemify-editor",
+ "schemify-gui",
  "schemify-net2schem",
- "schemify-plugins",
+ "schemify-plugin-host",
  "serde_json",
 ]
 
 [[package]]
-name = "schemify-core"
+name = "schemify-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "schemify-editor",
+ "schemify-net2schem",
+ "schemify-plugin-host",
+ "schemify-wave",
+ "serde_json",
+ "thiserror 2.0.18",
+ "ureq",
+]
+
+[[package]]
+name = "schemify-editor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -3695,21 +3767,23 @@ dependencies = [
  "lasso",
  "rustc-hash 2.1.2",
  "schemify-optimizer",
+ "schemify-schematic",
+ "schemify-sim",
  "schemify-wave",
  "serde",
  "serde_json",
- "soa_derive",
  "thiserror 2.0.18",
  "toml",
 ]
 
 [[package]]
-name = "schemify-display"
+name = "schemify-gui"
 version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
  "egui_extras",
+ "flate2",
  "image",
  "log",
  "ratex-layout",
@@ -3717,38 +3791,10 @@ dependencies = [
  "ratex-render",
  "ratex-types",
  "rfd",
- "schemify-core",
- "schemify-marketplace",
+ "schemify-agent",
+ "schemify-editor",
  "schemify-optimizer",
- "schemify-plugins",
- "serde_json",
-]
-
-[[package]]
-name = "schemify-marketplace"
-version = "0.1.0"
-dependencies = [
- "flate2",
- "schemify-plugins",
- "semver",
- "serde",
- "serde_json",
- "sha2",
- "tar",
- "thiserror 2.0.18",
- "ureq",
-]
-
-[[package]]
-name = "schemify-mcp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "schemify-core",
- "schemify-marketplace",
- "schemify-net2schem",
- "schemify-plugins",
- "schemify-wave",
+ "schemify-plugin-host",
  "serde_json",
 ]
 
@@ -3758,8 +3804,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cktimg",
+ "cktimg-svg",
  "lasso",
- "schemify-core",
+ "schemify-schematic",
  "thiserror 2.0.18",
 ]
 
@@ -3773,10 +3820,47 @@ dependencies = [
 ]
 
 [[package]]
-name = "schemify-plugins"
+name = "schemify-plugin-api"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "schemify-plugin-host"
+version = "0.1.0"
+dependencies = [
+ "flate2",
  "libc",
+ "schemify-plugin-api",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tar",
+ "thiserror 2.0.18",
+ "toml",
+ "ureq",
+]
+
+[[package]]
+name = "schemify-schematic"
+version = "0.1.0"
+dependencies = [
+ "lasso",
+ "rustc-hash 2.1.2",
+ "soa_derive",
+]
+
+[[package]]
+name = "schemify-sim"
+version = "0.1.0"
+dependencies = [
+ "lasso",
+ "schemify-schematic",
+ "schemify-wave",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4271,6 +4355,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "time"
+version = "0.3.53"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18dfaaeddcb932337b5e7866ee7d0ce9b76d2fd092997146f187ec09b4558a50"
+dependencies = [
+ "deranged",
+ "num-conv",
+ "powerfmt",
+ "serde_core",
+ "time-core",
+ "time-macros",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e1c906769ad99c88eaa54e728060edef082f8e358ff32030cb7c7d315e81109"
+
+[[package]]
+name = "time-macros"
+version = "0.2.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c431b87111666e491a90baa837f914fb45cd5dc3c268591b0220ff5057f2085f"
+dependencies = [
+ "num-conv",
+ "time-core",
+]
+
+[[package]]
 name = "tiny-skia"
 version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4527,11 +4641,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dea7109cdcd5864d4eeb1b58a1648dc9bf520360d7af16ec26d0a9354bafcfc0"
 dependencies = [
  "base64",
+ "cookie_store",
  "flate2",
  "log",
  "percent-encoding",
  "rustls",
  "rustls-pki-types",
+ "serde",
+ "serde_json",
  "ureq-proto",
  "utf8-zero",
  "webpki-roots",

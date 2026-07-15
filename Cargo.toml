@@ -1,18 +1,17 @@
 [workspace]
 members = [
-    "crates/core",
+    "crates/agent",
+    "crates/editor",
+    "crates/gui",
     "crates/net2schem",
-    "crates/display",
-    "crates/mcp",
     "crates/optimizer",
-    "crates/plugins",
+    "crates/plugin-api",
+    "crates/plugin-host",
+    "crates/schematic",
+    "crates/sim",
     "crates/wave",
-    "marketplace",
 ]
 exclude = [
-    "plugin_examples/hello-world",
-    "plugin_examples/bom-panel",
-    "plugin_examples/drc-overlay",
     "plugins/theme-registry",
     "plugins/pdk-switcher",
     "plugins/gmid-lut",
@@ -33,6 +32,7 @@ lasso = "0.7"
 rustc-hash = "2"
 toml = "0.8"
 cktimg = { git = "https://github.com/OmarSiwy/cktImg" }
+cktimg-svg = { git = "https://github.com/OmarSiwy/cktImg" } # dev-only: fixture gallery reference renders
 
 [package]
 name = "schemify"
@@ -44,11 +44,11 @@ name = "schemify"
 path = "src/main.rs"
 
 [dependencies]
-schemify-core = { path = "crates/core" }
+schemify-editor = { path = "crates/editor" }
 schemify-net2schem = { path = "crates/net2schem" }
-schemify-display = { path = "crates/display" }
-schemify-mcp = { path = "crates/mcp" }
-schemify-plugins = { path = "crates/plugins" }
+schemify-gui = { path = "crates/gui" }
+schemify-agent = { path = "crates/agent" }
+schemify-plugin-host = { path = "crates/plugin-host" }
 clap = { version = "4", features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

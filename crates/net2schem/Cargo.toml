@@ -4,8 +4,11 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-schemify-core = { path = "../core" }
+schemify-schematic = { path = "../schematic" }
 cktimg = { workspace = true }
 lasso = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+
+[dev-dependencies]
+cktimg-svg = { workspace = true }

@@ -1,6 +1,6 @@
 //! Pure Model → widget-tree rendering (no I/O, trivially testable).
 
-use schemify_plugins::{AlertLevel, ThemeColor, WidgetNode};
+use schemify_plugin_api::{AlertLevel, ThemeColor, WidgetNode};
 
 use crate::families::PdkFamily;
 use crate::installer;

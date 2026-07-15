@@ -86,8 +86,11 @@
           version = "0.1.0";
           src = pkgs.lib.cleanSource ./.;
           cargoLock.lockFile = ./Cargo.lock;
+          cargoLock.outputHashes = {
+            "cktimg-0.1.0" = "sha256-An8flQdF76uEfVOvEamMSgupymI8hfLGoeATPx70WIU=";
+          };
 
-          # Plugins/examples are excluded workspace members with their own
+          # Plugins are excluded workspace members with their own
           # lockfiles; build just the app binary.
           cargoBuildFlags = [ "--bin" "schemify" ];
 

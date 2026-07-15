@@ -1,0 +1,3 @@
+[alias]
+# Side-by-side fixture gallery (cktImg reference vs adapter output) in the browser.
+visualize-net2schem = "run -p schemify-net2schem --example visualize"

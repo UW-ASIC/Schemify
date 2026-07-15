@@ -14,7 +14,7 @@ mod view;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use schemify_plugins::sdk::{
+use schemify_plugin_api::sdk::{
     CommandInvocation, InitializeEvent, PanelLayout, Plugin, PluginRuntime, RuntimeError,
     UiAction,
 };

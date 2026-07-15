@@ -9,7 +9,7 @@ mod sink;
 
 use std::sync::{Arc, Mutex};
 
-use schemify_plugins::sdk::{
+use schemify_plugin_api::sdk::{
     AlertLevel, CommandInvocation, InitializeEvent, PanelLayout, PdkRecord, Plugin,
     PluginRuntime, RuntimeError, UiAction, WidgetNode,
 };

@@ -2,7 +2,6 @@
 //! rail-name / primitive↔DeviceKind tables (the old `shared` module,
 //! folded in — it changes with the IR).
 
-use std::collections::HashMap;
 use std::fmt;
 
 pub mod ids {
@@ -60,9 +59,6 @@ pub enum PinDir {
     Input,
     Output,
     Inout,
-    Power,
-    Ground,
-    Bulk,
 }
 
 /// SPICE primitive device type.
@@ -90,14 +86,6 @@ pub enum Primitive {
 impl Primitive {
     pub fn is_mosfet(self) -> bool {
         matches!(self, Primitive::Nmos | Primitive::Pmos)
-    }
-
-    pub fn is_bjt(self) -> bool {
-        matches!(self, Primitive::Npn | Primitive::Pnp)
-    }
-
-    pub fn is_jfet(self) -> bool {
-        matches!(self, Primitive::Jfet)
     }
 }
 
@@ -152,20 +140,13 @@ pub struct Instance {
     pub primitive: Primitive,
     pub symbol: String,
     pub pins: Vec<Pin>,
-    pub params: HashMap<String, String>,
+    /// Parameters, kept sorted by key at construction.
+    pub params: Vec<(String, String)>,
     /// Placement coordinates (set by placer).
     pub x: i32,
     pub y: i32,
-    /// Rotation: 0=0deg, 1=90, 2=180, 3=270 CCW.
-    pub rotation: u8,
-    /// Mirror applied before rotation.
-    pub flip: bool,
-}
-
-impl Instance {
-    pub fn pin_net(&self, pin_idx: usize) -> Option<NetId> {
-        self.pins.get(pin_idx).and_then(|p| p.net_idx)
-    }
+    /// Rotation + mirror (0..=3 by construction).
+    pub flags: InstanceFlags,
 }
 
 /// A wire segment (set by router).
@@ -184,8 +165,8 @@ pub struct Label {
     pub net_idx: NetId,
     pub x: i32,
     pub y: i32,
-    /// 0=right, 1=up, 2=left, 3=down.
-    pub rotation: u8,
+    /// Rotation: 0=right, 1=up, 2=left, 3=down (flip unused).
+    pub flags: InstanceFlags,
 }
 
 /// A subcircuit definition.
@@ -222,12 +203,6 @@ impl std::ops::Index<NetId> for Subcircuit {
     }
 }
 
-impl std::ops::IndexMut<NetId> for Subcircuit {
-    fn index_mut(&mut self, id: NetId) -> &mut Net {
-        &mut self.nets[id.index()]
-    }
-}
-
 impl std::ops::Index<InstId> for Subcircuit {
     type Output = Instance;
     fn index(&self, id: InstId) -> &Instance {
@@ -235,98 +210,10 @@ impl std::ops::Index<InstId> for Subcircuit {
     }
 }
 
-impl std::ops::IndexMut<InstId> for Subcircuit {
-    fn index_mut(&mut self, id: InstId) -> &mut Instance {
-        &mut self.instances[id.index()]
-    }
-}
-
-/// A `.model` definition.
-#[derive(Debug, Clone)]
-pub struct Model {
-    pub name: String,
-    pub model_type: String, // "NMOS", "PMOS", "NPN", etc.
-    pub params: HashMap<String, String>,
-}
-
-/// Categorized analysis/stimulus commands from a SPICE netlist.
-///
-/// Separates netlist-adjacent directives (includes, options) from pure
-/// simulation commands (analyses, measurements, output requests).
-#[derive(Debug, Clone, Default)]
-pub struct AnalysisBlock {
-    /// Analysis commands: `.tran`, `.ac`, `.dc`, `.op`, `.noise`, `.pz`, `.sens`, `.tf`
-    pub analyses: Vec<String>,
-    /// Output requests: `.save`, `.print`, `.plot`, `.probe`
-    pub outputs: Vec<String>,
-    /// Measurement definitions: `.meas`, `.measure`
-    pub measurements: Vec<String>,
-    /// Initial conditions: `.ic`, `.nodeset`
-    pub initial_conds: Vec<String>,
-    /// Simulation options: `.options`, `.option`, `.temp`
-    pub options: Vec<String>,
-    /// Control blocks: `.control` ... `.endc` (each block joined with newlines)
-    pub control_blocks: Vec<String>,
-    /// Library/file includes: `.include`, `.lib`
-    pub includes: Vec<String>,
-    /// Sweep/misc: `.step`, `.four`, `.func`, `.csparam`
-    pub other: Vec<String>,
-}
-
-impl AnalysisBlock {
-    pub fn is_empty(&self) -> bool {
-        self.analyses.is_empty()
-            && self.outputs.is_empty()
-            && self.measurements.is_empty()
-            && self.initial_conds.is_empty()
-            && self.options.is_empty()
-            && self.control_blocks.is_empty()
-            && self.includes.is_empty()
-            && self.other.is_empty()
-    }
-
-    /// Flatten all non-include lines into a single string (analysis + stimulus).
-    /// Used to populate `Schematic.spice_body`.
-    pub fn to_stimulus_string(&self) -> String {
-        let mut lines: Vec<&str> = Vec::new();
-        for l in &self.options {
-            lines.push(l);
-        }
-        for l in &self.initial_conds {
-            lines.push(l);
-        }
-        for l in &self.analyses {
-            lines.push(l);
-        }
-        for l in &self.outputs {
-            lines.push(l);
-        }
-        for l in &self.measurements {
-            lines.push(l);
-        }
-        for l in &self.other {
-            lines.push(l);
-        }
-        for l in &self.control_blocks {
-            lines.push(l);
-        }
-        lines.join("\n")
-    }
-
-    /// Flatten include directives into a single string.
-    pub fn to_includes_string(&self) -> String {
-        self.includes.join("\n")
-    }
-}
-
 /// Top-level circuit representation (hypergraph IR).
 #[derive(Debug, Clone)]
 pub struct Circuit {
     pub top: Subcircuit,
-    pub subcircuits: HashMap<String, Subcircuit>,
-    pub models: HashMap<String, Model>,
-    /// Structured analysis/stimulus commands parsed from the source SPICE.
-    pub analysis: AnalysisBlock,
     /// Diagnostics collected during parsing (unknown cards, etc.).
     pub diagnostics: Vec<ParseDiagnostic>,
 }
@@ -335,39 +222,8 @@ impl Circuit {
     pub fn new(name: &str) -> Self {
         Self {
             top: Subcircuit::new(name),
-            subcircuits: HashMap::new(),
-            models: HashMap::new(),
-            analysis: AnalysisBlock::default(),
             diagnostics: Vec::new(),
         }
-    }
-
-    pub fn add_instance(&mut self, inst: Instance) -> InstId {
-        let idx = InstId(self.top.instances.len() as u32);
-        self.top.instances.push(inst);
-        idx
-    }
-
-    pub fn add_net(&mut self, net: Net) -> NetId {
-        let idx = NetId(self.top.nets.len() as u32);
-        self.top.nets.push(net);
-        idx
-    }
-
-    /// Find or create net by name.
-    pub fn get_or_create_net(&mut self, name: &str) -> NetId {
-        for (i, net) in self.top.nets.iter().enumerate() {
-            if net.name == name {
-                return NetId(i as u32);
-            }
-        }
-        self.add_net(Net::new(name))
-    }
-
-    /// Connect a pin to a net.
-    pub fn connect(&mut self, net_idx: NetId, pin_ref: PinRef) {
-        self.top[net_idx].pins.push(pin_ref);
-        self.top[pin_ref.instance_idx].pins[pin_ref.pin_idx.index()].net_idx = Some(net_idx);
     }
 }
 
@@ -375,7 +231,8 @@ impl Circuit {
 
 // Shared constants and mappings used across the s2s pipeline.
 
-use schemify_core::schemify::DeviceKind;
+use schemify_schematic::DeviceKind;
+pub use schemify_schematic::InstanceFlags;
 
 
 // Power / ground name constants
