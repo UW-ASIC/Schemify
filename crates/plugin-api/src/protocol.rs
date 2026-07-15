@@ -19,6 +19,8 @@ pub enum PanelLayout {
     LeftSidebar,
     RightSidebar,
     BottomBar,
+    /// A separate native popup window (its own OS window).
+    Window,
 }
 
 /// A color: literal RGBA or a named theme-token reference.

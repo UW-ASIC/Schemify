@@ -17,12 +17,15 @@ use crate::state::Theme;
 /// (egui side/bottom panels claim screen space first).
 pub fn show_panels(ui: &mut egui::Ui, host: &mut PluginHost, theme: &Theme) {
     let mut actions: Vec<PendingUiAction> = Vec::new();
+    // Panel indices closed this frame (✕ button / window close).
+    let mut closed: Vec<usize> = Vec::new();
 
     for slot in [
         PanelLayout::LeftSidebar,
         PanelLayout::RightSidebar,
         PanelLayout::BottomBar,
         PanelLayout::Overlay,
+        PanelLayout::Window,
     ] {
         // Indices of visible panels in this slot, highest priority first.
         let mut idxs: Vec<usize> = host
@@ -43,18 +46,38 @@ pub fn show_panels(ui: &mut egui::Ui, host: &mut PluginHost, theme: &Theme) {
                 for &i in &idxs {
                     let p = &panels[i];
                     let title = format!("{} ({})", p.reg.name, p.reg.plugin_id);
-                    egui::CollapsingHeader::new(&p.reg.name)
-                        .id_salt(&title)
-                        .default_open(true)
-                        .show(ui, |ui| {
-                            render_widgets(
-                                ui,
-                                &p.widgets,
-                                theme,
-                                &p.reg.plugin_id,
-                                &mut actions,
-                            );
-                        });
+                    // Custom collapsing header so a ✕ close button fits in
+                    // the header row.
+                    let id = ui.make_persistent_id(&title);
+                    egui::collapsing_header::CollapsingState::load_with_default_open(
+                        ui.ctx(),
+                        id,
+                        true,
+                    )
+                    .show_header(ui, |ui| {
+                        ui.label(&p.reg.name);
+                        ui.with_layout(
+                            egui::Layout::right_to_left(egui::Align::Center),
+                            |ui| {
+                                if ui
+                                    .small_button("\u{2715}")
+                                    .on_hover_text("Close panel")
+                                    .clicked()
+                                {
+                                    closed.push(i);
+                                }
+                            },
+                        );
+                    })
+                    .body(|ui| {
+                        render_widgets(
+                            ui,
+                            &p.widgets,
+                            theme,
+                            &p.reg.plugin_id,
+                            &mut actions,
+                        );
+                    });
                 }
             });
         };
@@ -82,9 +105,11 @@ pub fn show_panels(ui: &mut egui::Ui, host: &mut PluginHost, theme: &Theme) {
                 // One floating window per overlay panel.
                 for &i in &idxs {
                     let p = &host.panels[i];
+                    let mut open = true;
                     egui::Window::new(&p.reg.name)
                         .id(egui::Id::new(("plugin_overlay", &p.reg.plugin_id, i)))
                         .default_width(300.0)
+                        .open(&mut open)
                         .show(ui.ctx(), |ui| {
                             render_widgets(
                                 ui,
@@ -94,11 +119,46 @@ pub fn show_panels(ui: &mut egui::Ui, host: &mut PluginHost, theme: &Theme) {
                                 &mut actions,
                             );
                         });
+                    if !open {
+                        closed.push(i);
+                    }
+                }
+            }
+            PanelLayout::Window => {
+                // One native popup window (immediate viewport) per panel;
+                // closing it hides the panel (re-shown via Plugins menu).
+                for &i in &idxs {
+                    let p = &host.panels[i];
+                    let vp_id = egui::ViewportId::from_hash_of((
+                        "plugin_window",
+                        &p.reg.plugin_id,
+                        &p.reg.name,
+                    ));
+                    let builder = egui::ViewportBuilder::default()
+                        .with_title(format!("{} — Schemify", p.reg.name))
+                        .with_inner_size([360.0, 480.0]);
+                    ui.ctx().show_viewport_immediate(vp_id, builder, |ui, _class| {
+                        if ui.ctx().input(|inp| inp.viewport().close_requested()) {
+                            closed.push(i);
+                        }
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            render_widgets(
+                                ui,
+                                &p.widgets,
+                                theme,
+                                &p.reg.plugin_id,
+                                &mut actions,
+                            );
+                        });
+                    });
                 }
             }
         }
     }
 
+    for i in closed {
+        host.panels[i].visible = false;
+    }
     host.ui_actions.extend(actions);
 }
 

@@ -169,6 +169,11 @@ pub fn panel(
         .resizable(true)
         .default_size(340.0)
         .show(ui, |ui| {
+            // Force text to wrap: egui labels *extend* in horizontal
+            // layouts by default, which grew the panel to fit long
+            // messages instead of wrapping them. The panel width now only
+            // changes via the resize handle.
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
             header(ui, gui, rt);
             ui.separator();
 

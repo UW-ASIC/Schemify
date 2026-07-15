@@ -200,7 +200,10 @@ impl PluginHost {
                 {
                     Some(p) => p.reg = reg,
                     None => self.panels.push(PanelEntry {
-                        visible: reg.default_visible,
+                        // Panels always start hidden (regardless of the
+                        // plugin's default_visible) — shown via the
+                        // Plugins menu checkbox.
+                        visible: false,
                         reg,
                         widgets: Vec::new(),
                     }),

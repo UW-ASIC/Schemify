@@ -83,18 +83,24 @@ impl SubprocessTransport {
     }
 
     /// Try to receive one line (non-blocking). `Ok(None)` = nothing available.
+    ///
+    /// A `WouldBlock` can land mid-line (the plugin is still writing a long
+    /// message); the partial prefix already read stays in `line_buf` and is
+    /// completed on a later call — clearing it here would corrupt any
+    /// message split across polls.
     pub fn recv(&mut self) -> Result<Option<String>, TransportError> {
         let reader = self.stdout.as_mut().ok_or(TransportError::NotRunning)?;
-        self.line_buf.clear();
         match reader.read_line(&mut self.line_buf) {
             Ok(0) => Err(TransportError::RecvFailed("subprocess exited".into())),
             Ok(_) => {
                 let trimmed = self.line_buf.trim();
-                if trimmed.is_empty() {
-                    Ok(None)
+                let line = if trimmed.is_empty() {
+                    None
                 } else {
-                    Ok(Some(trimmed.to_owned()))
-                }
+                    Some(trimmed.to_owned())
+                };
+                self.line_buf.clear();
+                Ok(line)
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(TransportError::RecvFailed(e.to_string())),

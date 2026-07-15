@@ -46,21 +46,6 @@
           "sha256": "b52fc1a06a53fbcac04f63ae7f76d1598b34d9a8c0c8736e51b84e88d1e10f64"
         }
       }
-    },
-    {
-      "id": "pdk-mapper",
-      "name": "PDK Mapper",
-      "version": "0.1.0",
-      "description": "Retarget a schematic between PDKs: gm/Id LUT inversion plus simulation-in-the-loop refinement for first-order equivalent behavior",
-      "author": "OmarSiwy",
-      "capabilities": ["panels", "commands"],
-      "homepage": "https://github.com/UW-ASIC/Schemify",
-      "downloads": {
-        "x86_64-unknown-linux-gnu": {
-          "url": "https://github.com/UW-ASIC/Schemify/releases/download/plugins-v0.1.0/pdk-mapper-0.1.0-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "fbcac48e47ba593951ba023b8eae47a9c9e4f89e3e6c8f00d0e6b2cb5324d4c2"
-        }
-      }
     }
   ]
 }

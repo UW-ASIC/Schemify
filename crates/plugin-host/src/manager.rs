@@ -828,6 +828,35 @@ listen = ["pre_save"]
     }
 
     #[test]
+    fn recv_reassembles_line_split_across_polls() {
+        // A plugin may write one long JSON line in several chunks; polls in
+        // between hit WouldBlock mid-line and must not drop the prefix.
+        let dir = std::env::temp_dir().join("schemify_recv_split_test");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("split.sh"),
+            "#!/bin/sh\nprintf aaaa\nsleep 0.2\nprintf 'bbbb\\n'\n",
+        )
+        .unwrap();
+        let mut t = SubprocessTransport::spawn("sh split.sh", &dir).unwrap();
+
+        // Poll until the full line arrives; partial reads must accumulate.
+        let mut got = None;
+        for _ in 0..50 {
+            match t.recv() {
+                Ok(Some(line)) => {
+                    got = Some(line);
+                    break;
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(20)),
+                Err(e) => panic!("recv failed: {e}"),
+            }
+        }
+        assert_eq!(got.as_deref(), Some("aaaabbbb"));
+        t.stop();
+    }
+
+    #[test]
     fn is_running_detects_exit() {
         let mut t = SubprocessTransport::spawn("true", Path::new("/tmp")).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(50));
